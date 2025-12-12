@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { useState, useEffect } from 'react';
 import { useIssueStore } from '@/lib/store/issue-store';
 import { useMasterPlanStore } from '@/lib/store/masterplan-store';
+import { toast } from '@/lib/store/toast-store';
 import {
   IssueItem,
   IssueType,
@@ -190,6 +191,7 @@ export default function IssuesPage() {
     e.stopPropagation();
     if (window.confirm('이 항목을 삭제하시겠습니까?')) {
       await deleteIssue(id);
+      toast.success('이슈가 삭제되었습니다');
     }
   };
 
@@ -198,8 +200,10 @@ export default function IssuesPage() {
   ) => {
     if (editingItem) {
       await updateIssue(editingItem.id, itemData);
+      toast.success('이슈가 수정되었습니다');
     } else {
       await addIssue(itemData);
+      toast.success('이슈가 추가되었습니다');
     }
   };
 

@@ -3,6 +3,7 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState, useEffect, useMemo } from 'react';
 import { useBudgetStore } from '@/lib/store/budget-store';
+import { toast } from '@/lib/store/toast-store';
 import {
   BudgetItem,
   ExpenseItem,
@@ -177,14 +178,17 @@ export default function BudgetPage() {
   const handleDeleteBudget = async (id: string) => {
     if (window.confirm('이 예산 항목을 삭제하시겠습니까?')) {
       await deleteBudget(id);
+      toast.success('예산이 삭제되었습니다');
     }
   };
 
   const handleSaveBudget = async (data: Omit<BudgetItem, 'id'>) => {
     if (editingBudget) {
       await updateBudget(editingBudget.id, data);
+      toast.success('예산이 수정되었습니다');
     } else {
       await addBudget(data);
+      toast.success('예산이 추가되었습니다');
     }
     setIsBudgetModalOpen(false);
   };
@@ -204,14 +208,17 @@ export default function BudgetPage() {
   const handleDeleteExpense = async (id: string) => {
     if (window.confirm('이 지출 내역을 삭제하시겠습니까?')) {
       await deleteExpense(id);
+      toast.success('지출이 삭제되었습니다');
     }
   };
 
   const handleSaveExpense = async (data: Omit<ExpenseItem, 'id'>) => {
     if (editingExpense) {
       await updateExpense(editingExpense.id, data);
+      toast.success('지출이 수정되었습니다');
     } else {
       await addExpense(data);
+      toast.success('지출이 추가되었습니다');
     }
     setIsExpenseModalOpen(false);
   };

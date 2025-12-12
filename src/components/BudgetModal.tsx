@@ -11,6 +11,7 @@ import {
   MONTHS_INFO,
   AVAILABLE_YEARS,
 } from '@/lib/types';
+import { toast } from '@/lib/store/toast-store';
 
 interface BudgetModalProps {
   isOpen: boolean;
@@ -103,12 +104,14 @@ export default function BudgetModal({
       spent: formData.spent,
       description: formData.description || undefined,
     });
+    toast.success(budget ? '예산이 수정되었습니다' : '예산이 추가되었습니다');
     onClose();
   };
 
   const handleDelete = async () => {
     if (budget && onDelete && window.confirm('이 예산 항목을 삭제하시겠습니까?')) {
       await onDelete();
+      toast.success('예산이 삭제되었습니다');
       onClose();
     }
   };

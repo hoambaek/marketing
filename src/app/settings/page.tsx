@@ -6,6 +6,7 @@ import { useMasterPlanStore } from '@/lib/store/masterplan-store';
 import { useIssueStore } from '@/lib/store/issue-store';
 import { useInventoryStore } from '@/lib/store/inventory-store';
 import { useBudgetStore } from '@/lib/store/budget-store';
+import { toast } from '@/lib/store/toast-store';
 import { AVAILABLE_YEARS } from '@/lib/types';
 import {
   Download,
@@ -15,24 +16,20 @@ import {
   Database,
   Shield,
   Info,
-  CheckCircle2,
   AlertTriangle,
   Settings,
   Waves,
   Lock,
   X,
   Bell,
-  BellOff,
   Calendar,
   Wallet,
   Package,
   ChevronRight,
-  Globe,
   Cloud,
   CloudOff,
   Zap,
   Eye,
-  Palette,
   Clock,
 } from 'lucide-react';
 
@@ -124,11 +121,6 @@ export default function SettingsPage() {
   const [appSettings, setAppSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
 
   // UI State
-  const [notification, setNotification] = useState<{
-    type: 'success' | 'warning' | 'error';
-    message: string;
-  } | null>(null);
-
   const [passwordModal, setPasswordModal] = useState<{
     isOpen: boolean;
     action: 'reset' | 'clear' | null;
@@ -155,12 +147,7 @@ export default function SettingsPage() {
     const updated = { ...appSettings, ...newSettings };
     setAppSettings(updated);
     localStorage.setItem('muse-app-settings', JSON.stringify(updated));
-    showNotification('success', '설정이 저장되었습니다');
-  };
-
-  const showNotification = (type: 'success' | 'warning' | 'error', message: string) => {
-    setNotification({ type, message });
-    setTimeout(() => setNotification(null), 3000);
+    toast.success('설정이 저장되었습니다');
   };
 
   const openPasswordModal = (action: 'reset' | 'clear') => {
@@ -179,10 +166,10 @@ export default function SettingsPage() {
     if (passwordInput === ADMIN_PASSWORD) {
       if (passwordModal.action === 'reset') {
         resetToDefaults();
-        showNotification('success', '모든 데이터가 초기화되었습니다');
+        toast.success('모든 데이터가 초기화되었습니다');
       } else if (passwordModal.action === 'clear') {
         localStorage.clear();
-        showNotification('success', '저장소가 삭제되었습니다. 새로고침하세요');
+        toast.success('저장소가 삭제되었습니다. 새로고침하세요');
       }
       closePasswordModal();
     } else {
@@ -212,7 +199,7 @@ export default function SettingsPage() {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
 
-    showNotification('success', '데이터가 내보내졌습니다');
+    toast.success('데이터가 내보내졌습니다');
   };
 
   // Import data
@@ -229,12 +216,12 @@ export default function SettingsPage() {
         try {
           const data = JSON.parse(event.target?.result as string);
           if (data.version && data.tasks) {
-            showNotification('success', '데이터를 가져왔습니다. 새로고침하세요');
+            toast.success('데이터를 가져왔습니다. 새로고침하세요');
           } else {
-            showNotification('error', '유효하지 않은 파일입니다');
+            toast.error('유효하지 않은 파일입니다');
           }
         } catch {
-          showNotification('error', '파일 읽기 오류');
+          toast.error('파일 읽기 오류');
         }
       };
       reader.readAsText(file);
@@ -280,33 +267,6 @@ export default function SettingsPage() {
           }}
         />
       </div>
-
-      {/* Notification Toast */}
-      <AnimatePresence>
-        {notification && (
-          <motion.div
-            initial={{ opacity: 0, y: -50, scale: 0.9 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -30, scale: 0.9 }}
-            className={`fixed top-20 left-1/2 -translate-x-1/2 z-50 px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-3 backdrop-blur-xl border ${
-              notification.type === 'success'
-                ? 'bg-emerald-500/20 border-emerald-500/30 text-emerald-300'
-                : notification.type === 'warning'
-                ? 'bg-amber-500/20 border-amber-500/30 text-amber-300'
-                : 'bg-red-500/20 border-red-500/30 text-red-300'
-            }`}
-          >
-            {notification.type === 'success' ? (
-              <CheckCircle2 className="w-5 h-5" />
-            ) : notification.type === 'warning' ? (
-              <AlertTriangle className="w-5 h-5" />
-            ) : (
-              <X className="w-5 h-5" />
-            )}
-            <span className="font-medium">{notification.message}</span>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       {/* Hero Section */}
       <section className="px-4 sm:px-6 lg:px-8 pt-24 sm:pt-28 pb-8">

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Pencil, Calendar, User, FileText, Tag, Clock } from 'lucide-react';
 import { Task, TaskCategory, TaskStatus, CATEGORY_LABELS, MONTHS_INFO } from '@/lib/types';
+import { toast } from '@/lib/store/toast-store';
 
 interface TaskModalProps {
   isOpen: boolean;
@@ -123,6 +124,7 @@ export default function TaskModal({ isOpen, onClose, onSave, task, month, week }
     };
 
     await onSave(taskData);
+    toast.success(task ? '업무가 수정되었습니다' : '업무가 추가되었습니다');
     onClose();
   };
 

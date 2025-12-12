@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Pencil, Instagram, Youtube, FileText, Mail, Megaphone, Calendar, AlignLeft } from 'lucide-react';
 import { ContentItem, ContentType, ContentStatus, CONTENT_TYPES } from '@/lib/types';
+import { toast } from '@/lib/store/toast-store';
 
 interface ContentModalProps {
   isOpen: boolean;
@@ -124,12 +125,14 @@ export default function ContentModal({
     };
 
     await onSave(contentData);
+    toast.success(content ? '콘텐츠가 수정되었습니다' : '콘텐츠가 추가되었습니다');
     onClose();
   };
 
   const handleDelete = async () => {
     if (content && onDelete && window.confirm('이 콘텐츠를 삭제하시겠습니까?')) {
       await onDelete(content.id);
+      toast.success('콘텐츠가 삭제되었습니다');
       onClose();
     }
   };

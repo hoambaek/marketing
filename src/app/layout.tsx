@@ -4,6 +4,7 @@ import './globals.css';
 import { Header } from '@/components/layout/Header';
 import SupabaseInitializer from '@/components/SupabaseInitializer';
 import { ClerkWrapper } from '@/components/ClerkWrapper';
+import Toast from '@/components/Toast';
 
 const cormorant = Cormorant_Garamond({
   subsets: ['latin'],
@@ -67,6 +68,9 @@ export default function RootLayout({
               {children}
             </main>
           </SupabaseInitializer>
+
+          {/* Toast Notifications */}
+          <Toast />
         </body>
       </html>
     </ClerkWrapper>

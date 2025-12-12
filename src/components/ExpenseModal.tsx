@@ -11,6 +11,7 @@ import {
   MONTHS_INFO,
   AVAILABLE_YEARS,
 } from '@/lib/types';
+import { toast } from '@/lib/store/toast-store';
 
 interface ExpenseModalProps {
   isOpen: boolean;
@@ -111,12 +112,14 @@ export default function ExpenseModal({
       date: formData.date,
       notes: formData.notes.trim() || undefined,
     });
+    toast.success(expense ? '지출이 수정되었습니다' : '지출이 추가되었습니다');
     onClose();
   };
 
   const handleDelete = async () => {
     if (expense && onDelete && window.confirm('이 지출 내역을 삭제하시겠습니까?')) {
       await onDelete();
+      toast.success('지출이 삭제되었습니다');
       onClose();
     }
   };

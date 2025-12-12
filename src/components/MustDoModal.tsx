@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Pencil, CheckCircle2, Circle, Calendar, Tag } from 'lucide-react';
 import { MustDoItem, TaskCategory, MONTHS_INFO, CATEGORY_LABELS, CATEGORY_COLORS } from '@/lib/types';
+import { toast } from '@/lib/store/toast-store';
 
 const CATEGORY_OPTIONS: TaskCategory[] = ['operation', 'marketing', 'design', 'filming', 'pr', 'b2b'];
 
@@ -95,6 +96,7 @@ export default function MustDoModal({
       done: formData.done,
       category: formData.category,
     });
+    toast.success(item ? 'Must-Do가 수정되었습니다' : 'Must-Do가 추가되었습니다');
     onClose();
   };
 

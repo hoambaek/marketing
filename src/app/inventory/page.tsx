@@ -3,6 +3,7 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState, useEffect } from 'react';
 import { useInventoryStore } from '@/lib/store/inventory-store';
+import { toast } from '@/lib/store/toast-store';
 import {
   PRODUCTS,
   Product,
@@ -149,6 +150,7 @@ function BottleStatusModal({
       price: price ? parseInt(price) : undefined,
       notes: notes || undefined,
     });
+    toast.success('병 상태가 변경되었습니다');
     onClose();
   };
 
@@ -342,6 +344,15 @@ function BatchAdjustModal({
       price: price ? parseNumberFromCommas(price) : undefined,
       notes: notes || undefined,
     });
+    const actionLabels: Record<string, string> = {
+      sell: '판매 처리되었습니다',
+      reserve: '예약 처리되었습니다',
+      gift: '증정 처리되었습니다',
+      damage: '파손 처리되었습니다',
+      confirm: '예약이 확정되었습니다',
+      cancel: '예약이 취소되었습니다',
+    };
+    toast.success(actionLabels[action] || '처리되었습니다');
     onClose();
   };
 
@@ -548,6 +559,7 @@ function AddProductModal({
       totalQuantity: parseNumberFromCommas(quantity),
       description: description || undefined,
     });
+    toast.success('상품이 추가되었습니다');
     onClose();
   };
 

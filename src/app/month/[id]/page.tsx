@@ -20,6 +20,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { useMasterPlanStore } from '@/lib/store/masterplan-store';
+import { toast } from '@/lib/store/toast-store';
 import { MONTHS_INFO, Task, TaskStatus } from '@/lib/types';
 import {
   ArrowLeft,
@@ -127,14 +128,17 @@ export default function MonthDetailPage() {
   const handleDeleteTask = async (taskId: string) => {
     if (window.confirm('이 업무를 삭제하시겠습니까?')) {
       await deleteTask(taskId);
+      toast.success('업무가 삭제되었습니다');
     }
   };
 
   const handleSaveTask = async (taskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt'> | Partial<Task>) => {
     if (editingTask) {
       await updateTask(editingTask.id, taskData);
+      toast.success('업무가 수정되었습니다');
     } else {
       await addTask(taskData as Omit<Task, 'id' | 'createdAt' | 'updatedAt'>);
+      toast.success('업무가 추가되었습니다');
     }
   };
 

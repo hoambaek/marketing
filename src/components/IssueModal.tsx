@@ -21,6 +21,7 @@ import {
   CATEGORY_LABELS,
   MONTHS_INFO,
 } from '@/lib/types';
+import { toast } from '@/lib/store/toast-store';
 
 interface IssueModalProps {
   isOpen: boolean;
@@ -180,12 +181,14 @@ export default function IssueModal({
       relatedTaskId: formData.relatedTaskId || undefined,
       relatedTaskTitle: formData.relatedTaskTitle || undefined,
     });
+    toast.success(issue ? '이슈가 수정되었습니다' : '이슈가 등록되었습니다');
     onClose();
   };
 
   const handleDelete = async () => {
     if (issue && onDelete && window.confirm('이 항목을 삭제하시겠습니까?')) {
       await onDelete();
+      toast.success('이슈가 삭제되었습니다');
       onClose();
     }
   };
