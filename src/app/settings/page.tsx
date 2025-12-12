@@ -117,7 +117,7 @@ const DEFAULT_SETTINGS: AppSettings = {
 export default function SettingsPage() {
   const { resetToDefaults, tasks, mustDoItems, kpiItems, contentItems } = useMasterPlanStore();
   const { issues } = useIssueStore();
-  const { bottles } = useInventoryStore();
+  const { numberedBottles } = useInventoryStore();
   const { budgetItems, expenseItems } = useBudgetStore();
 
   // App Settings State
@@ -252,7 +252,7 @@ export default function SettingsPage() {
     contentItems: contentItems.length,
     issues: issues.length,
     openIssues: issues.filter((i) => i.status === 'open' || i.status === 'in_progress').length,
-    bottles: bottles.length,
+    bottles: numberedBottles.length,
     budgetItems: budgetItems.length,
     expenseItems: expenseItems.length,
     totalBudget: budgetItems.reduce((sum, b) => sum + b.budgeted, 0),
