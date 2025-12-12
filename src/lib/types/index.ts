@@ -1,0 +1,136 @@
+// ═══════════════════════════════════════════════════════════════════════════
+// 뮤즈드마레 마스터플랜 - 타입 정의
+// ═══════════════════════════════════════════════════════════════════════════
+
+// 업무 카테고리
+export type TaskCategory = 'operation' | 'marketing' | 'design' | 'filming' | 'pr' | 'b2b';
+
+// 업무 상태
+export type TaskStatus = 'pending' | 'in_progress' | 'done';
+
+// 콘텐츠 타입
+export type ContentType = 'instagram' | 'youtube' | 'blog' | 'newsletter' | 'press';
+
+// 콘텐츠 상태
+export type ContentStatus = 'draft' | 'scheduled' | 'published';
+
+// KPI 카테고리
+export type KPICategory = 'instagram' | 'youtube' | 'newsletter' | 'website' | 'press' | 'b2b';
+
+// 콘텐츠 타입 라벨
+export const CONTENT_TYPES: Record<ContentType, string> = {
+  instagram: '인스타그램',
+  youtube: '유튜브',
+  blog: '블로그',
+  newsletter: '뉴스레터',
+  press: '보도자료',
+};
+
+// 업무 항목
+export interface Task {
+  id: string;
+  title: string;
+  description?: string;
+  month: number;
+  week: number;
+  category: TaskCategory;
+  status: TaskStatus;
+  assignee?: string;
+  dueDate?: string;
+  deliverables?: string[];
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Must-Do 항목
+export interface MustDoItem {
+  id: string;
+  month: number;
+  title: string;
+  done: boolean;
+}
+
+// 주차 데이터
+export interface WeekData {
+  week: number;
+  title: string;
+  tasks: Task[];
+}
+
+// 월별 데이터
+export interface MonthData {
+  id: number;
+  name: string;
+  title: string;
+  phase: number;
+  phaseName: string;
+  description: string;
+}
+
+// 콘텐츠 캘린더 항목
+export interface ContentItem {
+  id: string;
+  type: ContentType;
+  title: string;
+  description?: string;
+  date: string;
+  status: ContentStatus;
+}
+
+// KPI 항목
+export interface KPIItem {
+  id: string;
+  month: number;
+  category: KPICategory;
+  metric: string;
+  current: number;
+  target: number;
+}
+
+// 카테고리 라벨
+export const CATEGORY_LABELS: Record<TaskCategory, string> = {
+  operation: '운영',
+  marketing: '마케팅',
+  design: '디자인',
+  filming: '촬영',
+  pr: 'PR',
+  b2b: 'B2B',
+};
+
+// 카테고리 색상
+export const CATEGORY_COLORS: Record<TaskCategory, string> = {
+  operation: 'badge-operation',
+  marketing: 'badge-marketing',
+  design: 'badge-design',
+  filming: 'badge-filming',
+  pr: 'badge-pr',
+  b2b: 'badge-b2b',
+};
+
+// 상태 라벨
+export const STATUS_LABELS: Record<TaskStatus, string> = {
+  pending: '대기',
+  in_progress: '진행중',
+  done: '완료',
+};
+
+// 페이즈 정보
+export const PHASE_INFO = [
+  { id: 1, name: '세계관 구축', months: [1, 2, 3], color: '#1A365D', description: '브랜드 아이덴티티와 스토리텔링 기반 구축' },
+  { id: 2, name: '기대감 조성', months: [4, 5], color: '#2D4A6F', description: '타겟 오디언스 시딩 및 PR 본격화' },
+  { id: 3, name: '클라이맥스', months: [6], color: '#B7916E', description: '인양 이벤트 및 미디어 집중' },
+  { id: 4, name: '런칭 & 확산', months: [7, 8], color: '#D4A574', description: '그랜드 런칭 및 세일즈 확대' },
+];
+
+// 월별 기본 정보
+export const MONTHS_INFO: MonthData[] = [
+  { id: 1, name: '1월', title: '기반 구축의 달', phase: 1, phaseName: '세계관 구축', description: '샴페인 도착, 해저 입수, 브랜드 아이덴티티 작업' },
+  { id: 2, name: '2월', title: '브랜드 구축의 달', phase: 1, phaseName: '세계관 구축', description: '로고 확정, 패키지 디자인, SNS 채널 개설' },
+  { id: 3, name: '3월', title: '콘텐츠 본격화의 달', phase: 1, phaseName: '세계관 구축', description: '브랜드 필름 공개, 콘텐츠 시리즈 시작' },
+  { id: 4, name: '4월', title: '시딩의 달', phase: 2, phaseName: '기대감 조성', description: '인플루언서 시딩, VIP 프리뷰 시작' },
+  { id: 5, name: '5월', title: 'PR 본격화의 달', phase: 2, phaseName: '기대감 조성', description: '언론 보도, 미디어 인터뷰, B2B 영업' },
+  { id: 6, name: '6월', title: '인양의 달', phase: 3, phaseName: '클라이맥스', description: '인양 이벤트, 라이브 중계, 미디어 집중' },
+  { id: 7, name: '7월', title: '런칭 준비의 달', phase: 4, phaseName: '런칭 & 확산', description: '팝업 스토어 준비, 최종 점검' },
+  { id: 8, name: '8월', title: '런칭의 달', phase: 4, phaseName: '런칭 & 확산', description: '그랜드 런칭, 판매 시작' },
+];
