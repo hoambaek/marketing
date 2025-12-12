@@ -38,6 +38,7 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
+  viewportFit: 'cover', // Allow content to extend into safe areas
   themeColor: '#0a0f1a',
 };
 

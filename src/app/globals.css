@@ -156,6 +156,8 @@
 
   html {
     scroll-behavior: smooth;
+    /* iOS Safari safe area - ensure background extends into safe areas */
+    background-color: #0a0f1a;
   }
 
   body {
@@ -163,6 +165,10 @@
     font-family: 'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
     font-feature-settings: 'ss01' on, 'ss02' on;
     letter-spacing: -0.01em;
+    /* iOS Safari safe area insets */
+    padding-bottom: env(safe-area-inset-bottom);
+    min-height: 100vh;
+    min-height: 100dvh;
   }
 
   /* Elegant Headings with Serif */
