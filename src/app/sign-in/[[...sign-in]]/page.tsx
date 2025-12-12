@@ -1,7 +1,7 @@
 'use client';
 
 import { SignIn } from '@clerk/nextjs';
-import { Wine, AlertCircle } from 'lucide-react';
+import { AlertCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 
@@ -9,7 +9,7 @@ const isClerkConfigured = !!process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
 
 export default function SignInPage() {
   return (
-    <div className="min-h-screen flex items-center justify-center px-4">
+    <div className="min-h-[calc(100vh-4rem)] flex flex-col items-center justify-center px-4">
       {/* Background */}
       <div className="fixed inset-0 -z-10">
         <div className="absolute inset-0 bg-gradient-to-b from-[#0a0f1a] via-[#0d1525] to-[#0a0f1a]" />
@@ -26,15 +26,10 @@ export default function SignInPage() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6 }}
-        className="w-full max-w-md"
+        className="w-full max-w-md flex flex-col items-center"
       >
-        {/* Logo Section */}
+        {/* Title Section */}
         <div className="text-center mb-8">
-          <div className="flex justify-center mb-4">
-            <div className="p-4 rounded-2xl bg-[#b7916e]/10 border border-[#b7916e]/20">
-              <Wine className="w-8 h-8 text-[#d4c4a8]" />
-            </div>
-          </div>
           <h1
             className="text-3xl text-white/90 mb-2"
             style={{ fontFamily: "var(--font-cormorant), 'Playfair Display', Georgia, serif" }}
@@ -55,17 +50,19 @@ export default function SignInPage() {
                 headerSubtitle: 'text-white/50',
                 formButtonPrimary: 'bg-[#b7916e] hover:bg-[#a07d5c] text-white',
                 formFieldLabel: 'text-white/60',
-                formFieldInput: 'bg-[#0a0f1a] border-white/10 text-white placeholder:text-white/30 focus:border-[#b7916e]/50',
+                formFieldInput: 'bg-[#0a0f1a] border-white/30 text-white placeholder:text-white/30 focus:border-[#b7916e]/50',
                 footerAction: 'hidden', // 회원가입 링크 숨김
                 footer: 'hidden', // 전체 푸터 숨김
                 dividerLine: 'bg-white/10',
                 dividerText: 'text-white/40',
                 socialButtonsBlockButton: 'bg-white/5 border-white/10 text-white hover:bg-white/10',
-                socialButtonsBlockButtonText: 'text-white/80',
+                socialButtonsBlockButtonText: 'text-white font-medium',
                 identifierPreviewText: 'text-white',
                 identifierPreviewEditButton: 'text-[#b7916e] hover:text-[#d4c4a8]',
                 formFieldAction: 'text-[#b7916e] hover:text-[#d4c4a8]',
                 alert: 'bg-red-500/10 border-red-500/20 text-red-400',
+                otpCodeFieldInput: 'bg-[#0a0f1a] border-white/40 text-white text-center text-xl',
+                otpCodeField: 'border-white/40',
               },
             }}
             routing="path"

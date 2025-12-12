@@ -1,5 +1,8 @@
 import { supabase, isSupabaseConfigured } from './client';
-import { Task, MustDoItem, KPIItem, ContentItem, TaskStatus } from '@/lib/types';
+import {
+  Task, MustDoItem, KPIItem, ContentItem, TaskStatus,
+  ProductType, InventoryStatus, NumberedBottle, InventoryBatch, InventoryTransaction
+} from '@/lib/types';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Task 관련 함수들
@@ -770,12 +773,12 @@ export async function deleteCustomProduct(id: string): Promise<boolean> {
 // 재고 데이터 매핑 헬퍼
 // ═══════════════════════════════════════════════════════════════════════════
 
-export function mapDbBottleToBottle(dbBottle: DBNumberedBottle) {
+export function mapDbBottleToBottle(dbBottle: DBNumberedBottle): NumberedBottle {
   return {
     id: dbBottle.id,
-    productId: dbBottle.product_id,
+    productId: dbBottle.product_id as ProductType,
     bottleNumber: dbBottle.bottle_number,
-    status: dbBottle.status,
+    status: dbBottle.status as InventoryStatus,
     reservedFor: dbBottle.reserved_for || undefined,
     soldTo: dbBottle.sold_to || undefined,
     soldDate: dbBottle.sold_date || undefined,
@@ -784,10 +787,10 @@ export function mapDbBottleToBottle(dbBottle: DBNumberedBottle) {
   };
 }
 
-export function mapDbBatchToBatch(dbBatch: DBInventoryBatch) {
+export function mapDbBatchToBatch(dbBatch: DBInventoryBatch): InventoryBatch {
   return {
     id: dbBatch.id,
-    productId: dbBatch.product_id,
+    productId: dbBatch.product_id as ProductType,
     available: dbBatch.available,
     reserved: dbBatch.reserved,
     sold: dbBatch.sold,
@@ -797,12 +800,12 @@ export function mapDbBatchToBatch(dbBatch: DBInventoryBatch) {
   };
 }
 
-export function mapDbTransactionToTransaction(dbTx: DBInventoryTransaction) {
+export function mapDbTransactionToTransaction(dbTx: DBInventoryTransaction): InventoryTransaction {
   return {
     id: dbTx.id,
-    productId: dbTx.product_id,
+    productId: dbTx.product_id as ProductType,
     bottleNumber: dbTx.bottle_number || undefined,
-    type: dbTx.type,
+    type: dbTx.type as InventoryTransaction['type'],
     quantity: dbTx.quantity,
     customerName: dbTx.customer_name || undefined,
     price: dbTx.price || undefined,
