@@ -701,7 +701,7 @@ export default function IssuesPage() {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onSave={handleSaveItem}
-        item={editingItem}
+        issue={editingItem}
         defaultMonth={selectedMonth}
         initialMode={modalMode}
         tasks={tasks}
