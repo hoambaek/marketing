@@ -178,30 +178,30 @@ export default function HomePage() {
             <div className="absolute inset-0 border border-white/[0.06] rounded-2xl" />
 
             {/* Content */}
-            <div className="relative p-8">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6 mb-8">
+            <div className="relative p-4 sm:p-8">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 sm:gap-6 mb-6 sm:mb-8">
                 <div>
-                  <p className="text-white/40 text-sm tracking-wider uppercase mb-2">전체 진행률</p>
+                  <p className="text-white/40 text-xs sm:text-sm tracking-wider uppercase mb-1 sm:mb-2">전체 진행률</p>
                   <p
-                    className="text-6xl text-white/90"
+                    className="text-4xl sm:text-6xl text-white/90"
                     style={{ fontFamily: "var(--font-cormorant), serif" }}
                   >
                     {totalProgress}
-                    <span className="text-3xl text-[#b7916e]">%</span>
+                    <span className="text-xl sm:text-3xl text-[#b7916e]">%</span>
                   </p>
                 </div>
 
-                <div className="flex gap-8">
+                <div className="flex gap-5 sm:gap-8">
                   <motion.div
                     initial={{ opacity: 0, scale: 0.8 }}
                     animate={{ opacity: 1, scale: 1 }}
                     transition={{ duration: 0.5, delay: 1.1 }}
                     className="text-center"
                   >
-                    <p className="text-3xl font-light text-emerald-400" style={{ fontFamily: "var(--font-cormorant), serif" }}>
+                    <p className="text-xl sm:text-3xl font-light text-emerald-400" style={{ fontFamily: "var(--font-cormorant), serif" }}>
                       {statusCounts.done}
                     </p>
-                    <p className="text-xs text-white/30 tracking-wider uppercase mt-1">완료</p>
+                    <p className="text-[10px] sm:text-xs text-white/30 tracking-wider uppercase mt-0.5 sm:mt-1">완료</p>
                   </motion.div>
                   <motion.div
                     initial={{ opacity: 0, scale: 0.8 }}
@@ -209,10 +209,10 @@ export default function HomePage() {
                     transition={{ duration: 0.5, delay: 1.2 }}
                     className="text-center"
                   >
-                    <p className="text-3xl font-light text-amber-400" style={{ fontFamily: "var(--font-cormorant), serif" }}>
+                    <p className="text-xl sm:text-3xl font-light text-amber-400" style={{ fontFamily: "var(--font-cormorant), serif" }}>
                       {statusCounts.in_progress}
                     </p>
-                    <p className="text-xs text-white/30 tracking-wider uppercase mt-1">진행중</p>
+                    <p className="text-[10px] sm:text-xs text-white/30 tracking-wider uppercase mt-0.5 sm:mt-1">진행중</p>
                   </motion.div>
                   <motion.div
                     initial={{ opacity: 0, scale: 0.8 }}
@@ -220,10 +220,10 @@ export default function HomePage() {
                     transition={{ duration: 0.5, delay: 1.3 }}
                     className="text-center"
                   >
-                    <p className="text-3xl font-light text-white/30" style={{ fontFamily: "var(--font-cormorant), serif" }}>
+                    <p className="text-xl sm:text-3xl font-light text-white/30" style={{ fontFamily: "var(--font-cormorant), serif" }}>
                       {statusCounts.pending}
                     </p>
-                    <p className="text-xs text-white/30 tracking-wider uppercase mt-1">대기</p>
+                    <p className="text-[10px] sm:text-xs text-white/30 tracking-wider uppercase mt-0.5 sm:mt-1">대기</p>
                   </motion.div>
                 </div>
               </div>
@@ -325,12 +325,15 @@ export default function HomePage() {
               </div>
             </div>
 
-            {/* Timeline Container */}
-            <div className="relative flex">
-              {/* Left Column - Phase Labels (Sticky) */}
-              <div className="w-44 flex-shrink-0 border-r border-white/[0.06] bg-[#0a0f1a]/50 z-10">
+            {/* Timeline Container - Scroll together on mobile */}
+            <div
+              ref={timelineRef}
+              className="relative flex overflow-x-auto scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent"
+            >
+              {/* Left Column - Phase Labels */}
+              <div className="w-28 sm:w-44 flex-shrink-0 border-r border-white/[0.06] bg-[#0a0f1a]/80">
                 {/* Empty header cell */}
-                <div className="h-16 border-b border-white/[0.06]" />
+                <div className="h-12 sm:h-16 border-b border-white/[0.06]" />
 
                 {/* Phase Labels */}
                 {PHASE_INFO.map((phase) => {
@@ -338,14 +341,14 @@ export default function HomePage() {
                   return (
                     <div
                       key={phase.id}
-                      className="h-16 px-4 flex items-center border-b border-white/[0.04]"
+                      className="h-12 sm:h-16 px-2 sm:px-4 flex items-center border-b border-white/[0.04]"
                     >
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-2 sm:gap-3">
                         <div
-                          className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                          className="w-2 sm:w-2.5 h-2 sm:h-2.5 rounded-full flex-shrink-0"
                           style={{ backgroundColor: colors.primary }}
                         />
-                        <span className="text-sm font-medium text-white/70 truncate">
+                        <span className="text-xs sm:text-sm font-medium text-white/70 truncate">
                           {phase.name}
                         </span>
                       </div>
@@ -354,34 +357,30 @@ export default function HomePage() {
                 })}
               </div>
 
-              {/* Scrollable Timeline Area */}
-              <div
-                ref={timelineRef}
-                className="flex-1 overflow-x-auto scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent"
-              >
+              {/* Timeline Area */}
+              <div className="flex-1">
                 {/* Month/Week Header */}
-                <div className="flex h-16 border-b border-white/[0.06] bg-white/[0.02]">
+                <div className="flex h-12 sm:h-16 border-b border-white/[0.06] bg-white/[0.02]">
                   {MONTHS_INFO.map((month) => (
                     <div
                       key={month.id}
-                      className="flex-shrink-0"
-                      style={{ width: `${4 * 80}px` }}
+                      className="flex-shrink-0 w-[200px] sm:w-[320px]"
                     >
                       <Link href={`/month/${month.id}`}>
-                        <div className="h-8 flex items-center justify-center border-b border-white/[0.04] hover:bg-white/[0.04] transition-colors cursor-pointer">
-                          <span className="text-sm font-medium text-white/60">
+                        <div className="h-6 sm:h-8 flex items-center justify-center border-b border-white/[0.04] hover:bg-white/[0.04] transition-colors cursor-pointer">
+                          <span className="text-xs sm:text-sm font-medium text-white/60">
                             {month.name}
                           </span>
                           {month.id === 1 && (
-                            <span className="ml-2 w-2 h-2 rounded-full bg-[#b7916e] animate-pulse" />
+                            <span className="ml-1.5 sm:ml-2 w-1.5 sm:w-2 h-1.5 sm:h-2 rounded-full bg-[#b7916e] animate-pulse" />
                           )}
                         </div>
                       </Link>
-                      <div className="h-8 flex">
+                      <div className="h-6 sm:h-8 flex">
                         {[1, 2, 3, 4].map((week) => (
                           <div
                             key={week}
-                            className="flex-1 flex items-center justify-center text-[10px] text-white/30 border-r border-white/[0.04]"
+                            className="flex-1 flex items-center justify-center text-[8px] sm:text-[10px] text-white/30 border-r border-white/[0.04]"
                           >
                             W{week}
                           </div>
@@ -403,25 +402,25 @@ export default function HomePage() {
                   return (
                     <div
                       key={phase.id}
-                      className="h-16 flex items-center border-b border-white/[0.04] relative"
-                      style={{ width: `${48 * 80}px` }}
+                      className="h-12 sm:h-16 flex items-center border-b border-white/[0.04] relative"
+                      style={{ width: '2400px' }}
                     >
                       {/* Grid lines */}
                       {Array.from({ length: 48 }).map((_, i) => (
                         <div
                           key={i}
                           className="absolute top-0 bottom-0 border-r border-white/[0.03]"
-                          style={{ left: `${(i + 1) * 80}px` }}
+                          style={{ left: `${(i + 1) * 50}px` }}
                         />
                       ))}
 
                       {/* Phase Bar */}
                       <motion.div
                         initial={{ width: 0, opacity: 0 }}
-                        animate={{ width: `${width * 80 - 16}px`, opacity: 1 }}
+                        animate={{ width: `${width * 50 - 12}px`, opacity: 1 }}
                         transition={{ duration: 0.8, delay: 1.3 + phaseIndex * 0.1 }}
-                        className={`absolute h-10 rounded-xl ${colors.bg} shadow-lg cursor-pointer group overflow-hidden`}
-                        style={{ left: `${startWeek * 80 + 8}px` }}
+                        className={`absolute h-8 sm:h-10 rounded-lg sm:rounded-xl ${colors.bg} shadow-lg cursor-pointer group overflow-hidden`}
+                        style={{ left: `${startWeek * 50 + 6}px` }}
                       >
                         <Link href={`/month/${phase.months[0]}`} className="block h-full relative">
                           {/* Progress overlay */}
@@ -429,11 +428,11 @@ export default function HomePage() {
                             className="absolute inset-0 bg-white/20"
                             style={{ width: `${phaseProgress}%` }}
                           />
-                          <div className="relative h-full px-4 flex items-center justify-between">
-                            <span className="text-sm font-medium text-white truncate">
+                          <div className="relative h-full px-2 sm:px-4 flex items-center justify-between">
+                            <span className="text-xs sm:text-sm font-medium text-white truncate">
                               {phase.description}
                             </span>
-                            <span className="text-xs text-white/80 ml-2 flex-shrink-0">
+                            <span className="text-[10px] sm:text-xs text-white/80 ml-1 sm:ml-2 flex-shrink-0">
                               {Math.round(phaseProgress)}%
                             </span>
                           </div>
@@ -446,17 +445,17 @@ export default function HomePage() {
             </div>
 
             {/* Legend */}
-            <div className="relative p-4 border-t border-white/[0.06] flex flex-wrap gap-6">
+            <div className="relative p-3 sm:p-4 border-t border-white/[0.06] flex flex-wrap gap-3 sm:gap-6">
               {PHASE_INFO.map((phase) => {
                 const colors = phaseColors[phase.id as keyof typeof phaseColors];
                 return (
-                  <div key={phase.id} className="flex items-center gap-2">
+                  <div key={phase.id} className="flex items-center gap-1.5 sm:gap-2">
                     <div
-                      className="w-3 h-3 rounded"
+                      className="w-2.5 sm:w-3 h-2.5 sm:h-3 rounded"
                       style={{ backgroundColor: colors.primary }}
                     />
-                    <span className="text-xs text-white/40">
-                      Phase {phase.id}: {phase.name}
+                    <span className="text-[10px] sm:text-xs text-white/40">
+                      P{phase.id}: {phase.name}
                     </span>
                   </div>
                 );

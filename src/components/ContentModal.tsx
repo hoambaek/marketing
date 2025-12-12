@@ -71,6 +71,18 @@ export default function ContentModal({
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
+  // Prevent body scroll when modal is open
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isOpen]);
+
   useEffect(() => {
     if (content) {
       setFormData({

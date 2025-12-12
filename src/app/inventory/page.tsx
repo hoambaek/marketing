@@ -706,7 +706,7 @@ function ProductCard({ product, onManage, mounted }: ProductCardProps) {
   const colors = getProductColors(product.id);
 
   return (
-    <motion.div variants={itemVariants} className="group relative rounded-2xl overflow-hidden">
+    <div className="group relative rounded-2xl overflow-hidden">
       <div className="absolute inset-0 bg-gradient-to-br from-white/[0.04] to-white/[0.01] backdrop-blur-sm" />
       <div className="absolute inset-0 border border-white/[0.06] rounded-2xl" />
       <div
@@ -802,7 +802,7 @@ function ProductCard({ product, onManage, mounted }: ProductCardProps) {
           재고 관리
         </button>
       </div>
-    </motion.div>
+    </div>
   );
 }
 
@@ -961,8 +961,8 @@ export default function InventoryPage() {
   const [mounted, setMounted] = useState(false);
   const [addProductYear, setAddProductYear] = useState<number | null>(null);
 
-  // Year section expanded state - 2026 expanded, 2027/2028 collapsed by default
-  const [expandedYears, setExpandedYears] = useState<number[]>([2026]);
+  // Year section expanded state - all collapsed by default
+  const [expandedYears, setExpandedYears] = useState<number[]>([]);
 
   // Transaction filter state
   const [txFilterYear, setTxFilterYear] = useState<number | undefined>(undefined);
@@ -1241,17 +1241,23 @@ export default function InventoryPage() {
         return (
           <section key={year} className="px-4 sm:px-6 lg:px-8 mb-6">
             <div className="mx-auto max-w-6xl">
-              <motion.div variants={containerVariants} initial="hidden" animate="visible">
-                {/* Section Title - Clickable to expand/collapse */}
-                <motion.div
-                  variants={itemVariants}
-                  className="mb-4 relative rounded-xl overflow-hidden cursor-pointer group"
-                  onClick={() => toggleYearExpanded(year)}
-                >
-                  <div className="absolute inset-0 bg-gradient-to-br from-white/[0.03] to-white/[0.01] group-hover:from-white/[0.05] group-hover:to-white/[0.02] transition-all" />
-                  <div className="absolute inset-0 border border-white/[0.06] rounded-xl" />
+              {/* Unified background wrapper */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5 }}
+                className="relative rounded-2xl overflow-hidden"
+              >
+                {/* Background that spans entire section */}
+                <div className="absolute inset-0 bg-gradient-to-br from-white/[0.03] to-white/[0.01] backdrop-blur-sm" />
+                <div className="absolute inset-0 border border-white/[0.06] rounded-2xl" />
 
-                  <div className="relative p-4 flex items-center justify-between">
+                <div className="relative">
+                  {/* Section Header - Clickable to expand/collapse */}
+                  <div
+                    className="p-4 flex items-center justify-between cursor-pointer hover:bg-white/[0.02] transition-all"
+                    onClick={() => toggleYearExpanded(year)}
+                  >
                     <div className="flex items-center gap-3">
                       <motion.div
                         animate={{ rotate: isExpanded ? 0 : -90 }}
@@ -1281,49 +1287,44 @@ export default function InventoryPage() {
                       <span className="text-xs sm:text-sm hidden sm:inline">상품 추가</span>
                     </button>
                   </div>
-                </motion.div>
 
-                {/* Collapsible Content */}
-                <AnimatePresence>
-                  {isExpanded && (
-                    <motion.div
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: 'auto', opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
-                      transition={{ duration: 0.3, ease: [0.25, 0.46, 0.45, 0.94] }}
-                      className="overflow-hidden"
-                    >
-                      {/* Product Cards Grid */}
-                      {yearProducts.length > 0 ? (
-                        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-5 pb-4">
-                          {yearProducts.map((product) => (
-                            <ProductCard
-                              key={product.id}
-                              product={product}
-                              onManage={() => setSelectedProduct(product as unknown as Product)}
-                              mounted={mounted}
-                            />
-                          ))}
-                        </div>
-                      ) : (
-                        <motion.div
-                          variants={itemVariants}
-                          className="relative rounded-xl overflow-hidden py-12 mb-4"
-                        >
-                          <div className="absolute inset-0 bg-gradient-to-br from-white/[0.02] to-white/[0.01]" />
-                          <div className="absolute inset-0 border border-white/[0.04] border-dashed rounded-xl" />
-                          <div className="relative flex flex-col items-center justify-center text-center">
+                  {/* Collapsible Content */}
+                  <AnimatePresence initial={false}>
+                    {isExpanded && (
+                      <motion.div
+                        key={`${year}-content`}
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.3, ease: [0.25, 0.46, 0.45, 0.94] }}
+                        className="overflow-hidden"
+                      >
+                        <div className="border-t border-white/[0.04]" />
+                        {/* Product Cards Grid */}
+                        {yearProducts.length > 0 ? (
+                          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4 p-4">
+                            {yearProducts.map((product) => (
+                              <ProductCard
+                                key={product.id}
+                                product={product}
+                                onManage={() => setSelectedProduct(product as unknown as Product)}
+                                mounted={mounted}
+                              />
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="p-8 flex flex-col items-center justify-center text-center">
                             <div className="p-3 rounded-xl bg-white/[0.04] mb-3">
                               <Wine className="w-6 h-6 text-white/20" />
                             </div>
                             <p className="text-white/30 text-sm">아직 등록된 상품이 없습니다</p>
                             <p className="text-white/20 text-xs mt-1">상품 추가 버튼을 눌러 새 상품을 등록하세요</p>
                           </div>
-                        </motion.div>
-                      )}
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+                        )}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
               </motion.div>
             </div>
           </section>
