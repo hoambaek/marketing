@@ -291,30 +291,32 @@ export default function CalendarPage() {
             <div className="absolute inset-0 border border-white/[0.06] rounded-2xl" />
 
             <div className="relative p-6">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
-                {/* Month Navigation */}
-                <div className="flex items-center gap-4">
-                  <button
-                    onClick={goToPrevMonth}
-                    className="p-2.5 rounded-xl text-white/40 hover:text-white/80 hover:bg-white/[0.04] transition-all"
-                  >
-                    <ChevronLeft className="w-5 h-5" />
-                  </button>
-                  <h2
-                    className="text-2xl text-white/90 min-w-[160px] text-center"
-                    style={{ fontFamily: "var(--font-cormorant), serif" }}
-                  >
-                    {year}년 {MONTH_NAMES[month]}
-                  </h2>
-                  <button
-                    onClick={goToNextMonth}
-                    className="p-2.5 rounded-xl text-white/40 hover:text-white/80 hover:bg-white/[0.04] transition-all"
-                  >
-                    <ChevronRight className="w-5 h-5" />
-                  </button>
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 sm:gap-6">
+                {/* Month Navigation - Compact on mobile */}
+                <div className="flex items-center justify-between sm:justify-start gap-2 sm:gap-4">
+                  <div className="flex items-center gap-1 sm:gap-2">
+                    <button
+                      onClick={goToPrevMonth}
+                      className="p-2 sm:p-2.5 rounded-xl text-white/40 hover:text-white/80 hover:bg-white/[0.04] active:bg-white/[0.08] transition-all"
+                    >
+                      <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5" />
+                    </button>
+                    <h2
+                      className="text-lg sm:text-2xl text-white/90 min-w-[100px] sm:min-w-[160px] text-center"
+                      style={{ fontFamily: "var(--font-cormorant), serif" }}
+                    >
+                      {year}년 {MONTH_NAMES[month]}
+                    </h2>
+                    <button
+                      onClick={goToNextMonth}
+                      className="p-2 sm:p-2.5 rounded-xl text-white/40 hover:text-white/80 hover:bg-white/[0.04] active:bg-white/[0.08] transition-all"
+                    >
+                      <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5" />
+                    </button>
+                  </div>
                   <button
                     onClick={goToToday}
-                    className="px-4 py-2 text-sm text-white/40 hover:text-white/80 hover:bg-white/[0.04] rounded-xl transition-all"
+                    className="px-3 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm text-[#b7916e] bg-[#b7916e]/10 hover:bg-[#b7916e]/20 active:bg-[#b7916e]/30 rounded-lg sm:rounded-xl transition-all font-medium"
                   >
                     오늘
                   </button>
@@ -411,7 +413,7 @@ export default function CalendarPage() {
                   >
                     {day && (
                       <>
-                        <div className="flex items-center justify-between mb-0.5 sm:mb-1">
+                        <div className="mb-0.5 sm:mb-1">
                           <div
                             className={`text-xs sm:text-sm ${
                               isTodayCell
@@ -425,14 +427,6 @@ export default function CalendarPage() {
                           >
                             {day}
                           </div>
-                          {/* Plus button - visible on mobile, hover on desktop */}
-                          <button
-                            onClick={(e) => { e.stopPropagation(); handleAddContent(day); }}
-                            className="p-0.5 sm:p-1 rounded opacity-50 sm:opacity-0 sm:group-hover:opacity-100 hover:bg-[#b7916e]/20 active:bg-[#b7916e]/30 transition-all"
-                            title="이 날짜에 콘텐츠 추가"
-                          >
-                            <Plus className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-[#b7916e]" />
-                          </button>
                         </div>
 
                         <div className="space-y-0.5 sm:space-y-1">
@@ -533,36 +527,43 @@ export default function CalendarPage() {
                       <div
                         key={item.id}
                         onClick={() => handleEditContent(item)}
-                        className="flex items-center gap-4 p-4 rounded-xl bg-white/[0.02] hover:bg-white/[0.04] transition-colors cursor-pointer"
+                        className="flex items-start gap-4 p-4 rounded-xl bg-white/[0.02] hover:bg-white/[0.04] transition-colors cursor-pointer"
                       >
-                        <div className={`p-2.5 rounded-lg ${CONTENT_COLORS[item.type]}`}>
+                        <div className={`p-2.5 rounded-lg flex-shrink-0 ${CONTENT_COLORS[item.type]}`}>
                           {CONTENT_ICONS[item.type]}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="font-medium text-white/80 truncate">{item.title}</p>
-                          <p className="text-sm text-white/40">
-                            {new Date(item.date).toLocaleDateString('ko-KR', {
-                              month: 'long',
-                              day: 'numeric',
-                              weekday: 'short',
-                            })}
-                          </p>
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0 flex-1">
+                              <p className="font-medium text-white/80">{item.title}</p>
+                              <p className="text-sm text-white/40">
+                                {new Date(item.date).toLocaleDateString('ko-KR', {
+                                  month: 'long',
+                                  day: 'numeric',
+                                  weekday: 'short',
+                                })}
+                              </p>
+                              {item.description && (
+                                <p className="text-sm text-white/50 mt-2 line-clamp-2">{item.description}</p>
+                              )}
+                            </div>
+                            <span
+                              className={`px-3 py-1 rounded-lg text-xs font-medium flex-shrink-0 ${
+                                item.status === 'published'
+                                  ? 'bg-emerald-500/20 text-emerald-400'
+                                  : item.status === 'scheduled'
+                                  ? 'bg-blue-500/20 text-blue-400'
+                                  : 'bg-white/[0.06] text-white/40'
+                              }`}
+                            >
+                              {item.status === 'published'
+                                ? '발행완료'
+                                : item.status === 'scheduled'
+                                ? '예약됨'
+                                : '초안'}
+                            </span>
+                          </div>
                         </div>
-                        <span
-                          className={`px-3 py-1 rounded-lg text-xs font-medium ${
-                            item.status === 'published'
-                              ? 'bg-emerald-500/20 text-emerald-400'
-                              : item.status === 'scheduled'
-                              ? 'bg-blue-500/20 text-blue-400'
-                              : 'bg-white/[0.06] text-white/40'
-                          }`}
-                        >
-                          {item.status === 'published'
-                            ? '발행완료'
-                            : item.status === 'scheduled'
-                            ? '예약됨'
-                            : '초안'}
-                        </span>
                       </div>
                     ))}
                 </div>
