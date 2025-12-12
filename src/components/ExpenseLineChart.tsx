@@ -25,15 +25,14 @@ const CHART_CONFIG = {
 // Category colors for lines (hex values for SVG)
 const LINE_COLORS: Record<BudgetCategory, string> = {
   marketing: '#f472b6',      // Pink
-  production: '#60a5fa',     // Blue
-  distribution: '#34d399',   // Emerald
-  pr: '#a78bfa',            // Violet
-  content: '#fbbf24',        // Amber
-  partnership: '#f87171',    // Red
-  event: '#2dd4bf',         // Teal
-  research: '#818cf8',      // Indigo
-  design: '#fb923c',        // Orange
-  operations: '#94a3b8',    // Slate
+  operation: '#60a5fa',      // Blue
+  design: '#fb923c',         // Orange
+  filming: '#34d399',        // Emerald
+  pr: '#a78bfa',             // Violet
+  b2b: '#f87171',            // Red
+  packaging: '#fbbf24',      // Amber
+  event: '#2dd4bf',          // Teal
+  other: '#94a3b8',          // Slate
 };
 
 // Format currency for tooltip
