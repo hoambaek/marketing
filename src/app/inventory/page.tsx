@@ -28,11 +28,9 @@ import {
   Clock,
   Hash,
   Plus,
-  LogOut,
   RefreshCw,
   Filter,
 } from 'lucide-react';
-import { SignOutButton } from '@clerk/nextjs';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // 애니메이션 변형
@@ -159,6 +157,7 @@ function BottleStatusModal({
   return (
     <AnimatePresence>
       <motion.div
+        key="bottle-modal-backdrop"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
@@ -166,6 +165,7 @@ function BottleStatusModal({
         className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50"
       />
       <motion.div
+        key="bottle-modal-content"
         initial={{ opacity: 0, scale: 0.95, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -352,6 +352,7 @@ function BatchAdjustModal({
   return (
     <AnimatePresence>
       <motion.div
+        key="batch-modal-backdrop"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
@@ -359,6 +360,7 @@ function BatchAdjustModal({
         className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50"
       />
       <motion.div
+        key="batch-modal-content"
         initial={{ opacity: 0, scale: 0.95, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -554,6 +556,7 @@ function AddProductModal({
   return (
     <AnimatePresence>
       <motion.div
+        key="add-product-modal-backdrop"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
@@ -561,6 +564,7 @@ function AddProductModal({
         className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50"
       />
       <motion.div
+        key="add-product-modal-content"
         initial={{ opacity: 0, scale: 0.95, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -852,87 +856,55 @@ function FirstEditionGrid({
   };
 
   return (
-    <motion.div variants={itemVariants} className="relative rounded-xl overflow-hidden">
-      <div className="absolute inset-0 bg-gradient-to-br from-white/[0.03] to-white/[0.01] backdrop-blur-sm" />
-      <div className="absolute inset-0 border border-white/[0.05] rounded-xl" />
-
-      <div className="relative">
-        {/* Compact Header */}
-        <button
-          onClick={onToggle}
-          className="w-full px-4 py-2.5 flex items-center justify-between bg-amber-500/5 border-b border-white/[0.04]"
-        >
-          <div className="flex items-center gap-2.5">
-            <div className="p-1.5 rounded-lg bg-amber-500/15">
-              <Hash className="w-3.5 h-3.5 text-amber-400" />
-            </div>
-            <span
-              className="text-sm text-white/80"
-              style={{ fontFamily: "var(--font-cormorant), 'Playfair Display', Georgia, serif" }}
-            >
-              2025 First Edition
-            </span>
-            <span className="text-[10px] text-white/30">1-50</span>
+    <div className="relative">
+      <div className="p-4">
+        {/* Stats Row */}
+        <div className="flex flex-wrap items-center gap-4 mb-4">
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-500/10">
+            <span className="text-xs text-white/40">판매가능</span>
+            <span className="text-sm text-emerald-400 font-medium">{summary.available}</span>
           </div>
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-1.5">
-              <span className="text-[10px] text-white/30">가능</span>
-              <span className="text-sm text-emerald-400 font-medium">{summary.available}</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="text-[10px] text-white/30">판매</span>
-              <span className="text-sm text-blue-400 font-medium">{summary.sold}</span>
-            </div>
-            {isExpanded ? (
-              <ChevronDown className="w-4 h-4 text-white/30" />
-            ) : (
-              <ChevronRight className="w-4 h-4 text-white/30" />
-            )}
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-amber-500/10">
+            <span className="text-xs text-white/40">예약</span>
+            <span className="text-sm text-amber-400 font-medium">{summary.reserved}</span>
           </div>
-        </button>
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-blue-500/10">
+            <span className="text-xs text-white/40">판매</span>
+            <span className="text-sm text-blue-400 font-medium">{summary.sold}</span>
+          </div>
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-purple-500/10">
+            <span className="text-xs text-white/40">증정</span>
+            <span className="text-sm text-purple-400 font-medium">{summary.gifted}</span>
+          </div>
+        </div>
 
-        {/* Grid */}
-        <AnimatePresence>
-          {isExpanded && (
-            <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: 'auto', opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0.3 }}
-              className="overflow-hidden"
+        {/* Legend - Compact */}
+        <div className="flex flex-wrap gap-2 mb-3">
+          {(['available', 'reserved', 'sold', 'gifted', 'damaged'] as InventoryStatus[]).map((status) => (
+            <div key={status} className="flex items-center gap-1.5">
+              <div className={`w-2.5 h-2.5 rounded ${INVENTORY_STATUS_COLORS[status].split(' ')[0]}`} />
+              <span className="text-[10px] text-white/35">{INVENTORY_STATUS_LABELS[status]}</span>
+            </div>
+          ))}
+        </div>
+
+        {/* Bottle Grid - Compact */}
+        <div className="grid grid-cols-10 gap-1.5">
+          {numberedBottles.map((bottle) => (
+            <button
+              key={bottle.id}
+              onClick={() => handleBottleClick(bottle.bottleNumber)}
+              className={`aspect-square rounded-lg border text-xs font-medium transition-all ${getStatusColor(bottle.status)} ${
+                bottle.status !== 'sold' && bottle.status !== 'gifted' && bottle.status !== 'damaged'
+                  ? 'cursor-pointer'
+                  : 'cursor-default'
+              }`}
+              title={`#${bottle.bottleNumber} - ${INVENTORY_STATUS_LABELS[bottle.status]}${bottle.soldTo ? ` (${bottle.soldTo})` : ''}`}
             >
-              <div className="p-4">
-                {/* Legend - Compact */}
-                <div className="flex flex-wrap gap-2 mb-3">
-                  {(['available', 'reserved', 'sold', 'gifted', 'damaged'] as InventoryStatus[]).map((status) => (
-                    <div key={status} className="flex items-center gap-1.5">
-                      <div className={`w-2.5 h-2.5 rounded ${INVENTORY_STATUS_COLORS[status].split(' ')[0]}`} />
-                      <span className="text-[10px] text-white/35">{INVENTORY_STATUS_LABELS[status]}</span>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Bottle Grid - Compact */}
-                <div className="grid grid-cols-10 gap-1.5">
-                  {numberedBottles.map((bottle) => (
-                    <button
-                      key={bottle.id}
-                      onClick={() => handleBottleClick(bottle.bottleNumber)}
-                      className={`aspect-square rounded-lg border text-xs font-medium transition-all ${getStatusColor(bottle.status)} ${
-                        bottle.status !== 'sold' && bottle.status !== 'gifted' && bottle.status !== 'damaged'
-                          ? 'cursor-pointer'
-                          : 'cursor-default'
-                      }`}
-                      title={`#${bottle.bottleNumber} - ${INVENTORY_STATUS_LABELS[bottle.status]}${bottle.soldTo ? ` (${bottle.soldTo})` : ''}`}
-                    >
-                      {bottle.bottleNumber}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+              {bottle.bottleNumber}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Edit Modal */}
@@ -946,7 +918,7 @@ function FirstEditionGrid({
           onSave={handleSaveStatus}
         />
       )}
-    </motion.div>
+    </div>
   );
 }
 
@@ -1073,53 +1045,78 @@ export default function InventoryPage() {
       </div>
 
       {/* Hero Section */}
-      <section className="px-4 sm:px-6 lg:px-8 pt-12 pb-8">
-        <div className="mx-auto max-w-6xl">
+      <section className="relative pt-16 pb-8 sm:pb-12 px-4 sm:px-6 lg:px-12">
+        <div className="max-w-6xl mx-auto">
           <motion.div
-            variants={containerVariants}
-            initial="hidden"
-            animate="visible"
-            className="text-center mb-12"
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 1, ease: [0.25, 0.46, 0.45, 0.94] }}
+            className="relative"
           >
             {/* Decorative Line */}
-            <motion.div variants={itemVariants} className="flex justify-center mb-8">
-              <div className="flex items-center gap-4">
-                <motion.div
-                  className="h-px w-16 bg-gradient-to-r from-transparent to-[#b7916e]/50"
-                  initial={{ scaleX: 0 }}
-                  animate={{ scaleX: 1 }}
-                  transition={{ duration: 1, delay: 0.3 }}
-                />
-                <Wine className="w-5 h-5 text-[#b7916e]" />
-                <motion.div
-                  className="h-px w-16 bg-gradient-to-l from-transparent to-[#b7916e]/50"
-                  initial={{ scaleX: 0 }}
-                  animate={{ scaleX: 1 }}
-                  transition={{ duration: 1, delay: 0.3 }}
-                />
+            <motion.div
+              initial={{ scaleX: 0 }}
+              animate={{ scaleX: 1 }}
+              transition={{ duration: 1.2, delay: 0.3, ease: [0.25, 0.46, 0.45, 0.94] }}
+              className="absolute -left-4 sm:-left-6 top-1/2 w-12 sm:w-16 h-px bg-gradient-to-r from-[#b7916e] to-transparent origin-left"
+            />
+
+            <div className="pl-10 sm:pl-14 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+              <div>
+                <motion.p
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.8, delay: 0.4 }}
+                  className="text-[#b7916e] text-xs sm:text-sm tracking-[0.3em] uppercase mb-3 sm:mb-4 font-light"
+                >
+                  Inventory Management
+                </motion.p>
+
+                <h1
+                  className="text-4xl sm:text-5xl lg:text-6xl text-white/95 mb-4 sm:mb-6 leading-[1.1] tracking-tight"
+                  style={{ fontFamily: "var(--font-cormorant), 'Playfair Display', Georgia, serif" }}
+                >
+                  <motion.span
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.8, delay: 0.5 }}
+                    className="block"
+                  >
+                    Inventory
+                  </motion.span>
+                  <motion.span
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.8, delay: 0.6 }}
+                    className="block text-transparent bg-clip-text bg-gradient-to-r from-[#b7916e] via-[#d4c4a8] to-[#b7916e]"
+                  >
+                    Management
+                  </motion.span>
+                </h1>
+
+                <motion.p
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 1, delay: 0.8 }}
+                  className="text-white/40 text-base sm:text-lg max-w-md font-light leading-relaxed"
+                >
+                  Muse de Marée 샴페인 재고 현황 및 관리
+                </motion.p>
               </div>
-            </motion.div>
-
-            {/* Title */}
-            <motion.h1
-              variants={itemVariants}
-              className="text-4xl sm:text-5xl lg:text-6xl text-white/90 mb-4 tracking-tight"
-              style={{ fontFamily: "var(--font-cormorant), 'Playfair Display', Georgia, serif" }}
-            >
-              재고 관리
-            </motion.h1>
-
-            <motion.p variants={itemVariants} className="text-white/40 text-lg max-w-xl mx-auto">
-              Muse de Marée 샴페인 재고 현황 및 관리
-            </motion.p>
+            </div>
           </motion.div>
+        </div>
+      </section>
 
+      {/* Summary Cards Section */}
+      <section className="px-4 sm:px-6 lg:px-8 mb-6 sm:mb-10">
+        <div className="max-w-6xl mx-auto">
           {/* Summary Cards - Compact 2x2 on mobile */}
           <motion.div
             variants={containerVariants}
             initial="hidden"
             animate="visible"
-            className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-5 mb-6 sm:mb-10"
+            className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-5"
           >
             {/* Total Bottles */}
             <motion.div variants={itemVariants} className="relative rounded-xl sm:rounded-2xl overflow-hidden group">
@@ -1209,26 +1206,75 @@ export default function InventoryPage() {
       </section>
 
       {/* 2025 First Edition Section */}
-      <section className="px-4 sm:px-6 lg:px-8 mb-10">
+      <section className="px-4 sm:px-6 lg:px-8 mb-6">
         <div className="mx-auto max-w-6xl">
-          <motion.div variants={containerVariants} initial="hidden" animate="visible">
-            {/* Section Title */}
-            <motion.div variants={itemVariants} className="mb-4">
-              <h2
-                className="text-2xl text-white/80"
-                style={{ fontFamily: "var(--font-cormorant), 'Playfair Display', Georgia, serif" }}
-              >
-                2025 Collection
-              </h2>
-              <p className="text-white/40 text-sm mt-1">한정 넘버링 에디션</p>
-            </motion.div>
+          {/* Unified background wrapper - same style as 2026+ sections */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className="relative rounded-2xl overflow-hidden"
+          >
+            {/* Background that spans entire section */}
+            <div className="absolute inset-0 bg-gradient-to-br from-white/[0.03] to-white/[0.01] backdrop-blur-sm" />
+            <div className="absolute inset-0 border border-white/[0.06] rounded-2xl" />
 
-            {mounted && (
-              <FirstEditionGrid
-                isExpanded={isFirstEditionExpanded}
-                onToggle={() => setIsFirstEditionExpanded(!isFirstEditionExpanded)}
-              />
-            )}
+            <div className="relative">
+              {/* Section Header - Clickable to expand/collapse */}
+              <div
+                className="p-4 flex items-center justify-between cursor-pointer hover:bg-white/[0.02] transition-all"
+                onClick={() => setIsFirstEditionExpanded(!isFirstEditionExpanded)}
+              >
+                <div className="flex items-center gap-3">
+                  <motion.div
+                    animate={{ rotate: isFirstEditionExpanded ? 0 : -90 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <ChevronDown className="w-5 h-5 text-white/40" />
+                  </motion.div>
+                  <div>
+                    <h2
+                      className="text-xl sm:text-2xl text-white/80"
+                      style={{ fontFamily: "var(--font-cormorant), 'Playfair Display', Georgia, serif" }}
+                    >
+                      2025 Collection
+                    </h2>
+                    <p className="text-white/40 text-xs sm:text-sm">한정 넘버링 에디션 (1-50)</p>
+                  </div>
+                </div>
+
+                {/* Quick Stats */}
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[10px] text-white/30">총</span>
+                    <span className="text-sm text-amber-400 font-medium">50</span>
+                  </div>
+                  <div className="px-2 py-1 rounded-lg bg-amber-500/20 text-[10px] text-amber-400">
+                    넘버링
+                  </div>
+                </div>
+              </div>
+
+              {/* Collapsible Content */}
+              <AnimatePresence initial={false}>
+                {isFirstEditionExpanded && mounted && (
+                  <motion.div
+                    key="2025-content"
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.3, ease: [0.25, 0.46, 0.45, 0.94] }}
+                    className="overflow-hidden"
+                  >
+                    <div className="border-t border-white/[0.04]" />
+                    <FirstEditionGrid
+                      isExpanded={true}
+                      onToggle={() => {}}
+                    />
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
           </motion.div>
         </div>
       </section>
@@ -1456,24 +1502,16 @@ export default function InventoryPage() {
             </motion.div>
           </motion.div>
 
-          {/* Bottom Decoration & Logout */}
+          {/* Bottom Decoration */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 1, delay: 0.8 }}
-            className="mt-20 text-center space-y-4"
+            className="mt-20 text-center"
           >
             <p className="text-[10px] uppercase tracking-[0.3em] text-white/20">
               Muse de Marée · Inventory Management
             </p>
-
-            {/* Logout Button */}
-            <SignOutButton>
-              <button className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-white/30 hover:text-white/50 hover:bg-white/[0.04] transition-all text-xs">
-                <LogOut className="w-3.5 h-3.5" />
-                로그아웃
-              </button>
-            </SignOutButton>
           </motion.div>
         </div>
       </section>

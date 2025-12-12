@@ -44,14 +44,105 @@ export interface Task {
   updatedAt: string;
 }
 
-// Must-Do 항목
+// Must-Do 항목 (레거시 - 이슈관리로 대체)
 export interface MustDoItem {
   id: string;
   year: number;
   month: number;
   title: string;
   done: boolean;
+  category: TaskCategory;
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 이슈/리스크 관리 타입 정의
+// ═══════════════════════════════════════════════════════════════════════════
+
+// 이슈 유형
+export type IssueType = 'issue' | 'risk' | 'decision';
+
+// 이슈 우선순위
+export type IssuePriority = 'low' | 'medium' | 'high' | 'critical';
+
+// 이슈 영향도
+export type IssueImpact = 'low' | 'medium' | 'high';
+
+// 이슈 상태
+export type IssueStatus = 'open' | 'in_progress' | 'resolved' | 'closed';
+
+// 이슈 항목
+export interface IssueItem {
+  id: string;
+  year: number;
+  month: number;
+  title: string;
+  type: IssueType;
+  priority: IssuePriority;
+  impact: IssueImpact;
+  status: IssueStatus;
+  category: TaskCategory;
+  description?: string;
+  owner?: string;
+  dueDate?: string;
+  resolution?: string;
+  relatedTaskId?: string; // 연관된 월별플랜 업무 ID
+  relatedTaskTitle?: string; // 연관된 업무 제목 (조회용)
+  createdAt: string;
+  updatedAt: string;
+}
+
+// 이슈 유형 라벨
+export const ISSUE_TYPE_LABELS: Record<IssueType, string> = {
+  issue: '이슈',
+  risk: '리스크',
+  decision: '의사결정',
+};
+
+// 이슈 유형 색상
+export const ISSUE_TYPE_COLORS: Record<IssueType, { bg: string; text: string; border: string }> = {
+  issue: { bg: 'bg-orange-500/20', text: 'text-orange-400', border: 'border-orange-500/30' },
+  risk: { bg: 'bg-red-500/20', text: 'text-red-400', border: 'border-red-500/30' },
+  decision: { bg: 'bg-blue-500/20', text: 'text-blue-400', border: 'border-blue-500/30' },
+};
+
+// 이슈 우선순위 라벨
+export const ISSUE_PRIORITY_LABELS: Record<IssuePriority, string> = {
+  low: '낮음',
+  medium: '보통',
+  high: '높음',
+  critical: '긴급',
+};
+
+// 이슈 우선순위 색상
+export const ISSUE_PRIORITY_COLORS: Record<IssuePriority, { bg: string; text: string; border: string }> = {
+  low: { bg: 'bg-gray-500/20', text: 'text-gray-400', border: 'border-gray-500/30' },
+  medium: { bg: 'bg-yellow-500/20', text: 'text-yellow-400', border: 'border-yellow-500/30' },
+  high: { bg: 'bg-orange-500/20', text: 'text-orange-400', border: 'border-orange-500/30' },
+  critical: { bg: 'bg-red-500/20', text: 'text-red-400', border: 'border-red-500/30' },
+};
+
+// 이슈 영향도 라벨
+export const ISSUE_IMPACT_LABELS: Record<IssueImpact, string> = {
+  low: '낮음',
+  medium: '보통',
+  high: '높음',
+};
+
+// 이슈 상태 라벨
+export const ISSUE_STATUS_LABELS: Record<IssueStatus, string> = {
+  open: '미해결',
+  in_progress: '진행중',
+  resolved: '해결됨',
+  closed: '종료',
+};
+
+// 이슈 상태 색상
+export const ISSUE_STATUS_COLORS: Record<IssueStatus, { bg: string; text: string; border: string }> = {
+  open: { bg: 'bg-red-500/20', text: 'text-red-400', border: 'border-red-500/30' },
+  in_progress: { bg: 'bg-yellow-500/20', text: 'text-yellow-400', border: 'border-yellow-500/30' },
+  resolved: { bg: 'bg-emerald-500/20', text: 'text-emerald-400', border: 'border-emerald-500/30' },
+  closed: { bg: 'bg-gray-500/20', text: 'text-gray-400', border: 'border-gray-500/30' },
+};
 
 // 주차 데이터
 export interface WeekData {
@@ -64,6 +155,7 @@ export interface WeekData {
 export interface MonthData {
   id: number;
   name: string;
+  shortName: string;
   title: string;
   phase: number;
   phaseName: string;
@@ -267,18 +359,76 @@ export const PHASE_INFO = [
 // 지원 년도
 export const AVAILABLE_YEARS = [2026, 2027, 2028];
 
+// ═══════════════════════════════════════════════════════════════════════════
+// 예산관리 타입 정의
+// ═══════════════════════════════════════════════════════════════════════════
+
+// 예산 카테고리
+export type BudgetCategory = 'marketing' | 'operation' | 'design' | 'filming' | 'pr' | 'b2b' | 'packaging' | 'event' | 'other';
+
+// 예산 카테고리 라벨
+export const BUDGET_CATEGORY_LABELS: Record<BudgetCategory, string> = {
+  marketing: '마케팅',
+  operation: '운영',
+  design: '디자인',
+  filming: '촬영',
+  pr: 'PR',
+  b2b: 'B2B',
+  packaging: '패키징',
+  event: '이벤트',
+  other: '기타',
+};
+
+// 예산 카테고리 색상
+export const BUDGET_CATEGORY_COLORS: Record<BudgetCategory, { bg: string; text: string; border: string }> = {
+  marketing: { bg: 'bg-pink-500/20', text: 'text-pink-400', border: 'border-pink-500/30' },
+  operation: { bg: 'bg-blue-500/20', text: 'text-blue-400', border: 'border-blue-500/30' },
+  design: { bg: 'bg-violet-500/20', text: 'text-violet-400', border: 'border-violet-500/30' },
+  filming: { bg: 'bg-amber-500/20', text: 'text-amber-400', border: 'border-amber-500/30' },
+  pr: { bg: 'bg-emerald-500/20', text: 'text-emerald-400', border: 'border-emerald-500/30' },
+  b2b: { bg: 'bg-cyan-500/20', text: 'text-cyan-400', border: 'border-cyan-500/30' },
+  packaging: { bg: 'bg-orange-500/20', text: 'text-orange-400', border: 'border-orange-500/30' },
+  event: { bg: 'bg-rose-500/20', text: 'text-rose-400', border: 'border-rose-500/30' },
+  other: { bg: 'bg-gray-500/20', text: 'text-gray-400', border: 'border-gray-500/30' },
+};
+
+// 예산 항목 (월별 예산)
+export interface BudgetItem {
+  id: string;
+  year: number;
+  month: number;
+  category: BudgetCategory;
+  budgeted: number; // 예산
+  spent: number; // 지출
+  description?: string;
+}
+
+// 지출 내역
+export interface ExpenseItem {
+  id: string;
+  year: number;
+  month: number;
+  category: BudgetCategory;
+  amount: number;
+  description: string;
+  vendor?: string; // 거래처
+  date: string;
+  receipt?: string; // 영수증 URL
+  notes?: string;
+}
+
 // 월별 기본 정보
 export const MONTHS_INFO: MonthData[] = [
-  { id: 1, name: '1월', title: '기반 구축의 달', phase: 1, phaseName: '세계관 구축', description: '샴페인 도착, 해저 입수, 브랜드 아이덴티티 작업' },
-  { id: 2, name: '2월', title: '브랜드 구축의 달', phase: 1, phaseName: '세계관 구축', description: '로고 확정, 패키지 디자인, SNS 채널 개설' },
-  { id: 3, name: '3월', title: '콘텐츠 본격화의 달', phase: 1, phaseName: '세계관 구축', description: '브랜드 필름 공개, 콘텐츠 시리즈 시작' },
-  { id: 4, name: '4월', title: '시딩의 달', phase: 2, phaseName: '기대감 조성', description: '인플루언서 시딩, VIP 프리뷰 시작' },
-  { id: 5, name: '5월', title: 'PR 본격화의 달', phase: 2, phaseName: '기대감 조성', description: '언론 보도, 미디어 인터뷰, B2B 영업' },
-  { id: 6, name: '6월', title: '인양의 달', phase: 3, phaseName: '클라이맥스', description: '인양 이벤트, 라이브 중계, 미디어 집중' },
-  { id: 7, name: '7월', title: '런칭 준비의 달', phase: 4, phaseName: '런칭 & 확산', description: '팝업 스토어 준비, 최종 점검' },
-  { id: 8, name: '8월', title: '런칭의 달', phase: 4, phaseName: '런칭 & 확산', description: '그랜드 런칭, 판매 시작' },
-  { id: 9, name: '9월', title: '시장 안착의 달', phase: 5, phaseName: '성장 & 확장', description: '판매 채널 확대, 고객 피드백 수집' },
-  { id: 10, name: '10월', title: '브랜드 강화의 달', phase: 5, phaseName: '성장 & 확장', description: '시즌 캠페인, 콜라보레이션' },
-  { id: 11, name: '11월', title: '확장의 달', phase: 5, phaseName: '성장 & 확장', description: '해외 진출 준비, 연말 프로모션' },
-  { id: 12, name: '12월', title: '결산의 달', phase: 5, phaseName: '성장 & 확장', description: '연간 성과 분석, 차년도 전략 수립' },
+  { id: 1, name: '1월', shortName: 'Jan', title: '기반 구축의 달', phase: 1, phaseName: '세계관 구축', description: '샴페인 도착, 해저 입수, 브랜드 아이덴티티 작업' },
+  { id: 2, name: '2월', shortName: 'Feb', title: '브랜드 구축의 달', phase: 1, phaseName: '세계관 구축', description: '로고 확정, 패키지 디자인, SNS 채널 개설' },
+  { id: 3, name: '3월', shortName: 'Mar', title: '콘텐츠 본격화의 달', phase: 1, phaseName: '세계관 구축', description: '브랜드 필름 공개, 콘텐츠 시리즈 시작' },
+  { id: 4, name: '4월', shortName: 'Apr', title: '시딩의 달', phase: 2, phaseName: '기대감 조성', description: '인플루언서 시딩, VIP 프리뷰 시작' },
+  { id: 5, name: '5월', shortName: 'May', title: 'PR 본격화의 달', phase: 2, phaseName: '기대감 조성', description: '언론 보도, 미디어 인터뷰, B2B 영업' },
+  { id: 6, name: '6월', shortName: 'Jun', title: '인양의 달', phase: 3, phaseName: '클라이맥스', description: '인양 이벤트, 라이브 중계, 미디어 집중' },
+  { id: 7, name: '7월', shortName: 'Jul', title: '런칭 준비의 달', phase: 4, phaseName: '런칭 & 확산', description: '팝업 스토어 준비, 최종 점검' },
+  { id: 8, name: '8월', shortName: 'Aug', title: '런칭의 달', phase: 4, phaseName: '런칭 & 확산', description: '그랜드 런칭, 판매 시작' },
+  { id: 9, name: '9월', shortName: 'Sep', title: '시장 안착의 달', phase: 5, phaseName: '성장 & 확장', description: '판매 채널 확대, 고객 피드백 수집' },
+  { id: 10, name: '10월', shortName: 'Oct', title: '브랜드 강화의 달', phase: 5, phaseName: '성장 & 확장', description: '시즌 캠페인, 콜라보레이션' },
+  { id: 11, name: '11월', shortName: 'Nov', title: '확장의 달', phase: 5, phaseName: '성장 & 확장', description: '해외 진출 준비, 연말 프로모션' },
+  { id: 12, name: '12월', shortName: 'Dec', title: '결산의 달', phase: 5, phaseName: '성장 & 확장', description: '연간 성과 분석, 차년도 전략 수립' },
 ];

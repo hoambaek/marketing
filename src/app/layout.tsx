@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from 'next';
-import { Cormorant_Garamond } from 'next/font/google';
+import { Cormorant_Garamond, Lora } from 'next/font/google';
 import './globals.css';
 import { Header } from '@/components/layout/Header';
 import SupabaseInitializer from '@/components/SupabaseInitializer';
@@ -9,6 +9,13 @@ const cormorant = Cormorant_Garamond({
   subsets: ['latin'],
   weight: ['300', '400', '500', '600', '700'],
   variable: '--font-cormorant',
+  display: 'swap',
+});
+
+const lora = Lora({
+  subsets: ['latin'],
+  weight: ['400', '500', '600', '700'],
+  variable: '--font-lora',
   display: 'swap',
 });
 
@@ -49,7 +56,7 @@ export default function RootLayout({
 }>) {
   return (
     <ClerkWrapper>
-      <html lang="ko" suppressHydrationWarning className={cormorant.variable}>
+      <html lang="ko" suppressHydrationWarning className={`${cormorant.variable} ${lora.variable}`}>
         <body className="min-h-screen bg-gradient-animated bg-ambient-glow bg-grain">
           {/* Header */}
           <Header />

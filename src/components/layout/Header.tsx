@@ -4,17 +4,19 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { Menu, X, Settings } from 'lucide-react';
+import { Menu, X, Settings, LogOut } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
+import { SignOutButton } from '@clerk/nextjs';
 
 const navigation = [
   { name: '타임라인', href: '/' },
   { name: '월별플랜', href: '/monthly-plan' },
-  { name: '체크리스트', href: '/checklist' },
+  { name: '이슈관리', href: '/issues' },
   { name: '캘린더', href: '/calendar' },
   { name: 'KPI', href: '/kpi' },
   { name: '재고관리', href: '/inventory' },
+  { name: '예산관리', href: '/budget' },
 ];
 
 export function Header() {
@@ -100,6 +102,13 @@ export function Header() {
               transition={{ duration: 0.5 }}
               className="flex items-center gap-2"
             >
+              {/* Logout - Desktop only */}
+              <SignOutButton>
+                <button className="hidden md:flex items-center gap-2 p-2.5 rounded-xl text-white/40 hover:text-white/80 hover:bg-white/[0.04] transition-all">
+                  <LogOut className="w-5 h-5" />
+                </button>
+              </SignOutButton>
+
               {/* Settings */}
               <Link
                 href="/settings"
@@ -148,6 +157,16 @@ export function Header() {
                   </Link>
                 );
               })}
+
+              {/* Logout - Mobile */}
+              <div className="pt-3 mt-3 border-t border-white/[0.06]">
+                <SignOutButton>
+                  <button className="flex items-center gap-3 w-full px-4 py-3 text-base font-medium text-white/50 hover:text-white/80 hover:bg-white/[0.04] rounded-xl transition-colors">
+                    <LogOut className="w-5 h-5" />
+                    로그아웃
+                  </button>
+                </SignOutButton>
+              </div>
             </div>
           </motion.div>
         </nav>

@@ -79,53 +79,53 @@ export const INITIAL_TASKS: Task[] = [
 
 export const INITIAL_MUST_DO: MustDoItem[] = [
   // 1월
-  { id: 'must-1-1', year: 2026, month: 1, title: '샴페인 입고 및 검수 완료', done: true },
-  { id: 'must-1-2', year: 2026, month: 1, title: '해저 입수 완료 & 좌표 기록', done: false },
-  { id: 'must-1-3', year: 2026, month: 1, title: '입수 과정 영상/사진 촬영 완료', done: false },
-  { id: 'must-1-4', year: 2026, month: 1, title: '디자인 에이전시 계약 & 킥오프', done: false },
-  { id: 'must-1-5', year: 2026, month: 1, title: '브랜드 로고 시안 1차 수령', done: false },
+  { id: 'must-1-1', year: 2026, month: 1, title: '샴페인 입고 및 검수 완료', done: true, category: 'operation' },
+  { id: 'must-1-2', year: 2026, month: 1, title: '해저 입수 완료 & 좌표 기록', done: false, category: 'operation' },
+  { id: 'must-1-3', year: 2026, month: 1, title: '입수 과정 영상/사진 촬영 완료', done: false, category: 'filming' },
+  { id: 'must-1-4', year: 2026, month: 1, title: '디자인 에이전시 계약 & 킥오프', done: false, category: 'design' },
+  { id: 'must-1-5', year: 2026, month: 1, title: '브랜드 로고 시안 1차 수령', done: false, category: 'design' },
 
   // 2월
-  { id: 'must-2-1', year: 2026, month: 2, title: '브랜드 로고 최종 확정', done: false },
-  { id: 'must-2-2', year: 2026, month: 2, title: '패키지 디자인 확정 & 발주', done: false },
-  { id: 'must-2-3', year: 2026, month: 2, title: '제품 스튜디오 촬영 완료', done: false },
-  { id: 'must-2-4', year: 2026, month: 2, title: '홈페이지 기획/디자인 완료', done: false },
-  { id: 'must-2-5', year: 2026, month: 2, title: 'SNS 채널 개설 & 프로필 세팅', done: false },
+  { id: 'must-2-1', year: 2026, month: 2, title: '브랜드 로고 최종 확정', done: false, category: 'design' },
+  { id: 'must-2-2', year: 2026, month: 2, title: '패키지 디자인 확정 & 발주', done: false, category: 'design' },
+  { id: 'must-2-3', year: 2026, month: 2, title: '제품 스튜디오 촬영 완료', done: false, category: 'filming' },
+  { id: 'must-2-4', year: 2026, month: 2, title: '홈페이지 기획/디자인 완료', done: false, category: 'design' },
+  { id: 'must-2-5', year: 2026, month: 2, title: 'SNS 채널 개설 & 프로필 세팅', done: false, category: 'marketing' },
 
   // 3월
-  { id: 'must-3-1', year: 2026, month: 3, title: '브랜드 필름 최종 완성 & 공개', done: false },
-  { id: 'must-3-2', year: 2026, month: 3, title: '숙성일지 콘텐츠 시리즈 시작', done: false },
-  { id: 'must-3-3', year: 2026, month: 3, title: '첫 번째 뉴스레터 발송', done: false },
-  { id: 'must-3-4', year: 2026, month: 3, title: '홈페이지 오픈', done: false },
+  { id: 'must-3-1', year: 2026, month: 3, title: '브랜드 필름 최종 완성 & 공개', done: false, category: 'filming' },
+  { id: 'must-3-2', year: 2026, month: 3, title: '숙성일지 콘텐츠 시리즈 시작', done: false, category: 'marketing' },
+  { id: 'must-3-3', year: 2026, month: 3, title: '첫 번째 뉴스레터 발송', done: false, category: 'marketing' },
+  { id: 'must-3-4', year: 2026, month: 3, title: '홈페이지 오픈', done: false, category: 'operation' },
 
   // 4월
-  { id: 'must-4-1', year: 2026, month: 4, title: '인플루언서 시딩 시작', done: false },
-  { id: 'must-4-2', year: 2026, month: 4, title: 'VIP 프리뷰 이벤트 진행', done: false },
-  { id: 'must-4-3', year: 2026, month: 4, title: '시딩 키트 100개 발송', done: false },
+  { id: 'must-4-1', year: 2026, month: 4, title: '인플루언서 시딩 시작', done: false, category: 'pr' },
+  { id: 'must-4-2', year: 2026, month: 4, title: 'VIP 프리뷰 이벤트 진행', done: false, category: 'marketing' },
+  { id: 'must-4-3', year: 2026, month: 4, title: '시딩 키트 100개 발송', done: false, category: 'pr' },
 
   // 5월
-  { id: 'must-5-1', year: 2026, month: 5, title: '주요 매체 보도자료 배포', done: false },
-  { id: 'must-5-2', year: 2026, month: 5, title: '미디어 인터뷰 3건 이상', done: false },
-  { id: 'must-5-3', year: 2026, month: 5, title: 'B2B 미팅 10건 이상', done: false },
-  { id: 'must-5-4', year: 2026, month: 5, title: '인양 D-30 카운트다운 시작', done: false },
+  { id: 'must-5-1', year: 2026, month: 5, title: '주요 매체 보도자료 배포', done: false, category: 'pr' },
+  { id: 'must-5-2', year: 2026, month: 5, title: '미디어 인터뷰 3건 이상', done: false, category: 'pr' },
+  { id: 'must-5-3', year: 2026, month: 5, title: 'B2B 미팅 10건 이상', done: false, category: 'b2b' },
+  { id: 'must-5-4', year: 2026, month: 5, title: '인양 D-30 카운트다운 시작', done: false, category: 'marketing' },
 
   // 6월
-  { id: 'must-6-1', year: 2026, month: 6, title: '인양 D-Day 성공적 진행', done: false },
-  { id: 'must-6-2', year: 2026, month: 6, title: '인양 라이브 중계', done: false },
-  { id: 'must-6-3', year: 2026, month: 6, title: '기자 간담회 개최', done: false },
-  { id: 'must-6-4', year: 2026, month: 6, title: '인양 다큐 편집 완료', done: false },
+  { id: 'must-6-1', year: 2026, month: 6, title: '인양 D-Day 성공적 진행', done: false, category: 'operation' },
+  { id: 'must-6-2', year: 2026, month: 6, title: '인양 라이브 중계', done: false, category: 'filming' },
+  { id: 'must-6-3', year: 2026, month: 6, title: '기자 간담회 개최', done: false, category: 'pr' },
+  { id: 'must-6-4', year: 2026, month: 6, title: '인양 다큐 편집 완료', done: false, category: 'filming' },
 
   // 7월
-  { id: 'must-7-1', year: 2026, month: 7, title: '팝업 스토어 장소 계약', done: false },
-  { id: 'must-7-2', year: 2026, month: 7, title: '런칭 파티 기획 완료', done: false },
-  { id: 'must-7-3', year: 2026, month: 7, title: '팝업 스토어 인테리어 완성', done: false },
-  { id: 'must-7-4', year: 2026, month: 7, title: 'B2B 계약 5건 이상', done: false },
+  { id: 'must-7-1', year: 2026, month: 7, title: '팝업 스토어 장소 계약', done: false, category: 'operation' },
+  { id: 'must-7-2', year: 2026, month: 7, title: '런칭 파티 기획 완료', done: false, category: 'marketing' },
+  { id: 'must-7-3', year: 2026, month: 7, title: '팝업 스토어 인테리어 완성', done: false, category: 'design' },
+  { id: 'must-7-4', year: 2026, month: 7, title: 'B2B 계약 5건 이상', done: false, category: 'b2b' },
 
   // 8월
-  { id: 'must-8-1', year: 2026, month: 8, title: '그랜드 런칭 파티 성공적 개최', done: false },
-  { id: 'must-8-2', year: 2026, month: 8, title: '온/오프라인 판매 시작', done: false },
-  { id: 'must-8-3', year: 2026, month: 8, title: '팝업 스토어 2주 운영', done: false },
-  { id: 'must-8-4', year: 2026, month: 8, title: '런칭 성과 리포트 작성', done: false },
+  { id: 'must-8-1', year: 2026, month: 8, title: '그랜드 런칭 파티 성공적 개최', done: false, category: 'marketing' },
+  { id: 'must-8-2', year: 2026, month: 8, title: '온/오프라인 판매 시작', done: false, category: 'operation' },
+  { id: 'must-8-3', year: 2026, month: 8, title: '팝업 스토어 2주 운영', done: false, category: 'operation' },
+  { id: 'must-8-4', year: 2026, month: 8, title: '런칭 성과 리포트 작성', done: false, category: 'operation' },
 ];
 
 // ═══════════════════════════════════════════════════════════════════════════

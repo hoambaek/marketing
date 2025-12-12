@@ -4,17 +4,17 @@ import type { NextRequest } from 'next/server';
 
 const isClerkConfigured = !!process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
 
-// 보호할 라우트 정의 (재고관리 페이지)
-const isProtectedRoute = createRouteMatcher(['/inventory(.*)']);
+// 공개 라우트 정의 (로그인/회원가입 페이지만 공개)
+const isPublicRoute = createRouteMatcher(['/sign-in(.*)', '/sign-up(.*)']);
 
 // Clerk가 설정되지 않은 경우 기본 미들웨어
 function defaultMiddleware(request: NextRequest) {
   return NextResponse.next();
 }
 
-// Clerk 미들웨어
+// Clerk 미들웨어 - 모든 라우트 보호 (공개 라우트 제외)
 const clerkAuthMiddleware = clerkMiddleware(async (auth, req) => {
-  if (isProtectedRoute(req)) {
+  if (!isPublicRoute(req)) {
     await auth.protect();
   }
 });

@@ -1,7 +1,9 @@
 import { supabase, isSupabaseConfigured } from './client';
 import {
   Task, MustDoItem, KPIItem, ContentItem, TaskStatus,
-  ProductType, InventoryStatus, NumberedBottle, InventoryBatch, InventoryTransaction
+  ProductType, InventoryStatus, NumberedBottle, InventoryBatch, InventoryTransaction,
+  BudgetItem, ExpenseItem, BudgetCategory,
+  IssueItem, IssueType, IssuePriority, IssueImpact, IssueStatus
 } from '@/lib/types';
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -153,6 +155,7 @@ export async function createMustDoItem(item: Omit<MustDoItem, 'id'>): Promise<Mu
       month: item.month,
       title: item.title,
       done: item.done,
+      category: item.category,
     })
     .select()
     .single();
@@ -189,6 +192,7 @@ export async function updateMustDoItem(id: string, updates: Partial<MustDoItem>)
   if (updates.year !== undefined) dbUpdates.year = updates.year;
   if (updates.month !== undefined) dbUpdates.month = updates.month;
   if (updates.done !== undefined) dbUpdates.done = updates.done;
+  if (updates.category !== undefined) dbUpdates.category = updates.category;
 
   const { error } = await supabase!
     .from('must_do_items')
@@ -475,6 +479,7 @@ function mapDbMustDoToMustDo(dbMustDo: Record<string, unknown>): MustDoItem {
     month: dbMustDo.month as number,
     title: dbMustDo.title as string,
     done: dbMustDo.done as boolean,
+    category: (dbMustDo.category as MustDoItem['category']) || 'operation',
   };
 }
 
@@ -827,5 +832,415 @@ export function mapDbCustomProductToProduct(dbProduct: DBCustomProduct) {
     size: dbProduct.size,
     totalQuantity: dbProduct.total_quantity,
     description: dbProduct.description || undefined,
+  };
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 예산관리 DB 타입
+// ═══════════════════════════════════════════════════════════════════════════
+
+export interface DBBudgetItem {
+  id: string;
+  year: number;
+  month: number;
+  category: string;
+  budgeted: number;
+  spent: number;
+  description: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DBExpenseItem {
+  id: string;
+  year: number;
+  month: number;
+  category: string;
+  amount: number;
+  description: string;
+  vendor: string | null;
+  expense_date: string;
+  receipt_url: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Budget Items 관련 함수들
+// ═══════════════════════════════════════════════════════════════════════════
+
+export async function fetchBudgetItems(year?: number): Promise<BudgetItem[] | null> {
+  if (!isSupabaseConfigured()) return null;
+
+  let query = supabase!
+    .from('budget_items')
+    .select('*');
+
+  if (year) {
+    query = query.eq('year', year);
+  }
+
+  const { data, error } = await query
+    .order('year', { ascending: true })
+    .order('month', { ascending: true })
+    .order('category', { ascending: true });
+
+  if (error) {
+    console.error('Error fetching budget items:', error);
+    return null;
+  }
+
+  return data?.map(mapDbBudgetToBudget) || [];
+}
+
+export async function createBudgetItem(item: Omit<BudgetItem, 'id'>): Promise<BudgetItem | null> {
+  if (!isSupabaseConfigured()) return null;
+
+  const id = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  const { data, error } = await supabase!
+    .from('budget_items')
+    .insert({
+      id,
+      year: item.year,
+      month: item.month,
+      category: item.category,
+      budgeted: item.budgeted,
+      spent: item.spent,
+      description: item.description,
+    })
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error creating budget item:', error);
+    return null;
+  }
+
+  return mapDbBudgetToBudget(data);
+}
+
+export async function updateBudgetItem(id: string, updates: Partial<BudgetItem>): Promise<boolean> {
+  if (!isSupabaseConfigured()) return false;
+
+  const dbUpdates: Record<string, unknown> = {};
+  if (updates.year !== undefined) dbUpdates.year = updates.year;
+  if (updates.month !== undefined) dbUpdates.month = updates.month;
+  if (updates.category !== undefined) dbUpdates.category = updates.category;
+  if (updates.budgeted !== undefined) dbUpdates.budgeted = updates.budgeted;
+  if (updates.spent !== undefined) dbUpdates.spent = updates.spent;
+  if (updates.description !== undefined) dbUpdates.description = updates.description;
+
+  const { error } = await supabase!
+    .from('budget_items')
+    .update(dbUpdates)
+    .eq('id', id);
+
+  if (error) {
+    console.error('Error updating budget item:', error);
+    return false;
+  }
+
+  return true;
+}
+
+export async function deleteBudgetItem(id: string): Promise<boolean> {
+  if (!isSupabaseConfigured()) return false;
+
+  const { error } = await supabase!
+    .from('budget_items')
+    .delete()
+    .eq('id', id);
+
+  if (error) {
+    console.error('Error deleting budget item:', error);
+    return false;
+  }
+
+  return true;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Expense Items 관련 함수들
+// ═══════════════════════════════════════════════════════════════════════════
+
+export async function fetchExpenseItems(year?: number, month?: number): Promise<ExpenseItem[] | null> {
+  if (!isSupabaseConfigured()) return null;
+
+  let query = supabase!
+    .from('expense_items')
+    .select('*');
+
+  if (year) {
+    query = query.eq('year', year);
+  }
+  if (month) {
+    query = query.eq('month', month);
+  }
+
+  const { data, error } = await query
+    .order('expense_date', { ascending: false });
+
+  if (error) {
+    console.error('Error fetching expense items:', error);
+    return null;
+  }
+
+  return data?.map(mapDbExpenseToExpense) || [];
+}
+
+export async function createExpenseItem(item: Omit<ExpenseItem, 'id'>): Promise<ExpenseItem | null> {
+  if (!isSupabaseConfigured()) return null;
+
+  const id = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  const { data, error } = await supabase!
+    .from('expense_items')
+    .insert({
+      id,
+      year: item.year,
+      month: item.month,
+      category: item.category,
+      amount: item.amount,
+      description: item.description,
+      vendor: item.vendor,
+      expense_date: item.date,
+      receipt_url: item.receipt,
+      notes: item.notes,
+    })
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error creating expense item:', error);
+    return null;
+  }
+
+  return mapDbExpenseToExpense(data);
+}
+
+export async function updateExpenseItem(id: string, updates: Partial<ExpenseItem>): Promise<boolean> {
+  if (!isSupabaseConfigured()) return false;
+
+  const dbUpdates: Record<string, unknown> = {};
+  if (updates.year !== undefined) dbUpdates.year = updates.year;
+  if (updates.month !== undefined) dbUpdates.month = updates.month;
+  if (updates.category !== undefined) dbUpdates.category = updates.category;
+  if (updates.amount !== undefined) dbUpdates.amount = updates.amount;
+  if (updates.description !== undefined) dbUpdates.description = updates.description;
+  if (updates.vendor !== undefined) dbUpdates.vendor = updates.vendor;
+  if (updates.date !== undefined) dbUpdates.expense_date = updates.date;
+  if (updates.receipt !== undefined) dbUpdates.receipt_url = updates.receipt;
+  if (updates.notes !== undefined) dbUpdates.notes = updates.notes;
+
+  const { error } = await supabase!
+    .from('expense_items')
+    .update(dbUpdates)
+    .eq('id', id);
+
+  if (error) {
+    console.error('Error updating expense item:', error);
+    return false;
+  }
+
+  return true;
+}
+
+export async function deleteExpenseItem(id: string): Promise<boolean> {
+  if (!isSupabaseConfigured()) return false;
+
+  const { error } = await supabase!
+    .from('expense_items')
+    .delete()
+    .eq('id', id);
+
+  if (error) {
+    console.error('Error deleting expense item:', error);
+    return false;
+  }
+
+  return true;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 예산 데이터 매핑 헬퍼
+// ═══════════════════════════════════════════════════════════════════════════
+
+function mapDbBudgetToBudget(dbBudget: DBBudgetItem): BudgetItem {
+  return {
+    id: dbBudget.id,
+    year: dbBudget.year,
+    month: dbBudget.month,
+    category: dbBudget.category as BudgetCategory,
+    budgeted: Number(dbBudget.budgeted),
+    spent: Number(dbBudget.spent),
+    description: dbBudget.description || undefined,
+  };
+}
+
+function mapDbExpenseToExpense(dbExpense: DBExpenseItem): ExpenseItem {
+  return {
+    id: dbExpense.id,
+    year: dbExpense.year,
+    month: dbExpense.month,
+    category: dbExpense.category as BudgetCategory,
+    amount: Number(dbExpense.amount),
+    description: dbExpense.description,
+    vendor: dbExpense.vendor || undefined,
+    date: dbExpense.expense_date,
+    receipt: dbExpense.receipt_url || undefined,
+    notes: dbExpense.notes || undefined,
+  };
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Issue 관련 함수들
+// ═══════════════════════════════════════════════════════════════════════════
+
+interface DBIssueItem {
+  id: string;
+  year: number;
+  month: number;
+  title: string;
+  type: string;
+  priority: string;
+  impact: string;
+  status: string;
+  category: string;
+  description: string | null;
+  owner: string | null;
+  due_date: string | null;
+  resolution: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export async function fetchIssueItems(year?: number): Promise<IssueItem[] | null> {
+  if (!isSupabaseConfigured()) return null;
+
+  let query = supabase!
+    .from('issues')
+    .select('*');
+
+  if (year) {
+    query = query.eq('year', year);
+  }
+
+  const { data, error } = await query
+    .order('priority', { ascending: false })
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('Error fetching issue items:', error);
+    return null;
+  }
+
+  return data?.map(mapDbIssueToIssue) || [];
+}
+
+export async function createIssueItem(
+  item: Omit<IssueItem, 'id' | 'createdAt' | 'updatedAt'>
+): Promise<IssueItem | null> {
+  if (!isSupabaseConfigured()) return null;
+
+  const now = new Date().toISOString();
+
+  const { data, error } = await supabase!
+    .from('issues')
+    .insert({
+      year: item.year,
+      month: item.month,
+      title: item.title,
+      type: item.type,
+      priority: item.priority,
+      impact: item.impact,
+      status: item.status,
+      category: item.category,
+      description: item.description || null,
+      owner: item.owner || null,
+      due_date: item.dueDate || null,
+      resolution: item.resolution || null,
+      created_at: now,
+      updated_at: now,
+    })
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error creating issue item:', error.message, error.code, error.details, error.hint);
+    return null;
+  }
+
+  return mapDbIssueToIssue(data);
+}
+
+export async function updateIssueItem(
+  id: string,
+  updates: Partial<IssueItem>
+): Promise<boolean> {
+  if (!isSupabaseConfigured()) return false;
+
+  const dbUpdates: Record<string, unknown> = {
+    updated_at: new Date().toISOString(),
+  };
+
+  if (updates.title !== undefined) dbUpdates.title = updates.title;
+  if (updates.year !== undefined) dbUpdates.year = updates.year;
+  if (updates.month !== undefined) dbUpdates.month = updates.month;
+  if (updates.type !== undefined) dbUpdates.type = updates.type;
+  if (updates.priority !== undefined) dbUpdates.priority = updates.priority;
+  if (updates.impact !== undefined) dbUpdates.impact = updates.impact;
+  if (updates.status !== undefined) dbUpdates.status = updates.status;
+  if (updates.category !== undefined) dbUpdates.category = updates.category;
+  if (updates.description !== undefined) dbUpdates.description = updates.description || null;
+  if (updates.owner !== undefined) dbUpdates.owner = updates.owner || null;
+  if (updates.dueDate !== undefined) dbUpdates.due_date = updates.dueDate || null;
+  if (updates.resolution !== undefined) dbUpdates.resolution = updates.resolution || null;
+
+  const { error } = await supabase!
+    .from('issues')
+    .update(dbUpdates)
+    .eq('id', id);
+
+  if (error) {
+    console.error('Error updating issue item:', error);
+    return false;
+  }
+
+  return true;
+}
+
+export async function deleteIssueItem(id: string): Promise<boolean> {
+  if (!isSupabaseConfigured()) return false;
+
+  const { error } = await supabase!
+    .from('issues')
+    .delete()
+    .eq('id', id);
+
+  if (error) {
+    console.error('Error deleting issue item:', error);
+    return false;
+  }
+
+  return true;
+}
+
+function mapDbIssueToIssue(dbIssue: DBIssueItem): IssueItem {
+  return {
+    id: dbIssue.id,
+    year: dbIssue.year,
+    month: dbIssue.month,
+    title: dbIssue.title,
+    type: dbIssue.type as IssueType,
+    priority: dbIssue.priority as IssuePriority,
+    impact: dbIssue.impact as IssueImpact,
+    status: dbIssue.status as IssueStatus,
+    category: dbIssue.category as IssueItem['category'],
+    description: dbIssue.description || undefined,
+    owner: dbIssue.owner || undefined,
+    dueDate: dbIssue.due_date || undefined,
+    resolution: dbIssue.resolution || undefined,
+    createdAt: dbIssue.created_at,
+    updatedAt: dbIssue.updated_at,
   };
 }

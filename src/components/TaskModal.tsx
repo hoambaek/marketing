@@ -53,12 +53,8 @@ export default function TaskModal({ isOpen, onClose, onSave, task, month, week }
   const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 640);
-    };
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
+    // Only check mobile on initial mount
+    setIsMobile(window.innerWidth < 640);
   }, []);
 
   // Prevent body scroll when modal is open
@@ -74,6 +70,11 @@ export default function TaskModal({ isOpen, onClose, onSave, task, month, week }
   }, [isOpen]);
 
   useEffect(() => {
+    if (!isOpen) return;
+
+    const mobile = window.innerWidth < 640;
+    setIsMobile(mobile);
+
     if (task) {
       setFormData({
         title: task.title,
@@ -86,7 +87,7 @@ export default function TaskModal({ isOpen, onClose, onSave, task, month, week }
         month: task.month,
         week: task.week,
       });
-      setIsEditing(!isMobile || !task);
+      setIsEditing(!mobile || !task);
     } else {
       setFormData({
         title: '',
@@ -101,7 +102,7 @@ export default function TaskModal({ isOpen, onClose, onSave, task, month, week }
       });
       setIsEditing(true);
     }
-  }, [task, isOpen, month, week, isMobile]);
+  }, [task, isOpen, month, week]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -134,306 +135,42 @@ export default function TaskModal({ isOpen, onClose, onSave, task, month, week }
 
   const monthInfo = MONTHS_INFO.find(m => m.id === formData.month);
 
-  // View Mode
-  const ViewMode = () => (
-    <div className="p-5 space-y-4">
-      {/* Status & Category */}
-      <div className="flex items-center gap-3">
-        <span className={`px-3 py-1.5 rounded-lg text-sm font-medium ${STATUS_COLORS[formData.status]}`}>
-          {STATUS_LABELS[formData.status]}
-        </span>
-        <span className={`px-3 py-1.5 rounded-lg text-sm font-medium badge-${formData.category}`}>
-          {CATEGORY_LABELS[formData.category]}
-        </span>
-      </div>
+  // Input change handlers to prevent re-renders from recreating components
+  const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData(prev => ({ ...prev, title: e.target.value }));
+  };
 
-      {/* Title */}
-      <div className="p-4 bg-muted/30 rounded-xl">
-        <p className="text-xs text-muted-foreground mb-1">업무명</p>
-        <p className="text-foreground font-medium text-lg">{formData.title || '(제목 없음)'}</p>
-      </div>
+  const handleDescriptionChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setFormData(prev => ({ ...prev, description: e.target.value }));
+  };
 
-      {/* Description */}
-      {formData.description && (
-        <div className="p-4 bg-muted/30 rounded-xl">
-          <p className="text-xs text-muted-foreground mb-1">설명</p>
-          <p className="text-foreground/80 text-sm whitespace-pre-wrap">{formData.description}</p>
-        </div>
-      )}
+  const handleCategoryChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setFormData(prev => ({ ...prev, category: e.target.value as TaskCategory }));
+  };
 
-      {/* Month & Week */}
-      <div className="flex gap-3">
-        <div className="flex-1 p-4 bg-muted/30 rounded-xl">
-          <div className="flex items-center gap-2 mb-1">
-            <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
-            <p className="text-xs text-muted-foreground">월</p>
-          </div>
-          <p className="text-foreground font-medium">
-            {monthInfo ? monthInfo.name : '-'}
-          </p>
-        </div>
-        <div className="flex-1 p-4 bg-muted/30 rounded-xl">
-          <div className="flex items-center gap-2 mb-1">
-            <Clock className="w-3.5 h-3.5 text-muted-foreground" />
-            <p className="text-xs text-muted-foreground">주차</p>
-          </div>
-          <p className="text-foreground font-medium">{WEEK_LABELS[formData.week]}</p>
-        </div>
-      </div>
+  const handleStatusChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setFormData(prev => ({ ...prev, status: e.target.value as TaskStatus }));
+  };
 
-      {/* Assignee & Deliverables */}
-      {(formData.assignee || formData.deliverables) && (
-        <div className="flex gap-3">
-          {formData.assignee && (
-            <div className="flex-1 p-4 bg-muted/30 rounded-xl">
-              <div className="flex items-center gap-2 mb-1">
-                <User className="w-3.5 h-3.5 text-muted-foreground" />
-                <p className="text-xs text-muted-foreground">담당자</p>
-              </div>
-              <p className="text-foreground font-medium">{formData.assignee}</p>
-            </div>
-          )}
-          {formData.deliverables && (
-            <div className="flex-1 p-4 bg-muted/30 rounded-xl">
-              <div className="flex items-center gap-2 mb-1">
-                <FileText className="w-3.5 h-3.5 text-muted-foreground" />
-                <p className="text-xs text-muted-foreground">산출물</p>
-              </div>
-              <p className="text-foreground font-medium text-sm">{formData.deliverables}</p>
-            </div>
-          )}
-        </div>
-      )}
+  const handleMonthChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setFormData(prev => ({ ...prev, month: parseInt(e.target.value) }));
+  };
 
-      {/* Notes */}
-      {formData.notes && (
-        <div className="p-4 bg-muted/30 rounded-xl">
-          <p className="text-xs text-muted-foreground mb-1">메모</p>
-          <p className="text-foreground/80 text-sm whitespace-pre-wrap">{formData.notes}</p>
-        </div>
-      )}
+  const handleWeekChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setFormData(prev => ({ ...prev, week: parseInt(e.target.value) }));
+  };
 
-      {/* Buttons */}
-      <div className="flex gap-3 pt-2">
-        <button
-          type="button"
-          onClick={handleClose}
-          className="flex-1 px-4 py-2.5 border border-border rounded-xl text-muted-foreground hover:bg-muted active:bg-muted/50 transition-colors"
-        >
-          닫기
-        </button>
-        <button
-          type="button"
-          onClick={() => setIsEditing(true)}
-          className="flex-1 px-4 py-2.5 bg-accent text-white rounded-xl hover:bg-accent/90 active:bg-accent/80 transition-colors font-medium flex items-center justify-center gap-2"
-        >
-          <Pencil className="w-4 h-4" />
-          수정
-        </button>
-      </div>
-    </div>
-  );
+  const handleAssigneeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData(prev => ({ ...prev, assignee: e.target.value }));
+  };
 
-  // Edit Mode
-  const EditMode = () => (
-    <form onSubmit={handleSubmit} className="p-5 space-y-4">
-      {/* Title */}
-      <div>
-        <label className="block text-sm font-medium text-foreground mb-1.5">
-          업무명 <span className="text-red-500">*</span>
-        </label>
-        <input
-          type="text"
-          value={formData.title}
-          onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-          placeholder="업무명을 입력하세요"
-          className="w-full px-4 py-2.5 bg-background border border-border rounded-xl text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all"
-          autoFocus={!isMobile}
-        />
-      </div>
+  const handleDeliverablesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData(prev => ({ ...prev, deliverables: e.target.value }));
+  };
 
-      {/* Description */}
-      <div>
-        <label className="block text-sm font-medium text-foreground mb-1.5">
-          설명
-        </label>
-        <textarea
-          value={formData.description}
-          onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-          placeholder="업무에 대한 상세 설명"
-          rows={3}
-          className="w-full px-4 py-2.5 bg-background border border-border rounded-xl text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all resize-none"
-        />
-      </div>
-
-      {/* Category & Status Row */}
-      <div className="flex flex-col sm:flex-row gap-4">
-        <div className="flex-1">
-          <label className="block text-sm font-medium text-foreground mb-1.5">
-            카테고리
-          </label>
-          <div className="relative">
-            <select
-              value={formData.category}
-              onChange={(e) => setFormData({ ...formData, category: e.target.value as TaskCategory })}
-              className="w-full px-4 py-2.5 pr-10 bg-background border border-border rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all appearance-none cursor-pointer"
-            >
-              {CATEGORIES.map((cat) => (
-                <option key={cat} value={cat}>
-                  {CATEGORY_LABELS[cat]}
-                </option>
-              ))}
-            </select>
-            <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
-              <svg className="w-4 h-4 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
-            </div>
-          </div>
-        </div>
-
-        <div className="flex-1">
-          <label className="block text-sm font-medium text-foreground mb-1.5">
-            상태
-          </label>
-          <div className="relative">
-            <select
-              value={formData.status}
-              onChange={(e) => setFormData({ ...formData, status: e.target.value as TaskStatus })}
-              className="w-full px-4 py-2.5 pr-10 bg-background border border-border rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all appearance-none cursor-pointer"
-            >
-              <option value="pending">대기</option>
-              <option value="in_progress">진행중</option>
-              <option value="done">완료</option>
-            </select>
-            <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
-              <svg className="w-4 h-4 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Month & Week Row */}
-      {task && (
-        <div className="flex flex-col sm:flex-row gap-4">
-          <div className="flex-1">
-            <label className="block text-sm font-medium text-foreground mb-1.5">
-              월
-            </label>
-            <div className="relative">
-              <select
-                value={formData.month}
-                onChange={(e) => setFormData({ ...formData, month: parseInt(e.target.value) })}
-                className="w-full px-4 py-2.5 pr-10 bg-background border border-border rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all appearance-none cursor-pointer"
-              >
-                {MONTHS_INFO.map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.name} - {m.title}
-                  </option>
-                ))}
-              </select>
-              <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
-                <svg className="w-4 h-4 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex-1">
-            <label className="block text-sm font-medium text-foreground mb-1.5">
-              주차
-            </label>
-            <div className="relative">
-              <select
-                value={formData.week}
-                onChange={(e) => setFormData({ ...formData, week: parseInt(e.target.value) })}
-                className="w-full px-4 py-2.5 pr-10 bg-background border border-border rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all appearance-none cursor-pointer"
-              >
-                {WEEKS.map((w) => (
-                  <option key={w} value={w}>
-                    {WEEK_LABELS[w]}
-                  </option>
-                ))}
-              </select>
-              <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
-                <svg className="w-4 h-4 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Assignee */}
-      <div>
-        <label className="block text-sm font-medium text-foreground mb-1.5">
-          담당자
-        </label>
-        <input
-          type="text"
-          value={formData.assignee}
-          onChange={(e) => setFormData({ ...formData, assignee: e.target.value })}
-          placeholder="담당자 이름"
-          className="w-full px-4 py-2.5 bg-background border border-border rounded-xl text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all"
-        />
-      </div>
-
-      {/* Deliverables */}
-      <div>
-        <label className="block text-sm font-medium text-foreground mb-1.5">
-          산출물
-        </label>
-        <input
-          type="text"
-          value={formData.deliverables}
-          onChange={(e) => setFormData({ ...formData, deliverables: e.target.value })}
-          placeholder="쉼표로 구분하여 입력 (예: 기획서, PPT)"
-          className="w-full px-4 py-2.5 bg-background border border-border rounded-xl text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all"
-        />
-      </div>
-
-      {/* Notes */}
-      <div>
-        <label className="block text-sm font-medium text-foreground mb-1.5">
-          메모
-        </label>
-        <textarea
-          value={formData.notes}
-          onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-          placeholder="추가 메모"
-          rows={2}
-          className="w-full px-4 py-2.5 bg-background border border-border rounded-xl text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all resize-none"
-        />
-      </div>
-
-      {/* Buttons */}
-      <div className="flex gap-3 pt-2">
-        <button
-          type="button"
-          onClick={() => {
-            if (isMobile && task) {
-              setIsEditing(false);
-            } else {
-              handleClose();
-            }
-          }}
-          className="flex-1 px-4 py-2.5 border border-border rounded-xl text-muted-foreground hover:bg-muted active:bg-muted/50 transition-colors"
-        >
-          취소
-        </button>
-        <button
-          type="submit"
-          className="flex-1 px-4 py-2.5 bg-accent text-white rounded-xl hover:bg-accent/90 active:bg-accent/80 transition-colors font-medium"
-        >
-          {task ? '저장' : '추가'}
-        </button>
-      </div>
-    </form>
-  );
+  const handleNotesChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setFormData(prev => ({ ...prev, notes: e.target.value }));
+  };
 
   return (
     <AnimatePresence>
@@ -470,8 +207,305 @@ export default function TaskModal({ isOpen, onClose, onSave, task, month, week }
             </button>
           </div>
 
-          {/* Content */}
-          {isEditing ? <EditMode /> : <ViewMode />}
+          {/* Content - Inline JSX to prevent re-render issues */}
+          {isEditing ? (
+            /* Edit Mode */
+            <form onSubmit={handleSubmit} className="p-5 space-y-4">
+              {/* Title */}
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-1.5">
+                  업무명 <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={formData.title}
+                  onChange={handleTitleChange}
+                  placeholder="업무명을 입력하세요"
+                  className="w-full px-4 py-2.5 bg-background border border-border rounded-xl text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all"
+                  autoFocus={!isMobile}
+                />
+              </div>
+
+              {/* Description */}
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-1.5">
+                  설명
+                </label>
+                <textarea
+                  value={formData.description}
+                  onChange={handleDescriptionChange}
+                  placeholder="업무에 대한 상세 설명"
+                  rows={3}
+                  className="w-full px-4 py-2.5 bg-background border border-border rounded-xl text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all resize-none"
+                />
+              </div>
+
+              {/* Category & Status Row */}
+              <div className="flex flex-col sm:flex-row gap-4">
+                <div className="flex-1">
+                  <label className="block text-sm font-medium text-foreground mb-1.5">
+                    카테고리
+                  </label>
+                  <div className="relative">
+                    <select
+                      value={formData.category}
+                      onChange={handleCategoryChange}
+                      className="w-full px-4 py-2.5 pr-10 bg-background border border-border rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all appearance-none cursor-pointer"
+                    >
+                      {CATEGORIES.map((cat) => (
+                        <option key={cat} value={cat}>
+                          {CATEGORY_LABELS[cat]}
+                        </option>
+                      ))}
+                    </select>
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                      <svg className="w-4 h-4 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex-1">
+                  <label className="block text-sm font-medium text-foreground mb-1.5">
+                    상태
+                  </label>
+                  <div className="relative">
+                    <select
+                      value={formData.status}
+                      onChange={handleStatusChange}
+                      className="w-full px-4 py-2.5 pr-10 bg-background border border-border rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all appearance-none cursor-pointer"
+                    >
+                      <option value="pending">대기</option>
+                      <option value="in_progress">진행중</option>
+                      <option value="done">완료</option>
+                    </select>
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                      <svg className="w-4 h-4 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Month & Week Row */}
+              {task && (
+                <div className="flex flex-col sm:flex-row gap-4">
+                  <div className="flex-1">
+                    <label className="block text-sm font-medium text-foreground mb-1.5">
+                      월
+                    </label>
+                    <div className="relative">
+                      <select
+                        value={formData.month}
+                        onChange={handleMonthChange}
+                        className="w-full px-4 py-2.5 pr-10 bg-background border border-border rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all appearance-none cursor-pointer"
+                      >
+                        {MONTHS_INFO.map((m) => (
+                          <option key={m.id} value={m.id}>
+                            {m.name} - {m.title}
+                          </option>
+                        ))}
+                      </select>
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                        <svg className="w-4 h-4 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex-1">
+                    <label className="block text-sm font-medium text-foreground mb-1.5">
+                      주차
+                    </label>
+                    <div className="relative">
+                      <select
+                        value={formData.week}
+                        onChange={handleWeekChange}
+                        className="w-full px-4 py-2.5 pr-10 bg-background border border-border rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all appearance-none cursor-pointer"
+                      >
+                        {WEEKS.map((w) => (
+                          <option key={w} value={w}>
+                            {WEEK_LABELS[w]}
+                          </option>
+                        ))}
+                      </select>
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                        <svg className="w-4 h-4 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Assignee */}
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-1.5">
+                  담당자
+                </label>
+                <input
+                  type="text"
+                  value={formData.assignee}
+                  onChange={handleAssigneeChange}
+                  placeholder="담당자 이름"
+                  className="w-full px-4 py-2.5 bg-background border border-border rounded-xl text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all"
+                />
+              </div>
+
+              {/* Deliverables */}
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-1.5">
+                  산출물
+                </label>
+                <input
+                  type="text"
+                  value={formData.deliverables}
+                  onChange={handleDeliverablesChange}
+                  placeholder="쉼표로 구분하여 입력 (예: 기획서, PPT)"
+                  className="w-full px-4 py-2.5 bg-background border border-border rounded-xl text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all"
+                />
+              </div>
+
+              {/* Notes */}
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-1.5">
+                  메모
+                </label>
+                <textarea
+                  value={formData.notes}
+                  onChange={handleNotesChange}
+                  placeholder="추가 메모"
+                  rows={2}
+                  className="w-full px-4 py-2.5 bg-background border border-border rounded-xl text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all resize-none"
+                />
+              </div>
+
+              {/* Buttons */}
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (isMobile && task) {
+                      setIsEditing(false);
+                    } else {
+                      handleClose();
+                    }
+                  }}
+                  className="flex-1 px-4 py-2.5 border border-border rounded-xl text-muted-foreground hover:bg-muted active:bg-muted/50 transition-colors"
+                >
+                  취소
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 px-4 py-2.5 bg-accent text-white rounded-xl hover:bg-accent/90 active:bg-accent/80 transition-colors font-medium"
+                >
+                  {task ? '저장' : '추가'}
+                </button>
+              </div>
+            </form>
+          ) : (
+            /* View Mode */
+            <div className="p-5 space-y-4">
+              {/* Status & Category */}
+              <div className="flex items-center gap-3">
+                <span className={`px-3 py-1.5 rounded-lg text-sm font-medium ${STATUS_COLORS[formData.status]}`}>
+                  {STATUS_LABELS[formData.status]}
+                </span>
+                <span className={`px-3 py-1.5 rounded-lg text-sm font-medium badge-${formData.category}`}>
+                  {CATEGORY_LABELS[formData.category]}
+                </span>
+              </div>
+
+              {/* Title */}
+              <div className="p-4 bg-muted/30 rounded-xl">
+                <p className="text-xs text-muted-foreground mb-1">업무명</p>
+                <p className="text-foreground font-medium text-lg">{formData.title || '(제목 없음)'}</p>
+              </div>
+
+              {/* Description */}
+              {formData.description && (
+                <div className="p-4 bg-muted/30 rounded-xl">
+                  <p className="text-xs text-muted-foreground mb-1">설명</p>
+                  <p className="text-foreground/80 text-sm whitespace-pre-wrap">{formData.description}</p>
+                </div>
+              )}
+
+              {/* Month & Week */}
+              <div className="flex gap-3">
+                <div className="flex-1 p-4 bg-muted/30 rounded-xl">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
+                    <p className="text-xs text-muted-foreground">월</p>
+                  </div>
+                  <p className="text-foreground font-medium">
+                    {monthInfo ? monthInfo.name : '-'}
+                  </p>
+                </div>
+                <div className="flex-1 p-4 bg-muted/30 rounded-xl">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Clock className="w-3.5 h-3.5 text-muted-foreground" />
+                    <p className="text-xs text-muted-foreground">주차</p>
+                  </div>
+                  <p className="text-foreground font-medium">{WEEK_LABELS[formData.week]}</p>
+                </div>
+              </div>
+
+              {/* Assignee & Deliverables */}
+              {(formData.assignee || formData.deliverables) && (
+                <div className="flex gap-3">
+                  {formData.assignee && (
+                    <div className="flex-1 p-4 bg-muted/30 rounded-xl">
+                      <div className="flex items-center gap-2 mb-1">
+                        <User className="w-3.5 h-3.5 text-muted-foreground" />
+                        <p className="text-xs text-muted-foreground">담당자</p>
+                      </div>
+                      <p className="text-foreground font-medium">{formData.assignee}</p>
+                    </div>
+                  )}
+                  {formData.deliverables && (
+                    <div className="flex-1 p-4 bg-muted/30 rounded-xl">
+                      <div className="flex items-center gap-2 mb-1">
+                        <FileText className="w-3.5 h-3.5 text-muted-foreground" />
+                        <p className="text-xs text-muted-foreground">산출물</p>
+                      </div>
+                      <p className="text-foreground font-medium text-sm">{formData.deliverables}</p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Notes */}
+              {formData.notes && (
+                <div className="p-4 bg-muted/30 rounded-xl">
+                  <p className="text-xs text-muted-foreground mb-1">메모</p>
+                  <p className="text-foreground/80 text-sm whitespace-pre-wrap">{formData.notes}</p>
+                </div>
+              )}
+
+              {/* Buttons */}
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={handleClose}
+                  className="flex-1 px-4 py-2.5 border border-border rounded-xl text-muted-foreground hover:bg-muted active:bg-muted/50 transition-colors"
+                >
+                  닫기
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsEditing(true)}
+                  className="flex-1 px-4 py-2.5 bg-accent text-white rounded-xl hover:bg-accent/90 active:bg-accent/80 transition-colors font-medium flex items-center justify-center gap-2"
+                >
+                  <Pencil className="w-4 h-4" />
+                  수정
+                </button>
+              </div>
+            </div>
+          )}
         </motion.div>
       </motion.div>
     </AnimatePresence>

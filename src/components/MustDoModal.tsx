@@ -2,8 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Pencil, CheckCircle2, Circle, Calendar } from 'lucide-react';
-import { MustDoItem, MONTHS_INFO } from '@/lib/types';
+import { X, Pencil, CheckCircle2, Circle, Calendar, Tag } from 'lucide-react';
+import { MustDoItem, TaskCategory, MONTHS_INFO, CATEGORY_LABELS, CATEGORY_COLORS } from '@/lib/types';
+
+const CATEGORY_OPTIONS: TaskCategory[] = ['operation', 'marketing', 'design', 'filming', 'pr', 'b2b'];
 
 interface MustDoModalProps {
   isOpen: boolean;
@@ -27,6 +29,7 @@ export default function MustDoModal({
     title: '',
     month: defaultMonth,
     done: false,
+    category: 'operation' as TaskCategory,
   });
 
   // Mobile: view mode first, then edit mode
@@ -35,13 +38,8 @@ export default function MustDoModal({
   const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
-    // Check if mobile
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 640);
-    };
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
+    // Only check mobile on initial mount
+    setIsMobile(window.innerWidth < 640);
   }, []);
 
   // Prevent body scroll when modal is open
@@ -57,27 +55,34 @@ export default function MustDoModal({
   }, [isOpen]);
 
   useEffect(() => {
+    if (!isOpen) return;
+
+    const mobile = window.innerWidth < 640;
+    setIsMobile(mobile);
+
     if (item) {
       setFormData({
         year: item.year,
         title: item.title,
         month: item.month,
         done: item.done,
+        category: item.category || 'operation',
       });
       // On mobile with existing item: show view mode first
       // On desktop or new item: show edit mode
-      setIsEditing(!isMobile || !item);
+      setIsEditing(!mobile || !item);
     } else {
       setFormData({
         year: defaultYear,
         title: '',
         month: defaultMonth,
         done: false,
+        category: 'operation',
       });
       // New item: always edit mode
       setIsEditing(true);
     }
-  }, [item, defaultMonth, defaultYear, isOpen, isMobile]);
+  }, [item, defaultMonth, defaultYear, isOpen]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -88,6 +93,7 @@ export default function MustDoModal({
       title: formData.title.trim(),
       month: formData.month,
       done: formData.done,
+      category: formData.category,
     });
     onClose();
   };
@@ -119,6 +125,17 @@ export default function MustDoModal({
             {formData.done ? '완료됨' : '미완료'}
           </p>
         </div>
+      </div>
+
+      {/* Category */}
+      <div className="p-4 bg-muted/30 rounded-xl">
+        <div className="flex items-center gap-2 mb-1">
+          <Tag className="w-3.5 h-3.5 text-muted-foreground" />
+          <p className="text-xs text-muted-foreground">카테고리</p>
+        </div>
+        <span className={`inline-block px-3 py-1 rounded-lg text-sm font-medium ${CATEGORY_COLORS[formData.category]}`}>
+          {CATEGORY_LABELS[formData.category]}
+        </span>
       </div>
 
       {/* Title */}
@@ -162,6 +179,29 @@ export default function MustDoModal({
   // Edit Mode
   const EditMode = () => (
     <form onSubmit={handleSubmit} className="p-5 space-y-4">
+      {/* Category */}
+      <div>
+        <label className="block text-sm font-medium text-foreground mb-1.5">
+          카테고리 <span className="text-red-500">*</span>
+        </label>
+        <div className="relative">
+          <select
+            value={formData.category}
+            onChange={(e) => setFormData({ ...formData, category: e.target.value as TaskCategory })}
+            className="w-full px-4 py-2.5 pr-10 bg-background border border-border rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all appearance-none cursor-pointer"
+          >
+            {CATEGORY_OPTIONS.map((cat) => (
+              <option key={cat} value={cat}>{CATEGORY_LABELS[cat]}</option>
+            ))}
+          </select>
+          <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+            <svg className="w-4 h-4 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </div>
+        </div>
+      </div>
+
       {/* Title */}
       <div>
         <label className="block text-sm font-medium text-foreground mb-1.5">

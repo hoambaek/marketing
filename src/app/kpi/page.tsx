@@ -343,46 +343,72 @@ export default function KPIPage() {
       </div>
 
       {/* Hero Section */}
-      <section className="px-4 sm:px-6 lg:px-8 pt-12 pb-8">
-        <div className="mx-auto max-w-6xl">
+      <section className="relative pt-16 pb-8 sm:pb-12 px-4 sm:px-6 lg:px-12">
+        <div className="max-w-6xl mx-auto">
           <motion.div
-            variants={containerVariants}
-            initial="hidden"
-            animate="visible"
-            className="text-center mb-12"
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 1, ease: [0.25, 0.46, 0.45, 0.94] }}
+            className="relative"
           >
             {/* Decorative Line */}
-            <motion.div variants={itemVariants} className="flex justify-center mb-8">
-              <div className="flex items-center gap-4">
-                <motion.div
-                  className="h-px w-16 bg-gradient-to-r from-transparent to-[#b7916e]/50"
-                  initial={{ scaleX: 0 }}
-                  animate={{ scaleX: 1 }}
-                  transition={{ duration: 1, delay: 0.3 }}
-                />
-                <BarChart3 className="w-5 h-5 text-[#b7916e]" />
-                <motion.div
-                  className="h-px w-16 bg-gradient-to-l from-transparent to-[#b7916e]/50"
-                  initial={{ scaleX: 0 }}
-                  animate={{ scaleX: 1 }}
-                  transition={{ duration: 1, delay: 0.3 }}
-                />
+            <motion.div
+              initial={{ scaleX: 0 }}
+              animate={{ scaleX: 1 }}
+              transition={{ duration: 1.2, delay: 0.3, ease: [0.25, 0.46, 0.45, 0.94] }}
+              className="absolute -left-4 sm:-left-6 top-1/2 w-12 sm:w-16 h-px bg-gradient-to-r from-[#b7916e] to-transparent origin-left"
+            />
+
+            <div className="pl-10 sm:pl-14 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+              <div>
+                <motion.p
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.8, delay: 0.4 }}
+                  className="text-[#b7916e] text-xs sm:text-sm tracking-[0.3em] uppercase mb-3 sm:mb-4 font-light"
+                >
+                  Performance Metrics
+                </motion.p>
+
+                <h1
+                  className="text-4xl sm:text-5xl lg:text-6xl text-white/95 mb-4 sm:mb-6 leading-[1.1] tracking-tight"
+                  style={{ fontFamily: "var(--font-cormorant), 'Playfair Display', Georgia, serif" }}
+                >
+                  <motion.span
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.8, delay: 0.5 }}
+                    className="block"
+                  >
+                    KPI
+                  </motion.span>
+                  <motion.span
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.8, delay: 0.6 }}
+                    className="block text-transparent bg-clip-text bg-gradient-to-r from-[#b7916e] via-[#d4c4a8] to-[#b7916e]"
+                  >
+                    Dashboard
+                  </motion.span>
+                </h1>
+
+                <motion.p
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 1, delay: 0.8 }}
+                  className="text-white/40 text-base sm:text-lg max-w-md font-light leading-relaxed"
+                >
+                  핵심 성과 지표 모니터링 및 목표 달성 현황
+                </motion.p>
               </div>
-            </motion.div>
-
-            {/* Title */}
-            <motion.h1
-              variants={itemVariants}
-              className="text-4xl sm:text-5xl lg:text-6xl text-white/90 mb-4 tracking-tight"
-              style={{ fontFamily: "var(--font-cormorant), 'Playfair Display', Georgia, serif" }}
-            >
-              KPI 대시보드
-            </motion.h1>
-
-            <motion.p variants={itemVariants} className="text-white/40 text-lg max-w-xl mx-auto">
-              핵심 성과 지표 모니터링 및 목표 달성 현황
-            </motion.p>
+            </div>
           </motion.div>
+        </div>
+      </section>
+
+      {/* Controls Section */}
+      <section className="px-4 sm:px-6 lg:px-8 mb-6">
+        <div className="max-w-6xl mx-auto">
 
           {/* Year & Month Selector */}
           <motion.div variants={itemVariants} initial="hidden" animate="visible">

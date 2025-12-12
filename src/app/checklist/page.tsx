@@ -3,7 +3,7 @@
 import { motion } from 'framer-motion';
 import { useState } from 'react';
 import { useMasterPlanStore } from '@/lib/store/masterplan-store';
-import { MustDoItem, MONTHS_INFO, AVAILABLE_YEARS } from '@/lib/types';
+import { MustDoItem, MONTHS_INFO, AVAILABLE_YEARS, CATEGORY_LABELS, CATEGORY_COLORS } from '@/lib/types';
 import { CheckCircle2, Circle, Filter, Plus, Pencil, Trash2, ListChecks } from 'lucide-react';
 import MustDoModal from '@/components/MustDoModal';
 
@@ -91,6 +91,7 @@ export default function ChecklistPage() {
         title: itemData.title,
         month: itemData.month,
         done: itemData.done,
+        category: itemData.category,
       });
     } else {
       await addMustDo(itemData);
@@ -383,6 +384,11 @@ export default function ChecklistPage() {
                               <Circle className="w-5 h-5 sm:w-6 sm:h-6 text-white/30 group-hover/item:text-[#b7916e] transition-colors" />
                             )}
                           </div>
+
+                          {/* Category Tag */}
+                          <span className={`flex-shrink-0 px-2 py-0.5 rounded-md text-xs font-medium ${CATEGORY_COLORS[item.category || 'operation']}`}>
+                            {CATEGORY_LABELS[item.category || 'operation']}
+                          </span>
 
                           {/* Title - full width with proper text wrapping */}
                           <span
