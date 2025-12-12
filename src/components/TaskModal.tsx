@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X } from 'lucide-react';
-import { Task, TaskCategory, TaskStatus, CATEGORY_LABELS } from '@/lib/types';
+import { Task, TaskCategory, TaskStatus, CATEGORY_LABELS, MONTHS_INFO } from '@/lib/types';
 
 interface TaskModalProps {
   isOpen: boolean;
@@ -15,6 +15,13 @@ interface TaskModalProps {
 }
 
 const CATEGORIES: TaskCategory[] = ['operation', 'marketing', 'design', 'filming', 'pr', 'b2b'];
+const WEEKS = [1, 2, 3, 4];
+const WEEK_LABELS: Record<number, string> = {
+  1: '첫째 주',
+  2: '둘째 주',
+  3: '셋째 주',
+  4: '넷째 주',
+};
 
 export default function TaskModal({ isOpen, onClose, onSave, task, month, week }: TaskModalProps) {
   const [formData, setFormData] = useState({
@@ -25,6 +32,8 @@ export default function TaskModal({ isOpen, onClose, onSave, task, month, week }
     assignee: '',
     deliverables: '',
     notes: '',
+    month: month,
+    week: week,
   });
 
   useEffect(() => {
@@ -37,6 +46,8 @@ export default function TaskModal({ isOpen, onClose, onSave, task, month, week }
         assignee: task.assignee || '',
         deliverables: task.deliverables?.join(', ') || '',
         notes: task.notes || '',
+        month: task.month,
+        week: task.week,
       });
     } else {
       setFormData({
@@ -47,9 +58,11 @@ export default function TaskModal({ isOpen, onClose, onSave, task, month, week }
         assignee: '',
         deliverables: '',
         notes: '',
+        month: month,
+        week: week,
       });
     }
-  }, [task, isOpen]);
+  }, [task, isOpen, month, week]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -58,8 +71,8 @@ export default function TaskModal({ isOpen, onClose, onSave, task, month, week }
     const taskData = {
       title: formData.title.trim(),
       description: formData.description.trim() || undefined,
-      month,
-      week,
+      month: formData.month,
+      week: formData.week,
       category: formData.category,
       status: formData.status,
       assignee: formData.assignee.trim() || undefined,
@@ -172,6 +185,47 @@ export default function TaskModal({ isOpen, onClose, onSave, task, month, week }
                 </select>
               </div>
             </div>
+
+            {/* Month & Week Row - 수정 모드에서만 표시 */}
+            {task && (
+              <div className="grid grid-cols-2 gap-4">
+                {/* Month */}
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1.5">
+                    월
+                  </label>
+                  <select
+                    value={formData.month}
+                    onChange={(e) => setFormData({ ...formData, month: parseInt(e.target.value) })}
+                    className="w-full px-4 py-2.5 bg-background border border-border rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all"
+                  >
+                    {MONTHS_INFO.map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.name} - {m.title}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Week */}
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1.5">
+                    주차
+                  </label>
+                  <select
+                    value={formData.week}
+                    onChange={(e) => setFormData({ ...formData, week: parseInt(e.target.value) })}
+                    className="w-full px-4 py-2.5 bg-background border border-border rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all"
+                  >
+                    {WEEKS.map((w) => (
+                      <option key={w} value={w}>
+                        {WEEK_LABELS[w]}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            )}
 
             {/* Assignee */}
             <div>

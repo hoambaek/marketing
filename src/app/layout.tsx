@@ -3,6 +3,7 @@ import { Cormorant_Garamond } from 'next/font/google';
 import './globals.css';
 import { Header } from '@/components/layout/Header';
 import SupabaseInitializer from '@/components/SupabaseInitializer';
+import { ClerkWrapper } from '@/components/ClerkWrapper';
 
 const cormorant = Cormorant_Garamond({
   subsets: ['latin'],
@@ -36,18 +37,20 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ko" suppressHydrationWarning className={cormorant.variable}>
-      <body className="min-h-screen bg-gradient-animated bg-ambient-glow bg-grain">
-        {/* Header */}
-        <Header />
+    <ClerkWrapper>
+      <html lang="ko" suppressHydrationWarning className={cormorant.variable}>
+        <body className="min-h-screen bg-gradient-animated bg-ambient-glow bg-grain">
+          {/* Header */}
+          <Header />
 
-        {/* Main Content */}
-        <SupabaseInitializer>
-          <main className="pt-16 min-h-screen">
-            {children}
-          </main>
-        </SupabaseInitializer>
-      </body>
-    </html>
+          {/* Main Content */}
+          <SupabaseInitializer>
+            <main className="pt-16 min-h-screen">
+              {children}
+            </main>
+          </SupabaseInitializer>
+        </body>
+      </html>
+    </ClerkWrapper>
   );
 }

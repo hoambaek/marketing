@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { AVAILABLE_YEARS, MONTHS_INFO } from '@/lib/types';
 
 interface YearMonthSelectorProps {
@@ -40,147 +40,115 @@ export function YearMonthSelector({
   };
 
   return (
-    <div className={`relative rounded-2xl overflow-hidden ${className}`}>
-      {/* Background */}
-      <div className="absolute inset-0 bg-gradient-to-br from-white/[0.04] to-white/[0.01] backdrop-blur-sm" />
-      <div className="absolute inset-0 border border-white/[0.06] rounded-2xl" />
+    <div className={`relative rounded-xl overflow-hidden ${className}`}>
+      {/* Subtle glass background */}
+      <div className="absolute inset-0 bg-white/[0.02] backdrop-blur-sm" />
+      <div className="absolute inset-0 border border-white/[0.05] rounded-xl" />
 
-      <div className="relative p-6">
-        {/* Year Selector */}
-        <div className="mb-6">
-          <div className="flex items-center justify-between mb-4">
-            <p className="text-xs text-white/30 uppercase tracking-[0.2em] flex items-center gap-2">
-              <Calendar className="w-3.5 h-3.5" />
-              년도 선택
-            </p>
+      <div className="relative flex items-center justify-between px-4 py-2.5 gap-4">
+        {/* Year Selector - Compact inline */}
+        <div className="flex items-center gap-1 shrink-0">
+          <button
+            onClick={handlePrevYear}
+            disabled={currentYearIndex === 0}
+            className={`p-1 rounded-md transition-all ${
+              currentYearIndex === 0
+                ? 'text-white/10 cursor-not-allowed'
+                : 'text-white/30 hover:text-white/60 hover:bg-white/[0.04]'
+            }`}
+          >
+            <ChevronLeft className="w-3.5 h-3.5" />
+          </button>
 
-            {/* Year Navigation */}
-            <div className="flex items-center gap-1">
-              <button
-                onClick={handlePrevYear}
-                disabled={currentYearIndex === 0}
-                className={`p-1.5 rounded-lg transition-all duration-300 ${
-                  currentYearIndex === 0
-                    ? 'text-white/10 cursor-not-allowed'
-                    : 'text-white/40 hover:text-white/70 hover:bg-white/[0.06]'
-                }`}
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </button>
-              <button
-                onClick={handleNextYear}
-                disabled={currentYearIndex === AVAILABLE_YEARS.length - 1}
-                className={`p-1.5 rounded-lg transition-all duration-300 ${
-                  currentYearIndex === AVAILABLE_YEARS.length - 1
-                    ? 'text-white/10 cursor-not-allowed'
-                    : 'text-white/40 hover:text-white/70 hover:bg-white/[0.06]'
-                }`}
-              >
-                <ChevronRight className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-
-          {/* Year Buttons */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center">
             {AVAILABLE_YEARS.map((year) => (
               <button
                 key={year}
                 onClick={() => onYearChange(year)}
-                className="relative group"
+                className={`relative px-2.5 py-1 rounded-md text-sm transition-all ${
+                  selectedYear === year && !isAllSelected
+                    ? 'text-[#d4c4a8]'
+                    : 'text-white/25 hover:text-white/50'
+                }`}
+                style={{ fontFamily: "var(--font-cormorant), 'Playfair Display', Georgia, serif" }}
               >
-                <span
-                  className={`block px-5 py-2.5 rounded-xl text-base transition-all duration-300 ${
-                    selectedYear === year && !isAllSelected
-                      ? 'text-[#d4c4a8]'
-                      : 'text-white/30 hover:text-white/60'
-                  }`}
-                  style={{ fontFamily: "var(--font-cormorant), 'Playfair Display', Georgia, serif" }}
-                >
-                  {year}
-                </span>
-
-                {/* Active Background */}
+                {year}
                 {selectedYear === year && !isAllSelected && (
                   <motion.div
-                    layoutId="yearSelector"
-                    className="absolute inset-0 rounded-xl bg-[#b7916e]/15 border border-[#b7916e]/25"
-                    transition={{ type: 'spring', bounce: 0.15, duration: 0.5 }}
+                    layoutId="yearPill"
+                    className="absolute inset-0 rounded-md bg-[#b7916e]/10 border border-[#b7916e]/20"
+                    transition={{ type: 'spring', bounce: 0.15, duration: 0.4 }}
                   />
                 )}
               </button>
             ))}
           </div>
+
+          <button
+            onClick={handleNextYear}
+            disabled={currentYearIndex === AVAILABLE_YEARS.length - 1}
+            className={`p-1 rounded-md transition-all ${
+              currentYearIndex === AVAILABLE_YEARS.length - 1
+                ? 'text-white/10 cursor-not-allowed'
+                : 'text-white/30 hover:text-white/60 hover:bg-white/[0.04]'
+            }`}
+          >
+            <ChevronRight className="w-3.5 h-3.5" />
+          </button>
         </div>
 
-        {/* Divider */}
-        <div className="h-px bg-gradient-to-r from-transparent via-white/[0.08] to-transparent mb-6" />
+        {/* Vertical divider */}
+        <div className="w-px h-5 bg-white/[0.06] shrink-0" />
 
-        {/* Month Selector */}
-        <div>
-          <p className="text-xs text-white/30 uppercase tracking-[0.2em] mb-4">월 선택</p>
+        {/* Month Selector - Scrollable inline */}
+        <div className="flex items-center gap-0.5 overflow-x-auto scrollbar-hide flex-1 min-w-0">
+          {showAllOption && (
+            <button
+              onClick={onAllSelect}
+              className={`relative px-2.5 py-1 rounded-md text-xs font-medium whitespace-nowrap transition-all shrink-0 ${
+                isAllSelected
+                  ? 'text-[#d4c4a8]'
+                  : 'text-white/25 hover:text-white/50'
+              }`}
+            >
+              전체
+              {isAllSelected && (
+                <motion.div
+                  layoutId="monthPill"
+                  className="absolute inset-0 rounded-md bg-[#b7916e]/10 border border-[#b7916e]/20"
+                  transition={{ type: 'spring', bounce: 0.15, duration: 0.4 }}
+                />
+              )}
+            </button>
+          )}
 
-          <div className="flex items-center gap-1 overflow-x-auto scrollbar-hide pb-2">
-            {/* All Option */}
-            {showAllOption && (
-              <button
-                onClick={onAllSelect}
-                className="relative flex flex-col items-center min-w-[52px] py-2 group"
-              >
-                <span
-                  className={`text-sm font-medium whitespace-nowrap transition-colors duration-300 ${
-                    isAllSelected
-                      ? 'text-[#d4c4a8]'
-                      : 'text-white/30 group-hover:text-white/60'
-                  }`}
-                >
-                  전체
-                </span>
-                {isAllSelected && (
-                  <motion.div
-                    layoutId="monthIndicator"
-                    className="absolute bottom-0 left-1/2 -translate-x-1/2 w-6 h-0.5 rounded-full bg-gradient-to-r from-[#b7916e] to-[#d4c4a8]"
-                    transition={{ type: 'spring', bounce: 0.2, duration: 0.5 }}
-                  />
-                )}
-              </button>
-            )}
-
-            {/* Month Buttons */}
-            {MONTHS_INFO.map((month) => (
-              <button
-                key={month.id}
-                onClick={() => onMonthChange(month.id)}
-                className="relative flex flex-col items-center min-w-[52px] py-2 group"
-              >
-                <span
-                  className={`text-sm font-medium whitespace-nowrap transition-colors duration-300 ${
-                    selectedMonth === month.id && !isAllSelected
-                      ? 'text-[#d4c4a8]'
-                      : 'text-white/30 group-hover:text-white/60'
-                  }`}
-                >
-                  {month.name}
-                </span>
-
-                {/* Active Indicator */}
-                {selectedMonth === month.id && !isAllSelected && (
-                  <motion.div
-                    layoutId="monthIndicator"
-                    className="absolute bottom-0 left-1/2 -translate-x-1/2 w-6 h-0.5 rounded-full bg-gradient-to-r from-[#b7916e] to-[#d4c4a8]"
-                    transition={{ type: 'spring', bounce: 0.2, duration: 0.5 }}
-                  />
-                )}
-              </button>
-            ))}
-          </div>
+          {MONTHS_INFO.map((month) => (
+            <button
+              key={month.id}
+              onClick={() => onMonthChange(month.id)}
+              className={`relative px-2 py-1 rounded-md text-xs font-medium whitespace-nowrap transition-all shrink-0 ${
+                selectedMonth === month.id && !isAllSelected
+                  ? 'text-[#d4c4a8]'
+                  : 'text-white/25 hover:text-white/50'
+              }`}
+            >
+              {month.id}월
+              {selectedMonth === month.id && !isAllSelected && (
+                <motion.div
+                  layoutId="monthPill"
+                  className="absolute inset-0 rounded-md bg-[#b7916e]/10 border border-[#b7916e]/20"
+                  transition={{ type: 'spring', bounce: 0.15, duration: 0.4 }}
+                />
+              )}
+            </button>
+          ))}
         </div>
       </div>
     </div>
   );
 }
 
-// Compact Version for headers
+// Ultra compact version for inline use
 export function YearMonthSelectorCompact({
   selectedYear,
   selectedMonth,
@@ -189,20 +157,20 @@ export function YearMonthSelectorCompact({
   className = '',
 }: Omit<YearMonthSelectorProps, 'showAllOption' | 'onAllSelect' | 'isAllSelected'>) {
   return (
-    <div className={`flex items-center gap-4 ${className}`}>
-      {/* Year Dropdown Style */}
-      <div className="flex items-center gap-2">
+    <div className={`flex items-center gap-3 ${className}`}>
+      {/* Year */}
+      <div className="flex items-center gap-1">
         <button
           onClick={() => {
             const idx = AVAILABLE_YEARS.indexOf(selectedYear);
             if (idx > 0) onYearChange(AVAILABLE_YEARS[idx - 1]);
           }}
-          className="p-1 text-white/30 hover:text-white/60 transition-colors"
+          className="p-0.5 text-white/25 hover:text-white/50 transition-colors"
         >
-          <ChevronLeft className="w-4 h-4" />
+          <ChevronLeft className="w-3.5 h-3.5" />
         </button>
         <span
-          className="text-lg text-[#d4c4a8] min-w-[60px] text-center"
+          className="text-sm text-[#d4c4a8] min-w-[40px] text-center"
           style={{ fontFamily: "var(--font-cormorant), 'Playfair Display', Georgia, serif" }}
         >
           {selectedYear}
@@ -212,25 +180,25 @@ export function YearMonthSelectorCompact({
             const idx = AVAILABLE_YEARS.indexOf(selectedYear);
             if (idx < AVAILABLE_YEARS.length - 1) onYearChange(AVAILABLE_YEARS[idx + 1]);
           }}
-          className="p-1 text-white/30 hover:text-white/60 transition-colors"
+          className="p-0.5 text-white/25 hover:text-white/50 transition-colors"
         >
-          <ChevronRight className="w-4 h-4" />
+          <ChevronRight className="w-3.5 h-3.5" />
         </button>
       </div>
 
       {/* Divider */}
-      <div className="w-px h-6 bg-white/10" />
+      <div className="w-px h-4 bg-white/[0.06]" />
 
       {/* Month Pills */}
-      <div className="flex items-center gap-1 overflow-x-auto scrollbar-hide">
+      <div className="flex items-center gap-0.5 overflow-x-auto scrollbar-hide">
         {MONTHS_INFO.map((month) => (
           <button
             key={month.id}
             onClick={() => onMonthChange(month.id)}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all duration-300 ${
+            className={`px-2 py-1 rounded-md text-[11px] font-medium whitespace-nowrap transition-all ${
               selectedMonth === month.id
-                ? 'bg-[#b7916e]/20 text-[#d4c4a8] border border-[#b7916e]/30'
-                : 'text-white/40 hover:text-white/60 hover:bg-white/[0.04]'
+                ? 'bg-[#b7916e]/15 text-[#d4c4a8] border border-[#b7916e]/25'
+                : 'text-white/30 hover:text-white/50 hover:bg-white/[0.03]'
             }`}
           >
             {month.id}월

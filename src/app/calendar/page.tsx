@@ -214,9 +214,10 @@ export default function CalendarPage() {
                   transition={{ duration: 1, delay: 0.8 }}
                   className="text-white/40 text-lg max-w-md font-light leading-relaxed"
                 >
-                  월별 콘텐츠 발행 계획 및
-                  <br />
-                  일정 관리
+                  <span className="md:whitespace-nowrap">월별 콘텐츠 발행 계획 및</span>
+                  <br className="md:hidden" />
+                  <span className="hidden md:inline">&nbsp;</span>
+                  <span className="md:whitespace-nowrap">일정 관리</span>
                 </motion.p>
               </div>
 

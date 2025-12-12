@@ -14,6 +14,7 @@ const navigation = [
   { name: '체크리스트', href: '/checklist' },
   { name: '캘린더', href: '/calendar' },
   { name: 'KPI', href: '/kpi' },
+  { name: '재고관리', href: '/inventory' },
 ];
 
 export function Header() {

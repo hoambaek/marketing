@@ -179,9 +179,10 @@ export default function ChecklistPage() {
                   transition={{ duration: 1, delay: 0.8 }}
                   className="text-white/40 text-lg max-w-md font-light leading-relaxed"
                 >
-                  런칭까지 반드시 완료해야 할
-                  <br />
-                  핵심 업무 목록
+                  <span className="md:whitespace-nowrap">런칭까지 반드시 완료해야 할</span>
+                  <br className="md:hidden" />
+                  <span className="hidden md:inline">&nbsp;</span>
+                  <span className="md:whitespace-nowrap">핵심 업무 목록</span>
                 </motion.p>
               </div>
 
