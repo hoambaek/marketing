@@ -57,15 +57,31 @@ export const useToastStore = create<ToastState>((set) => ({
 // Helper functions for convenience
 export const toast = {
   success: (message: string, duration?: number) => {
-    useToastStore.getState().addToast({ type: 'success', message, duration });
+    useToastStore.getState().addToast({
+      type: 'success',
+      message,
+      ...(duration !== undefined && { duration })
+    });
   },
   error: (message: string, duration?: number) => {
-    useToastStore.getState().addToast({ type: 'error', message, duration });
+    useToastStore.getState().addToast({
+      type: 'error',
+      message,
+      ...(duration !== undefined && { duration })
+    });
   },
   warning: (message: string, duration?: number) => {
-    useToastStore.getState().addToast({ type: 'warning', message, duration });
+    useToastStore.getState().addToast({
+      type: 'warning',
+      message,
+      ...(duration !== undefined && { duration })
+    });
   },
   info: (message: string, duration?: number) => {
-    useToastStore.getState().addToast({ type: 'info', message, duration });
+    useToastStore.getState().addToast({
+      type: 'info',
+      message,
+      ...(duration !== undefined && { duration })
+    });
   },
 };
