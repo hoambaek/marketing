@@ -293,29 +293,29 @@ export default function DashboardPage() {
         />
       </div>
 
-      {/* Hero Section */}
-      <section className="px-4 sm:px-6 lg:px-8 pt-20 sm:pt-24 pb-6">
+      {/* Hero Section - Compact on Mobile */}
+      <section className="px-4 sm:px-6 lg:px-8 pt-8 sm:pt-20 pb-4 sm:pb-6">
         <div className="mx-auto max-w-7xl">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8 }}
-            className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4"
+            className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 sm:gap-4"
           >
             <div>
               <motion.div
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ duration: 0.6, delay: 0.2 }}
-                className="flex items-center gap-3 mb-3"
+                className="flex items-center gap-2 sm:gap-3 mb-2 sm:mb-3"
               >
-                <div className="h-px w-8 bg-gradient-to-r from-[#b7916e] to-transparent" />
-                <span className="text-[#b7916e] text-xs tracking-[0.25em] uppercase font-light">
+                <div className="hidden sm:block h-px w-8 bg-gradient-to-r from-[#b7916e] to-transparent" />
+                <span className="text-[#b7916e] text-[10px] sm:text-xs tracking-[0.2em] sm:tracking-[0.25em] uppercase font-light">
                   Launch Masterplan
                 </span>
               </motion.div>
               <h1
-                className="text-4xl sm:text-5xl lg:text-6xl text-white/95 tracking-tight"
+                className="text-3xl sm:text-5xl lg:text-6xl text-white/95 tracking-tight"
                 style={{ fontFamily: "var(--font-cormorant), 'Playfair Display', Georgia, serif" }}
               >
                 Dashboard
@@ -327,13 +327,13 @@ export default function DashboardPage() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ duration: 0.6, delay: 0.4 }}
-              className="flex items-center gap-2"
+              className="flex items-center gap-1 sm:gap-2"
             >
               {AVAILABLE_YEARS.map((year) => (
                 <button
                   key={year}
                   onClick={() => setSelectedYear(year)}
-                  className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
+                  className={`px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl text-xs sm:text-sm font-medium transition-all ${
                     selectedYear === year
                       ? 'bg-[#b7916e]/20 text-[#d4c4a8] border border-[#b7916e]/30'
                       : 'text-white/40 hover:text-white/60 hover:bg-white/[0.04]'

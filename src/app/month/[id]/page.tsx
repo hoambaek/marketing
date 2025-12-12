@@ -204,7 +204,7 @@ export default function MonthDetailPage() {
               className="inline-flex items-center gap-2 text-white/40 hover:text-white/70 transition-colors mb-8"
             >
               <ArrowLeft className="w-4 h-4" />
-              <span className="text-sm">타임라인</span>
+              <span className="text-sm">대시보드</span>
             </Link>
           </motion.div>
 

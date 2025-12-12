@@ -10,7 +10,7 @@ import { cn } from '@/lib/utils';
 import { SignOutButton } from '@clerk/nextjs';
 
 const navigation = [
-  { name: '타임라인', href: '/' },
+  { name: '대시보드', href: '/' },
   { name: '월별플랜', href: '/monthly-plan' },
   { name: '이슈관리', href: '/issues' },
   { name: '캘린더', href: '/calendar' },

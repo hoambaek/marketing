@@ -189,8 +189,8 @@ export default function MonthlyPlanPage() {
         />
       </div>
 
-      {/* Hero Section */}
-      <section className="relative pt-16 pb-8 px-6 lg:px-12">
+      {/* Hero Section - Compact on Mobile */}
+      <section className="relative pt-8 sm:pt-16 pb-6 sm:pb-8 px-4 sm:px-6 lg:px-12">
         <div className="max-w-4xl mx-auto">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
@@ -198,51 +198,39 @@ export default function MonthlyPlanPage() {
             transition={{ duration: 1, ease: [0.25, 0.46, 0.45, 0.94] }}
             className="relative"
           >
-            {/* Decorative Line */}
+            {/* Decorative Line - Hidden on Mobile */}
             <motion.div
               initial={{ scaleX: 0 }}
               animate={{ scaleX: 1 }}
               transition={{ duration: 1.2, delay: 0.3, ease: [0.25, 0.46, 0.45, 0.94] }}
-              className="absolute -left-6 top-1/2 w-16 h-px bg-gradient-to-r from-[#b7916e] to-transparent origin-left"
+              className="hidden sm:block absolute -left-6 top-1/2 w-16 h-px bg-gradient-to-r from-[#b7916e] to-transparent origin-left"
             />
 
-            <div className="pl-14">
+            <div className="sm:pl-14">
               <motion.p
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ duration: 0.8, delay: 0.4 }}
-                className="text-[#b7916e] text-sm tracking-[0.3em] uppercase mb-4 font-light"
+                className="text-[#b7916e] text-[10px] sm:text-sm tracking-[0.2em] sm:tracking-[0.3em] uppercase mb-2 sm:mb-4 font-light"
               >
                 Launch Roadmap
               </motion.p>
 
               <h1
-                className="text-5xl sm:text-6xl lg:text-7xl text-white/95 mb-6 leading-[1.1] tracking-tight"
+                className="text-3xl sm:text-5xl lg:text-6xl text-white/95 mb-2 sm:mb-6 leading-[1.1] tracking-tight"
                 style={{ fontFamily: "var(--font-cormorant), 'Playfair Display', Georgia, serif" }}
               >
-                <motion.span
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.8, delay: 0.5 }}
-                  className="block"
-                >
-                  Monthly
-                </motion.span>
-                <motion.span
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.8, delay: 0.6 }}
-                  className="block text-transparent bg-clip-text bg-gradient-to-r from-[#b7916e] via-[#d4c4a8] to-[#b7916e]"
-                >
+                <span className="sm:block inline">Monthly </span>
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#b7916e] via-[#d4c4a8] to-[#b7916e]">
                   Master Plan
-                </motion.span>
+                </span>
               </h1>
 
               <motion.p
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ duration: 1, delay: 0.8 }}
-                className="text-white/40 text-lg max-w-md font-light leading-relaxed"
+                className="hidden sm:block text-white/40 text-lg max-w-md font-light leading-relaxed"
               >
                 해저에서 숙성되는 시간의 여정,
                 <br />
