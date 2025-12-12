@@ -164,24 +164,25 @@ export default function MonthlyPlanPage() {
         </div>
       </section>
 
-      {/* Phase Overview - Horizontal Scroll */}
-      <section className="relative py-8 px-6 lg:px-12 overflow-hidden">
+      {/* Phase Overview - Horizontal Scroll on Mobile */}
+      <section className="relative py-4 sm:py-8 px-4 sm:px-6 lg:px-12 overflow-hidden">
         <div className="max-w-7xl mx-auto">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.9 }}
-            className="flex items-center gap-3 mb-8"
+            className="flex items-center gap-3 mb-4 sm:mb-8"
           >
             <div className="w-8 h-px bg-white/20" />
             <span className="text-white/30 text-xs tracking-[0.2em] uppercase">Phase Overview</span>
           </motion.div>
 
+          {/* Mobile: Horizontal scroll, Desktop: Grid */}
           <motion.div
             variants={containerVariants}
             initial="hidden"
             animate="visible"
-            className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3"
+            className="flex gap-2 overflow-x-auto pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 sm:overflow-visible sm:grid sm:grid-cols-3 lg:grid-cols-5 sm:gap-3 scrollbar-hide"
           >
             {PHASE_INFO.map((phase, index) => {
               const phaseProgress = phase.months.reduce(
@@ -197,7 +198,7 @@ export default function MonthlyPlanPage() {
                   key={phase.id}
                   variants={itemVariants}
                   whileHover={{ y: -3, scale: 1.02, transition: { duration: 0.3 } }}
-                  className={`relative group rounded-xl p-4 bg-gradient-to-br ${colors.gradient} border border-white/[0.06] backdrop-blur-sm overflow-hidden`}
+                  className={`relative group rounded-lg sm:rounded-xl p-2.5 sm:p-4 bg-gradient-to-br ${colors.gradient} border border-white/[0.06] backdrop-blur-sm overflow-hidden flex-shrink-0 w-[140px] sm:w-auto`}
                 >
                   {/* Hover glow */}
                   <div
@@ -208,9 +209,9 @@ export default function MonthlyPlanPage() {
                   />
 
                   {/* Phase number & indicator */}
-                  <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center justify-between mb-1.5 sm:mb-3">
                     <div
-                      className="text-3xl font-light opacity-20"
+                      className="text-xl sm:text-3xl font-light opacity-20"
                       style={{
                         fontFamily: "var(--font-cormorant), serif",
                         color: colors.primary
@@ -219,25 +220,25 @@ export default function MonthlyPlanPage() {
                       {String(phase.id).padStart(2, '0')}
                     </div>
                     <div
-                      className="w-1.5 h-1.5 rounded-full"
+                      className="w-1 sm:w-1.5 h-1 sm:h-1.5 rounded-full"
                       style={{ backgroundColor: colors.primary }}
                     />
                   </div>
 
                   <h3
-                    className="text-white/90 text-base mb-1 leading-tight"
+                    className="text-white/90 text-xs sm:text-base mb-0.5 sm:mb-1 leading-tight truncate"
                     style={{ fontFamily: "var(--font-cormorant), serif" }}
                   >
                     {phase.name}
                   </h3>
 
-                  <p className="text-white/35 text-[11px] mb-4 line-clamp-2 font-light leading-relaxed">
+                  <p className="text-white/35 text-[9px] sm:text-[11px] mb-2 sm:mb-4 line-clamp-1 sm:line-clamp-2 font-light leading-relaxed">
                     {phase.description}
                   </p>
 
                   {/* Progress */}
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-[10px]">
+                  <div className="space-y-1 sm:space-y-2">
+                    <div className="flex justify-between text-[8px] sm:text-[10px]">
                       <span className="text-white/25">{completedTasks}/{phaseTasks.length}</span>
                       <span className="font-medium" style={{ color: colors.primary }}>{Math.round(phaseProgress)}%</span>
                     </div>
@@ -259,26 +260,26 @@ export default function MonthlyPlanPage() {
       </section>
 
       {/* Monthly Cards Grid */}
-      <section className="relative py-12 px-6 lg:px-12">
+      <section className="relative py-6 sm:py-12 px-4 sm:px-6 lg:px-12">
         <div className="max-w-7xl mx-auto">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 1.1 }}
-            className="flex items-center justify-between mb-12"
+            className="flex items-center justify-between mb-4 sm:mb-12"
           >
             <div className="flex items-center gap-3">
               <div className="w-8 h-px bg-white/20" />
               <span className="text-white/30 text-xs tracking-[0.2em] uppercase">Monthly Detail</span>
             </div>
-            <span className="text-white/20 text-sm">12 Months</span>
+            <span className="text-white/20 text-xs sm:text-sm">12 Months</span>
           </motion.div>
 
           <motion.div
             variants={containerVariants}
             initial="hidden"
             animate="visible"
-            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6"
+            className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-6"
           >
             {MONTHS_INFO.map((month, index) => {
               const progress = getProgressByMonth(selectedYear, month.id);
@@ -297,8 +298,8 @@ export default function MonthlyPlanPage() {
                 >
                   <Link href={`/month/${month.id}`} className="block">
                     <motion.div
-                      whileHover={{ y: -8, transition: { duration: 0.4, ease: [0.25, 0.46, 0.45, 0.94] } }}
-                      className={`relative h-full rounded-2xl overflow-hidden ${
+                      whileHover={{ y: -4, transition: { duration: 0.4, ease: [0.25, 0.46, 0.45, 0.94] } }}
+                      className={`relative h-full rounded-xl sm:rounded-2xl overflow-hidden ${
                         isCurrentMonth
                           ? 'ring-1 ring-[#b7916e]/50'
                           : ''
@@ -306,7 +307,7 @@ export default function MonthlyPlanPage() {
                     >
                       {/* Card Background */}
                       <div className="absolute inset-0 bg-gradient-to-b from-white/[0.04] to-white/[0.01] backdrop-blur-sm" />
-                      <div className="absolute inset-0 border border-white/[0.06] rounded-2xl" />
+                      <div className="absolute inset-0 border border-white/[0.06] rounded-xl sm:rounded-2xl" />
 
                       {/* Hover Effect */}
                       <div
@@ -323,19 +324,19 @@ export default function MonthlyPlanPage() {
                       />
 
                       {/* Content */}
-                      <div className="relative p-6">
+                      <div className="relative p-3 sm:p-6">
                         {/* Current Badge */}
                         {isCurrentMonth && (
-                          <div className="absolute top-4 right-4">
-                            <span className="px-2.5 py-1 rounded-full bg-[#b7916e]/20 text-[#d4c4a8] text-[10px] tracking-wider uppercase border border-[#b7916e]/30">
-                              Current
+                          <div className="absolute top-2 sm:top-4 right-2 sm:right-4">
+                            <span className="px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-full bg-[#b7916e]/20 text-[#d4c4a8] text-[8px] sm:text-[10px] tracking-wider uppercase border border-[#b7916e]/30">
+                              Now
                             </span>
                           </div>
                         )}
 
-                        {/* Month Number */}
+                        {/* Month Number - Hidden on mobile */}
                         <div
-                          className="text-7xl font-light text-white/[0.04] leading-none mb-2 -ml-1"
+                          className="hidden sm:block text-7xl font-light text-white/[0.04] leading-none mb-2 -ml-1"
                           style={{ fontFamily: "var(--font-cormorant), serif" }}
                         >
                           {String(month.id).padStart(2, '0')}
@@ -343,37 +344,37 @@ export default function MonthlyPlanPage() {
 
                         {/* Month Name */}
                         <h3
-                          className="text-2xl text-white/90 mb-1 -mt-8"
+                          className="text-base sm:text-2xl text-white/90 mb-0.5 sm:mb-1 sm:-mt-8"
                           style={{ fontFamily: "var(--font-cormorant), serif" }}
                         >
                           {month.name}
                         </h3>
-                        <p className="text-white/30 text-sm mb-6 font-light">{month.title}</p>
+                        <p className="text-white/30 text-[10px] sm:text-sm mb-2 sm:mb-6 font-light truncate">{month.title}</p>
 
-                        {/* Stats Row */}
-                        <div className="flex items-center gap-4 mb-6">
-                          <div className="flex items-center gap-2">
-                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                            <span className="text-white/50 text-xs">{completedTasks} done</span>
+                        {/* Stats Row - Compact on mobile */}
+                        <div className="flex items-center gap-2 sm:gap-4 mb-2 sm:mb-6">
+                          <div className="flex items-center gap-1 sm:gap-2">
+                            <div className="w-1 sm:w-1.5 h-1 sm:h-1.5 rounded-full bg-emerald-400" />
+                            <span className="text-white/50 text-[9px] sm:text-xs">{completedTasks}</span>
                           </div>
-                          <div className="flex items-center gap-2">
-                            <div className="w-1.5 h-1.5 rounded-full bg-amber-400" />
-                            <span className="text-white/50 text-xs">{inProgressTasks} active</span>
+                          <div className="flex items-center gap-1 sm:gap-2">
+                            <div className="w-1 sm:w-1.5 h-1 sm:h-1.5 rounded-full bg-amber-400" />
+                            <span className="text-white/50 text-[9px] sm:text-xs">{inProgressTasks}</span>
                           </div>
                         </div>
 
                         {/* Progress Section */}
-                        <div className="space-y-2">
+                        <div className="space-y-1 sm:space-y-2">
                           <div className="flex justify-between items-center">
-                            <span className="text-white/20 text-xs">Progress</span>
+                            <span className="text-white/20 text-[9px] sm:text-xs">Progress</span>
                             <span
-                              className="text-sm font-light"
+                              className="text-[10px] sm:text-sm font-light"
                               style={{ color: phaseColor }}
                             >
                               {progress}%
                             </span>
                           </div>
-                          <div className="h-1 rounded-full bg-white/[0.06] overflow-hidden">
+                          <div className="h-0.5 sm:h-1 rounded-full bg-white/[0.06] overflow-hidden">
                             <motion.div
                               initial={{ width: 0 }}
                               animate={{ width: `${progress}%` }}
@@ -384,8 +385,8 @@ export default function MonthlyPlanPage() {
                           </div>
                         </div>
 
-                        {/* Footer */}
-                        <div className="mt-6 pt-4 border-t border-white/[0.04] flex items-center justify-between">
+                        {/* Footer - Hidden on mobile */}
+                        <div className="hidden sm:flex mt-6 pt-4 border-t border-white/[0.04] items-center justify-between">
                           <span className="text-white/20 text-xs">Phase {phase?.id}</span>
                           <motion.span
                             className="text-white/30 text-xs flex items-center gap-1 group-hover:text-white/60 transition-colors"

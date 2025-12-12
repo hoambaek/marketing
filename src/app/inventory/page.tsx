@@ -1114,93 +1114,93 @@ export default function InventoryPage() {
             </motion.p>
           </motion.div>
 
-          {/* Summary Cards */}
+          {/* Summary Cards - Compact 2x2 on mobile */}
           <motion.div
             variants={containerVariants}
             initial="hidden"
             animate="visible"
-            className="grid md:grid-cols-4 gap-5 mb-10"
+            className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-5 mb-6 sm:mb-10"
           >
             {/* Total Bottles */}
-            <motion.div variants={itemVariants} className="relative rounded-2xl overflow-hidden group">
+            <motion.div variants={itemVariants} className="relative rounded-xl sm:rounded-2xl overflow-hidden group">
               <div className="absolute inset-0 bg-gradient-to-br from-white/[0.04] to-white/[0.01] backdrop-blur-sm" />
-              <div className="absolute inset-0 border border-white/[0.06] rounded-2xl" />
-              <div className="relative p-6">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="p-2.5 rounded-xl bg-[#b7916e]/20 border border-[#b7916e]/20">
-                    <Wine className="w-5 h-5 text-[#d4c4a8]" />
+              <div className="absolute inset-0 border border-white/[0.06] rounded-xl sm:rounded-2xl" />
+              <div className="relative p-3 sm:p-6">
+                <div className="flex items-center gap-2 sm:gap-3 mb-2 sm:mb-4">
+                  <div className="p-1.5 sm:p-2.5 rounded-lg sm:rounded-xl bg-[#b7916e]/20 border border-[#b7916e]/20">
+                    <Wine className="w-3.5 sm:w-5 h-3.5 sm:h-5 text-[#d4c4a8]" />
                   </div>
-                  <p className="text-sm text-white/40">총 재고</p>
+                  <p className="text-[10px] sm:text-sm text-white/40">총 재고</p>
                 </div>
                 <p
-                  className="text-4xl text-white/90"
+                  className="text-2xl sm:text-4xl text-white/90"
                   style={{ fontFamily: "var(--font-cormorant), 'Playfair Display', Georgia, serif" }}
                 >
                   {totalValue.totalBottles}
-                  <span className="text-lg text-white/30"> 병</span>
+                  <span className="text-xs sm:text-lg text-white/30"> 병</span>
                 </p>
               </div>
             </motion.div>
 
             {/* Available */}
-            <motion.div variants={itemVariants} className="relative rounded-2xl overflow-hidden group">
+            <motion.div variants={itemVariants} className="relative rounded-xl sm:rounded-2xl overflow-hidden group">
               <div className="absolute inset-0 bg-gradient-to-br from-white/[0.04] to-white/[0.01] backdrop-blur-sm" />
-              <div className="absolute inset-0 border border-white/[0.06] rounded-2xl" />
-              <div className="relative p-6">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="p-2.5 rounded-xl bg-emerald-500/20 border border-emerald-500/20">
-                    <Package className="w-5 h-5 text-emerald-400" />
+              <div className="absolute inset-0 border border-white/[0.06] rounded-xl sm:rounded-2xl" />
+              <div className="relative p-3 sm:p-6">
+                <div className="flex items-center gap-2 sm:gap-3 mb-2 sm:mb-4">
+                  <div className="p-1.5 sm:p-2.5 rounded-lg sm:rounded-xl bg-emerald-500/20 border border-emerald-500/20">
+                    <Package className="w-3.5 sm:w-5 h-3.5 sm:h-5 text-emerald-400" />
                   </div>
-                  <p className="text-sm text-white/40">판매 가능</p>
+                  <p className="text-[10px] sm:text-sm text-white/40">판매 가능</p>
                 </div>
                 <p
-                  className="text-4xl text-emerald-400"
+                  className="text-2xl sm:text-4xl text-emerald-400"
                   style={{ fontFamily: "var(--font-cormorant), 'Playfair Display', Georgia, serif" }}
                 >
                   {totalValue.available}
-                  <span className="text-lg text-emerald-400/50"> 병</span>
+                  <span className="text-xs sm:text-lg text-emerald-400/50"> 병</span>
                 </p>
               </div>
             </motion.div>
 
             {/* Reserved */}
-            <motion.div variants={itemVariants} className="relative rounded-2xl overflow-hidden group">
+            <motion.div variants={itemVariants} className="relative rounded-xl sm:rounded-2xl overflow-hidden group">
               <div className="absolute inset-0 bg-gradient-to-br from-white/[0.04] to-white/[0.01] backdrop-blur-sm" />
-              <div className="absolute inset-0 border border-white/[0.06] rounded-2xl" />
-              <div className="relative p-6">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="p-2.5 rounded-xl bg-amber-500/20 border border-amber-500/20">
-                    <BookmarkCheck className="w-5 h-5 text-amber-400" />
+              <div className="absolute inset-0 border border-white/[0.06] rounded-xl sm:rounded-2xl" />
+              <div className="relative p-3 sm:p-6">
+                <div className="flex items-center gap-2 sm:gap-3 mb-2 sm:mb-4">
+                  <div className="p-1.5 sm:p-2.5 rounded-lg sm:rounded-xl bg-amber-500/20 border border-amber-500/20">
+                    <BookmarkCheck className="w-3.5 sm:w-5 h-3.5 sm:h-5 text-amber-400" />
                   </div>
-                  <p className="text-sm text-white/40">예약됨</p>
+                  <p className="text-[10px] sm:text-sm text-white/40">예약됨</p>
                 </div>
                 <p
-                  className="text-4xl text-amber-400"
+                  className="text-2xl sm:text-4xl text-amber-400"
                   style={{ fontFamily: "var(--font-cormorant), 'Playfair Display', Georgia, serif" }}
                 >
                   {totalValue.reserved}
-                  <span className="text-lg text-amber-400/50"> 병</span>
+                  <span className="text-xs sm:text-lg text-amber-400/50"> 병</span>
                 </p>
               </div>
             </motion.div>
 
             {/* Sold */}
-            <motion.div variants={itemVariants} className="relative rounded-2xl overflow-hidden group">
+            <motion.div variants={itemVariants} className="relative rounded-xl sm:rounded-2xl overflow-hidden group">
               <div className="absolute inset-0 bg-gradient-to-br from-white/[0.04] to-white/[0.01] backdrop-blur-sm" />
-              <div className="absolute inset-0 border border-white/[0.06] rounded-2xl" />
-              <div className="relative p-6">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="p-2.5 rounded-xl bg-blue-500/20 border border-blue-500/20">
-                    <TrendingUp className="w-5 h-5 text-blue-400" />
+              <div className="absolute inset-0 border border-white/[0.06] rounded-xl sm:rounded-2xl" />
+              <div className="relative p-3 sm:p-6">
+                <div className="flex items-center gap-2 sm:gap-3 mb-2 sm:mb-4">
+                  <div className="p-1.5 sm:p-2.5 rounded-lg sm:rounded-xl bg-blue-500/20 border border-blue-500/20">
+                    <TrendingUp className="w-3.5 sm:w-5 h-3.5 sm:h-5 text-blue-400" />
                   </div>
-                  <p className="text-sm text-white/40">판매 완료</p>
+                  <p className="text-[10px] sm:text-sm text-white/40">판매 완료</p>
                 </div>
                 <p
-                  className="text-4xl text-blue-400"
+                  className="text-2xl sm:text-4xl text-blue-400"
                   style={{ fontFamily: "var(--font-cormorant), 'Playfair Display', Georgia, serif" }}
                 >
                   {totalValue.sold}
-                  <span className="text-lg text-blue-400/50"> 병</span>
+                  <span className="text-xs sm:text-lg text-blue-400/50"> 병</span>
                 </p>
               </div>
             </motion.div>

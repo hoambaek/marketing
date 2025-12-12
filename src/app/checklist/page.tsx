@@ -228,41 +228,41 @@ export default function ChecklistPage() {
       </section>
 
       {/* Progress Section */}
-      <section className="relative py-8 px-6 lg:px-12">
+      <section className="relative py-4 sm:py-8 px-4 sm:px-6 lg:px-12">
         <div className="max-w-4xl mx-auto">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.9 }}
-            className="relative rounded-2xl overflow-hidden"
+            className="relative rounded-xl sm:rounded-2xl overflow-hidden"
           >
             {/* Card Background */}
             <div className="absolute inset-0 bg-gradient-to-br from-white/[0.04] to-white/[0.01] backdrop-blur-sm" />
-            <div className="absolute inset-0 border border-white/[0.06] rounded-2xl" />
+            <div className="absolute inset-0 border border-white/[0.06] rounded-xl sm:rounded-2xl" />
 
             {/* Content */}
-            <div className="relative p-6">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6 mb-6">
+            <div className="relative p-3 sm:p-6">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-6 mb-3 sm:mb-6">
                 <div>
-                  <p className="text-white/40 text-sm tracking-wider uppercase mb-2">전체 완료율</p>
+                  <p className="text-white/40 text-xs sm:text-sm tracking-wider uppercase mb-1 sm:mb-2">전체 완료율</p>
                   <p
-                    className="text-5xl text-white/90"
+                    className="text-3xl sm:text-5xl text-white/90"
                     style={{ fontFamily: "var(--font-cormorant), serif" }}
                   >
                     {doneItems}
-                    <span className="text-2xl text-white/40 ml-1">/{totalItems}</span>
-                    <span className="text-2xl text-[#b7916e] ml-3">({progress}%)</span>
+                    <span className="text-lg sm:text-2xl text-white/40 ml-1">/{totalItems}</span>
+                    <span className="text-lg sm:text-2xl text-[#b7916e] ml-2 sm:ml-3">({progress}%)</span>
                   </p>
                 </div>
 
                 {/* Filter Buttons */}
-                <div className="flex items-center gap-3">
-                  <Filter className="w-4 h-4 text-white/30" />
+                <div className="flex items-center gap-1.5 sm:gap-3">
+                  <Filter className="w-3.5 sm:w-4 h-3.5 sm:h-4 text-white/30" />
                   {(['all', 'pending', 'done'] as FilterType[]).map((f) => (
                     <button
                       key={f}
                       onClick={() => setFilter(f)}
-                      className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
+                      className={`px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl text-xs sm:text-sm font-medium transition-all ${
                         filter === f
                           ? 'bg-[#b7916e] text-white'
                           : 'bg-white/[0.04] text-white/50 hover:bg-white/[0.08] hover:text-white/80'
@@ -275,7 +275,7 @@ export default function ChecklistPage() {
               </div>
 
               {/* Progress Bar */}
-              <div className="h-1.5 rounded-full bg-white/[0.06] overflow-hidden">
+              <div className="h-1 sm:h-1.5 rounded-full bg-white/[0.06] overflow-hidden">
                 <motion.div
                   initial={{ width: 0 }}
                   animate={{ width: `${progress}%` }}

@@ -353,10 +353,19 @@ export default function CalendarPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 1.0 }}
-            className="flex items-center gap-3 mb-8"
+            className="flex items-center justify-between gap-3 mb-8"
           >
-            <div className="w-8 h-px bg-white/20" />
-            <span className="text-white/30 text-xs tracking-[0.2em] uppercase">Monthly View</span>
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-px bg-white/20" />
+              <span className="text-white/30 text-xs tracking-[0.2em] uppercase">Monthly View</span>
+            </div>
+            <button
+              onClick={() => handleAddContent()}
+              className="flex items-center gap-2 px-3 sm:px-4 py-2 text-xs sm:text-sm text-[#b7916e] bg-[#b7916e]/10 hover:bg-[#b7916e]/20 active:bg-[#b7916e]/30 rounded-lg sm:rounded-xl transition-all font-medium"
+            >
+              <Plus className="w-4 h-4" />
+              <span className="hidden sm:inline">일정 추가</span>
+            </button>
           </motion.div>
 
           <motion.div

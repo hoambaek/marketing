@@ -330,28 +330,23 @@ export default function HomePage() {
               ref={timelineRef}
               className="relative flex overflow-x-auto scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent"
             >
-              {/* Left Column - Phase Labels */}
-              <div className="w-28 sm:w-44 flex-shrink-0 border-r border-white/[0.06] bg-[#0a0f1a]/80">
+              {/* Left Column - Phase Color Indicators */}
+              <div className="w-10 sm:w-12 flex-shrink-0 border-r border-white/[0.06] bg-[#0a0f1a]/80">
                 {/* Empty header cell */}
                 <div className="h-12 sm:h-16 border-b border-white/[0.06]" />
 
-                {/* Phase Labels */}
+                {/* Phase Color Dots */}
                 {PHASE_INFO.map((phase) => {
                   const colors = phaseColors[phase.id as keyof typeof phaseColors];
                   return (
                     <div
                       key={phase.id}
-                      className="h-12 sm:h-16 px-2 sm:px-4 flex items-center border-b border-white/[0.04]"
+                      className="h-12 sm:h-16 flex items-center justify-center border-b border-white/[0.04]"
                     >
-                      <div className="flex items-center gap-2 sm:gap-3">
-                        <div
-                          className="w-2 sm:w-2.5 h-2 sm:h-2.5 rounded-full flex-shrink-0"
-                          style={{ backgroundColor: colors.primary }}
-                        />
-                        <span className="text-xs sm:text-sm font-medium text-white/70 truncate">
-                          {phase.name}
-                        </span>
-                      </div>
+                      <div
+                        className="w-2.5 sm:w-3 h-2.5 sm:h-3 rounded-full"
+                        style={{ backgroundColor: colors.primary }}
+                      />
                     </div>
                   );
                 })}
