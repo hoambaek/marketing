@@ -200,11 +200,10 @@ export default function IssuesPage() {
   ) => {
     if (editingItem) {
       await updateIssue(editingItem.id, itemData);
-      toast.success('이슈가 수정되었습니다');
     } else {
       await addIssue(itemData);
-      toast.success('이슈가 추가되었습니다');
     }
+    // Toast is handled by IssueModal
   };
 
   return (
@@ -229,104 +228,53 @@ export default function IssuesPage() {
         />
       </div>
 
-      {/* Hero Section */}
-      <section className="relative pt-16 pb-12 px-6 lg:px-12">
-        <div className="max-w-5xl mx-auto">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 1, ease: [0.25, 0.46, 0.45, 0.94] }}
-            className="relative"
-          >
-            {/* Decorative Line */}
-            <motion.div
-              initial={{ scaleX: 0 }}
-              animate={{ scaleX: 1 }}
-              transition={{ duration: 1.2, delay: 0.3, ease: [0.25, 0.46, 0.45, 0.94] }}
-              className="absolute -left-6 top-1/2 w-16 h-px bg-gradient-to-r from-[#b7916e] to-transparent origin-left"
-            />
-
-            <div className="pl-14 flex items-start justify-between gap-4">
-              <div>
-                <motion.p
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.8, delay: 0.4 }}
-                  className="text-[#b7916e] text-sm tracking-[0.3em] uppercase mb-4 font-light"
-                >
-                  Project Monitoring
-                </motion.p>
-
-                <h1
-                  className="text-5xl sm:text-6xl lg:text-7xl text-white/95 mb-6 leading-[1.1] tracking-tight"
-                  style={{ fontFamily: "var(--font-cormorant), 'Playfair Display', Georgia, serif" }}
-                >
-                  <motion.span
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.8, delay: 0.5 }}
-                    className="block"
-                  >
-                    Issue &amp;
-                  </motion.span>
-                  <motion.span
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.8, delay: 0.6 }}
-                    className="block text-transparent bg-clip-text bg-gradient-to-r from-[#b7916e] via-[#d4c4a8] to-[#b7916e]"
-                  >
-                    Risk Tracker
-                  </motion.span>
-                </h1>
-
-                <motion.p
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ duration: 1, delay: 0.8 }}
-                  className="text-white/40 text-lg max-w-md font-light leading-relaxed"
-                >
-                  <span className="md:whitespace-nowrap">프로젝트의 이슈, 리스크,</span>
-                  <br className="md:hidden" />
-                  <span className="hidden md:inline">&nbsp;</span>
-                  <span className="md:whitespace-nowrap">주요 결정사항 추적</span>
-                </motion.p>
-              </div>
-            </div>
-          </motion.div>
-        </div>
-      </section>
-
-      {/* Year Selection */}
-      <section className="relative py-4 px-6 lg:px-12">
+      {/* Hero Section - Compact on Mobile */}
+      <section className="relative pt-8 sm:pt-16 pb-6 sm:pb-12 px-4 sm:px-6 lg:px-12">
         <div className="max-w-5xl mx-auto">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.85 }}
-            className="relative rounded-2xl overflow-hidden"
+            transition={{ duration: 0.8 }}
+            className="relative"
           >
-            <div className="absolute inset-0 bg-gradient-to-br from-white/[0.04] to-white/[0.01] backdrop-blur-sm" />
-            <div className="absolute inset-0 border border-white/[0.06] rounded-2xl" />
-            <div className="relative p-4">
-              <div className="flex items-center gap-4">
-                <span className="text-white/30 text-xs tracking-[0.2em] uppercase">연도 선택</span>
-                <div className="flex items-center gap-2">
-                  {AVAILABLE_YEARS.map((year) => (
-                    <button
-                      key={year}
-                      onClick={() => setSelectedYear(year)}
-                      className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
-                        selectedYear === year
-                          ? 'bg-[#b7916e]/20 text-[#d4c4a8] border border-[#b7916e]/30'
-                          : 'text-white/40 hover:text-white/60 hover:bg-white/[0.04]'
-                      }`}
-                      style={{ fontFamily: "var(--font-cormorant), serif" }}
-                    >
-                      {year}
-                    </button>
-                  ))}
-                </div>
-              </div>
+            {/* Decorative Line - Hidden on Mobile */}
+            <motion.div
+              initial={{ scaleX: 0 }}
+              animate={{ scaleX: 1 }}
+              transition={{ duration: 1.2, delay: 0.3 }}
+              className="hidden sm:block absolute -left-6 top-1/2 w-16 h-px bg-gradient-to-r from-[#b7916e] to-transparent origin-left"
+            />
+
+            <div className="sm:pl-14">
+              <motion.p
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.6, delay: 0.2 }}
+                className="text-[#b7916e] text-[10px] sm:text-sm tracking-[0.2em] sm:tracking-[0.3em] uppercase mb-2 sm:mb-4 font-light"
+              >
+                Project Monitoring
+              </motion.p>
+
+              <h1
+                className="text-3xl sm:text-5xl lg:text-6xl text-white/95 mb-2 sm:mb-6 leading-[1.1] tracking-tight"
+                style={{ fontFamily: "var(--font-cormorant), 'Playfair Display', Georgia, serif" }}
+              >
+                <span className="sm:block inline">Issue </span>
+                <span className="sm:hidden">&amp; </span>
+                <span className="hidden sm:block">&amp;</span>
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#b7916e] via-[#d4c4a8] to-[#b7916e]">
+                  Risk Tracker
+                </span>
+              </h1>
+
+              <motion.p
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.8, delay: 0.4 }}
+                className="hidden sm:block text-white/40 text-lg max-w-md font-light leading-relaxed"
+              >
+                프로젝트의 이슈, 리스크, 주요 결정사항 추적
+              </motion.p>
             </div>
           </motion.div>
         </div>
@@ -416,8 +364,8 @@ export default function IssuesPage() {
         </div>
       </section>
 
-      {/* Filters */}
-      <section className="relative py-4 px-4 sm:px-6 lg:px-12">
+      {/* Filters - Horizontal Scrollable */}
+      <section className="relative py-3 sm:py-4 px-4 sm:px-6 lg:px-12">
         <div className="max-w-5xl mx-auto">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -427,17 +375,17 @@ export default function IssuesPage() {
           >
             <div className="absolute inset-0 bg-gradient-to-br from-white/[0.04] to-white/[0.01] backdrop-blur-sm" />
             <div className="absolute inset-0 border border-white/[0.06] rounded-xl" />
-            <div className="relative p-4">
-              <div className="flex flex-col sm:flex-row gap-4">
+            <div className="relative p-3 sm:p-4 overflow-x-auto scrollbar-hide">
+              <div className="flex items-center gap-3 sm:gap-4 min-w-max">
                 {/* Type Filter */}
-                <div className="flex items-center gap-2 flex-wrap">
-                  <Filter className="w-3.5 h-3.5 text-white/30 flex-shrink-0" />
-                  <span className="text-white/30 text-xs">유형:</span>
+                <div className="flex items-center gap-1.5 sm:gap-2">
+                  <Filter className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-white/30 flex-shrink-0" />
+                  <span className="text-white/30 text-[10px] sm:text-xs whitespace-nowrap">유형:</span>
                   {(['all', 'issue', 'risk', 'decision'] as TypeFilter[]).map((t) => (
                     <button
                       key={t}
                       onClick={() => setTypeFilter(t)}
-                      className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all ${
+                      className={`px-2 sm:px-2.5 py-1 rounded-md sm:rounded-lg text-[10px] sm:text-xs font-medium transition-all whitespace-nowrap ${
                         typeFilter === t
                           ? 'bg-[#b7916e] text-white'
                           : 'bg-white/[0.04] text-white/50 hover:bg-white/[0.08]'
@@ -448,14 +396,17 @@ export default function IssuesPage() {
                   ))}
                 </div>
 
+                {/* Divider */}
+                <div className="w-px h-4 bg-white/10 flex-shrink-0" />
+
                 {/* Status Filter */}
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-white/30 text-xs">상태:</span>
+                <div className="flex items-center gap-1.5 sm:gap-2">
+                  <span className="text-white/30 text-[10px] sm:text-xs whitespace-nowrap">상태:</span>
                   {(['all', 'open', 'in_progress', 'resolved', 'closed'] as StatusFilter[]).map((s) => (
                     <button
                       key={s}
                       onClick={() => setStatusFilter(s)}
-                      className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all ${
+                      className={`px-2 sm:px-2.5 py-1 rounded-md sm:rounded-lg text-[10px] sm:text-xs font-medium transition-all whitespace-nowrap ${
                         statusFilter === s
                           ? 'bg-[#b7916e] text-white'
                           : 'bg-white/[0.04] text-white/50 hover:bg-white/[0.08]'
@@ -466,14 +417,17 @@ export default function IssuesPage() {
                   ))}
                 </div>
 
+                {/* Divider */}
+                <div className="w-px h-4 bg-white/10 flex-shrink-0" />
+
                 {/* Priority Filter */}
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-white/30 text-xs">우선순위:</span>
+                <div className="flex items-center gap-1.5 sm:gap-2">
+                  <span className="text-white/30 text-[10px] sm:text-xs whitespace-nowrap">우선순위:</span>
                   {(['all', 'critical', 'high', 'medium', 'low'] as PriorityFilter[]).map((p) => (
                     <button
                       key={p}
                       onClick={() => setPriorityFilter(p)}
-                      className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all ${
+                      className={`px-2 sm:px-2.5 py-1 rounded-md sm:rounded-lg text-[10px] sm:text-xs font-medium transition-all whitespace-nowrap ${
                         priorityFilter === p
                           ? 'bg-[#b7916e] text-white'
                           : 'bg-white/[0.04] text-white/50 hover:bg-white/[0.08]'
@@ -490,16 +444,35 @@ export default function IssuesPage() {
       </section>
 
       {/* Issues by Month */}
-      <section className="relative py-8 px-6 lg:px-12">
+      <section className="relative py-6 sm:py-8 px-4 sm:px-6 lg:px-12">
         <div className="max-w-5xl mx-auto">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 1.1 }}
-            className="flex items-center gap-3 mb-8"
+            className="flex items-center justify-between gap-3 mb-6 sm:mb-8"
           >
-            <div className="w-8 h-px bg-white/20" />
-            <span className="text-white/30 text-xs tracking-[0.2em] uppercase">Monthly Issues</span>
+            <div className="flex items-center gap-3">
+              <div className="w-6 sm:w-8 h-px bg-white/20" />
+              <span className="text-white/30 text-[10px] sm:text-xs tracking-[0.2em] uppercase">Monthly Issues</span>
+            </div>
+            {/* Year Selector - Integrated */}
+            <div className="flex items-center gap-1 sm:gap-2">
+              {AVAILABLE_YEARS.map((year) => (
+                <button
+                  key={year}
+                  onClick={() => setSelectedYear(year)}
+                  className={`px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl text-xs sm:text-sm font-medium transition-all ${
+                    selectedYear === year
+                      ? 'bg-[#b7916e] text-white'
+                      : 'text-white/40 hover:text-white/60 hover:bg-white/[0.04]'
+                  }`}
+                  style={{ fontFamily: "var(--font-cormorant), serif" }}
+                >
+                  {year}
+                </button>
+              ))}
+            </div>
           </motion.div>
 
           {isLoading ? (
@@ -537,37 +510,41 @@ export default function IssuesPage() {
                     />
 
                     {/* Month Header */}
-                    <div className="relative px-6 py-4 border-b border-white/[0.06] flex items-center justify-between">
-                      <div className="flex items-center gap-4">
-                        <span
-                          className="text-2xl text-white/90"
-                          style={{ fontFamily: "var(--font-cormorant), serif" }}
+                    <div className="relative px-4 sm:px-6 py-3 sm:py-4 border-b border-white/[0.06]">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 sm:gap-4 flex-wrap min-w-0">
+                          <span
+                            className="text-xl sm:text-2xl text-white/90 flex-shrink-0"
+                            style={{ fontFamily: "var(--font-cormorant), serif" }}
+                          >
+                            {month.name}
+                          </span>
+                          <span className="text-xs sm:text-sm text-white/40 truncate hidden sm:block">{month.title}</span>
+                          <div className="flex items-center gap-1.5">
+                            {month.openCount > 0 && (
+                              <span className="px-1.5 sm:px-2 py-0.5 rounded-full bg-yellow-500/20 text-yellow-400 text-[10px] sm:text-xs whitespace-nowrap">
+                                {month.openCount} 진행중
+                              </span>
+                            )}
+                            {month.criticalCount > 0 && (
+                              <span className="px-1.5 sm:px-2 py-0.5 rounded-full bg-red-500/20 text-red-400 text-[10px] sm:text-xs whitespace-nowrap">
+                                {month.criticalCount} 긴급
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => handleAddItem(month.id)}
+                          className="p-2 rounded-xl hover:bg-white/[0.04] transition-colors flex-shrink-0"
+                          title="이슈 추가"
                         >
-                          {month.name}
-                        </span>
-                        <span className="text-sm text-white/40">{month.title}</span>
-                        {month.openCount > 0 && (
-                          <span className="px-2 py-0.5 rounded-full bg-yellow-500/20 text-yellow-400 text-xs">
-                            {month.openCount} 진행중
-                          </span>
-                        )}
-                        {month.criticalCount > 0 && (
-                          <span className="px-2 py-0.5 rounded-full bg-red-500/20 text-red-400 text-xs">
-                            {month.criticalCount} 긴급
-                          </span>
-                        )}
+                          <Plus className="w-4 h-4 text-[#b7916e]" />
+                        </button>
                       </div>
-                      <button
-                        onClick={() => handleAddItem(month.id)}
-                        className="p-2 rounded-xl hover:bg-white/[0.04] transition-colors"
-                        title="이슈 추가"
-                      >
-                        <Plus className="w-4 h-4 text-[#b7916e]" />
-                      </button>
                     </div>
 
                     {/* Items */}
-                    <div className="relative p-6 space-y-2">
+                    <div className="relative p-3 sm:p-6 space-y-2">
                       {month.issues.length > 0 ? (
                         month.issues.map((item, itemIndex) => (
                           <motion.div
@@ -575,85 +552,155 @@ export default function IssuesPage() {
                             initial={{ opacity: 0, x: -10 }}
                             animate={{ opacity: 1, x: 0 }}
                             transition={{ delay: itemIndex * 0.05 }}
-                            className="group/item flex items-center gap-3 sm:gap-4 p-3 sm:p-4 rounded-xl cursor-pointer transition-all hover:bg-white/[0.04] active:bg-white/[0.06]"
+                            className="group/item p-3 sm:p-4 rounded-xl cursor-pointer transition-all hover:bg-white/[0.04] active:bg-white/[0.06]"
                             onClick={() => handleViewItem(item)}
                           >
-                            {/* Type Icon */}
-                            <div
-                              className={`flex-shrink-0 p-2 rounded-lg ${
-                                item.type === 'issue'
-                                  ? 'bg-blue-500/10 text-blue-400'
-                                  : item.type === 'risk'
-                                  ? 'bg-orange-500/10 text-orange-400'
-                                  : 'bg-purple-500/10 text-purple-400'
-                              }`}
-                            >
-                              {getTypeIcon(item.type)}
+                            {/* Mobile Layout */}
+                            <div className="sm:hidden space-y-2">
+                              {/* Top Row: Type Icon + Priority + Actions */}
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <div
+                                    className={`p-1.5 rounded-lg ${
+                                      item.type === 'issue'
+                                        ? 'bg-blue-500/10 text-blue-400'
+                                        : item.type === 'risk'
+                                        ? 'bg-orange-500/10 text-orange-400'
+                                        : 'bg-purple-500/10 text-purple-400'
+                                    }`}
+                                  >
+                                    {getTypeIcon(item.type)}
+                                  </div>
+                                  {getPriorityIndicator(item.priority)}
+                                </div>
+                                <div className="flex items-center gap-0.5">
+                                  <button
+                                    onClick={(e) => handleEditItem(item, e)}
+                                    className="p-1.5 rounded-lg hover:bg-white/[0.06] transition-colors"
+                                    title="수정"
+                                  >
+                                    <Pencil className="w-3.5 h-3.5 text-white/40" />
+                                  </button>
+                                  <button
+                                    onClick={(e) => handleDeleteItem(item.id, e)}
+                                    className="p-1.5 rounded-lg hover:bg-red-500/10 transition-colors"
+                                    title="삭제"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5 text-white/40" />
+                                  </button>
+                                </div>
+                              </div>
+
+                              {/* Title */}
+                              <p
+                                className={`text-sm leading-relaxed ${
+                                  item.status === 'closed'
+                                    ? 'text-white/40 line-through'
+                                    : 'text-white/80'
+                                }`}
+                              >
+                                {item.title}
+                              </p>
+
+                              {/* Bottom Row: Badges */}
+                              <div className="flex flex-wrap items-center gap-1.5">
+                                <span
+                                  className={`px-2 py-0.5 rounded-md text-[10px] font-medium ${ISSUE_STATUS_COLORS[item.status]}`}
+                                >
+                                  {ISSUE_STATUS_LABELS[item.status]}
+                                </span>
+                                <span
+                                  className={`px-2 py-0.5 rounded-md text-[10px] font-medium ${CATEGORY_COLORS[item.category]}`}
+                                >
+                                  {CATEGORY_LABELS[item.category]}
+                                </span>
+                                {item.owner && (
+                                  <span className="text-[10px] text-white/30 ml-auto">
+                                    {item.owner}
+                                  </span>
+                                )}
+                              </div>
                             </div>
 
-                            {/* Priority */}
-                            <div className="flex-shrink-0">
-                              {getPriorityIndicator(item.priority)}
-                            </div>
+                            {/* Desktop Layout */}
+                            <div className="hidden sm:flex items-center gap-4">
+                              {/* Type Icon */}
+                              <div
+                                className={`flex-shrink-0 p-2 rounded-lg ${
+                                  item.type === 'issue'
+                                    ? 'bg-blue-500/10 text-blue-400'
+                                    : item.type === 'risk'
+                                    ? 'bg-orange-500/10 text-orange-400'
+                                    : 'bg-purple-500/10 text-purple-400'
+                                }`}
+                              >
+                                {getTypeIcon(item.type)}
+                              </div>
 
-                            {/* Status Badge */}
-                            <span
-                              className={`flex-shrink-0 px-2 py-0.5 rounded-md text-xs font-medium ${ISSUE_STATUS_COLORS[item.status]}`}
-                            >
-                              {ISSUE_STATUS_LABELS[item.status]}
-                            </span>
+                              {/* Priority */}
+                              <div className="flex-shrink-0">
+                                {getPriorityIndicator(item.priority)}
+                              </div>
 
-                            {/* Category Tag */}
-                            <span
-                              className={`flex-shrink-0 px-2 py-0.5 rounded-md text-xs font-medium ${CATEGORY_COLORS[item.category]}`}
-                            >
-                              {CATEGORY_LABELS[item.category]}
-                            </span>
-
-                            {/* Title */}
-                            <span
-                              className={`flex-1 min-w-0 break-words text-sm sm:text-base ${
-                                item.status === 'closed'
-                                  ? 'text-white/40 line-through'
-                                  : 'text-white/80'
-                              }`}
-                            >
-                              {item.title}
-                            </span>
-
-                            {/* Owner */}
-                            {item.owner && (
-                              <span className="hidden sm:block flex-shrink-0 text-xs text-white/30">
-                                {item.owner}
+                              {/* Status Badge */}
+                              <span
+                                className={`flex-shrink-0 px-2 py-0.5 rounded-md text-xs font-medium ${ISSUE_STATUS_COLORS[item.status]}`}
+                              >
+                                {ISSUE_STATUS_LABELS[item.status]}
                               </span>
-                            )}
 
-                            {/* Actions */}
-                            <div className="flex items-center gap-0.5 sm:gap-1 flex-shrink-0 opacity-60 sm:opacity-0 sm:group-hover/item:opacity-100 transition-opacity">
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleViewItem(item);
-                                }}
-                                className="p-1.5 sm:p-2 rounded-lg hover:bg-white/[0.06] transition-colors"
-                                title="상세보기"
+                              {/* Category Tag */}
+                              <span
+                                className={`flex-shrink-0 px-2 py-0.5 rounded-md text-xs font-medium ${CATEGORY_COLORS[item.category]}`}
                               >
-                                <Eye className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white/40 hover:text-white/80" />
-                              </button>
-                              <button
-                                onClick={(e) => handleEditItem(item, e)}
-                                className="p-1.5 sm:p-2 rounded-lg hover:bg-white/[0.06] transition-colors"
-                                title="수정"
+                                {CATEGORY_LABELS[item.category]}
+                              </span>
+
+                              {/* Title */}
+                              <span
+                                className={`flex-1 min-w-0 text-base ${
+                                  item.status === 'closed'
+                                    ? 'text-white/40 line-through'
+                                    : 'text-white/80'
+                                }`}
                               >
-                                <Pencil className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white/40 hover:text-white/80" />
-                              </button>
-                              <button
-                                onClick={(e) => handleDeleteItem(item.id, e)}
-                                className="p-1.5 sm:p-2 rounded-lg hover:bg-red-500/10 transition-colors"
-                                title="삭제"
-                              >
-                                <Trash2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white/40 hover:text-red-400" />
-                              </button>
+                                {item.title}
+                              </span>
+
+                              {/* Owner */}
+                              {item.owner && (
+                                <span className="flex-shrink-0 text-xs text-white/30">
+                                  {item.owner}
+                                </span>
+                              )}
+
+                              {/* Actions */}
+                              <div className="flex items-center gap-1 flex-shrink-0 opacity-0 group-hover/item:opacity-100 transition-opacity">
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleViewItem(item);
+                                  }}
+                                  className="p-2 rounded-lg hover:bg-white/[0.06] transition-colors"
+                                  title="상세보기"
+                                >
+                                  <Eye className="w-4 h-4 text-white/40 hover:text-white/80" />
+                                </button>
+                                <button
+                                  onClick={(e) => handleEditItem(item, e)}
+                                  className="p-2 rounded-lg hover:bg-white/[0.06] transition-colors"
+                                  title="수정"
+                                >
+                                  <Pencil className="w-4 h-4 text-white/40 hover:text-white/80" />
+                                </button>
+                                <button
+                                  onClick={(e) => handleDeleteItem(item.id, e)}
+                                  className="p-2 rounded-lg hover:bg-red-500/10 transition-colors"
+                                  title="삭제"
+                                >
+                                  <Trash2 className="w-4 h-4 text-white/40 hover:text-red-400" />
+                                </button>
+                              </div>
                             </div>
                           </motion.div>
                         ))

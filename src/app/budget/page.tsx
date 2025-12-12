@@ -258,90 +258,77 @@ export default function BudgetPage() {
         />
       </div>
 
-      {/* Hero Section */}
-      <section className="relative pt-16 pb-8 sm:pb-12 px-4 sm:px-6 lg:px-12">
+      {/* Hero Section - Compact on Mobile */}
+      <section className="relative pt-8 sm:pt-16 pb-6 sm:pb-12 px-4 sm:px-6 lg:px-12">
         <div className="max-w-6xl mx-auto">
           <motion.div
-            initial={{ opacity: 0, y: 30 }}
+            initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 1, ease: [0.25, 0.46, 0.45, 0.94] }}
+            transition={{ duration: 0.8 }}
             className="relative"
           >
-            {/* Decorative Line */}
+            {/* Decorative Line - Hidden on Mobile */}
             <motion.div
               initial={{ scaleX: 0 }}
               animate={{ scaleX: 1 }}
-              transition={{ duration: 1.2, delay: 0.3, ease: [0.25, 0.46, 0.45, 0.94] }}
-              className="absolute -left-4 sm:-left-6 top-1/2 w-12 sm:w-16 h-px bg-gradient-to-r from-[#b7916e] to-transparent origin-left"
+              transition={{ duration: 1.2, delay: 0.3 }}
+              className="hidden sm:block absolute -left-6 top-1/2 w-16 h-px bg-gradient-to-r from-[#b7916e] to-transparent origin-left"
             />
 
-            <div className="pl-10 sm:pl-14 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-              <div>
-                <motion.p
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.8, delay: 0.4 }}
-                  className="text-[#b7916e] text-xs sm:text-sm tracking-[0.3em] uppercase mb-3 sm:mb-4 font-light"
-                >
-                  Financial Management
-                </motion.p>
+            <div className="sm:pl-14">
+              <motion.p
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.6, delay: 0.2 }}
+                className="text-[#b7916e] text-[10px] sm:text-sm tracking-[0.2em] sm:tracking-[0.3em] uppercase mb-2 sm:mb-4 font-light"
+              >
+                Financial Management
+              </motion.p>
 
-                <h1
-                  className="text-4xl sm:text-5xl lg:text-6xl text-white/95 mb-4 sm:mb-6 leading-[1.1] tracking-tight"
-                  style={{ fontFamily: "var(--font-cormorant), 'Playfair Display', Georgia, serif" }}
-                >
-                  <motion.span
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.8, delay: 0.5 }}
-                    className="block"
-                  >
-                    Budget
-                  </motion.span>
-                  <motion.span
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.8, delay: 0.6 }}
-                    className="block text-transparent bg-clip-text bg-gradient-to-r from-[#b7916e] via-[#d4c4a8] to-[#b7916e]"
-                  >
-                    Management
-                  </motion.span>
-                </h1>
+              <h1
+                className="text-3xl sm:text-5xl lg:text-6xl text-white/95 mb-2 sm:mb-6 leading-[1.1] tracking-tight"
+                style={{ fontFamily: "var(--font-cormorant), 'Playfair Display', Georgia, serif" }}
+              >
+                <span className="sm:block inline">Budget </span>
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#b7916e] via-[#d4c4a8] to-[#b7916e]">
+                  Management
+                </span>
+              </h1>
 
-                <motion.p
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ duration: 1, delay: 0.8 }}
-                  className="text-white/40 text-base sm:text-lg max-w-md font-light leading-relaxed"
-                >
-                  마케팅 예산 및 지출 관리
-                </motion.p>
-              </div>
+              <motion.p
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.8, delay: 0.4 }}
+                className="hidden sm:block text-white/40 text-lg max-w-md font-light leading-relaxed"
+              >
+                마케팅 예산 및 지출 관리
+              </motion.p>
             </div>
           </motion.div>
         </div>
       </section>
 
       {/* Year Selector & Actions */}
-      <section className="px-4 sm:px-6 lg:px-8 mb-6 sm:mb-8">
+      <section className="px-4 sm:px-6 lg:px-8 mb-4 sm:mb-8">
         <div className="max-w-6xl mx-auto">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.3 }}
-            className="flex flex-wrap items-center justify-between gap-3 sm:gap-4"
+            className="flex flex-wrap items-center justify-between gap-2 sm:gap-4"
           >
             {/* Year Selector */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1 sm:gap-2">
               {AVAILABLE_YEARS.map((year) => (
                 <button
                   key={year}
                   onClick={() => setSelectedYear(year)}
-                  className={`px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-lg sm:rounded-xl transition-all ${
+                  className={`px-2.5 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-lg sm:rounded-xl transition-all ${
                     selectedYear === year
-                      ? 'bg-[#b7916e]/20 text-[#d4c4a8] border border-[#b7916e]/30'
-                      : 'text-white/40 hover:text-white/80 hover:bg-white/[0.04] border border-transparent'
+                      ? 'bg-[#b7916e] text-white'
+                      : 'text-white/40 hover:text-white/80 hover:bg-white/[0.04]'
                   }`}
+                  style={{ fontFamily: "var(--font-cormorant), serif" }}
                 >
                   {year}
                 </button>

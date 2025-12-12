@@ -165,104 +165,80 @@ export default function CalendarPage() {
         />
       </div>
 
-      {/* Hero Section */}
-      <section className="relative pt-16 pb-12 px-6 lg:px-12">
+      {/* Hero Section - Compact on Mobile */}
+      <section className="relative pt-8 sm:pt-16 pb-6 sm:pb-12 px-4 sm:px-6 lg:px-12">
         <div className="max-w-6xl mx-auto">
           <motion.div
-            initial={{ opacity: 0, y: 30 }}
+            initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 1, ease: [0.25, 0.46, 0.45, 0.94] }}
+            transition={{ duration: 0.8 }}
             className="relative"
           >
             <motion.div
               initial={{ scaleX: 0 }}
               animate={{ scaleX: 1 }}
-              transition={{ duration: 1.2, delay: 0.3, ease: [0.25, 0.46, 0.45, 0.94] }}
-              className="absolute -left-6 top-1/2 w-16 h-px bg-gradient-to-r from-[#b7916e] to-transparent origin-left"
+              transition={{ duration: 1.2, delay: 0.3 }}
+              className="hidden sm:block absolute -left-6 top-1/2 w-16 h-px bg-gradient-to-r from-[#b7916e] to-transparent origin-left"
             />
 
-            <div className="pl-14 flex items-start justify-between gap-4">
-              <div>
-                <motion.p
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.8, delay: 0.4 }}
-                  className="text-[#b7916e] text-sm tracking-[0.3em] uppercase mb-4 font-light"
-                >
-                  Publishing Schedule
-                </motion.p>
+            <div className="sm:pl-14">
+              <motion.p
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.6, delay: 0.2 }}
+                className="text-[#b7916e] text-[10px] sm:text-sm tracking-[0.2em] sm:tracking-[0.3em] uppercase mb-2 sm:mb-4 font-light"
+              >
+                Publishing Schedule
+              </motion.p>
 
-                <h1
-                  className="text-5xl sm:text-6xl lg:text-7xl text-white/95 mb-6 leading-[1.1] tracking-tight"
-                  style={{ fontFamily: "var(--font-cormorant), 'Playfair Display', Georgia, serif" }}
-                >
-                  <motion.span
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.8, delay: 0.5 }}
-                    className="block"
-                  >
-                    Content
-                  </motion.span>
-                  <motion.span
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.8, delay: 0.6 }}
-                    className="block text-transparent bg-clip-text bg-gradient-to-r from-[#b7916e] via-[#d4c4a8] to-[#b7916e]"
-                  >
-                    Calendar
-                  </motion.span>
-                </h1>
+              <h1
+                className="text-3xl sm:text-5xl lg:text-6xl text-white/95 mb-2 sm:mb-6 leading-[1.1] tracking-tight"
+                style={{ fontFamily: "var(--font-cormorant), 'Playfair Display', Georgia, serif" }}
+              >
+                <span className="sm:block inline">Content </span>
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#b7916e] via-[#d4c4a8] to-[#b7916e]">
+                  Calendar
+                </span>
+              </h1>
 
-                <motion.p
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ duration: 1, delay: 0.8 }}
-                  className="text-white/40 text-lg max-w-md font-light leading-relaxed"
-                >
-                  <span className="md:whitespace-nowrap">월별 콘텐츠 발행 계획 및</span>
-                  <br className="md:hidden" />
-                  <span className="hidden md:inline">&nbsp;</span>
-                  <span className="md:whitespace-nowrap">일정 관리</span>
-                </motion.p>
-              </div>
-
+              <motion.p
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.8, delay: 0.4 }}
+                className="hidden sm:block text-white/40 text-lg max-w-md font-light leading-relaxed"
+              >
+                월별 콘텐츠 발행 계획 및 일정 관리
+              </motion.p>
             </div>
           </motion.div>
         </div>
       </section>
 
-      {/* Year Selection */}
-      <section className="relative py-4 px-6 lg:px-12">
+      {/* Year Selection - Compact */}
+      <section className="relative py-2 sm:py-4 px-4 sm:px-6 lg:px-12">
         <div className="max-w-6xl mx-auto">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.85 }}
-            className="relative rounded-2xl overflow-hidden"
+            className="flex items-center gap-2 sm:gap-4"
           >
-            <div className="absolute inset-0 bg-gradient-to-br from-white/[0.04] to-white/[0.01] backdrop-blur-sm" />
-            <div className="absolute inset-0 border border-white/[0.06] rounded-2xl" />
-            <div className="relative p-4">
-              <div className="flex items-center gap-4">
-                <span className="text-white/30 text-xs tracking-[0.2em] uppercase">연도 선택</span>
-                <div className="flex items-center gap-2">
-                  {AVAILABLE_YEARS.map((y) => (
-                    <button
-                      key={y}
-                      onClick={() => setCurrentDate(new Date(y, month, 1))}
-                      className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
-                        year === y
-                          ? 'bg-[#b7916e]/20 text-[#d4c4a8] border border-[#b7916e]/30'
-                          : 'text-white/40 hover:text-white/60 hover:bg-white/[0.04]'
-                      }`}
-                      style={{ fontFamily: "var(--font-cormorant), serif" }}
-                    >
-                      {y}
-                    </button>
-                  ))}
-                </div>
-              </div>
+            <span className="text-white/30 text-[10px] sm:text-xs tracking-[0.2em] uppercase">연도</span>
+            <div className="flex items-center gap-1 sm:gap-2">
+              {AVAILABLE_YEARS.map((y) => (
+                <button
+                  key={y}
+                  onClick={() => setCurrentDate(new Date(y, month, 1))}
+                  className={`px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl text-xs sm:text-sm font-medium transition-all ${
+                    year === y
+                      ? 'bg-[#b7916e] text-white'
+                      : 'text-white/40 hover:text-white/60 hover:bg-white/[0.04]'
+                  }`}
+                  style={{ fontFamily: "var(--font-cormorant), serif" }}
+                >
+                  {y}
+                </button>
+              ))}
             </div>
           </motion.div>
         </div>

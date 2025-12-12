@@ -2,6 +2,14 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## ⚠️ 최우선 사항 (TOP PRIORITY)
+
+**커밋/배포 규칙:**
+- 사용자가 명시적으로 요청할 때만 커밋/배포 수행
+- "커밋해줘", "commit", "배포해줘", "deploy" 등의 명확한 지시가 있을 때만 실행
+- 변경 작업 완료 후 자동으로 커밋하지 말 것
+- 작업 완료 시 변경사항만 보고하고 커밋/배포는 사용자 지시 대기
+
 ## Development Commands
 
 ```bash
