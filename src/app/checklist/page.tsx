@@ -379,25 +379,25 @@ export default function ChecklistPage() {
                           initial={{ opacity: 0, x: -10 }}
                           animate={{ opacity: 1, x: 0 }}
                           transition={{ delay: itemIndex * 0.05 }}
-                          className={`group/item flex items-center gap-4 p-4 rounded-xl cursor-pointer transition-all ${
+                          className={`group/item flex items-center gap-3 sm:gap-4 p-3 sm:p-4 rounded-xl cursor-pointer transition-all ${
                             item.done
                               ? 'bg-emerald-500/[0.06] hover:bg-emerald-500/10'
-                              : 'hover:bg-white/[0.04]'
+                              : 'hover:bg-white/[0.04] active:bg-white/[0.06]'
                           }`}
                           onClick={() => handleToggle(item.id)}
                         >
                           {/* Checkbox */}
                           <div className="flex-shrink-0 transition-transform group-hover/item:scale-110">
                             {item.done ? (
-                              <CheckCircle2 className="w-6 h-6 text-emerald-400" />
+                              <CheckCircle2 className="w-5 h-5 sm:w-6 sm:h-6 text-emerald-400" />
                             ) : (
-                              <Circle className="w-6 h-6 text-white/30 group-hover/item:text-[#b7916e] transition-colors" />
+                              <Circle className="w-5 h-5 sm:w-6 sm:h-6 text-white/30 group-hover/item:text-[#b7916e] transition-colors" />
                             )}
                           </div>
 
-                          {/* Title */}
+                          {/* Title - full width with proper text wrapping */}
                           <span
-                            className={`flex-1 ${
+                            className={`flex-1 min-w-0 break-words text-sm sm:text-base ${
                               item.done
                                 ? 'text-white/40 line-through'
                                 : 'text-white/80'
@@ -406,21 +406,21 @@ export default function ChecklistPage() {
                             {item.title}
                           </span>
 
-                          {/* Actions */}
-                          <div className="flex items-center gap-1 opacity-0 group-hover/item:opacity-100 transition-opacity">
+                          {/* Actions - always visible on mobile, hover on desktop */}
+                          <div className="flex items-center gap-0.5 sm:gap-1 flex-shrink-0 opacity-60 sm:opacity-0 sm:group-hover/item:opacity-100 transition-opacity">
                             <button
                               onClick={(e) => handleEditItem(item, e)}
-                              className="p-2 rounded-lg hover:bg-white/[0.06] transition-colors"
+                              className="p-1.5 sm:p-2 rounded-lg hover:bg-white/[0.06] active:bg-white/[0.08] transition-colors"
                               title="수정"
                             >
-                              <Pencil className="w-4 h-4 text-white/40 hover:text-white/80" />
+                              <Pencil className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white/40 hover:text-white/80" />
                             </button>
                             <button
                               onClick={(e) => handleDeleteItem(item.id, e)}
-                              className="p-2 rounded-lg hover:bg-red-500/10 transition-colors"
+                              className="p-1.5 sm:p-2 rounded-lg hover:bg-red-500/10 active:bg-red-500/20 transition-colors"
                               title="삭제"
                             >
-                              <Trash2 className="w-4 h-4 text-white/40 hover:text-red-400" />
+                              <Trash2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white/40 hover:text-red-400" />
                             </button>
                           </div>
                         </motion.div>

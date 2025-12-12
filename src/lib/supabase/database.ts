@@ -774,13 +774,17 @@ export async function deleteCustomProduct(id: string): Promise<boolean> {
 // ═══════════════════════════════════════════════════════════════════════════
 
 export function mapDbBottleToBottle(dbBottle: DBNumberedBottle): NumberedBottle {
+  // gifted 상태일 때는 sold_to 필드를 giftedTo로 매핑
+  const isGifted = dbBottle.status === 'gifted';
+
   return {
     id: dbBottle.id,
     productId: dbBottle.product_id as ProductType,
     bottleNumber: dbBottle.bottle_number,
     status: dbBottle.status as InventoryStatus,
     reservedFor: dbBottle.reserved_for || undefined,
-    soldTo: dbBottle.sold_to || undefined,
+    soldTo: isGifted ? undefined : (dbBottle.sold_to || undefined),
+    giftedTo: isGifted ? (dbBottle.sold_to || undefined) : undefined,
     soldDate: dbBottle.sold_date || undefined,
     price: dbBottle.price || undefined,
     notes: dbBottle.notes || undefined,

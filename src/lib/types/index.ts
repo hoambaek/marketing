@@ -125,6 +125,7 @@ export interface NumberedBottle {
   status: InventoryStatus;
   reservedFor?: string;
   soldTo?: string;
+  giftedTo?: string;
   soldDate?: string;
   price?: number;
   notes?: string;

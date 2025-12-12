@@ -53,10 +53,11 @@ export default function SignInPage() {
                 formFieldInput: 'bg-[#0a0f1a] border-white/30 text-white placeholder:text-white/30 focus:border-[#b7916e]/50',
                 footerAction: 'hidden', // 회원가입 링크 숨김
                 footer: 'hidden', // 전체 푸터 숨김
-                dividerLine: 'bg-white/10',
-                dividerText: 'text-white/40',
-                socialButtonsBlockButton: 'bg-white/5 border-white/10 text-white hover:bg-white/10',
-                socialButtonsBlockButtonText: 'text-white font-medium',
+                dividerLine: 'hidden',
+                dividerText: 'hidden',
+                socialButtonsBlockButton: 'hidden',
+                socialButtonsBlockButtonText: 'hidden',
+                socialButtonsProviderIcon: 'hidden',
                 identifierPreviewText: 'text-white',
                 identifierPreviewEditButton: 'text-[#b7916e] hover:text-[#d4c4a8]',
                 formFieldAction: 'text-[#b7916e] hover:text-[#d4c4a8]',

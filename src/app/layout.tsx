@@ -13,13 +13,23 @@ const cormorant = Cormorant_Garamond({
 });
 
 export const metadata: Metadata = {
-  title: '뮤즈드마레 마스터플랜 | Muse de Marée 2026',
-  description: '2026년 해저숙성 샴페인 브랜드 런칭을 위한 마스터플랜 관리 시스템',
+  title: '뮤즈드마레 마스터플랜 | Muse de Marée',
+  description: '해저숙성 샴페인 브랜드 런칭을 위한 마스터플랜 관리 시스템',
   keywords: ['뮤즈드마레', 'Muse de Marée', '해저숙성', '샴페인', '럭셔리', '마스터플랜'],
   authors: [{ name: '뮤즈드마레 팀' }],
+  manifest: '/manifest.json',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'black-translucent',
+    title: 'Muse de Marée',
+  },
+  icons: {
+    icon: '/icons/icon-192x192.png',
+    apple: '/icons/icon-192x192.png',
+  },
   openGraph: {
     title: '뮤즈드마레 마스터플랜',
-    description: '2026년 해저숙성 샴페인 브랜드 런칭 마스터플랜',
+    description: '해저숙성 샴페인 브랜드 런칭 마스터플랜',
     type: 'website',
     locale: 'ko_KR',
   },

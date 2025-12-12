@@ -1,7 +1,6 @@
 'use client';
 
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
 import {
   ProductType,
   NumberedBottle,
@@ -52,7 +51,7 @@ interface InventoryState {
   updateBottleStatus: (
     bottleId: string,
     status: InventoryStatus,
-    details?: { reservedFor?: string; soldTo?: string; price?: number; notes?: string }
+    details?: { reservedFor?: string; soldTo?: string; giftedTo?: string; price?: number; notes?: string }
   ) => Promise<void>;
   getBottlesByStatus: (status: InventoryStatus) => NumberedBottle[];
 
@@ -88,6 +87,10 @@ interface InventoryState {
   // Transactions
   getTransactionsByProduct: (productId: ProductType | string) => InventoryTransaction[];
   getRecentTransactions: (limit?: number) => InventoryTransaction[];
+  getFilteredTransactions: (year?: number, month?: number, limit?: number) => InventoryTransaction[];
+
+  // Refresh from Supabase
+  refreshFromSupabase: () => Promise<void>;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -130,9 +133,7 @@ const createInitialBatches = (): InventoryBatch[] => {
 // Zustand 스토어
 // ═══════════════════════════════════════════════════════════════════════════
 
-export const useInventoryStore = create<InventoryState>()(
-  persist(
-    (set, get) => ({
+export const useInventoryStore = create<InventoryState>()((set, get) => ({
       // 초기 데이터
       numberedBottles: [],
       inventoryBatches: [],
@@ -143,13 +144,10 @@ export const useInventoryStore = create<InventoryState>()(
       useSupabase: isSupabaseConfigured(),
 
       // ═══════════════════════════════════════════════════════════════════
-      // 초기화 - Supabase에서 데이터 로드
+      // 초기화 - Supabase에서 데이터 로드 (항상 최신 데이터 가져오기)
       // ═══════════════════════════════════════════════════════════════════
 
       initializeInventory: async () => {
-        const state = get();
-        if (state.isInitialized && state.numberedBottles.length > 0) return;
-
         if (!isSupabaseConfigured()) {
           // Supabase 미설정 시 로컬 데이터 사용
           set({
@@ -165,11 +163,11 @@ export const useInventoryStore = create<InventoryState>()(
         set({ isLoading: true });
 
         try {
-          // Supabase에서 데이터 로드
+          // Supabase에서 데이터 로드 (항상 최신 데이터)
           const [bottles, batches, transactions, customProducts] = await Promise.all([
             db.fetchNumberedBottles(),
             db.fetchInventoryBatches(),
-            db.fetchInventoryTransactions(100),
+            db.fetchInventoryTransactions(500), // 더 많은 트랜잭션 로드
             db.fetchCustomProducts(),
           ]);
 
@@ -197,6 +195,36 @@ export const useInventoryStore = create<InventoryState>()(
       },
 
       // ═══════════════════════════════════════════════════════════════════
+      // Supabase에서 새로고침 (강제 재로드)
+      // ═══════════════════════════════════════════════════════════════════
+
+      refreshFromSupabase: async () => {
+        if (!isSupabaseConfigured()) return;
+
+        set({ isLoading: true });
+
+        try {
+          const [bottles, batches, transactions, customProducts] = await Promise.all([
+            db.fetchNumberedBottles(),
+            db.fetchInventoryBatches(),
+            db.fetchInventoryTransactions(500),
+            db.fetchCustomProducts(),
+          ]);
+
+          set({
+            numberedBottles: bottles?.map(db.mapDbBottleToBottle) || [],
+            inventoryBatches: batches?.map(db.mapDbBatchToBatch) || [],
+            transactions: transactions?.map(db.mapDbTransactionToTransaction) || [],
+            customProducts: customProducts?.map(db.mapDbCustomProductToProduct) || [],
+            isLoading: false,
+          });
+        } catch (error) {
+          console.error('Failed to refresh from Supabase:', error);
+          set({ isLoading: false });
+        }
+      },
+
+      // ═══════════════════════════════════════════════════════════════════
       // Numbered Bottle Actions
       // ═══════════════════════════════════════════════════════════════════
 
@@ -209,6 +237,7 @@ export const useInventoryStore = create<InventoryState>()(
           status,
           ...(details?.reservedFor && { reservedFor: details.reservedFor }),
           ...(details?.soldTo && { soldTo: details.soldTo }),
+          ...(details?.giftedTo && { giftedTo: details.giftedTo }),
           ...(details?.price && { price: details.price }),
           ...(details?.notes && { notes: details.notes }),
           ...(status === 'sold' && { soldDate: new Date().toISOString() }),
@@ -223,10 +252,15 @@ export const useInventoryStore = create<InventoryState>()(
 
         // Supabase에 저장
         if (get().useSupabase) {
+          // giftedTo는 DB의 sold_to 필드에 저장 (gifted 상태일 때)
+          const soldToValue = status === 'gifted'
+            ? (details?.giftedTo || null)
+            : (details?.soldTo || null);
+
           await db.updateNumberedBottle(bottleId, {
             status,
             reserved_for: details?.reservedFor || null,
-            sold_to: details?.soldTo || null,
+            sold_to: soldToValue,
             price: details?.price || null,
             notes: details?.notes || null,
             sold_date: status === 'sold' ? new Date().toISOString() : null,
@@ -240,6 +274,9 @@ export const useInventoryStore = create<InventoryState>()(
               : status === 'damaged' ? 'damage'
               : 'return';
 
+          // 고객명: sold → soldTo, reserved → reservedFor, gifted → giftedTo
+          const customerName = details?.soldTo || details?.reservedFor || details?.giftedTo || null;
+
           const txId = generateId();
           await db.createInventoryTransaction({
             id: txId,
@@ -247,7 +284,7 @@ export const useInventoryStore = create<InventoryState>()(
             bottle_number: bottle.bottleNumber,
             type: transactionType,
             quantity: 1,
-            customer_name: details?.soldTo || details?.reservedFor || null,
+            customer_name: customerName,
             price: details?.price || null,
             notes: details?.notes || null,
           });
@@ -262,7 +299,7 @@ export const useInventoryStore = create<InventoryState>()(
                 bottleNumber: bottle.bottleNumber,
                 type: transactionType,
                 quantity: 1,
-                customerName: details?.soldTo || details?.reservedFor,
+                customerName: customerName || undefined,
                 price: details?.price,
                 notes: details?.notes,
                 createdAt: new Date().toISOString(),
@@ -278,6 +315,8 @@ export const useInventoryStore = create<InventoryState>()(
               : status === 'damaged' ? 'damage'
               : 'return';
 
+          const customerName = details?.soldTo || details?.reservedFor || details?.giftedTo;
+
           set((state) => ({
             transactions: [
               ...state.transactions,
@@ -287,7 +326,7 @@ export const useInventoryStore = create<InventoryState>()(
                 bottleNumber: bottle.bottleNumber,
                 type: transactionType,
                 quantity: 1,
-                customerName: details?.soldTo || details?.reservedFor,
+                customerName,
                 price: details?.price,
                 notes: details?.notes,
                 createdAt: new Date().toISOString(),
@@ -897,20 +936,32 @@ export const useInventoryStore = create<InventoryState>()(
       },
 
       getRecentTransactions: (limit = 10) => {
+        // 모든 트랜잭션을 시간순으로 정렬하여 반환 (중복 제거 없음)
         return get()
-          .transactions.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+          .transactions
+          .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
           .slice(0, limit);
       },
-    }),
-    {
-      name: 'muse-de-maree-inventory',
-      partialize: (state) => ({
-        numberedBottles: state.numberedBottles,
-        inventoryBatches: state.inventoryBatches,
-        transactions: state.transactions,
-        customProducts: state.customProducts,
-        isInitialized: state.isInitialized,
-      }),
-    }
-  )
-);
+
+      getFilteredTransactions: (year?: number, month?: number, limit = 50) => {
+        let filtered = get().transactions;
+
+        if (year) {
+          filtered = filtered.filter((tx) => {
+            const txDate = new Date(tx.createdAt);
+            return txDate.getFullYear() === year;
+          });
+        }
+
+        if (month) {
+          filtered = filtered.filter((tx) => {
+            const txDate = new Date(tx.createdAt);
+            return txDate.getMonth() + 1 === month;
+          });
+        }
+
+        return filtered
+          .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+          .slice(0, limit);
+      },
+}));

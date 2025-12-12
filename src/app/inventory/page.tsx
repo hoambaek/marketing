@@ -27,7 +27,11 @@ import {
   Clock,
   Hash,
   Plus,
+  LogOut,
+  RefreshCw,
+  Filter,
 } from 'lucide-react';
+import { SignOutButton } from '@clerk/nextjs';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // 애니메이션 변형
@@ -114,7 +118,7 @@ function BottleStatusModal({
   onClose: () => void;
   bottleNumber: number;
   currentStatus: InventoryStatus;
-  onSave: (status: InventoryStatus, details?: { reservedFor?: string; soldTo?: string; price?: number; notes?: string }) => void;
+  onSave: (status: InventoryStatus, details?: { reservedFor?: string; soldTo?: string; giftedTo?: string; price?: number; notes?: string }) => void;
 }) {
   const [status, setStatus] = useState<InventoryStatus>(currentStatus);
   const [customerName, setCustomerName] = useState('');
@@ -132,6 +136,7 @@ function BottleStatusModal({
     onSave(status, {
       reservedFor: status === 'reserved' ? customerName : undefined,
       soldTo: status === 'sold' ? customerName : undefined,
+      giftedTo: status === 'gifted' ? customerName : undefined,
       price: price ? parseInt(price) : undefined,
       notes: notes || undefined,
     });
@@ -153,24 +158,24 @@ function BottleStatusModal({
         initial={{ opacity: 0, scale: 0.95, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 20 }}
-        className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-full max-w-md mx-4"
+        className="fixed inset-x-4 top-1/2 -translate-y-1/2 z-50 mx-auto max-w-md"
       >
-        <div className="relative rounded-2xl overflow-hidden">
+        <div className="relative rounded-2xl overflow-hidden max-h-[85vh] flex flex-col">
           <div className="absolute inset-0 bg-[#0d1525]" />
           <div className="absolute inset-0 bg-gradient-to-br from-white/[0.06] to-white/[0.02]" />
           <div className="absolute inset-0 border border-white/[0.1] rounded-2xl" />
 
-          <div className="relative">
+          <div className="relative flex flex-col max-h-[85vh]">
             {/* Header */}
-            <div className="px-6 py-4 bg-amber-500/10 border-b border-white/[0.06]">
+            <div className="px-5 py-3 sm:px-6 sm:py-4 bg-amber-500/10 border-b border-white/[0.06] shrink-0">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-[#0a0f1a]/50 flex items-center justify-center text-amber-400 font-bold">
+                <div className="flex items-center gap-2 sm:gap-3">
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-[#0a0f1a]/50 flex items-center justify-center text-amber-400 font-bold text-sm sm:text-base">
                     #{bottleNumber}
                   </div>
                   <div>
-                    <h3 className="font-medium text-amber-400">First Edition #{bottleNumber}</h3>
-                    <p className="text-xs text-white/30">상태 변경</p>
+                    <h3 className="font-medium text-amber-400 text-sm sm:text-base">First Edition #{bottleNumber}</h3>
+                    <p className="text-[10px] sm:text-xs text-white/30">상태 변경</p>
                   </div>
                 </div>
                 <button onClick={onClose} className="p-2 rounded-xl hover:bg-white/[0.06] text-white/40">
@@ -180,7 +185,7 @@ function BottleStatusModal({
             </div>
 
             {/* Body */}
-            <div className="p-6 space-y-4">
+            <div className="p-4 sm:p-6 space-y-3 sm:space-y-4 overflow-y-auto">
               {/* Status Select */}
               <div>
                 <label className="block text-xs text-white/40 uppercase tracking-wider mb-2">상태</label>
@@ -244,16 +249,16 @@ function BottleStatusModal({
               </div>
 
               {/* Actions */}
-              <div className="flex gap-3 pt-2">
+              <div className="flex gap-3 pt-2 shrink-0">
                 <button
                   onClick={onClose}
-                  className="flex-1 px-4 py-3 rounded-xl bg-white/[0.04] border border-white/[0.1] text-white/60 hover:bg-white/[0.08]"
+                  className="flex-1 px-4 py-2.5 sm:py-3 rounded-xl bg-white/[0.04] border border-white/[0.1] text-white/60 hover:bg-white/[0.08] text-sm sm:text-base"
                 >
                   취소
                 </button>
                 <button
                   onClick={handleSave}
-                  className="flex-1 px-4 py-3 rounded-xl bg-[#b7916e]/20 border border-[#b7916e]/30 text-[#d4c4a8] hover:bg-[#b7916e]/30 flex items-center justify-center gap-2"
+                  className="flex-1 px-4 py-2.5 sm:py-3 rounded-xl bg-[#b7916e]/20 border border-[#b7916e]/30 text-[#d4c4a8] hover:bg-[#b7916e]/30 flex items-center justify-center gap-2 text-sm sm:text-base"
                 >
                   <Check className="w-4 h-4" />
                   저장
@@ -346,24 +351,24 @@ function BatchAdjustModal({
         initial={{ opacity: 0, scale: 0.95, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 20 }}
-        className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-full max-w-md mx-4"
+        className="fixed inset-x-4 top-1/2 -translate-y-1/2 z-50 mx-auto max-w-md"
       >
-        <div className="relative rounded-2xl overflow-hidden">
+        <div className="relative rounded-2xl overflow-hidden max-h-[85vh] flex flex-col">
           <div className="absolute inset-0 bg-[#0d1525]" />
           <div className="absolute inset-0 bg-gradient-to-br from-white/[0.06] to-white/[0.02]" />
           <div className="absolute inset-0 border border-white/[0.1] rounded-2xl" />
 
-          <div className="relative">
+          <div className="relative flex flex-col max-h-[85vh]">
             {/* Header */}
-            <div className={`px-6 py-4 ${colors.bg} border-b border-white/[0.06]`}>
+            <div className={`px-5 py-3 sm:px-6 sm:py-4 ${colors.bg} border-b border-white/[0.06] shrink-0`}>
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className={`p-2.5 rounded-xl bg-[#0a0f1a]/50 ${colors.text}`}>
-                    <Wine className="w-5 h-5" />
+                <div className="flex items-center gap-2 sm:gap-3">
+                  <div className={`p-2 sm:p-2.5 rounded-xl bg-[#0a0f1a]/50 ${colors.text}`}>
+                    <Wine className="w-4 h-4 sm:w-5 sm:h-5" />
                   </div>
                   <div>
-                    <h3 className={`font-medium ${colors.text}`}>{product.name}</h3>
-                    <p className="text-xs text-white/30">재고 조정</p>
+                    <h3 className={`font-medium ${colors.text} text-sm sm:text-base`}>{product.name}</h3>
+                    <p className="text-[10px] sm:text-xs text-white/30">재고 조정</p>
                   </div>
                 </div>
                 <button onClick={onClose} className="p-2 rounded-xl hover:bg-white/[0.06] text-white/40">
@@ -373,11 +378,11 @@ function BatchAdjustModal({
             </div>
 
             {/* Body */}
-            <div className="p-6 space-y-4">
+            <div className="p-4 sm:p-6 space-y-3 sm:space-y-4 overflow-y-auto">
               {/* Action Select */}
               <div>
                 <label className="block text-xs text-white/40 uppercase tracking-wider mb-2">작업</label>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-2 gap-1.5 sm:gap-2">
                   {[
                     { value: 'sell', label: '판매', icon: ShoppingCart },
                     { value: 'reserve', label: '예약', icon: BookmarkCheck },
@@ -389,13 +394,13 @@ function BatchAdjustModal({
                     <button
                       key={item.value}
                       onClick={() => setAction(item.value as typeof action)}
-                      className={`px-4 py-2.5 rounded-xl text-sm font-medium transition-all border flex items-center gap-2 ${
+                      className={`px-3 py-2 sm:px-4 sm:py-2.5 rounded-xl text-xs sm:text-sm font-medium transition-all border flex items-center gap-1.5 sm:gap-2 ${
                         action === item.value
                           ? 'bg-[#b7916e]/20 border-[#b7916e]/30 text-[#d4c4a8]'
                           : 'bg-white/[0.04] border-white/[0.1] text-white/40 hover:bg-white/[0.08]'
                       }`}
                     >
-                      <item.icon className="w-4 h-4" />
+                      <item.icon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                       {item.label}
                     </button>
                   ))}
@@ -461,16 +466,16 @@ function BatchAdjustModal({
               )}
 
               {/* Actions */}
-              <div className="flex gap-3 pt-2">
+              <div className="flex gap-3 pt-2 shrink-0">
                 <button
                   onClick={onClose}
-                  className="flex-1 px-4 py-3 rounded-xl bg-white/[0.04] border border-white/[0.1] text-white/60 hover:bg-white/[0.08]"
+                  className="flex-1 px-4 py-2.5 sm:py-3 rounded-xl bg-white/[0.04] border border-white/[0.1] text-white/60 hover:bg-white/[0.08] text-sm sm:text-base"
                 >
                   취소
                 </button>
                 <button
                   onClick={handleSubmit}
-                  className="flex-1 px-4 py-3 rounded-xl bg-[#b7916e]/20 border border-[#b7916e]/30 text-[#d4c4a8] hover:bg-[#b7916e]/30 flex items-center justify-center gap-2"
+                  className="flex-1 px-4 py-2.5 sm:py-3 rounded-xl bg-[#b7916e]/20 border border-[#b7916e]/30 text-[#d4c4a8] hover:bg-[#b7916e]/30 flex items-center justify-center gap-2 text-sm sm:text-base"
                 >
                   <Check className="w-4 h-4" />
                   확인
@@ -548,24 +553,24 @@ function AddProductModal({
         initial={{ opacity: 0, scale: 0.95, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 20 }}
-        className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-full max-w-md mx-4"
+        className="fixed inset-x-4 top-1/2 -translate-y-1/2 z-50 mx-auto max-w-md"
       >
-        <div className="relative rounded-2xl overflow-hidden">
+        <div className="relative rounded-2xl overflow-hidden max-h-[85vh] flex flex-col">
           <div className="absolute inset-0 bg-[#0d1525]" />
           <div className="absolute inset-0 bg-gradient-to-br from-white/[0.06] to-white/[0.02]" />
           <div className="absolute inset-0 border border-white/[0.1] rounded-2xl" />
 
-          <div className="relative">
+          <div className="relative flex flex-col max-h-[85vh]">
             {/* Header */}
-            <div className="px-6 py-4 bg-[#b7916e]/10 border-b border-white/[0.06]">
+            <div className="px-5 py-3 sm:px-6 sm:py-4 bg-[#b7916e]/10 border-b border-white/[0.06] shrink-0">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="p-2.5 rounded-xl bg-[#0a0f1a]/50 text-[#d4c4a8]">
-                    <Plus className="w-5 h-5" />
+                <div className="flex items-center gap-2 sm:gap-3">
+                  <div className="p-2 sm:p-2.5 rounded-xl bg-[#0a0f1a]/50 text-[#d4c4a8]">
+                    <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
                   </div>
                   <div>
-                    <h3 className="font-medium text-[#d4c4a8]">{year} 상품 추가</h3>
-                    <p className="text-xs text-white/30">새로운 상품을 등록합니다</p>
+                    <h3 className="font-medium text-[#d4c4a8] text-sm sm:text-base">{year} 상품 추가</h3>
+                    <p className="text-[10px] sm:text-xs text-white/30">새로운 상품을 등록합니다</p>
                   </div>
                 </div>
                 <button onClick={onClose} className="p-2 rounded-xl hover:bg-white/[0.06] text-white/40">
@@ -575,7 +580,7 @@ function AddProductModal({
             </div>
 
             {/* Body */}
-            <div className="p-6 space-y-4">
+            <div className="p-4 sm:p-6 space-y-3 sm:space-y-4 overflow-y-auto">
               {/* Product Name */}
               <div>
                 <label className="block text-xs text-white/40 uppercase tracking-wider mb-2">상품명 (영문)</label>
@@ -641,17 +646,17 @@ function AddProductModal({
               </div>
 
               {/* Actions */}
-              <div className="flex gap-3 pt-2">
+              <div className="flex gap-3 pt-2 shrink-0">
                 <button
                   onClick={onClose}
-                  className="flex-1 px-4 py-3 rounded-xl bg-white/[0.04] border border-white/[0.1] text-white/60 hover:bg-white/[0.08]"
+                  className="flex-1 px-4 py-2.5 sm:py-3 rounded-xl bg-white/[0.04] border border-white/[0.1] text-white/60 hover:bg-white/[0.08] text-sm sm:text-base"
                 >
                   취소
                 </button>
                 <button
                   onClick={handleSubmit}
                   disabled={!name || !nameKo || !quantity}
-                  className="flex-1 px-4 py-3 rounded-xl bg-[#b7916e]/20 border border-[#b7916e]/30 text-[#d4c4a8] hover:bg-[#b7916e]/30 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex-1 px-4 py-2.5 sm:py-3 rounded-xl bg-[#b7916e]/20 border border-[#b7916e]/30 text-[#d4c4a8] hover:bg-[#b7916e]/30 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base"
                 >
                   <Plus className="w-4 h-4" />
                   추가
@@ -934,19 +939,48 @@ function FirstEditionGrid({
 // ═══════════════════════════════════════════════════════════════════════════
 
 export default function InventoryPage() {
-  const { initializeInventory, getTotalInventoryValue, getRecentTransactions, sellFromBatch, reserveFromBatch, confirmReservation, cancelReservation, reportDamage, giftFromBatch, addProduct, getAllProducts } = useInventoryStore();
+  const { initializeInventory, refreshFromSupabase, getTotalInventoryValue, getRecentTransactions, getFilteredTransactions, isLoading, sellFromBatch, reserveFromBatch, confirmReservation, cancelReservation, reportDamage, giftFromBatch, addProduct, getAllProducts } = useInventoryStore();
   const [isFirstEditionExpanded, setIsFirstEditionExpanded] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [mounted, setMounted] = useState(false);
   const [addProductYear, setAddProductYear] = useState<number | null>(null);
+
+  // Year section expanded state - 2026 expanded, 2027/2028 collapsed by default
+  const [expandedYears, setExpandedYears] = useState<number[]>([2026]);
+
+  // Transaction filter state
+  const [txFilterYear, setTxFilterYear] = useState<number | undefined>(undefined);
+  const [txFilterMonth, setTxFilterMonth] = useState<number | undefined>(undefined);
+
+  // Toggle year section expansion
+  const toggleYearExpanded = (year: number) => {
+    setExpandedYears(prev =>
+      prev.includes(year) ? prev.filter(y => y !== year) : [...prev, year]
+    );
+  };
 
   useEffect(() => {
     setMounted(true);
     initializeInventory();
   }, [initializeInventory]);
 
+  // Refresh from Supabase on focus (when returning to the tab)
+  useEffect(() => {
+    const handleFocus = () => {
+      refreshFromSupabase();
+    };
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [refreshFromSupabase]);
+
   const totalValue = mounted ? getTotalInventoryValue() : { totalBottles: 0, available: 0, reserved: 0, sold: 0 };
-  const recentTransactions = mounted ? getRecentTransactions(5) : [];
+
+  // Use filtered transactions if filter is set, otherwise show recent
+  const recentTransactions = mounted
+    ? (txFilterYear || txFilterMonth)
+      ? getFilteredTransactions(txFilterYear, txFilterMonth, 20)
+      : getRecentTransactions(10)
+    : [];
 
   // Get all products and group by year
   const allProducts = mounted ? getAllProducts() : [];
@@ -1186,63 +1220,94 @@ export default function InventoryPage() {
       {/* Year-based Sections (2026+) */}
       {displayYears.map((year) => {
         const yearProducts = productsByYear[year] || [];
+        const isExpanded = expandedYears.includes(year);
 
         return (
-          <section key={year} className="px-4 sm:px-6 lg:px-8 mb-10">
+          <section key={year} className="px-4 sm:px-6 lg:px-8 mb-6">
             <div className="mx-auto max-w-6xl">
               <motion.div variants={containerVariants} initial="hidden" animate="visible">
-                {/* Section Title */}
-                <motion.div variants={itemVariants} className="mb-6 flex items-center justify-between">
-                  <div>
-                    <h2
-                      className="text-2xl text-white/80"
-                      style={{ fontFamily: "var(--font-cormorant), 'Playfair Display', Georgia, serif" }}
-                    >
-                      {year} Collection
-                    </h2>
-                    <p className="text-white/40 text-sm mt-1">
-                      {year === 2026 ? '정규 라인업' : yearProducts.length > 0 ? '등록된 상품' : '등록된 상품 없음'}
-                    </p>
-                  </div>
+                {/* Section Title - Clickable to expand/collapse */}
+                <motion.div
+                  variants={itemVariants}
+                  className="mb-4 relative rounded-xl overflow-hidden cursor-pointer group"
+                  onClick={() => toggleYearExpanded(year)}
+                >
+                  <div className="absolute inset-0 bg-gradient-to-br from-white/[0.03] to-white/[0.01] group-hover:from-white/[0.05] group-hover:to-white/[0.02] transition-all" />
+                  <div className="absolute inset-0 border border-white/[0.06] rounded-xl" />
 
-                  {/* Add Product Button */}
-                  <button
-                    onClick={() => setAddProductYear(year)}
-                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/[0.04] border border-white/[0.1] text-white/50 hover:bg-[#b7916e]/10 hover:border-[#b7916e]/30 hover:text-[#d4c4a8] transition-all"
-                  >
-                    <Plus className="w-4 h-4" />
-                    <span className="text-sm">상품 추가</span>
-                  </button>
+                  <div className="relative p-4 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <motion.div
+                        animate={{ rotate: isExpanded ? 0 : -90 }}
+                        transition={{ duration: 0.2 }}
+                      >
+                        <ChevronDown className="w-5 h-5 text-white/40" />
+                      </motion.div>
+                      <div>
+                        <h2
+                          className="text-xl sm:text-2xl text-white/80"
+                          style={{ fontFamily: "var(--font-cormorant), 'Playfair Display', Georgia, serif" }}
+                        >
+                          {year} Collection
+                        </h2>
+                        <p className="text-white/40 text-xs sm:text-sm">
+                          {year === 2026 ? '정규 라인업' : yearProducts.length > 0 ? `${yearProducts.length}개 상품` : '등록된 상품 없음'}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Add Product Button */}
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setAddProductYear(year); }}
+                      className="flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl bg-white/[0.04] border border-white/[0.1] text-white/50 hover:bg-[#b7916e]/10 hover:border-[#b7916e]/30 hover:text-[#d4c4a8] transition-all"
+                    >
+                      <Plus className="w-4 h-4" />
+                      <span className="text-xs sm:text-sm hidden sm:inline">상품 추가</span>
+                    </button>
+                  </div>
                 </motion.div>
 
-                {/* Product Cards Grid */}
-                {yearProducts.length > 0 ? (
-                  <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-5">
-                    {yearProducts.map((product) => (
-                      <ProductCard
-                        key={product.id}
-                        product={product}
-                        onManage={() => setSelectedProduct(product as unknown as Product)}
-                        mounted={mounted}
-                      />
-                    ))}
-                  </div>
-                ) : (
-                  <motion.div
-                    variants={itemVariants}
-                    className="relative rounded-xl overflow-hidden py-12"
-                  >
-                    <div className="absolute inset-0 bg-gradient-to-br from-white/[0.02] to-white/[0.01]" />
-                    <div className="absolute inset-0 border border-white/[0.04] border-dashed rounded-xl" />
-                    <div className="relative flex flex-col items-center justify-center text-center">
-                      <div className="p-3 rounded-xl bg-white/[0.04] mb-3">
-                        <Wine className="w-6 h-6 text-white/20" />
-                      </div>
-                      <p className="text-white/30 text-sm">아직 등록된 상품이 없습니다</p>
-                      <p className="text-white/20 text-xs mt-1">상품 추가 버튼을 눌러 새 상품을 등록하세요</p>
-                    </div>
-                  </motion.div>
-                )}
+                {/* Collapsible Content */}
+                <AnimatePresence>
+                  {isExpanded && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.3, ease: [0.25, 0.46, 0.45, 0.94] }}
+                      className="overflow-hidden"
+                    >
+                      {/* Product Cards Grid */}
+                      {yearProducts.length > 0 ? (
+                        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-5 pb-4">
+                          {yearProducts.map((product) => (
+                            <ProductCard
+                              key={product.id}
+                              product={product}
+                              onManage={() => setSelectedProduct(product as unknown as Product)}
+                              mounted={mounted}
+                            />
+                          ))}
+                        </div>
+                      ) : (
+                        <motion.div
+                          variants={itemVariants}
+                          className="relative rounded-xl overflow-hidden py-12 mb-4"
+                        >
+                          <div className="absolute inset-0 bg-gradient-to-br from-white/[0.02] to-white/[0.01]" />
+                          <div className="absolute inset-0 border border-white/[0.04] border-dashed rounded-xl" />
+                          <div className="relative flex flex-col items-center justify-center text-center">
+                            <div className="p-3 rounded-xl bg-white/[0.04] mb-3">
+                              <Wine className="w-6 h-6 text-white/20" />
+                            </div>
+                            <p className="text-white/30 text-sm">아직 등록된 상품이 없습니다</p>
+                            <p className="text-white/20 text-xs mt-1">상품 추가 버튼을 눌러 새 상품을 등록하세요</p>
+                          </div>
+                        </motion.div>
+                      )}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </motion.div>
             </div>
           </section>
@@ -1254,54 +1319,103 @@ export default function InventoryPage() {
         <div className="mx-auto max-w-6xl">
 
           {/* Recent Transactions */}
-          {recentTransactions.length > 0 && (
-            <motion.div
-              variants={containerVariants}
-              initial="hidden"
-              animate="visible"
-              className="mt-10"
-            >
-              <motion.div variants={itemVariants} className="relative rounded-2xl overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-br from-white/[0.04] to-white/[0.01] backdrop-blur-sm" />
-                <div className="absolute inset-0 border border-white/[0.06] rounded-2xl" />
+          <motion.div
+            variants={containerVariants}
+            initial="hidden"
+            animate="visible"
+            className="mt-10"
+          >
+            <motion.div variants={itemVariants} className="relative rounded-2xl overflow-hidden">
+              <div className="absolute inset-0 bg-gradient-to-br from-white/[0.04] to-white/[0.01] backdrop-blur-sm" />
+              <div className="absolute inset-0 border border-white/[0.06] rounded-2xl" />
 
-                <div className="relative">
-                  <div className="px-6 py-4 border-b border-white/[0.04]">
+              <div className="relative">
+                <div className="px-4 sm:px-6 py-4 border-b border-white/[0.04]">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                     <div className="flex items-center gap-3">
                       <Clock className="w-5 h-5 text-white/40" />
-                      <h3 className="text-white/60 font-medium">최근 거래 내역</h3>
+                      <h3 className="text-white/60 font-medium">거래 내역</h3>
+                      {isLoading && (
+                        <RefreshCw className="w-4 h-4 text-white/30 animate-spin" />
+                      )}
+                    </div>
+
+                    {/* Filters */}
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <Filter className="w-4 h-4 text-white/30 hidden sm:block" />
+
+                      {/* Year Filter */}
+                      <select
+                        value={txFilterYear || ''}
+                        onChange={(e) => setTxFilterYear(e.target.value ? Number(e.target.value) : undefined)}
+                        className="bg-white/[0.04] border border-white/[0.08] rounded-lg px-2 py-1.5 text-xs text-white/60 focus:outline-none focus:border-white/20"
+                      >
+                        <option value="">전체 년도</option>
+                        <option value="2024">2024</option>
+                        <option value="2025">2025</option>
+                        <option value="2026">2026</option>
+                      </select>
+
+                      {/* Month Filter */}
+                      <select
+                        value={txFilterMonth || ''}
+                        onChange={(e) => setTxFilterMonth(e.target.value ? Number(e.target.value) : undefined)}
+                        className="bg-white/[0.04] border border-white/[0.08] rounded-lg px-2 py-1.5 text-xs text-white/60 focus:outline-none focus:border-white/20"
+                      >
+                        <option value="">전체 월</option>
+                        {[...Array(12)].map((_, i) => (
+                          <option key={i + 1} value={i + 1}>{i + 1}월</option>
+                        ))}
+                      </select>
+
+                      {/* Refresh Button */}
+                      <button
+                        onClick={() => refreshFromSupabase()}
+                        disabled={isLoading}
+                        className="p-1.5 rounded-lg bg-white/[0.04] border border-white/[0.08] text-white/40 hover:text-white/60 hover:bg-white/[0.08] transition-all disabled:opacity-50"
+                        title="새로고침"
+                      >
+                        <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+                      </button>
                     </div>
                   </div>
+                </div>
 
+                {recentTransactions.length > 0 ? (
                   <div className="divide-y divide-white/[0.04]">
                     {recentTransactions.map((tx) => {
                       const product = PRODUCTS.find((p) => p.id === tx.productId);
+                      const allProductsList = getAllProducts();
+                      const customProduct = allProductsList.find((p) => p.id === tx.productId);
+                      const productName = product?.name || customProduct?.name || tx.productId;
+
                       return (
-                        <div key={tx.id} className="px-6 py-4 flex items-center justify-between">
-                          <div className="flex items-center gap-4">
-                            <div className="text-xs text-white/30 w-20">
+                        <div key={tx.id} className="px-4 sm:px-6 py-4 flex items-center justify-between">
+                          <div className="flex items-center gap-3 sm:gap-4">
+                            <div className="text-xs text-white/30 w-16 sm:w-20 shrink-0">
                               {new Date(tx.createdAt).toLocaleDateString('ko-KR', {
                                 month: 'short',
                                 day: 'numeric',
                               })}
                             </div>
-                            <div>
-                              <p className="text-white/70 text-sm">
-                                {product?.name}
+                            <div className="min-w-0">
+                              <p className="text-white/70 text-sm truncate">
+                                {productName}
                                 {tx.bottleNumber && ` #${tx.bottleNumber}`}
                               </p>
-                              <p className="text-xs text-white/30">
+                              <p className="text-xs text-white/30 truncate">
                                 {tx.type === 'sale' && '판매'}
                                 {tx.type === 'reservation' && '예약'}
                                 {tx.type === 'gift' && '증정'}
                                 {tx.type === 'damage' && '손상처리'}
+                                {tx.type === 'return' && '반품'}
                                 {tx.type === 'cancel_reservation' && '예약취소'}
                                 {tx.customerName && ` - ${tx.customerName}`}
                               </p>
                             </div>
                           </div>
-                          <div className="text-right">
-                            <p className="text-white/60">
+                          <div className="text-right shrink-0">
+                            <p className="text-white/60 text-sm">
                               {tx.quantity > 1 ? `${tx.quantity}병` : '1병'}
                             </p>
                             {tx.price && (
@@ -1314,21 +1428,35 @@ export default function InventoryPage() {
                       );
                     })}
                   </div>
-                </div>
-              </motion.div>
+                ) : (
+                  <div className="px-6 py-8 text-center">
+                    <p className="text-white/30 text-sm">
+                      {(txFilterYear || txFilterMonth) ? '해당 기간의 거래 내역이 없습니다.' : '거래 내역이 없습니다.'}
+                    </p>
+                  </div>
+                )}
+              </div>
             </motion.div>
-          )}
+          </motion.div>
 
-          {/* Bottom Decoration */}
+          {/* Bottom Decoration & Logout */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 1, delay: 0.8 }}
-            className="mt-20 text-center"
+            className="mt-20 text-center space-y-4"
           >
             <p className="text-[10px] uppercase tracking-[0.3em] text-white/20">
               Muse de Marée · Inventory Management
             </p>
+
+            {/* Logout Button */}
+            <SignOutButton>
+              <button className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-white/30 hover:text-white/50 hover:bg-white/[0.04] transition-all text-xs">
+                <LogOut className="w-3.5 h-3.5" />
+                로그아웃
+              </button>
+            </SignOutButton>
           </motion.div>
         </div>
       </section>

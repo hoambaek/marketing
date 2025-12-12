@@ -45,7 +45,7 @@ export default function SortableTaskItem({
           : 'bg-background hover:bg-muted/20'
       }`}
     >
-      <div className="flex items-start gap-3">
+      <div className="flex items-start gap-2 sm:gap-3">
         {/* Drag Handle */}
         <button
           {...attributes}
@@ -69,10 +69,10 @@ export default function SortableTaskItem({
           )}
         </button>
 
-        {/* Content */}
-        <div className="flex-1 min-w-0">
+        {/* Content - full width, proper text wrapping */}
+        <div className="flex-1 min-w-0 pr-1">
           <p
-            className={`font-medium ${
+            className={`font-medium break-words ${
               task.status === 'done'
                 ? 'text-muted-foreground line-through'
                 : 'text-foreground'
@@ -82,7 +82,7 @@ export default function SortableTaskItem({
           </p>
 
           {task.description && (
-            <p className="text-sm text-muted-foreground mt-1">{task.description}</p>
+            <p className="text-sm text-muted-foreground mt-1 break-words">{task.description}</p>
           )}
 
           <div className="flex items-center gap-2 mt-2 flex-wrap">
@@ -113,21 +113,21 @@ export default function SortableTaskItem({
           </div>
         </div>
 
-        {/* Actions */}
-        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        {/* Actions - always visible on mobile, hover on desktop */}
+        <div className="flex items-center gap-0.5 sm:gap-1 flex-shrink-0 opacity-60 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
           <button
             onClick={() => onEdit(task)}
-            className="p-2 rounded-lg hover:bg-muted transition-colors"
+            className="p-1.5 sm:p-2 rounded-lg hover:bg-muted active:bg-muted/50 transition-colors"
             title="수정"
           >
-            <Pencil className="w-4 h-4 text-muted-foreground hover:text-foreground" />
+            <Pencil className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-muted-foreground hover:text-foreground" />
           </button>
           <button
             onClick={() => onDelete(task.id)}
-            className="p-2 rounded-lg hover:bg-red-500/10 transition-colors"
+            className="p-1.5 sm:p-2 rounded-lg hover:bg-red-500/10 active:bg-red-500/20 transition-colors"
             title="삭제"
           >
-            <Trash2 className="w-4 h-4 text-muted-foreground hover:text-red-500" />
+            <Trash2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-muted-foreground hover:text-red-500" />
           </button>
         </div>
       </div>

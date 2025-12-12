@@ -42,7 +42,8 @@ const MONTH_NAMES = [
 
 export default function CalendarPage() {
   const { contentItems, addContent, updateContent, deleteContent } = useMasterPlanStore();
-  const [currentDate, setCurrentDate] = useState(new Date(2025, 0, 1));
+  // Start with current year/month
+  const [currentDate, setCurrentDate] = useState(() => new Date());
   const [selectedType, setSelectedType] = useState<ContentType | 'all'>('all');
 
   // Modal state
@@ -93,7 +94,12 @@ export default function CalendarPage() {
   // Navigation
   const goToPrevMonth = () => setCurrentDate(new Date(year, month - 1, 1));
   const goToNextMonth = () => setCurrentDate(new Date(year, month + 1, 1));
-  const goToToday = () => setCurrentDate(new Date(2025, 0, 1));
+  const goToToday = () => setCurrentDate(new Date()); // Go to actual today
+
+  // Check if a day is today
+  const today = new Date();
+  const isToday = (day: number) =>
+    day === today.getDate() && month === today.getMonth() && year === today.getFullYear();
 
   // CRUD handlers
   const handleAddContent = (day?: number) => {
@@ -314,14 +320,14 @@ export default function CalendarPage() {
                   </button>
                 </div>
 
-                {/* Content Type Filter */}
-                <div className="flex items-center gap-2 flex-wrap">
+                {/* Content Type Filter - scrollable on mobile */}
+                <div className="flex items-center gap-2 overflow-x-auto pb-2 -mb-2 scrollbar-hide">
                   <button
                     onClick={() => setSelectedType('all')}
-                    className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
+                    className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-medium transition-all whitespace-nowrap flex-shrink-0 ${
                       selectedType === 'all'
                         ? 'bg-[#b7916e] text-white'
-                        : 'bg-white/[0.04] text-white/50 hover:bg-white/[0.08]'
+                        : 'bg-white/[0.04] text-white/50 hover:bg-white/[0.08] active:bg-white/[0.12]'
                     }`}
                   >
                     전체 ({typeCounts.all})
@@ -330,10 +336,10 @@ export default function CalendarPage() {
                     <button
                       key={type}
                       onClick={() => setSelectedType(type)}
-                      className={`px-3 py-2 rounded-xl text-sm font-medium transition-all flex items-center gap-1.5 ${
+                      className={`px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-medium transition-all flex items-center gap-1 sm:gap-1.5 whitespace-nowrap flex-shrink-0 ${
                         selectedType === type
                           ? CONTENT_COLORS[type]
-                          : 'bg-white/[0.04] text-white/50 hover:bg-white/[0.08]'
+                          : 'bg-white/[0.04] text-white/50 hover:bg-white/[0.08] active:bg-white/[0.12]'
                       }`}
                     >
                       {CONTENT_ICONS[type]}
@@ -375,7 +381,7 @@ export default function CalendarPage() {
               {WEEKDAYS.map((day, index) => (
                 <div
                   key={day}
-                  className={`py-4 text-center text-sm font-medium ${
+                  className={`py-2 sm:py-4 text-center text-xs sm:text-sm font-medium ${
                     index === 0
                       ? 'text-red-400/70'
                       : index === 6
@@ -393,22 +399,23 @@ export default function CalendarPage() {
               {calendarDays.map((day, index) => {
                 const dayContent = day ? getContentForDay(day) : [];
                 const weekday = index % 7;
-                const isToday = day === 1 && month === 0 && year === 2025;
+                const isTodayCell = day ? isToday(day) : false;
 
                 return (
                   <div
                     key={index}
-                    className={`min-h-[100px] sm:min-h-[120px] border-b border-r border-white/[0.04] p-2 group transition-colors ${
-                      day ? 'hover:bg-white/[0.02]' : 'bg-white/[0.01]'
-                    } ${weekday === 6 ? 'border-r-0' : ''}`}
+                    onClick={() => day && handleAddContent(day)}
+                    className={`min-h-[60px] sm:min-h-[100px] lg:min-h-[120px] border-b border-r border-white/[0.04] p-1 sm:p-2 group transition-colors cursor-pointer ${
+                      day ? 'hover:bg-white/[0.02] active:bg-white/[0.04]' : 'bg-white/[0.01]'
+                    } ${weekday === 6 ? 'border-r-0' : ''} ${isTodayCell ? 'bg-[#b7916e]/5' : ''}`}
                   >
                     {day && (
                       <>
-                        <div className="flex items-center justify-between mb-1">
+                        <div className="flex items-center justify-between mb-0.5 sm:mb-1">
                           <div
-                            className={`text-sm ${
-                              isToday
-                                ? 'w-6 h-6 rounded-full bg-[#b7916e] text-white flex items-center justify-center font-medium'
+                            className={`text-xs sm:text-sm ${
+                              isTodayCell
+                                ? 'w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-[#b7916e] text-white flex items-center justify-center font-medium text-[10px] sm:text-sm'
                                 : weekday === 0
                                 ? 'text-red-400/70'
                                 : weekday === 6
@@ -418,39 +425,65 @@ export default function CalendarPage() {
                           >
                             {day}
                           </div>
+                          {/* Plus button - visible on mobile, hover on desktop */}
                           <button
-                            onClick={() => handleAddContent(day)}
-                            className="p-1 rounded opacity-0 group-hover:opacity-100 hover:bg-[#b7916e]/20 transition-all"
+                            onClick={(e) => { e.stopPropagation(); handleAddContent(day); }}
+                            className="p-0.5 sm:p-1 rounded opacity-50 sm:opacity-0 sm:group-hover:opacity-100 hover:bg-[#b7916e]/20 active:bg-[#b7916e]/30 transition-all"
                             title="이 날짜에 콘텐츠 추가"
                           >
-                            <Plus className="w-3.5 h-3.5 text-[#b7916e]" />
+                            <Plus className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-[#b7916e]" />
                           </button>
                         </div>
 
-                        <div className="space-y-1">
-                          {dayContent.slice(0, 3).map((item) => (
+                        <div className="space-y-0.5 sm:space-y-1">
+                          {/* Show 2 items on mobile, 3 on desktop */}
+                          {dayContent.slice(0, 2).map((item) => (
                             <motion.div
                               key={item.id}
                               initial={{ opacity: 0, scale: 0.9 }}
                               animate={{ opacity: 1, scale: 1 }}
-                              onClick={() => handleEditContent(item)}
-                              className={`text-[10px] sm:text-xs px-1.5 py-0.5 rounded border truncate cursor-pointer hover:opacity-80 transition-opacity ${
+                              onClick={(e) => { e.stopPropagation(); handleEditContent(item); }}
+                              className={`text-[9px] sm:text-[10px] lg:text-xs px-1 sm:px-1.5 py-0.5 rounded border truncate cursor-pointer hover:opacity-80 active:opacity-60 transition-opacity ${
                                 CONTENT_COLORS[item.type]
                               }`}
                               title={item.title}
                             >
-                              <span className="hidden sm:inline-flex items-center gap-1">
+                              <span className="hidden lg:inline-flex items-center gap-1">
                                 {CONTENT_ICONS[item.type]}
                                 {item.title}
                               </span>
-                              <span className="sm:hidden flex items-center gap-0.5">
+                              <span className="lg:hidden flex items-center gap-0.5">
                                 {CONTENT_ICONS[item.type]}
+                                <span className="hidden sm:inline truncate max-w-[60px]">{item.title}</span>
                               </span>
                             </motion.div>
                           ))}
-                          {dayContent.length > 3 && (
-                            <div className="text-[10px] text-white/30 pl-1">
-                              +{dayContent.length - 3}개 더
+                          {/* Third item only on larger screens */}
+                          {dayContent[2] && (
+                            <motion.div
+                              key={dayContent[2].id}
+                              initial={{ opacity: 0, scale: 0.9 }}
+                              animate={{ opacity: 1, scale: 1 }}
+                              onClick={(e) => { e.stopPropagation(); handleEditContent(dayContent[2]); }}
+                              className={`hidden sm:block text-[10px] lg:text-xs px-1.5 py-0.5 rounded border truncate cursor-pointer hover:opacity-80 transition-opacity ${
+                                CONTENT_COLORS[dayContent[2].type]
+                              }`}
+                              title={dayContent[2].title}
+                            >
+                              <span className="hidden lg:inline-flex items-center gap-1">
+                                {CONTENT_ICONS[dayContent[2].type]}
+                                {dayContent[2].title}
+                              </span>
+                              <span className="lg:hidden flex items-center gap-0.5">
+                                {CONTENT_ICONS[dayContent[2].type]}
+                                <span className="truncate max-w-[60px]">{dayContent[2].title}</span>
+                              </span>
+                            </motion.div>
+                          )}
+                          {dayContent.length > 2 && (
+                            <div className="text-[8px] sm:text-[10px] text-white/30 pl-0.5 sm:pl-1">
+                              <span className="sm:hidden">+{dayContent.length - 2}개</span>
+                              <span className="hidden sm:inline">{dayContent.length > 3 ? `+${dayContent.length - 3}개` : ''}</span>
                             </div>
                           )}
                         </div>
