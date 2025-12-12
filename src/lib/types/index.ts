@@ -31,6 +31,7 @@ export interface Task {
   id: string;
   title: string;
   description?: string;
+  year: number;
   month: number;
   week: number;
   category: TaskCategory;
@@ -46,6 +47,7 @@ export interface Task {
 // Must-Do 항목
 export interface MustDoItem {
   id: string;
+  year: number;
   month: number;
   title: string;
   done: boolean;
@@ -71,6 +73,7 @@ export interface MonthData {
 // 콘텐츠 캘린더 항목
 export interface ContentItem {
   id: string;
+  year: number;
   type: ContentType;
   title: string;
   description?: string;
@@ -81,6 +84,7 @@ export interface ContentItem {
 // KPI 항목
 export interface KPIItem {
   id: string;
+  year: number;
   month: number;
   category: KPICategory;
   metric: string;
@@ -121,7 +125,11 @@ export const PHASE_INFO = [
   { id: 2, name: '기대감 조성', months: [4, 5], color: '#2D4A6F', description: '타겟 오디언스 시딩 및 PR 본격화' },
   { id: 3, name: '클라이맥스', months: [6], color: '#B7916E', description: '인양 이벤트 및 미디어 집중' },
   { id: 4, name: '런칭 & 확산', months: [7, 8], color: '#D4A574', description: '그랜드 런칭 및 세일즈 확대' },
+  { id: 5, name: '성장 & 확장', months: [9, 10, 11, 12], color: '#8B7355', description: '시장 확대 및 브랜드 성장' },
 ];
+
+// 지원 년도
+export const AVAILABLE_YEARS = [2026, 2027, 2028];
 
 // 월별 기본 정보
 export const MONTHS_INFO: MonthData[] = [
@@ -133,4 +141,8 @@ export const MONTHS_INFO: MonthData[] = [
   { id: 6, name: '6월', title: '인양의 달', phase: 3, phaseName: '클라이맥스', description: '인양 이벤트, 라이브 중계, 미디어 집중' },
   { id: 7, name: '7월', title: '런칭 준비의 달', phase: 4, phaseName: '런칭 & 확산', description: '팝업 스토어 준비, 최종 점검' },
   { id: 8, name: '8월', title: '런칭의 달', phase: 4, phaseName: '런칭 & 확산', description: '그랜드 런칭, 판매 시작' },
+  { id: 9, name: '9월', title: '시장 안착의 달', phase: 5, phaseName: '성장 & 확장', description: '판매 채널 확대, 고객 피드백 수집' },
+  { id: 10, name: '10월', title: '브랜드 강화의 달', phase: 5, phaseName: '성장 & 확장', description: '시즌 캠페인, 콜라보레이션' },
+  { id: 11, name: '11월', title: '확장의 달', phase: 5, phaseName: '성장 & 확장', description: '해외 진출 준비, 연말 프로모션' },
+  { id: 12, name: '12월', title: '결산의 달', phase: 5, phaseName: '성장 & 확장', description: '연간 성과 분석, 차년도 전략 수립' },
 ];

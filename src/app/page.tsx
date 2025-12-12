@@ -2,15 +2,53 @@
 
 import { motion } from 'framer-motion';
 import Link from 'next/link';
+import { useRef, useState } from 'react';
 import { useMasterPlanStore } from '@/lib/store/masterplan-store';
-import { MONTHS_INFO, PHASE_INFO, CATEGORY_LABELS, TaskCategory } from '@/lib/types';
-import { CheckCircle2, Clock, Circle, ArrowRight, Calendar, Target, TrendingUp } from 'lucide-react';
+import { MONTHS_INFO, PHASE_INFO, CATEGORY_LABELS, TaskCategory, AVAILABLE_YEARS } from '@/lib/types';
+import { YearMonthSelectorCompact } from '@/components/ui/YearMonthSelector';
+import { CheckCircle2, Clock, Circle, ArrowRight, Calendar, Target, TrendingUp, ChevronLeft, ChevronRight, Sparkles } from 'lucide-react';
+
+// Animation variants
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.08,
+      delayChildren: 0.2,
+    },
+  },
+};
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 40 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: {
+      duration: 0.8,
+      ease: [0.25, 0.46, 0.45, 0.94] as const,
+    },
+  },
+};
+
+// 페이즈별 색상
+const phaseColors = {
+  1: { primary: '#3B82F6', gradient: 'from-blue-500/20 to-blue-600/5', bg: 'bg-blue-500' },
+  2: { primary: '#10B981', gradient: 'from-emerald-500/20 to-emerald-600/5', bg: 'bg-emerald-500' },
+  3: { primary: '#F59E0B', gradient: 'from-amber-500/20 to-amber-600/5', bg: 'bg-amber-500' },
+  4: { primary: '#EC4899', gradient: 'from-rose-500/20 to-rose-600/5', bg: 'bg-rose-500' },
+  5: { primary: '#8B7355', gradient: 'from-amber-700/20 to-amber-800/5', bg: 'bg-amber-700' },
+};
 
 export default function HomePage() {
   const { getTotalProgress, getProgressByMonth, tasks, mustDoItems } = useMasterPlanStore();
   const totalProgress = getTotalProgress();
+  const timelineRef = useRef<HTMLDivElement>(null);
+  const [selectedYear, setSelectedYear] = useState<number>(2026);
+  const [selectedMonth, setSelectedMonth] = useState<number>(1);
 
-  // 이번 주 할 일 (1월 기준 샘플)
+  // 이번 주 할 일 (1월 기준)
   const thisWeekTasks = tasks.filter((t) => t.month === 1 && t.week === 1).slice(0, 5);
 
   // 상태별 카운트
@@ -20,256 +58,594 @@ export default function HomePage() {
     pending: tasks.filter((t) => t.status === 'pending').length,
   };
 
-  return (
-    <div className="min-h-screen">
-      {/* Hero Section */}
-      <section className="relative px-4 sm:px-6 lg:px-8 pt-12 pb-8">
-        <div className="mx-auto max-w-7xl">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-            className="text-center mb-12"
-          >
-            <h1 className="font-display text-4xl sm:text-5xl lg:text-6xl text-foreground mb-4">
-              2026 런칭 마스터플랜
-            </h1>
-            <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-              해저에서 숙성되는 시간, 브랜드가 완성되는 여정
-            </p>
-          </motion.div>
+  // 타임라인 스크롤 핸들러
+  const scrollTimeline = (direction: 'left' | 'right') => {
+    if (timelineRef.current) {
+      const scrollAmount = 400;
+      timelineRef.current.scrollBy({
+        left: direction === 'left' ? -scrollAmount : scrollAmount,
+        behavior: 'smooth',
+      });
+    }
+  };
 
-          {/* Total Progress */}
+  // 페이즈별 타임라인 바 데이터 계산
+  const getPhaseBarPosition = (phase: typeof PHASE_INFO[0]) => {
+    const startMonth = Math.min(...phase.months);
+    const endMonth = Math.max(...phase.months);
+    const startWeek = (startMonth - 1) * 4;
+    const endWeek = endMonth * 4;
+    return { startWeek, endWeek, width: endWeek - startWeek };
+  };
+
+  return (
+    <div className="min-h-screen relative overflow-hidden">
+      {/* Ambient Background */}
+      <div className="fixed inset-0 -z-10">
+        <div className="absolute inset-0 bg-gradient-to-b from-[#0a0f1a] via-[#0d1525] to-[#0a0f1a]" />
+        <div
+          className="absolute inset-0 opacity-30"
+          style={{
+            backgroundImage: `radial-gradient(ellipse 80% 50% at 50% -20%, rgba(183, 145, 110, 0.12), transparent),
+                              radial-gradient(ellipse 60% 40% at 80% 60%, rgba(59, 130, 246, 0.08), transparent),
+                              radial-gradient(ellipse 50% 30% at 20% 80%, rgba(16, 185, 129, 0.06), transparent)`
+          }}
+        />
+        {/* Subtle grain texture */}
+        <div
+          className="absolute inset-0 opacity-[0.015]"
+          style={{
+            backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")`
+          }}
+        />
+      </div>
+
+      {/* Hero Section */}
+      <section className="relative pt-16 pb-12 px-6 lg:px-12">
+        <div className="max-w-7xl mx-auto">
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.1 }}
-            className="card-luxury p-6 sm:p-8 mb-8"
+            transition={{ duration: 1, ease: [0.25, 0.46, 0.45, 0.94] }}
+            className="relative"
           >
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-              <div>
-                <p className="text-sm text-muted-foreground mb-1">전체 진행률</p>
-                <p className="text-4xl font-display text-foreground">
-                  {totalProgress}
-                  <span className="text-2xl text-muted-foreground">%</span>
-                </p>
-              </div>
-              <div className="flex gap-6">
-                <div className="text-center">
-                  <p className="text-2xl font-semibold text-emerald-500">{statusCounts.done}</p>
-                  <p className="text-xs text-muted-foreground">완료</p>
-                </div>
-                <div className="text-center">
-                  <p className="text-2xl font-semibold text-amber-500">{statusCounts.in_progress}</p>
-                  <p className="text-xs text-muted-foreground">진행중</p>
-                </div>
-                <div className="text-center">
-                  <p className="text-2xl font-semibold text-muted-foreground">{statusCounts.pending}</p>
-                  <p className="text-xs text-muted-foreground">대기</p>
-                </div>
-              </div>
-            </div>
-            <div className="progress-bar h-3">
-              <motion.div
-                initial={{ width: 0 }}
-                animate={{ width: `${totalProgress}%` }}
-                transition={{ duration: 1, delay: 0.5, ease: 'easeOut' }}
-                className="progress-bar-fill"
-              />
+            {/* Decorative Line */}
+            <motion.div
+              initial={{ scaleX: 0 }}
+              animate={{ scaleX: 1 }}
+              transition={{ duration: 1.2, delay: 0.3, ease: [0.25, 0.46, 0.45, 0.94] }}
+              className="absolute -left-6 top-1/2 w-16 h-px bg-gradient-to-r from-[#b7916e] to-transparent origin-left"
+            />
+
+            <div className="pl-14">
+              <motion.p
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.8, delay: 0.4 }}
+                className="text-[#b7916e] text-sm tracking-[0.3em] uppercase mb-4 font-light"
+              >
+                2026 Launch Masterplan
+              </motion.p>
+
+              <h1
+                className="text-5xl sm:text-6xl lg:text-7xl text-white/95 mb-6 leading-[1.1] tracking-tight"
+                style={{ fontFamily: "var(--font-cormorant), 'Playfair Display', Georgia, serif" }}
+              >
+                <motion.span
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.8, delay: 0.5 }}
+                  className="block"
+                >
+                  Timeline
+                </motion.span>
+                <motion.span
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.8, delay: 0.6 }}
+                  className="block text-transparent bg-clip-text bg-gradient-to-r from-[#b7916e] via-[#d4c4a8] to-[#b7916e]"
+                >
+                  Roadmap
+                </motion.span>
+              </h1>
+
+              <motion.p
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 1, delay: 0.8 }}
+                className="text-white/40 text-lg max-w-md font-light leading-relaxed"
+              >
+                해저에서 숙성되는 시간,
+                <br />
+                브랜드가 완성되는 여정
+              </motion.p>
             </div>
           </motion.div>
         </div>
       </section>
 
-      {/* Phase Timeline */}
-      <section className="px-4 sm:px-6 lg:px-8 pb-8">
-        <div className="mx-auto max-w-7xl">
-          {PHASE_INFO.map((phase, phaseIndex) => (
-            <motion.div
-              key={phase.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.2 + phaseIndex * 0.1 }}
-              className="mb-8"
-            >
-              {/* Phase Header */}
-              <div className="flex items-center gap-3 mb-4">
-                <div
-                  className="w-3 h-3 rounded-full"
-                  style={{ backgroundColor: phase.color }}
-                />
-                <h2 className="font-display text-xl text-foreground">
-                  Phase {phase.id}: {phase.name}
-                </h2>
-                <p className="text-sm text-muted-foreground hidden sm:block">
-                  {phase.description}
-                </p>
+      {/* Total Progress Section */}
+      <section className="relative py-8 px-6 lg:px-12">
+        <div className="max-w-7xl mx-auto">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.9 }}
+            className="relative rounded-2xl overflow-hidden"
+          >
+            {/* Card Background */}
+            <div className="absolute inset-0 bg-gradient-to-br from-white/[0.04] to-white/[0.01] backdrop-blur-sm" />
+            <div className="absolute inset-0 border border-white/[0.06] rounded-2xl" />
+
+            {/* Content */}
+            <div className="relative p-8">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6 mb-8">
+                <div>
+                  <p className="text-white/40 text-sm tracking-wider uppercase mb-2">전체 진행률</p>
+                  <p
+                    className="text-6xl text-white/90"
+                    style={{ fontFamily: "var(--font-cormorant), serif" }}
+                  >
+                    {totalProgress}
+                    <span className="text-3xl text-[#b7916e]">%</span>
+                  </p>
+                </div>
+
+                <div className="flex gap-8">
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ duration: 0.5, delay: 1.1 }}
+                    className="text-center"
+                  >
+                    <p className="text-3xl font-light text-emerald-400" style={{ fontFamily: "var(--font-cormorant), serif" }}>
+                      {statusCounts.done}
+                    </p>
+                    <p className="text-xs text-white/30 tracking-wider uppercase mt-1">완료</p>
+                  </motion.div>
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ duration: 0.5, delay: 1.2 }}
+                    className="text-center"
+                  >
+                    <p className="text-3xl font-light text-amber-400" style={{ fontFamily: "var(--font-cormorant), serif" }}>
+                      {statusCounts.in_progress}
+                    </p>
+                    <p className="text-xs text-white/30 tracking-wider uppercase mt-1">진행중</p>
+                  </motion.div>
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ duration: 0.5, delay: 1.3 }}
+                    className="text-center"
+                  >
+                    <p className="text-3xl font-light text-white/30" style={{ fontFamily: "var(--font-cormorant), serif" }}>
+                      {statusCounts.pending}
+                    </p>
+                    <p className="text-xs text-white/30 tracking-wider uppercase mt-1">대기</p>
+                  </motion.div>
+                </div>
               </div>
 
-              {/* Month Cards */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-                {phase.months.map((monthId) => {
-                  const month = MONTHS_INFO.find((m) => m.id === monthId)!;
-                  const progress = getProgressByMonth(monthId);
-                  const isCurrentMonth = monthId === 1; // 현재 1월 가정
+              {/* Progress Bar */}
+              <div className="h-1.5 rounded-full bg-white/[0.06] overflow-hidden">
+                <motion.div
+                  initial={{ width: 0 }}
+                  animate={{ width: `${totalProgress}%` }}
+                  transition={{ duration: 1.2, delay: 1, ease: [0.25, 0.46, 0.45, 0.94] }}
+                  className="h-full rounded-full bg-gradient-to-r from-[#b7916e] to-[#d4c4a8]"
+                />
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      </section>
 
+      {/* Year Selection */}
+      <section className="relative py-4 px-6 lg:px-12">
+        <div className="max-w-7xl mx-auto">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 1.0 }}
+            className="relative rounded-2xl overflow-hidden"
+          >
+            <div className="absolute inset-0 bg-gradient-to-br from-white/[0.04] to-white/[0.01] backdrop-blur-sm" />
+            <div className="absolute inset-0 border border-white/[0.06] rounded-2xl" />
+            <div className="relative p-4">
+              <div className="flex items-center gap-4">
+                <span className="text-white/30 text-xs tracking-[0.2em] uppercase">연도 선택</span>
+                <div className="flex items-center gap-2">
+                  {AVAILABLE_YEARS.map((year) => (
+                    <button
+                      key={year}
+                      onClick={() => setSelectedYear(year)}
+                      className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
+                        selectedYear === year
+                          ? 'bg-[#b7916e]/20 text-[#d4c4a8] border border-[#b7916e]/30'
+                          : 'text-white/40 hover:text-white/60 hover:bg-white/[0.04]'
+                      }`}
+                      style={{ fontFamily: "var(--font-cormorant), serif" }}
+                    >
+                      {year}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* Horizontal Timeline View (Gantt Style) */}
+      <section className="relative py-8 px-6 lg:px-12">
+        <div className="max-w-7xl mx-auto">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 1.1 }}
+            className="flex items-center gap-3 mb-8"
+          >
+            <div className="w-8 h-px bg-white/20" />
+            <span className="text-white/30 text-xs tracking-[0.2em] uppercase">{selectedYear} Roadmap</span>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 1.2 }}
+            className="relative rounded-2xl overflow-hidden"
+          >
+            {/* Card Background */}
+            <div className="absolute inset-0 bg-gradient-to-br from-white/[0.04] to-white/[0.01] backdrop-blur-sm" />
+            <div className="absolute inset-0 border border-white/[0.06] rounded-2xl" />
+
+            {/* Timeline Header with Controls */}
+            <div className="relative flex items-center justify-between p-4 border-b border-white/[0.06]">
+              <h2
+                className="text-xl text-white/90"
+                style={{ fontFamily: "var(--font-cormorant), serif" }}
+              >
+                Phase Overview
+              </h2>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => scrollTimeline('left')}
+                  className="p-2.5 rounded-xl text-white/40 hover:text-white/80 hover:bg-white/[0.04] transition-all"
+                >
+                  <ChevronLeft className="w-5 h-5" />
+                </button>
+                <button
+                  onClick={() => scrollTimeline('right')}
+                  className="p-2.5 rounded-xl text-white/40 hover:text-white/80 hover:bg-white/[0.04] transition-all"
+                >
+                  <ChevronRight className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Timeline Container */}
+            <div className="relative flex">
+              {/* Left Column - Phase Labels (Sticky) */}
+              <div className="w-44 flex-shrink-0 border-r border-white/[0.06] bg-[#0a0f1a]/50 z-10">
+                {/* Empty header cell */}
+                <div className="h-16 border-b border-white/[0.06]" />
+
+                {/* Phase Labels */}
+                {PHASE_INFO.map((phase) => {
+                  const colors = phaseColors[phase.id as keyof typeof phaseColors];
                   return (
-                    <Link key={monthId} href={`/month/${monthId}`}>
-                      <motion.div
-                        whileHover={{ y: -4 }}
-                        className={`card-luxury p-5 cursor-pointer group relative overflow-hidden ${
-                          isCurrentMonth ? 'ring-2 ring-accent ring-offset-2 ring-offset-background' : ''
-                        }`}
-                      >
-                        {/* Current Month Indicator */}
-                        {isCurrentMonth && (
-                          <div className="absolute top-3 right-3">
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-accent/20 text-accent text-[10px] font-medium">
-                              <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
-                              현재
-                            </span>
-                          </div>
-                        )}
-
-                        {/* Month Name */}
-                        <p className="font-display text-3xl text-foreground mb-1">
-                          {month.name}
-                        </p>
-                        <p className="text-sm text-muted-foreground mb-4 line-clamp-1">
-                          {month.title}
-                        </p>
-
-                        {/* Progress */}
-                        <div className="space-y-2">
-                          <div className="flex justify-between items-center">
-                            <span className="text-xs text-muted-foreground">진행률</span>
-                            <span className="text-sm font-medium text-foreground">
-                              {progress}%
-                            </span>
-                          </div>
-                          <div className="progress-bar h-1.5">
-                            <div
-                              className="progress-bar-fill"
-                              style={{ width: `${progress}%` }}
-                            />
-                          </div>
-                        </div>
-
-                        {/* Hover Arrow */}
-                        <div className="absolute bottom-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <ArrowRight className="w-5 h-5 text-accent" />
-                        </div>
-                      </motion.div>
-                    </Link>
+                    <div
+                      key={phase.id}
+                      className="h-16 px-4 flex items-center border-b border-white/[0.04]"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div
+                          className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                          style={{ backgroundColor: colors.primary }}
+                        />
+                        <span className="text-sm font-medium text-white/70 truncate">
+                          {phase.name}
+                        </span>
+                      </div>
+                    </div>
                   );
                 })}
               </div>
-            </motion.div>
-          ))}
+
+              {/* Scrollable Timeline Area */}
+              <div
+                ref={timelineRef}
+                className="flex-1 overflow-x-auto scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent"
+              >
+                {/* Month/Week Header */}
+                <div className="flex h-16 border-b border-white/[0.06] bg-white/[0.02]">
+                  {MONTHS_INFO.map((month) => (
+                    <div
+                      key={month.id}
+                      className="flex-shrink-0"
+                      style={{ width: `${4 * 80}px` }}
+                    >
+                      <Link href={`/month/${month.id}`}>
+                        <div className="h-8 flex items-center justify-center border-b border-white/[0.04] hover:bg-white/[0.04] transition-colors cursor-pointer">
+                          <span className="text-sm font-medium text-white/60">
+                            {month.name}
+                          </span>
+                          {month.id === 1 && (
+                            <span className="ml-2 w-2 h-2 rounded-full bg-[#b7916e] animate-pulse" />
+                          )}
+                        </div>
+                      </Link>
+                      <div className="h-8 flex">
+                        {[1, 2, 3, 4].map((week) => (
+                          <div
+                            key={week}
+                            className="flex-1 flex items-center justify-center text-[10px] text-white/30 border-r border-white/[0.04]"
+                          >
+                            W{week}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Phase Bars (Gantt Chart) */}
+                {PHASE_INFO.map((phase, phaseIndex) => {
+                  const { startWeek, width } = getPhaseBarPosition(phase);
+                  const phaseProgress = phase.months.reduce(
+                    (acc, monthId) => acc + getProgressByMonth(selectedYear, monthId),
+                    0
+                  ) / phase.months.length;
+                  const colors = phaseColors[phase.id as keyof typeof phaseColors];
+
+                  return (
+                    <div
+                      key={phase.id}
+                      className="h-16 flex items-center border-b border-white/[0.04] relative"
+                      style={{ width: `${48 * 80}px` }}
+                    >
+                      {/* Grid lines */}
+                      {Array.from({ length: 48 }).map((_, i) => (
+                        <div
+                          key={i}
+                          className="absolute top-0 bottom-0 border-r border-white/[0.03]"
+                          style={{ left: `${(i + 1) * 80}px` }}
+                        />
+                      ))}
+
+                      {/* Phase Bar */}
+                      <motion.div
+                        initial={{ width: 0, opacity: 0 }}
+                        animate={{ width: `${width * 80 - 16}px`, opacity: 1 }}
+                        transition={{ duration: 0.8, delay: 1.3 + phaseIndex * 0.1 }}
+                        className={`absolute h-10 rounded-xl ${colors.bg} shadow-lg cursor-pointer group overflow-hidden`}
+                        style={{ left: `${startWeek * 80 + 8}px` }}
+                      >
+                        <Link href={`/month/${phase.months[0]}`} className="block h-full relative">
+                          {/* Progress overlay */}
+                          <div
+                            className="absolute inset-0 bg-white/20"
+                            style={{ width: `${phaseProgress}%` }}
+                          />
+                          <div className="relative h-full px-4 flex items-center justify-between">
+                            <span className="text-sm font-medium text-white truncate">
+                              {phase.description}
+                            </span>
+                            <span className="text-xs text-white/80 ml-2 flex-shrink-0">
+                              {Math.round(phaseProgress)}%
+                            </span>
+                          </div>
+                        </Link>
+                      </motion.div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Legend */}
+            <div className="relative p-4 border-t border-white/[0.06] flex flex-wrap gap-6">
+              {PHASE_INFO.map((phase) => {
+                const colors = phaseColors[phase.id as keyof typeof phaseColors];
+                return (
+                  <div key={phase.id} className="flex items-center gap-2">
+                    <div
+                      className="w-3 h-3 rounded"
+                      style={{ backgroundColor: colors.primary }}
+                    />
+                    <span className="text-xs text-white/40">
+                      Phase {phase.id}: {phase.name}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </motion.div>
         </div>
       </section>
 
       {/* Bottom Cards */}
-      <section className="px-4 sm:px-6 lg:px-8 pb-12">
-        <div className="mx-auto max-w-7xl">
-          <div className="grid md:grid-cols-2 gap-6">
+      <section className="relative py-12 px-6 lg:px-12">
+        <div className="max-w-7xl mx-auto">
+          <motion.div
+            variants={containerVariants}
+            initial="hidden"
+            animate="visible"
+            className="grid md:grid-cols-2 gap-6"
+          >
             {/* This Week Tasks */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.5 }}
-              className="card-luxury p-6"
-            >
-              <div className="flex items-center gap-2 mb-4">
-                <Calendar className="w-5 h-5 text-accent" />
-                <h3 className="font-display text-xl text-foreground">이번 주 할 일</h3>
-              </div>
-              <div className="space-y-3">
-                {thisWeekTasks.map((task) => (
-                  <div key={task.id} className="flex items-start gap-3">
-                    {task.status === 'done' ? (
-                      <CheckCircle2 className="w-5 h-5 text-emerald-500 mt-0.5 flex-shrink-0" />
-                    ) : task.status === 'in_progress' ? (
-                      <Clock className="w-5 h-5 text-amber-500 mt-0.5 flex-shrink-0" />
-                    ) : (
-                      <Circle className="w-5 h-5 text-muted-foreground mt-0.5 flex-shrink-0" />
-                    )}
-                    <div className="flex-1 min-w-0">
-                      <p
-                        className={`text-sm ${
-                          task.status === 'done'
-                            ? 'text-muted-foreground line-through'
-                            : 'text-foreground'
-                        }`}
-                      >
-                        {task.title}
-                      </p>
-                      <span
-                        className={`inline-block mt-1 px-2 py-0.5 rounded text-[10px] font-medium badge-${task.category}`}
-                      >
-                        {CATEGORY_LABELS[task.category as TaskCategory]}
-                      </span>
-                    </div>
+            <motion.div variants={itemVariants} className="group">
+              <div className="relative h-full rounded-2xl overflow-hidden">
+                {/* Card Background */}
+                <div className="absolute inset-0 bg-gradient-to-br from-white/[0.04] to-white/[0.01] backdrop-blur-sm" />
+                <div className="absolute inset-0 border border-white/[0.06] rounded-2xl" />
+
+                {/* Hover glow */}
+                <div
+                  className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
+                  style={{
+                    background: `radial-gradient(circle at 50% 100%, rgba(183, 145, 110, 0.08), transparent 70%)`
+                  }}
+                />
+
+                {/* Content */}
+                <div className="relative p-6">
+                  <div className="flex items-center gap-3 mb-6">
+                    <Calendar className="w-5 h-5 text-[#b7916e]" />
+                    <h3
+                      className="text-xl text-white/90"
+                      style={{ fontFamily: "var(--font-cormorant), serif" }}
+                    >
+                      이번 주 할 일
+                    </h3>
                   </div>
-                ))}
+
+                  <div className="space-y-4">
+                    {thisWeekTasks.map((task) => (
+                      <div key={task.id} className="flex items-start gap-3">
+                        {task.status === 'done' ? (
+                          <CheckCircle2 className="w-5 h-5 text-emerald-400 mt-0.5 flex-shrink-0" />
+                        ) : task.status === 'in_progress' ? (
+                          <Clock className="w-5 h-5 text-amber-400 mt-0.5 flex-shrink-0" />
+                        ) : (
+                          <Circle className="w-5 h-5 text-white/30 mt-0.5 flex-shrink-0" />
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <p
+                            className={`text-sm ${
+                              task.status === 'done'
+                                ? 'text-white/40 line-through'
+                                : 'text-white/80'
+                            }`}
+                          >
+                            {task.title}
+                          </p>
+                          <span
+                            className="inline-block mt-1.5 px-2 py-0.5 rounded-full text-[10px] font-medium bg-white/[0.06] text-white/50"
+                          >
+                            {CATEGORY_LABELS[task.category as TaskCategory]}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                    {thisWeekTasks.length === 0 && (
+                      <p className="text-white/30 text-sm">이번 주 작업이 없습니다</p>
+                    )}
+                  </div>
+
+                  <Link
+                    href="/month/1"
+                    className="mt-6 inline-flex items-center gap-2 text-sm text-[#b7916e] hover:text-[#d4c4a8] transition-colors group/link"
+                  >
+                    전체 보기
+                    <ArrowRight className="w-4 h-4 group-hover/link:translate-x-1 transition-transform" />
+                  </Link>
+                </div>
               </div>
-              <Link
-                href="/month/1"
-                className="mt-4 inline-flex items-center gap-1 text-sm text-accent hover:text-accent/80 transition-colors"
-              >
-                전체 보기
-                <ArrowRight className="w-4 h-4" />
-              </Link>
             </motion.div>
 
             {/* Quick Stats */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.6 }}
-              className="card-luxury p-6"
-            >
-              <div className="flex items-center gap-2 mb-4">
-                <TrendingUp className="w-5 h-5 text-accent" />
-                <h3 className="font-display text-xl text-foreground">진행 현황</h3>
-              </div>
+            <motion.div variants={itemVariants} className="group">
+              <div className="relative h-full rounded-2xl overflow-hidden">
+                {/* Card Background */}
+                <div className="absolute inset-0 bg-gradient-to-br from-white/[0.04] to-white/[0.01] backdrop-blur-sm" />
+                <div className="absolute inset-0 border border-white/[0.06] rounded-2xl" />
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="p-4 rounded-xl bg-emerald-500/10">
-                  <Target className="w-5 h-5 text-emerald-500 mb-2" />
-                  <p className="text-2xl font-semibold text-foreground">
-                    {mustDoItems.filter((m) => m.done).length}
-                    <span className="text-sm text-muted-foreground">
-                      /{mustDoItems.length}
-                    </span>
-                  </p>
-                  <p className="text-xs text-muted-foreground">Must-Do 완료</p>
-                </div>
+                {/* Hover glow */}
+                <div
+                  className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
+                  style={{
+                    background: `radial-gradient(circle at 50% 100%, rgba(59, 130, 246, 0.08), transparent 70%)`
+                  }}
+                />
 
-                <div className="p-4 rounded-xl bg-blue-500/10">
-                  <Calendar className="w-5 h-5 text-blue-500 mb-2" />
-                  <p className="text-2xl font-semibold text-foreground">
-                    D-{getDaysUntilLaunch()}
-                  </p>
-                  <p className="text-xs text-muted-foreground">런칭까지</p>
-                </div>
+                {/* Content */}
+                <div className="relative p-6">
+                  <div className="flex items-center gap-3 mb-6">
+                    <TrendingUp className="w-5 h-5 text-[#b7916e]" />
+                    <h3
+                      className="text-xl text-white/90"
+                      style={{ fontFamily: "var(--font-cormorant), serif" }}
+                    >
+                      진행 현황
+                    </h3>
+                  </div>
 
-                <div className="p-4 rounded-xl bg-violet-500/10">
-                  <p className="text-2xl font-semibold text-foreground">Phase 1</p>
-                  <p className="text-xs text-muted-foreground">현재 단계</p>
-                </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+                      <Target className="w-5 h-5 text-emerald-400 mb-3" />
+                      <p
+                        className="text-2xl text-white/90"
+                        style={{ fontFamily: "var(--font-cormorant), serif" }}
+                      >
+                        {mustDoItems.filter((m) => m.done).length}
+                        <span className="text-sm text-white/40 ml-1">
+                          /{mustDoItems.length}
+                        </span>
+                      </p>
+                      <p className="text-xs text-white/40 mt-1">Must-Do 완료</p>
+                    </div>
 
-                <div className="p-4 rounded-xl bg-amber-500/10">
-                  <p className="text-2xl font-semibold text-foreground">
-                    {tasks.filter((t) => t.month === 1).length}
-                  </p>
-                  <p className="text-xs text-muted-foreground">이번 달 업무</p>
+                    <div className="p-4 rounded-xl bg-blue-500/10 border border-blue-500/20">
+                      <Calendar className="w-5 h-5 text-blue-400 mb-3" />
+                      <p
+                        className="text-2xl text-white/90"
+                        style={{ fontFamily: "var(--font-cormorant), serif" }}
+                      >
+                        D-{getDaysUntilLaunch()}
+                      </p>
+                      <p className="text-xs text-white/40 mt-1">런칭까지</p>
+                    </div>
+
+                    <div className="p-4 rounded-xl bg-violet-500/10 border border-violet-500/20">
+                      <Sparkles className="w-5 h-5 text-violet-400 mb-3" />
+                      <p
+                        className="text-2xl text-white/90"
+                        style={{ fontFamily: "var(--font-cormorant), serif" }}
+                      >
+                        Phase 1
+                      </p>
+                      <p className="text-xs text-white/40 mt-1">현재 단계</p>
+                    </div>
+
+                    <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/20">
+                      <Clock className="w-5 h-5 text-amber-400 mb-3" />
+                      <p
+                        className="text-2xl text-white/90"
+                        style={{ fontFamily: "var(--font-cormorant), serif" }}
+                      >
+                        {tasks.filter((t) => t.month === 1).length}
+                      </p>
+                      <p className="text-xs text-white/40 mt-1">이번 달 업무</p>
+                    </div>
+                  </div>
                 </div>
               </div>
             </motion.div>
-          </div>
+          </motion.div>
         </div>
       </section>
+
+      {/* Bottom Decoration */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 1.5, delay: 1.5 }}
+        className="relative py-20 px-6"
+      >
+        <div className="max-w-7xl mx-auto flex items-center justify-center gap-6">
+          <div className="h-px flex-1 bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+          <span
+            className="text-white/10 text-sm tracking-[0.3em] uppercase"
+            style={{ fontFamily: "var(--font-cormorant), serif" }}
+          >
+            Muse de Marée
+          </span>
+          <div className="h-px flex-1 bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+        </div>
+      </motion.div>
     </div>
   );
 }

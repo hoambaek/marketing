@@ -1,6 +1,15 @@
 import type { Metadata, Viewport } from 'next';
+import { Cormorant_Garamond } from 'next/font/google';
 import './globals.css';
 import { Header } from '@/components/layout/Header';
+import SupabaseInitializer from '@/components/SupabaseInitializer';
+
+const cormorant = Cormorant_Garamond({
+  subsets: ['latin'],
+  weight: ['300', '400', '500', '600', '700'],
+  variable: '--font-cormorant',
+  display: 'swap',
+});
 
 export const metadata: Metadata = {
   title: '뮤즈드마레 마스터플랜 | Muse de Marée 2026',
@@ -18,10 +27,7 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#FAFBFC' },
-    { media: '(prefers-color-scheme: dark)', color: '#0C1929' },
-  ],
+  themeColor: '#0a0f1a',
 };
 
 export default function RootLayout({
@@ -30,24 +36,17 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ko" suppressHydrationWarning>
-      <body className="min-h-screen bg-gradient-animated">
+    <html lang="ko" suppressHydrationWarning className={cormorant.variable}>
+      <body className="min-h-screen bg-gradient-animated bg-ambient-glow bg-grain">
         {/* Header */}
         <Header />
 
         {/* Main Content */}
-        <main className="pt-16 min-h-screen">
-          {children}
-        </main>
-
-        {/* Subtle Background Pattern */}
-        <div
-          className="fixed inset-0 -z-10 opacity-30 pointer-events-none"
-          style={{
-            backgroundImage: `radial-gradient(circle at 1px 1px, rgba(26, 54, 93, 0.03) 1px, transparent 0)`,
-            backgroundSize: '32px 32px',
-          }}
-        />
+        <SupabaseInitializer>
+          <main className="pt-16 min-h-screen">
+            {children}
+          </main>
+        </SupabaseInitializer>
       </body>
     </html>
   );
