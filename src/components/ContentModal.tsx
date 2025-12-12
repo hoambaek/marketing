@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X } from 'lucide-react';
+import { X, Pencil, Instagram, Youtube, FileText, Mail, Megaphone, Calendar, AlignLeft } from 'lucide-react';
 import { ContentItem, ContentType, ContentStatus, CONTENT_TYPES } from '@/lib/types';
 
 interface ContentModalProps {
@@ -22,6 +22,22 @@ const STATUS_OPTIONS: { value: ContentStatus; label: string }[] = [
   { value: 'published', label: '발행완료' },
 ];
 
+const CONTENT_ICONS: Record<ContentType, React.ReactNode> = {
+  instagram: <Instagram className="w-5 h-5" />,
+  youtube: <Youtube className="w-5 h-5" />,
+  blog: <FileText className="w-5 h-5" />,
+  newsletter: <Mail className="w-5 h-5" />,
+  press: <Megaphone className="w-5 h-5" />,
+};
+
+const CONTENT_COLORS: Record<ContentType, string> = {
+  instagram: 'bg-pink-500/20 text-pink-400',
+  youtube: 'bg-red-500/20 text-red-400',
+  blog: 'bg-blue-500/20 text-blue-400',
+  newsletter: 'bg-emerald-500/20 text-emerald-400',
+  press: 'bg-violet-500/20 text-violet-400',
+};
+
 export default function ContentModal({
   isOpen,
   onClose,
@@ -40,6 +56,21 @@ export default function ContentModal({
     status: 'draft' as ContentStatus,
   });
 
+  // Mobile: view mode first, then edit mode
+  // Desktop: always edit mode
+  const [isEditing, setIsEditing] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    // Check if mobile
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 640);
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
   useEffect(() => {
     if (content) {
       setFormData({
@@ -50,6 +81,9 @@ export default function ContentModal({
         date: content.date,
         status: content.status,
       });
+      // On mobile with existing content: show view mode first
+      // On desktop or new content: show edit mode
+      setIsEditing(!isMobile || !content);
     } else {
       setFormData({
         year: defaultYear,
@@ -59,8 +93,10 @@ export default function ContentModal({
         date: defaultDate || new Date().toISOString().split('T')[0],
         status: 'draft',
       });
+      // New content: always edit mode
+      setIsEditing(true);
     }
-  }, [content, defaultDate, defaultYear, isOpen]);
+  }, [content, defaultDate, defaultYear, isOpen, isMobile]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -86,7 +122,220 @@ export default function ContentModal({
     }
   };
 
+  const handleClose = () => {
+    setIsEditing(false);
+    onClose();
+  };
+
   if (!isOpen) return null;
+
+  // View Mode (Mobile only, when editing existing content)
+  const ViewMode = () => (
+    <div className="p-5 space-y-4">
+      {/* Content Type */}
+      <div className="flex items-center gap-3">
+        <div className={`p-3 rounded-xl ${CONTENT_COLORS[formData.type]}`}>
+          {CONTENT_ICONS[formData.type]}
+        </div>
+        <div>
+          <p className="text-xs text-muted-foreground">콘텐츠 유형</p>
+          <p className="text-foreground font-medium">{CONTENT_TYPES[formData.type]}</p>
+        </div>
+      </div>
+
+      {/* Title */}
+      <div className="p-4 bg-muted/30 rounded-xl">
+        <p className="text-xs text-muted-foreground mb-1">제목</p>
+        <p className="text-foreground font-medium text-lg">{formData.title || '(제목 없음)'}</p>
+      </div>
+
+      {/* Description */}
+      {formData.description && (
+        <div className="p-4 bg-muted/30 rounded-xl">
+          <div className="flex items-center gap-2 mb-1">
+            <AlignLeft className="w-3.5 h-3.5 text-muted-foreground" />
+            <p className="text-xs text-muted-foreground">설명</p>
+          </div>
+          <p className="text-foreground/80 text-sm whitespace-pre-wrap">{formData.description}</p>
+        </div>
+      )}
+
+      {/* Date & Status */}
+      <div className="flex flex-col sm:flex-row gap-3">
+        <div className="flex-1 p-4 bg-muted/30 rounded-xl">
+          <div className="flex items-center gap-2 mb-1">
+            <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
+            <p className="text-xs text-muted-foreground">발행일</p>
+          </div>
+          <p className="text-foreground font-medium">
+            {formData.date ? new Date(formData.date).toLocaleDateString('ko-KR', {
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric',
+            }) : '-'}
+          </p>
+        </div>
+        <div className="flex-1 p-4 bg-muted/30 rounded-xl">
+          <p className="text-xs text-muted-foreground mb-1">상태</p>
+          <span className={`inline-block px-3 py-1 rounded-lg text-sm font-medium ${
+            formData.status === 'published'
+              ? 'bg-emerald-500/20 text-emerald-400'
+              : formData.status === 'scheduled'
+              ? 'bg-blue-500/20 text-blue-400'
+              : 'bg-white/[0.06] text-white/60'
+          }`}>
+            {STATUS_OPTIONS.find(s => s.value === formData.status)?.label}
+          </span>
+        </div>
+      </div>
+
+      {/* Edit Button */}
+      <div className="flex gap-3 pt-2">
+        {content && onDelete && (
+          <button
+            type="button"
+            onClick={handleDelete}
+            className="px-4 py-2.5 border border-red-500/30 text-red-500 rounded-xl hover:bg-red-500/10 active:bg-red-500/20 transition-colors"
+          >
+            삭제
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={handleClose}
+          className="flex-1 px-4 py-2.5 border border-border rounded-xl text-muted-foreground hover:bg-muted active:bg-muted/50 transition-colors"
+        >
+          닫기
+        </button>
+        <button
+          type="button"
+          onClick={() => setIsEditing(true)}
+          className="flex-1 px-4 py-2.5 bg-accent text-white rounded-xl hover:bg-accent/90 active:bg-accent/80 transition-colors font-medium flex items-center justify-center gap-2"
+        >
+          <Pencil className="w-4 h-4" />
+          수정
+        </button>
+      </div>
+    </div>
+  );
+
+  // Edit Mode
+  const EditMode = () => (
+    <form onSubmit={handleSubmit} className="p-5 space-y-4">
+      {/* Type */}
+      <div>
+        <label className="block text-sm font-medium text-foreground mb-1.5">
+          콘텐츠 유형 <span className="text-red-500">*</span>
+        </label>
+        <select
+          value={formData.type}
+          onChange={(e) => setFormData({ ...formData, type: e.target.value as ContentType })}
+          className="w-full px-4 py-2.5 bg-background border border-border rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all"
+        >
+          {CONTENT_TYPE_OPTIONS.map((type) => (
+            <option key={type} value={type}>
+              {CONTENT_TYPES[type]}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {/* Title */}
+      <div>
+        <label className="block text-sm font-medium text-foreground mb-1.5">
+          제목 <span className="text-red-500">*</span>
+        </label>
+        <input
+          type="text"
+          value={formData.title}
+          onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+          placeholder="콘텐츠 제목을 입력하세요"
+          className="w-full px-4 py-2.5 bg-background border border-border rounded-xl text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all"
+          autoFocus={!isMobile}
+        />
+      </div>
+
+      {/* Description */}
+      <div>
+        <label className="block text-sm font-medium text-foreground mb-1.5">
+          설명
+        </label>
+        <textarea
+          value={formData.description}
+          onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+          placeholder="콘텐츠에 대한 상세 설명"
+          rows={3}
+          className="w-full px-4 py-2.5 bg-background border border-border rounded-xl text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all resize-none"
+        />
+      </div>
+
+      {/* Date & Status Row */}
+      <div className="flex flex-col sm:flex-row gap-4">
+        {/* Date */}
+        <div className="flex-1">
+          <label className="block text-sm font-medium text-foreground mb-1.5">
+            발행일 <span className="text-red-500">*</span>
+          </label>
+          <input
+            type="date"
+            value={formData.date}
+            onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+            className="w-full px-4 py-2.5 bg-background border border-border rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all"
+          />
+        </div>
+
+        {/* Status */}
+        <div className="flex-1">
+          <label className="block text-sm font-medium text-foreground mb-1.5">
+            상태
+          </label>
+          <select
+            value={formData.status}
+            onChange={(e) => setFormData({ ...formData, status: e.target.value as ContentStatus })}
+            className="w-full px-4 py-2.5 bg-background border border-border rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all"
+          >
+            {STATUS_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      {/* Buttons */}
+      <div className="flex gap-3 pt-2">
+        {content && onDelete && (
+          <button
+            type="button"
+            onClick={handleDelete}
+            className="px-4 py-2.5 border border-red-500/30 text-red-500 rounded-xl hover:bg-red-500/10 active:bg-red-500/20 transition-colors"
+          >
+            삭제
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={() => {
+            if (isMobile && content) {
+              setIsEditing(false);
+            } else {
+              handleClose();
+            }
+          }}
+          className="flex-1 px-4 py-2.5 border border-border rounded-xl text-muted-foreground hover:bg-muted active:bg-muted/50 transition-colors"
+        >
+          취소
+        </button>
+        <button
+          type="submit"
+          className="flex-1 px-4 py-2.5 bg-accent text-white rounded-xl hover:bg-accent/90 active:bg-accent/80 transition-colors font-medium"
+        >
+          {content ? '저장' : '추가'}
+        </button>
+      </div>
+    </form>
+  );
 
   return (
     <AnimatePresence>
@@ -94,139 +343,37 @@ export default function ContentModal({
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
-        onClick={onClose}
+        className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 bg-black/50 backdrop-blur-sm"
+        onClick={handleClose}
       >
         <motion.div
-          initial={{ opacity: 0, scale: 0.95, y: 20 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.95, y: 20 }}
+          initial={{ opacity: 0, y: isMobile ? 100 : 20, scale: isMobile ? 1 : 0.95 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, y: isMobile ? 100 : 20, scale: isMobile ? 1 : 0.95 }}
           transition={{ duration: 0.2 }}
-          className="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto"
+          className="bg-card border border-border rounded-t-2xl sm:rounded-2xl shadow-2xl w-full sm:max-w-lg max-h-[85vh] sm:max-h-[90vh] overflow-y-auto"
           onClick={(e) => e.stopPropagation()}
         >
+          {/* Drag Handle for Mobile */}
+          <div className="sm:hidden flex justify-center pt-3 pb-1">
+            <div className="w-10 h-1 bg-muted-foreground/30 rounded-full" />
+          </div>
+
           {/* Header */}
           <div className="flex items-center justify-between p-5 border-b border-border">
             <h2 className="font-display text-xl text-foreground">
-              {content ? '콘텐츠 수정' : '새 콘텐츠 추가'}
+              {content ? (isEditing ? '콘텐츠 수정' : '콘텐츠 상세') : '새 콘텐츠 추가'}
             </h2>
             <button
-              onClick={onClose}
-              className="p-2 rounded-lg hover:bg-muted transition-colors"
+              onClick={handleClose}
+              className="p-2 rounded-lg hover:bg-muted active:bg-muted/50 transition-colors"
             >
               <X className="w-5 h-5 text-muted-foreground" />
             </button>
           </div>
 
-          {/* Form */}
-          <form onSubmit={handleSubmit} className="p-5 space-y-4">
-            {/* Type */}
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-1.5">
-                콘텐츠 유형 <span className="text-red-500">*</span>
-              </label>
-              <select
-                value={formData.type}
-                onChange={(e) => setFormData({ ...formData, type: e.target.value as ContentType })}
-                className="w-full px-4 py-2.5 bg-background border border-border rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all"
-              >
-                {CONTENT_TYPE_OPTIONS.map((type) => (
-                  <option key={type} value={type}>
-                    {CONTENT_TYPES[type]}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Title */}
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-1.5">
-                제목 <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                value={formData.title}
-                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                placeholder="콘텐츠 제목을 입력하세요"
-                className="w-full px-4 py-2.5 bg-background border border-border rounded-xl text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all"
-                autoFocus
-              />
-            </div>
-
-            {/* Description */}
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-1.5">
-                설명
-              </label>
-              <textarea
-                value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                placeholder="콘텐츠에 대한 상세 설명"
-                rows={3}
-                className="w-full px-4 py-2.5 bg-background border border-border rounded-xl text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all resize-none"
-              />
-            </div>
-
-            {/* Date & Status Row */}
-            <div className="grid grid-cols-2 gap-4">
-              {/* Date */}
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-1.5">
-                  발행일 <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="date"
-                  value={formData.date}
-                  onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                  className="w-full px-4 py-2.5 bg-background border border-border rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all"
-                />
-              </div>
-
-              {/* Status */}
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-1.5">
-                  상태
-                </label>
-                <select
-                  value={formData.status}
-                  onChange={(e) => setFormData({ ...formData, status: e.target.value as ContentStatus })}
-                  className="w-full px-4 py-2.5 bg-background border border-border rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all"
-                >
-                  {STATUS_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            {/* Buttons */}
-            <div className="flex gap-3 pt-2">
-              {content && onDelete && (
-                <button
-                  type="button"
-                  onClick={handleDelete}
-                  className="px-4 py-2.5 border border-red-500/30 text-red-500 rounded-xl hover:bg-red-500/10 transition-colors"
-                >
-                  삭제
-                </button>
-              )}
-              <button
-                type="button"
-                onClick={onClose}
-                className="flex-1 px-4 py-2.5 border border-border rounded-xl text-muted-foreground hover:bg-muted transition-colors"
-              >
-                취소
-              </button>
-              <button
-                type="submit"
-                className="flex-1 px-4 py-2.5 bg-accent text-white rounded-xl hover:bg-accent/90 transition-colors font-medium"
-              >
-                {content ? '수정' : '추가'}
-              </button>
-            </div>
-          </form>
+          {/* Content */}
+          {isEditing ? <EditMode /> : <ViewMode />}
         </motion.div>
       </motion.div>
     </AnimatePresence>

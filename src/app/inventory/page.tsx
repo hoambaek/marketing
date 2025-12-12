@@ -10,6 +10,7 @@ import {
   InventoryStatus,
   INVENTORY_STATUS_LABELS,
   INVENTORY_STATUS_COLORS,
+  NumberedBottle,
 } from '@/lib/types';
 import {
   Wine,
@@ -112,12 +113,14 @@ function BottleStatusModal({
   onClose,
   bottleNumber,
   currentStatus,
+  currentBottle,
   onSave,
 }: {
   isOpen: boolean;
   onClose: () => void;
   bottleNumber: number;
   currentStatus: InventoryStatus;
+  currentBottle?: NumberedBottle | null;
   onSave: (status: InventoryStatus, details?: { reservedFor?: string; soldTo?: string; giftedTo?: string; price?: number; notes?: string }) => void;
 }) {
   const [status, setStatus] = useState<InventoryStatus>(currentStatus);
@@ -127,10 +130,18 @@ function BottleStatusModal({
 
   useEffect(() => {
     setStatus(currentStatus);
-    setCustomerName('');
-    setPrice('');
-    setNotes('');
-  }, [currentStatus, isOpen]);
+    // Populate with existing data
+    if (currentBottle) {
+      const existingName = currentBottle.reservedFor || currentBottle.soldTo || currentBottle.giftedTo || '';
+      setCustomerName(existingName);
+      setPrice(currentBottle.price ? String(currentBottle.price) : '');
+      setNotes(currentBottle.notes || '');
+    } else {
+      setCustomerName('');
+      setPrice('');
+      setNotes('');
+    }
+  }, [currentStatus, currentBottle, isOpen]);
 
   const handleSave = () => {
     onSave(status, {
@@ -803,19 +814,19 @@ function FirstEditionGrid({
   onToggle: () => void;
 }) {
   const { numberedBottles, updateBottleStatus, getProductSummary } = useInventoryStore();
-  const [selectedBottle, setSelectedBottle] = useState<{ number: number; status: InventoryStatus } | null>(null);
+  const [selectedBottle, setSelectedBottle] = useState<NumberedBottle | null>(null);
   const summary = getProductSummary('first_edition');
 
-  const handleBottleClick = (bottleNumber: number, status: InventoryStatus) => {
-    setSelectedBottle({ number: bottleNumber, status });
+  const handleBottleClick = (bottleNumber: number) => {
+    const bottle = numberedBottles.find((b) => b.bottleNumber === bottleNumber);
+    if (bottle) {
+      setSelectedBottle(bottle);
+    }
   };
 
   const handleSaveStatus = (status: InventoryStatus, details?: { reservedFor?: string; soldTo?: string; price?: number; notes?: string }) => {
     if (!selectedBottle) return;
-    const bottle = numberedBottles.find((b) => b.bottleNumber === selectedBottle.number);
-    if (bottle) {
-      updateBottleStatus(bottle.id, status, details);
-    }
+    updateBottleStatus(selectedBottle.id, status, details);
     setSelectedBottle(null);
   };
 
@@ -902,7 +913,7 @@ function FirstEditionGrid({
                   {numberedBottles.map((bottle) => (
                     <button
                       key={bottle.id}
-                      onClick={() => handleBottleClick(bottle.bottleNumber, bottle.status)}
+                      onClick={() => handleBottleClick(bottle.bottleNumber)}
                       className={`aspect-square rounded-lg border text-xs font-medium transition-all ${getStatusColor(bottle.status)} ${
                         bottle.status !== 'sold' && bottle.status !== 'gifted' && bottle.status !== 'damaged'
                           ? 'cursor-pointer'
@@ -925,8 +936,9 @@ function FirstEditionGrid({
         <BottleStatusModal
           isOpen={!!selectedBottle}
           onClose={() => setSelectedBottle(null)}
-          bottleNumber={selectedBottle.number}
+          bottleNumber={selectedBottle.bottleNumber}
           currentStatus={selectedBottle.status}
+          currentBottle={selectedBottle}
           onSave={handleSaveStatus}
         />
       )}

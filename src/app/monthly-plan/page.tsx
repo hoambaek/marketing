@@ -88,7 +88,7 @@ export default function MonthlyPlanPage() {
                 transition={{ duration: 0.8, delay: 0.4 }}
                 className="text-[#b7916e] text-sm tracking-[0.3em] uppercase mb-4 font-light"
               >
-                2026 Launch Roadmap
+                Launch Roadmap
               </motion.p>
 
               <h1

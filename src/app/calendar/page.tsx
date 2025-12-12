@@ -227,16 +227,6 @@ export default function CalendarPage() {
                 </motion.p>
               </div>
 
-              <motion.button
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 0.5, delay: 0.9 }}
-                onClick={() => handleAddContent()}
-                className="flex items-center gap-2 px-5 py-3 bg-[#b7916e] text-white rounded-xl hover:bg-[#d4c4a8] transition-colors font-medium"
-              >
-                <Plus className="w-5 h-5" />
-                <span className="hidden sm:inline">콘텐츠 추가</span>
-              </motion.button>
             </div>
           </motion.div>
         </div>

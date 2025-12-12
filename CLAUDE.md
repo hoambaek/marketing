@@ -75,3 +75,12 @@ someAction: async (data) => {
 ## Authentication
 
 Clerk middleware protects `/inventory/*` routes. When Clerk is not configured (`NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` missing), middleware passes through and inventory shows a setup prompt.
+
+## Git & Deployment Rules
+
+**IMPORTANT:** Do NOT commit or deploy automatically.
+
+- Only commit when the user explicitly says: "커밋해줘", "commit", "커밋"
+- Only deploy when the user explicitly says: "배포해줘", "deploy", "배포"
+- Always wait for user instruction before running `git commit` or `git push`
+- After making changes, just report what was changed without committing
