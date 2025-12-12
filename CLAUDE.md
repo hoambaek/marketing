@@ -1,60 +1,77 @@
-# Muse de Marée Marketing - Claude Code Instructions
+# CLAUDE.md
 
-## Project Overview
-- Next.js 16 (App Router) + TypeScript
-- Clerk 인증 (재고관리 페이지 보호)
-- Supabase 데이터베이스
-- Zustand 상태관리
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Database Integration Rules
+## Development Commands
 
-**모든 새로운 기능은 반드시 Supabase와 연동되어야 합니다.**
+```bash
+npm run dev      # Start development server (http://localhost:3000)
+npm run build    # Build for production
+npm run lint     # Run ESLint
+```
 
-### 필수 사항:
-1. **새 기능 구현 시**: localStorage나 Zustand persist만 사용하지 말고, 반드시 Supabase 테이블에 저장
-2. **데이터 흐름**:
-   - 초기화: Supabase에서 데이터 로드 → Zustand 상태 업데이트
-   - 변경: Zustand 상태 업데이트 + Supabase에 동기화
-3. **타입 매핑**: DB 응답을 앱 타입으로 변환하는 매핑 함수 작성 (`src/lib/supabase/database.ts`)
+## Architecture Overview
 
-### 구현 패턴:
+**Muse de Marée Masterplan Management System** - A wine brand marketing/inventory management dashboard.
+
+### Tech Stack
+- Next.js 16 (App Router) + TypeScript + React 19
+- Supabase (PostgreSQL database)
+- Zustand (state management with Supabase sync)
+- Clerk (authentication - protects `/inventory` routes)
+- Tailwind CSS 4 + Framer Motion
+
+### Application Structure
+
+**Pages** (`src/app/`):
+- `/` - Dashboard home
+- `/monthly-plan` - Monthly plan overview
+- `/month/[id]` - Month detail with weekly tasks
+- `/inventory` - Protected inventory management (requires Clerk auth)
+- `/calendar`, `/checklist`, `/kpi`, `/settings` - Supporting pages
+- `/sign-in` - Clerk sign-in (login only, no signup)
+
+**State Management** (`src/lib/store/`):
+- `masterplan-store.ts` - Tasks, must-do items, KPIs, content items
+- `inventory-store.ts` - Numbered bottles, batches, transactions, custom products
+
+**Database Layer** (`src/lib/supabase/`):
+- `client.ts` - Supabase client with `isSupabaseConfigured()` check
+- `database.ts` - All CRUD functions + DB-to-App type mapping functions
+
+### Data Flow Pattern
+
+All state follows: **Supabase → Zustand → UI → Zustand → Supabase**
+
 ```typescript
-// Store action 예시
+// Store action pattern
 someAction: async (data) => {
-  // 1. 로컬 상태 업데이트
-  set((state) => ({ ... }));
+  set((state) => ({ ... }));  // 1. Update local state
 
-  // 2. Supabase 동기화
   const { useSupabase } = get();
   if (useSupabase) {
-    await db.createSomething(data);
+    await db.createSomething(data);  // 2. Sync to Supabase
   }
 }
 ```
 
-### 체크리스트:
-- [ ] 필요한 Supabase 테이블 스키마 작성 (`supabase/` 폴더)
-- [ ] `database.ts`에 CRUD 함수 추가
-- [ ] `database.ts`에 DB → App 타입 매핑 함수 추가
-- [ ] Store에서 Supabase 함수 호출
-- [ ] RLS 정책 설정 (필요시)
+## Database Integration Rules
 
-## Existing Database Tables
+**All new features must integrate with Supabase.** Do not use localStorage-only or Zustand persist-only storage.
 
-### Masterplan (4 tables):
-- `tasks` - 주간 업무
-- `must_do_items` - Must Do 항목
-- `kpi_items` - KPI 지표
-- `content_items` - 콘텐츠 아이템
+### Implementation Checklist:
+1. Create table schema in `supabase/` folder
+2. Add CRUD functions to `database.ts`
+3. Add DB → App type mapping function to `database.ts`
+4. Call Supabase functions from store actions
+5. Configure RLS policies if needed
 
-### Inventory (4 tables):
-- `numbered_bottles` - 넘버링 병 재고 (2025 First Edition)
-- `inventory_batches` - 일반 재고 수량
-- `inventory_transactions` - 거래 기록
-- `custom_products` - 커스텀 상품
+### Existing Tables
 
-## Key Files
-- `/src/lib/supabase/client.ts` - Supabase 클라이언트
-- `/src/lib/supabase/database.ts` - DB 함수 및 매핑
-- `/src/lib/store/` - Zustand 스토어들
-- `/src/lib/types/index.ts` - 타입 정의
+**Masterplan**: `tasks`, `must_do_items`, `kpi_items`, `content_items`
+
+**Inventory**: `numbered_bottles`, `inventory_batches`, `inventory_transactions`, `custom_products`
+
+## Authentication
+
+Clerk middleware protects `/inventory/*` routes. When Clerk is not configured (`NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` missing), middleware passes through and inventory shows a setup prompt.

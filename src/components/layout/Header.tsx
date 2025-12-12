@@ -46,15 +46,15 @@ export function Header() {
                   />
                 </div>
                 {/* Logo Text */}
-                <div className="hidden sm:block">
+                <div>
                   <p
-                    className="text-xl tracking-tight text-white/90"
+                    className="text-lg sm:text-xl tracking-tight text-white/90"
                     style={{ fontFamily: "var(--font-cormorant), 'Playfair Display', Georgia, serif" }}
                   >
                     Muse de Marée
                   </p>
-                  <p className="text-[10px] uppercase tracking-[0.2em] text-[#b7916e] -mt-0.5">
-                    2026 Master Plan
+                  <p className="text-[9px] sm:text-[10px] uppercase tracking-[0.2em] text-[#b7916e] -mt-0.5">
+                    Master Plan
                   </p>
                 </div>
               </Link>
