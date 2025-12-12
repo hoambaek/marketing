@@ -734,20 +734,24 @@ function ProductCard({ product, onManage, mounted }: ProductCardProps) {
       </div>
 
       {/* Body */}
-      <div className="relative p-5">
-        {/* Stats Grid */}
-        <div className="grid grid-cols-3 gap-3 mb-4">
-          <div className="text-center p-3 rounded-xl bg-white/[0.02]">
-            <p className="text-xs text-white/30 mb-1">판매가능</p>
-            <p className="text-xl text-emerald-400 font-medium">{summary.available}</p>
+      <div className="relative p-4 sm:p-5">
+        {/* Stats Grid - 2x2 on mobile, 4 cols on desktop */}
+        <div className="grid grid-cols-4 gap-1.5 sm:gap-3 mb-3 sm:mb-4">
+          <div className="text-center p-2 sm:p-3 rounded-lg sm:rounded-xl bg-white/[0.02]">
+            <p className="text-[10px] sm:text-xs text-white/30 mb-0.5 sm:mb-1">판매가능</p>
+            <p className="text-base sm:text-xl text-emerald-400 font-medium">{summary.available}</p>
           </div>
-          <div className="text-center p-3 rounded-xl bg-white/[0.02]">
-            <p className="text-xs text-white/30 mb-1">예약</p>
-            <p className="text-xl text-amber-400 font-medium">{summary.reserved}</p>
+          <div className="text-center p-2 sm:p-3 rounded-lg sm:rounded-xl bg-white/[0.02]">
+            <p className="text-[10px] sm:text-xs text-white/30 mb-0.5 sm:mb-1">예약</p>
+            <p className="text-base sm:text-xl text-amber-400 font-medium">{summary.reserved}</p>
           </div>
-          <div className="text-center p-3 rounded-xl bg-white/[0.02]">
-            <p className="text-xs text-white/30 mb-1">판매완료</p>
-            <p className="text-xl text-blue-400 font-medium">{summary.sold}</p>
+          <div className="text-center p-2 sm:p-3 rounded-lg sm:rounded-xl bg-white/[0.02]">
+            <p className="text-[10px] sm:text-xs text-white/30 mb-0.5 sm:mb-1">판매</p>
+            <p className="text-base sm:text-xl text-blue-400 font-medium">{summary.sold}</p>
+          </div>
+          <div className="text-center p-2 sm:p-3 rounded-lg sm:rounded-xl bg-white/[0.02]">
+            <p className="text-[10px] sm:text-xs text-white/30 mb-0.5 sm:mb-1">증정</p>
+            <p className="text-base sm:text-xl text-pink-400 font-medium">{summary.gifted}</p>
           </div>
         </div>
 
