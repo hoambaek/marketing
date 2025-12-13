@@ -4,12 +4,18 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { Menu, X, Settings, LogOut } from 'lucide-react';
+import { Menu, X, Settings, LogOut, ExternalLink } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { SignOutButton } from '@clerk/nextjs';
 
-const navigation = [
+interface NavItem {
+  name: string;
+  href: string;
+  external?: boolean;
+}
+
+const navigation: NavItem[] = [
   { name: '대시보드', href: '/' },
   { name: '월별플랜', href: '/monthly-plan' },
   { name: '이슈관리', href: '/issues' },
@@ -17,6 +23,7 @@ const navigation = [
   { name: 'KPI', href: '/kpi' },
   { name: '재고관리', href: '/inventory' },
   { name: '예산관리', href: '/budget' },
+  { name: '블로그', href: 'https://blog.musedemaree.com/admin', external: true },
 ];
 
 export function Header() {
@@ -71,6 +78,23 @@ export function Header() {
             >
               {navigation.map((item) => {
                 const isActive = pathname === item.href;
+
+                // 외부 링크 스타일링
+                if (item.external) {
+                  return (
+                    <a
+                      key={item.name}
+                      href={item.href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="group relative px-4 py-2 text-sm font-medium transition-all rounded-lg flex items-center gap-1.5 text-[#b7916e]/70 hover:text-[#d4a574] hover:bg-[#b7916e]/[0.08] border border-transparent hover:border-[#b7916e]/20"
+                    >
+                      {item.name}
+                      <ExternalLink className="w-3.5 h-3.5 opacity-60 group-hover:opacity-100 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all" />
+                    </a>
+                  );
+                }
+
                 return (
                   <Link
                     key={item.name}
@@ -141,6 +165,24 @@ export function Header() {
             <div className="py-4 space-y-1 border-t border-white/[0.06]">
               {navigation.map((item) => {
                 const isActive = pathname === item.href;
+
+                // 모바일 외부 링크 스타일링
+                if (item.external) {
+                  return (
+                    <a
+                      key={item.name}
+                      href={item.href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="flex items-center justify-between px-4 py-3 text-base font-medium rounded-xl transition-all text-[#b7916e]/80 hover:text-[#d4a574] hover:bg-[#b7916e]/[0.08] border border-[#b7916e]/10"
+                    >
+                      <span>{item.name}</span>
+                      <ExternalLink className="w-4 h-4 opacity-60" />
+                    </a>
+                  );
+                }
+
                 return (
                   <Link
                     key={item.name}

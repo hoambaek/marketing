@@ -3,6 +3,8 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ReactMarkdown from 'react-markdown';
+import { useMasterPlanStore } from '@/lib/store/masterplan-store';
+import { useInventoryStore } from '@/lib/store/inventory-store';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Types
@@ -20,6 +22,23 @@ interface Message {
 // AI Chat Component - iOS Safari Optimized
 // ═══════════════════════════════════════════════════════════════════════════
 
+// 데이터 변경 함수 목록 (이 함수들이 실행되면 스토어 리프레시 필요)
+const MASTERPLAN_MUTATION_FUNCTIONS = [
+  'createTask', 'createMultipleTasks', 'updateTask', 'deleteTask',
+  'createIssue', 'updateIssue', 'deleteIssue',
+  'createContent', 'createMultipleContents', 'updateContent', 'deleteContent',
+  'createMustDoItem', 'toggleMustDo', 'updateMustDoItem', 'deleteMustDoItem',
+  'createBudgetItem', 'updateBudgetItem', 'deleteBudgetItem',
+  'createExpenseItem', 'updateExpenseItem', 'deleteExpenseItem',
+];
+
+const INVENTORY_MUTATION_FUNCTIONS = [
+  'updateNumberedBottle',
+  'updateInventoryBatch',
+  'createInventoryTransaction',
+  'createCustomProduct', 'deleteCustomProduct',
+];
+
 export default function AiChat() {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -32,6 +51,38 @@ export default function AiChat() {
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
+
+  // 스토어 리프레시 함수
+  const refreshMasterplan = useMasterPlanStore((state) => state.initializeFromSupabase);
+  const refreshInventory = useInventoryStore((state) => state.refreshFromSupabase);
+
+  // 실행된 함수에 따라 스토어 리프레시
+  const refreshStoresIfNeeded = useCallback((executedFunctions: Array<{ name: string; result: unknown }>) => {
+    if (!executedFunctions || executedFunctions.length === 0) return;
+
+    const functionNames = executedFunctions.map(f => f.name);
+
+    // Masterplan 스토어 리프레시 필요 여부 확인
+    const needsMasterplanRefresh = functionNames.some(name =>
+      MASTERPLAN_MUTATION_FUNCTIONS.includes(name)
+    );
+
+    // Inventory 스토어 리프레시 필요 여부 확인
+    const needsInventoryRefresh = functionNames.some(name =>
+      INVENTORY_MUTATION_FUNCTIONS.includes(name)
+    );
+
+    // 필요한 스토어만 리프레시
+    if (needsMasterplanRefresh) {
+      console.log('Refreshing masterplan store...');
+      refreshMasterplan();
+    }
+
+    if (needsInventoryRefresh) {
+      console.log('Refreshing inventory store...');
+      refreshInventory();
+    }
+  }, [refreshMasterplan, refreshInventory]);
 
   // 모바일 감지
   useEffect(() => {
@@ -158,6 +209,11 @@ export default function AiChat() {
       };
 
       setMessages(prev => [...prev, assistantMessage]);
+
+      // 데이터 변경 함수가 실행됐으면 스토어 리프레시
+      if (data.executedFunctions && data.executedFunctions.length > 0) {
+        refreshStoresIfNeeded(data.executedFunctions);
+      }
     } catch (error) {
       console.error('Chat error:', error);
       const errorMessage: Message = {
