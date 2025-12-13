@@ -3,7 +3,7 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState, useEffect, useRef } from 'react';
 import { useMasterPlanStore } from '@/lib/store/masterplan-store';
-import { MONTHS_INFO, PHASE_INFO, AVAILABLE_YEARS, Task, TaskStatus } from '@/lib/types';
+import { MONTHS_INFO, PHASE_INFO, AVAILABLE_YEARS, Task, TaskStatus, MustDoItem, CATEGORY_LABELS, TaskCategory } from '@/lib/types';
 import { Footer } from '@/components/layout/Footer';
 import {
   DndContext,
@@ -75,6 +75,8 @@ export default function MonthlyPlanPage() {
     updateTask,
     deleteTask,
     reorderTasks,
+    getMustDoByMonth,
+    toggleMustDo,
   } = useMasterPlanStore();
 
   const [selectedYear, setSelectedYear] = useState<number>(2026);
@@ -111,6 +113,7 @@ export default function MonthlyPlanPage() {
   const colors = phaseColors[phase?.id as keyof typeof phaseColors] || phaseColors[1];
   const progress = getProgressByMonth(selectedYear, selectedMonth);
   const weekTasks = getTasksByMonthAndWeek(selectedYear, selectedMonth, selectedWeek);
+  const mustDoItems = getMustDoByMonth(selectedYear, selectedMonth);
 
   // Navigation handlers
   const goToPrevMonth = () => {
@@ -507,6 +510,135 @@ export default function MonthlyPlanPage() {
           </motion.div>
         </div>
       </section>
+
+      {/* Must-Do Checklist Section */}
+      {mustDoItems.length > 0 && (
+        <section className="relative py-4 sm:py-6 px-4 sm:px-6 lg:px-12">
+          <div className="max-w-4xl mx-auto">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.8 }}
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between mb-3 sm:mb-4">
+                <div className="flex items-center gap-2 sm:gap-3">
+                  <div
+                    className="w-1 h-5 sm:h-6 rounded-full"
+                    style={{ backgroundColor: colors.primary }}
+                  />
+                  <h3 className="text-sm sm:text-base font-medium text-white/90 tracking-wide">
+                    이달의 필수 체크리스트
+                  </h3>
+                  <span
+                    className="text-[10px] sm:text-xs px-2 py-0.5 rounded-full"
+                    style={{
+                      backgroundColor: `${colors.primary}20`,
+                      color: colors.primary
+                    }}
+                  >
+                    {mustDoItems.filter(item => item.done).length}/{mustDoItems.length}
+                  </span>
+                </div>
+              </div>
+
+              {/* Checklist Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
+                {mustDoItems.map((item, index) => (
+                  <motion.div
+                    key={item.id}
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.3, delay: 0.1 * index }}
+                    onClick={() => toggleMustDo(item.id)}
+                    className={`group relative flex items-start gap-3 p-3 sm:p-4 rounded-xl cursor-pointer transition-all duration-300 ${
+                      item.done
+                        ? 'bg-white/[0.02] border border-white/[0.04]'
+                        : 'bg-white/[0.04] border border-white/[0.08] hover:bg-white/[0.06] hover:border-white/[0.12]'
+                    }`}
+                    style={{
+                      boxShadow: !item.done ? `0 0 20px ${colors.glow}` : 'none'
+                    }}
+                  >
+                    {/* Custom Checkbox */}
+                    <div
+                      className={`relative flex-shrink-0 w-5 h-5 sm:w-6 sm:h-6 rounded-lg border-2 transition-all duration-300 flex items-center justify-center ${
+                        item.done
+                          ? 'border-transparent'
+                          : 'border-white/20 group-hover:border-white/40'
+                      }`}
+                      style={{
+                        backgroundColor: item.done ? colors.primary : 'transparent'
+                      }}
+                    >
+                      {item.done && (
+                        <motion.svg
+                          initial={{ scale: 0, opacity: 0 }}
+                          animate={{ scale: 1, opacity: 1 }}
+                          className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-white"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                          strokeWidth={3}
+                        >
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                        </motion.svg>
+                      )}
+                    </div>
+
+                    {/* Content */}
+                    <div className="flex-1 min-w-0">
+                      <p className={`text-sm sm:text-base leading-tight transition-all duration-300 ${
+                        item.done
+                          ? 'text-white/40 line-through'
+                          : 'text-white/80'
+                      }`}>
+                        {item.title}
+                      </p>
+                      <span
+                        className={`inline-block mt-1.5 text-[10px] sm:text-xs px-1.5 py-0.5 rounded transition-all duration-300 ${
+                          item.done ? 'opacity-40' : 'opacity-70'
+                        }`}
+                        style={{
+                          backgroundColor: `${colors.primary}15`,
+                          color: colors.primary
+                        }}
+                      >
+                        {CATEGORY_LABELS[item.category]}
+                      </span>
+                    </div>
+
+                    {/* Decorative Element */}
+                    {!item.done && (
+                      <div
+                        className="absolute right-3 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                        style={{ backgroundColor: colors.primary }}
+                      />
+                    )}
+                  </motion.div>
+                ))}
+              </div>
+
+              {/* Progress Bar */}
+              <div className="mt-4 sm:mt-5">
+                <div className="h-1 sm:h-1.5 rounded-full bg-white/[0.06] overflow-hidden">
+                  <motion.div
+                    initial={{ width: 0 }}
+                    animate={{
+                      width: `${(mustDoItems.filter(item => item.done).length / mustDoItems.length) * 100}%`
+                    }}
+                    transition={{ duration: 0.8, ease: 'easeOut' }}
+                    className="h-full rounded-full"
+                    style={{
+                      background: `linear-gradient(90deg, ${colors.primary}, ${colors.primary}80)`
+                    }}
+                  />
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        </section>
+      )}
 
       {/* Week Tabs & Tasks Section */}
       <section className="relative py-6 px-4 sm:px-6 lg:px-12">
