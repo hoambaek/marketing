@@ -270,47 +270,51 @@ export default function SettingsPage() {
       </div>
 
       {/* Hero Section - Compact on Mobile */}
-      <section className="px-4 sm:px-6 lg:px-8 pt-8 sm:pt-24 pb-4 sm:pb-8">
-        <div className="mx-auto max-w-5xl">
+      <section className="relative pt-8 sm:pt-16 pb-6 sm:pb-8 px-4 sm:px-6 lg:px-12">
+        <div className="max-w-5xl mx-auto">
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
-            className="text-center mb-6 sm:mb-12"
+            transition={{ duration: 1, ease: [0.25, 0.46, 0.45, 0.94] }}
+            className="relative"
           >
-            {/* Decorative Element - Smaller on Mobile */}
+            {/* Decorative Line - Hidden on Mobile */}
             <motion.div
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.6, delay: 0.2 }}
-              className="inline-flex items-center gap-2 sm:gap-4 mb-4 sm:mb-8"
-            >
-              <div className="hidden sm:block h-px w-20 bg-gradient-to-r from-transparent via-[#b7916e]/50 to-[#b7916e]/80" />
-              <div className="p-2 sm:p-3 rounded-xl sm:rounded-2xl bg-gradient-to-br from-[#b7916e]/20 to-[#b7916e]/5 border border-[#b7916e]/20">
-                <Settings className="w-5 h-5 sm:w-6 sm:h-6 text-[#d4c4a8]" />
-              </div>
-              <div className="hidden sm:block h-px w-20 bg-gradient-to-l from-transparent via-[#b7916e]/50 to-[#b7916e]/80" />
-            </motion.div>
+              initial={{ scaleX: 0 }}
+              animate={{ scaleX: 1 }}
+              transition={{ duration: 1.2, delay: 0.3, ease: [0.25, 0.46, 0.45, 0.94] }}
+              className="hidden sm:block absolute -left-6 top-1/2 w-16 h-px bg-gradient-to-r from-[#b7916e] to-transparent origin-left"
+            />
 
-            {/* Title */}
-            <motion.h1
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, delay: 0.3 }}
-              className="text-3xl sm:text-5xl lg:text-6xl text-white/95 mb-2 sm:mb-4 tracking-tight"
-              style={{ fontFamily: "var(--font-cormorant), 'Playfair Display', Georgia, serif" }}
-            >
-              설정
-            </motion.h1>
+            <div className="sm:pl-14">
+              <motion.p
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.8, delay: 0.4 }}
+                className="text-[#b7916e] text-[10px] sm:text-sm tracking-[0.2em] sm:tracking-[0.3em] uppercase mb-2 sm:mb-4 font-light"
+              >
+                System Configuration
+              </motion.p>
 
-            <motion.p
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.8, delay: 0.5 }}
-              className="hidden sm:block text-white/40 text-lg max-w-md mx-auto font-light"
-            >
-              앱 환경 설정 및 데이터 관리
-            </motion.p>
+              <h1
+                className="text-3xl sm:text-5xl lg:text-6xl text-white/95 mb-2 sm:mb-6 leading-[1.1] tracking-tight"
+                style={{ fontFamily: "var(--font-cormorant), 'Playfair Display', Georgia, serif" }}
+              >
+                <span className="sm:block inline">App </span>
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#b7916e] via-[#d4c4a8] to-[#b7916e]">
+                  Settings
+                </span>
+              </h1>
+
+              <motion.p
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.8, delay: 0.5 }}
+                className="hidden sm:block text-white/40 text-lg max-w-md font-light"
+              >
+                앱 환경 설정 및 데이터 관리
+              </motion.p>
+            </div>
           </motion.div>
         </div>
       </section>
@@ -369,7 +373,7 @@ export default function SettingsPage() {
                       <select
                         value={appSettings.defaultYear}
                         onChange={(e) => saveSettings({ defaultYear: parseInt(e.target.value) })}
-                        className="px-3 sm:px-4 py-1.5 sm:py-2 bg-white/[0.04] border border-white/[0.08] rounded-lg sm:rounded-xl text-sm sm:text-base text-white/80 focus:outline-none focus:ring-2 focus:ring-[#b7916e]/30 focus:border-[#b7916e]/50 transition-all cursor-pointer appearance-none min-w-[100px] sm:min-w-[120px]"
+                        className="px-3 sm:px-4 h-9 sm:h-10 bg-white/[0.04] border border-white/[0.08] rounded-lg sm:rounded-xl text-sm sm:text-base text-white/80 focus:outline-none focus:ring-2 focus:ring-[#b7916e]/30 focus:border-[#b7916e]/50 transition-all cursor-pointer appearance-none min-w-[100px] sm:min-w-[120px] leading-none"
                       >
                         {AVAILABLE_YEARS.map((year) => (
                           <option key={year} value={year} className="bg-[#0d1525]">
@@ -388,7 +392,7 @@ export default function SettingsPage() {
                       <select
                         value={appSettings.currency}
                         onChange={(e) => saveSettings({ currency: e.target.value })}
-                        className="px-3 sm:px-4 py-1.5 sm:py-2 bg-white/[0.04] border border-white/[0.08] rounded-lg sm:rounded-xl text-sm sm:text-base text-white/80 focus:outline-none focus:ring-2 focus:ring-[#b7916e]/30 focus:border-[#b7916e]/50 transition-all cursor-pointer appearance-none min-w-[110px] sm:min-w-[140px]"
+                        className="px-3 sm:px-4 h-9 sm:h-10 bg-white/[0.04] border border-white/[0.08] rounded-lg sm:rounded-xl text-sm sm:text-base text-white/80 focus:outline-none focus:ring-2 focus:ring-[#b7916e]/30 focus:border-[#b7916e]/50 transition-all cursor-pointer appearance-none min-w-[110px] sm:min-w-[140px] leading-none"
                       >
                         {CURRENCY_OPTIONS.map((opt) => (
                           <option key={opt.value} value={opt.value} className="bg-[#0d1525]">
@@ -407,7 +411,7 @@ export default function SettingsPage() {
                       <select
                         value={appSettings.itemsPerPage}
                         onChange={(e) => saveSettings({ itemsPerPage: parseInt(e.target.value) })}
-                        className="px-3 sm:px-4 py-1.5 sm:py-2 bg-white/[0.04] border border-white/[0.08] rounded-lg sm:rounded-xl text-sm sm:text-base text-white/80 focus:outline-none focus:ring-2 focus:ring-[#b7916e]/30 focus:border-[#b7916e]/50 transition-all cursor-pointer appearance-none min-w-[80px] sm:min-w-[100px]"
+                        className="px-3 sm:px-4 h-9 sm:h-10 bg-white/[0.04] border border-white/[0.08] rounded-lg sm:rounded-xl text-sm sm:text-base text-white/80 focus:outline-none focus:ring-2 focus:ring-[#b7916e]/30 focus:border-[#b7916e]/50 transition-all cursor-pointer appearance-none min-w-[80px] sm:min-w-[100px] leading-none"
                       >
                         {ITEMS_PER_PAGE_OPTIONS.map((num) => (
                           <option key={num} value={num} className="bg-[#0d1525]">
