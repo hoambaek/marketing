@@ -218,6 +218,12 @@ export default function DashboardPage() {
 
   const timelineRef = useRef<HTMLDivElement>(null);
   const [selectedYear, setSelectedYear] = useState<number>(2026);
+  const [mounted, setMounted] = useState(false);
+
+  // Set mounted state to prevent hydration mismatch
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Initialize stores
   useEffect(() => {
@@ -227,38 +233,38 @@ export default function DashboardPage() {
     if (!inventoryInitialized) initializeInventory();
   }, [masterplanInitialized, budgetInitialized, issueInitialized, inventoryInitialized, initMasterplan, initBudget, initIssues, initializeInventory]);
 
-  // Computed values
-  const totalProgress = getTotalProgress();
-  const daysUntilLaunch = getDaysUntilLaunch();
-  const currentPhase = getCurrentPhase();
+  // Computed values (only calculate after mount to prevent hydration mismatch)
+  const totalProgress = mounted ? getTotalProgress() : 0;
+  const daysUntilLaunch = mounted ? getDaysUntilLaunch() : 0;
+  const currentPhase = mounted ? getCurrentPhase() : 1;
   const currentPhaseInfo = PHASE_INFO.find(p => p.id === currentPhase);
 
-  const statusCounts = {
+  const statusCounts = mounted ? {
     done: tasks.filter((t) => t.status === 'done').length,
     in_progress: tasks.filter((t) => t.status === 'in_progress').length,
     pending: tasks.filter((t) => t.status === 'pending').length,
-  };
+  } : { done: 0, in_progress: 0, pending: 0 };
 
-  const totalBudget = getTotalBudgeted(selectedYear);
-  const totalSpent = getTotalSpent(selectedYear);
+  const totalBudget = mounted ? getTotalBudgeted(selectedYear) : 0;
+  const totalSpent = mounted ? getTotalSpent(selectedYear) : 0;
   const budgetUsagePercent = totalBudget > 0 ? Math.round((totalSpent / totalBudget) * 100) : 0;
 
-  const openIssues = getOpenIssues();
-  const criticalIssues = getCriticalIssues();
+  const openIssues = mounted ? getOpenIssues() : [];
+  const criticalIssues = mounted ? getCriticalIssues() : [];
 
-  const inventory = getTotalInventoryValue();
+  const inventory = mounted ? getTotalInventoryValue() : { totalBottles: 0, available: 0, sold: 0, reserved: 0 };
   const soldPercent = inventory.totalBottles > 0
     ? Math.round((inventory.sold / inventory.totalBottles) * 100)
     : 0;
 
-  const mustDoCompleted = mustDoItems.filter(m => m.done).length;
-  const mustDoTotal = mustDoItems.length;
+  const mustDoCompleted = mounted ? mustDoItems.filter(m => m.done).length : 0;
+  const mustDoTotal = mounted ? mustDoItems.length : 0;
   const mustDoPercent = mustDoTotal > 0 ? Math.round((mustDoCompleted / mustDoTotal) * 100) : 0;
 
   // This month's tasks
-  const currentMonth = new Date().getMonth() + 1;
-  const thisMonthTasks = tasks.filter((t) => t.year === selectedYear && t.month === currentMonth);
-  const thisWeekTasks = tasks.filter((t) => t.year === selectedYear && t.month === 1 && t.week === 1).slice(0, 4);
+  const currentMonth = mounted ? new Date().getMonth() + 1 : 1;
+  const thisMonthTasks = mounted ? tasks.filter((t) => t.year === selectedYear && t.month === currentMonth) : [];
+  const thisWeekTasks = mounted ? tasks.filter((t) => t.year === selectedYear && t.month === 1 && t.week === 1).slice(0, 4) : [];
 
   // Timeline scroll
   const scrollTimeline = (direction: 'left' | 'right') => {
@@ -679,7 +685,7 @@ export default function DashboardPage() {
                     </div>
                     <div className="flex gap-1">
                       {MONTHS_INFO.slice(0, 8).map((month) => {
-                        const progress = getProgressByMonth(selectedYear, month.id);
+                        const progress = mounted ? getProgressByMonth(selectedYear, month.id) : 0;
                         return (
                           <div key={month.id} className="flex-1">
                             <div className="h-12 rounded bg-white/[0.04] relative overflow-hidden">
@@ -790,10 +796,10 @@ export default function DashboardPage() {
                   {/* Phase Bars */}
                   {PHASE_INFO.map((phase, phaseIndex) => {
                     const { startWeek, width } = getPhaseBarPosition(phase);
-                    const phaseProgress = phase.months.reduce(
+                    const phaseProgress = mounted ? phase.months.reduce(
                       (acc, monthId) => acc + getProgressByMonth(selectedYear, monthId),
                       0
-                    ) / phase.months.length;
+                    ) / phase.months.length : 0;
                     const colors = phaseColors[phase.id as keyof typeof phaseColors];
 
                     return (
