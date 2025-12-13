@@ -490,35 +490,44 @@ export default function IssuesPage() {
                 if (month.issues.length === 0 && (typeFilter !== 'all' || statusFilter !== 'all' || priorityFilter !== 'all'))
                   return null;
 
+                const isEmpty = month.issues.length === 0;
+
                 return (
                   <motion.div
                     key={month.id}
                     variants={itemVariants}
-                    className="relative rounded-2xl overflow-hidden group"
+                    className={`relative rounded-2xl overflow-hidden group ${isEmpty ? 'rounded-xl' : ''}`}
                   >
                     {/* Card Background */}
                     <div className="absolute inset-0 bg-gradient-to-br from-white/[0.04] to-white/[0.01] backdrop-blur-sm" />
-                    <div className="absolute inset-0 border border-white/[0.06] rounded-2xl" />
+                    <div className={`absolute inset-0 border border-white/[0.06] ${isEmpty ? 'rounded-xl' : 'rounded-2xl'}`} />
 
-                    {/* Hover glow */}
-                    <div
-                      className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
-                      style={{
-                        background: `radial-gradient(circle at 50% 100%, rgba(183, 145, 110, 0.05), transparent 70%)`,
-                      }}
-                    />
+                    {/* Hover glow - only for non-empty cards */}
+                    {!isEmpty && (
+                      <div
+                        className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
+                        style={{
+                          background: `radial-gradient(circle at 50% 100%, rgba(183, 145, 110, 0.05), transparent 70%)`,
+                        }}
+                      />
+                    )}
 
-                    {/* Month Header */}
-                    <div className="relative px-4 sm:px-6 py-3 sm:py-4 border-b border-white/[0.06]">
+                    {/* Month Header - Compact for empty cards */}
+                    <div className={`relative px-4 sm:px-6 ${isEmpty ? 'py-2.5 sm:py-3' : 'py-3 sm:py-4 border-b border-white/[0.06]'}`}>
                       <div className="flex items-center justify-between gap-2">
                         <div className="flex items-center gap-2 sm:gap-4 flex-wrap min-w-0">
                           <span
-                            className="text-xl sm:text-2xl text-white/90 flex-shrink-0"
+                            className={`${isEmpty ? 'text-base sm:text-lg text-white/50' : 'text-xl sm:text-2xl text-white/90'} flex-shrink-0`}
                             style={{ fontFamily: "var(--font-cormorant), serif" }}
                           >
                             {month.name}
                           </span>
-                          <span className="text-xs sm:text-sm text-white/40 truncate hidden sm:block">{month.title}</span>
+                          {!isEmpty && (
+                            <span className="text-xs sm:text-sm text-white/40 truncate hidden sm:block">{month.title}</span>
+                          )}
+                          {isEmpty && (
+                            <span className="text-[10px] sm:text-xs text-white/25">이슈 없음</span>
+                          )}
                           <div className="flex items-center gap-1.5">
                             {month.openCount > 0 && (
                               <span className="px-1.5 sm:px-2 py-0.5 rounded-full bg-yellow-500/20 text-yellow-400 text-[10px] sm:text-xs whitespace-nowrap">
@@ -534,18 +543,18 @@ export default function IssuesPage() {
                         </div>
                         <button
                           onClick={() => handleAddItem(month.id)}
-                          className="p-2 rounded-xl hover:bg-white/[0.04] transition-colors flex-shrink-0"
+                          className={`${isEmpty ? 'p-1.5' : 'p-2'} rounded-xl hover:bg-white/[0.04] transition-colors flex-shrink-0`}
                           title="이슈 추가"
                         >
-                          <Plus className="w-4 h-4 text-[#b7916e]" />
+                          <Plus className={`${isEmpty ? 'w-3.5 h-3.5' : 'w-4 h-4'} text-[#b7916e]`} />
                         </button>
                       </div>
                     </div>
 
-                    {/* Items */}
+                    {/* Items - Only render if not empty */}
+                    {!isEmpty && (
                     <div className="relative p-3 sm:p-6 space-y-2">
-                      {month.issues.length > 0 ? (
-                        month.issues.map((item, itemIndex) => (
+                      {month.issues.map((item, itemIndex) => (
                           <motion.div
                             key={item.id}
                             initial={{ opacity: 0, x: -10 }}
@@ -702,23 +711,9 @@ export default function IssuesPage() {
                               </div>
                             </div>
                           </motion.div>
-                        ))
-                      ) : (
-                        <div className="text-center py-8">
-                          <div className="space-y-4">
-                            <AlertCircle className="w-10 h-10 text-white/10 mx-auto" />
-                            <p className="text-white/30 text-sm">등록된 이슈가 없습니다.</p>
-                            <button
-                              onClick={() => handleAddItem(month.id)}
-                              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#b7916e]/10 text-[#b7916e] hover:bg-[#b7916e]/20 transition-colors text-sm font-medium"
-                            >
-                              <Plus className="w-4 h-4" />
-                              이슈 추가
-                            </button>
-                          </div>
-                        </div>
-                      )}
+                        ))}
                     </div>
+                    )}
                   </motion.div>
                 );
               })}
