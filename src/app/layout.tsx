@@ -32,8 +32,13 @@ export const metadata: Metadata = {
     title: 'Muse de Marée',
   },
   icons: {
-    icon: '/icons/icon-192x192.png',
-    apple: '/icons/icon-192x192.png',
+    icon: [
+      { url: '/icon.svg', type: 'image/svg+xml' },
+      { url: '/favicon-32x32.png', type: 'image/png', sizes: '32x32' },
+      { url: '/favicon-16x16.png', type: 'image/png', sizes: '16x16' },
+    ],
+    apple: '/apple-touch-icon.png',
+    shortcut: '/favicon-32x32.png',
   },
   openGraph: {
     title: '뮤즈드마레 마스터플랜',
@@ -47,7 +52,7 @@ export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   viewportFit: 'cover', // Allow content to extend into safe areas
-  themeColor: '#0a0f1a',
+  themeColor: '#b7916e',
 };
 
 export default function RootLayout({

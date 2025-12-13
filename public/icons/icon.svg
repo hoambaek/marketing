@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Background -->
+  <rect width="512" height="512" fill="#0a0f1a"/>
+
+  <!-- Subtle gradient overlay -->
+  <defs>
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0d1525;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#070b12;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="waveGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#b7916e;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#d4c4a8;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#b7916e;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+
+  <rect width="512" height="512" fill="url(#bgGradient)"/>
+
+  <!-- Wave 1 (top) -->
+  <path
+    d="M80 180
+       Q128 140, 176 180
+       Q224 220, 272 180
+       Q320 140, 368 180
+       Q416 220, 432 180"
+    fill="none"
+    stroke="url(#waveGradient)"
+    stroke-width="24"
+    stroke-linecap="round"
+    opacity="0.9"
+  />
+
+  <!-- Wave 2 (middle) -->
+  <path
+    d="M80 256
+       Q128 216, 176 256
+       Q224 296, 272 256
+       Q320 216, 368 256
+       Q416 296, 432 256"
+    fill="none"
+    stroke="url(#waveGradient)"
+    stroke-width="24"
+    stroke-linecap="round"
+    opacity="0.7"
+  />
+
+  <!-- Wave 3 (bottom) -->
+  <path
+    d="M80 332
+       Q128 292, 176 332
+       Q224 372, 272 332
+       Q320 292, 368 332
+       Q416 372, 432 332"
+    fill="none"
+    stroke="url(#waveGradient)"
+    stroke-width="24"
+    stroke-linecap="round"
+    opacity="0.5"
+  />
+</svg>
