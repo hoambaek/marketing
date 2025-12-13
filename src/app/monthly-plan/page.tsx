@@ -24,6 +24,10 @@ import {
   ChevronRight,
   Plus,
   Sparkles,
+  Pencil,
+  Trash2,
+  X,
+  Check,
 } from 'lucide-react';
 import TaskModal from '@/components/TaskModal';
 import SortableTaskItem from '@/components/SortableTaskItem';
@@ -77,6 +81,9 @@ export default function MonthlyPlanPage() {
     reorderTasks,
     getMustDoByMonth,
     toggleMustDo,
+    addMustDo,
+    updateMustDo,
+    deleteMustDo,
   } = useMasterPlanStore();
 
   const [selectedYear, setSelectedYear] = useState<number>(2026);
@@ -88,6 +95,11 @@ export default function MonthlyPlanPage() {
   // Modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
+
+  // Must-Do state
+  const [showMustDoForm, setShowMustDoForm] = useState(false);
+  const [editingMustDoId, setEditingMustDoId] = useState<string | null>(null);
+  const [mustDoFormData, setMustDoFormData] = useState({ title: '', category: 'operation' as TaskCategory });
 
   // Refs for swipe gestures
   const containerRef = useRef<HTMLDivElement>(null);
@@ -158,6 +170,51 @@ export default function MonthlyPlanPage() {
     } else {
       await addTask(taskData as Omit<Task, 'id' | 'createdAt' | 'updatedAt'>);
     }
+  };
+
+  // Must-Do handlers
+  const handleAddMustDo = () => {
+    setEditingMustDoId(null);
+    setMustDoFormData({ title: '', category: 'operation' });
+    setShowMustDoForm(true);
+  };
+
+  const handleEditMustDo = (item: MustDoItem) => {
+    setEditingMustDoId(item.id);
+    setMustDoFormData({ title: item.title, category: item.category });
+    setShowMustDoForm(true);
+  };
+
+  const handleDeleteMustDo = async (id: string) => {
+    await deleteMustDo(id);
+  };
+
+  const handleSaveMustDo = async () => {
+    if (!mustDoFormData.title.trim()) return;
+
+    if (editingMustDoId) {
+      await updateMustDo(editingMustDoId, {
+        title: mustDoFormData.title,
+        category: mustDoFormData.category,
+      });
+    } else {
+      await addMustDo({
+        year: selectedYear,
+        month: selectedMonth,
+        title: mustDoFormData.title,
+        done: false,
+        category: mustDoFormData.category,
+      });
+    }
+    setShowMustDoForm(false);
+    setEditingMustDoId(null);
+    setMustDoFormData({ title: '', category: 'operation' });
+  };
+
+  const handleCancelMustDo = () => {
+    setShowMustDoForm(false);
+    setEditingMustDoId(null);
+    setMustDoFormData({ title: '', category: 'operation' });
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
@@ -511,134 +568,163 @@ export default function MonthlyPlanPage() {
         </div>
       </section>
 
-      {/* Must-Do Checklist Section */}
-      {mustDoItems.length > 0 && (
-        <section className="relative py-4 sm:py-6 px-4 sm:px-6 lg:px-12">
-          <div className="max-w-4xl mx-auto">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.8 }}
-            >
-              {/* Header */}
-              <div className="flex items-center justify-between mb-3 sm:mb-4">
-                <div className="flex items-center gap-2 sm:gap-3">
-                  <div
-                    className="w-1 h-5 sm:h-6 rounded-full"
-                    style={{ backgroundColor: colors.primary }}
-                  />
-                  <h3 className="text-sm sm:text-base font-medium text-white/90 tracking-wide">
-                    이달의 필수 체크리스트
-                  </h3>
-                  <span
-                    className="text-[10px] sm:text-xs px-2 py-0.5 rounded-full"
-                    style={{
-                      backgroundColor: `${colors.primary}20`,
-                      color: colors.primary
-                    }}
-                  >
-                    {mustDoItems.filter(item => item.done).length}/{mustDoItems.length}
-                  </span>
-                </div>
-              </div>
-
-              {/* Checklist Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
-                {mustDoItems.map((item, index) => (
-                  <motion.div
-                    key={item.id}
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ duration: 0.3, delay: 0.1 * index }}
-                    onClick={() => toggleMustDo(item.id)}
-                    className={`group relative flex items-start gap-3 p-3 sm:p-4 rounded-xl cursor-pointer transition-all duration-300 ${
-                      item.done
-                        ? 'bg-white/[0.02] border border-white/[0.04]'
-                        : 'bg-white/[0.04] border border-white/[0.08] hover:bg-white/[0.06] hover:border-white/[0.12]'
-                    }`}
-                    style={{
-                      boxShadow: !item.done ? `0 0 20px ${colors.glow}` : 'none'
-                    }}
-                  >
-                    {/* Custom Checkbox */}
-                    <div
-                      className={`relative flex-shrink-0 w-5 h-5 sm:w-6 sm:h-6 rounded-lg border-2 transition-all duration-300 flex items-center justify-center ${
-                        item.done
-                          ? 'border-transparent'
-                          : 'border-white/20 group-hover:border-white/40'
-                      }`}
-                      style={{
-                        backgroundColor: item.done ? colors.primary : 'transparent'
-                      }}
-                    >
-                      {item.done && (
-                        <motion.svg
-                          initial={{ scale: 0, opacity: 0 }}
-                          animate={{ scale: 1, opacity: 1 }}
-                          className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-white"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                          strokeWidth={3}
-                        >
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                        </motion.svg>
-                      )}
-                    </div>
-
-                    {/* Content */}
-                    <div className="flex-1 min-w-0">
-                      <p className={`text-sm sm:text-base leading-tight transition-all duration-300 ${
-                        item.done
-                          ? 'text-white/40 line-through'
-                          : 'text-white/80'
-                      }`}>
-                        {item.title}
-                      </p>
-                      <span
-                        className={`inline-block mt-1.5 text-[10px] sm:text-xs px-1.5 py-0.5 rounded transition-all duration-300 ${
-                          item.done ? 'opacity-40' : 'opacity-70'
-                        }`}
-                        style={{
-                          backgroundColor: `${colors.primary}15`,
-                          color: colors.primary
-                        }}
-                      >
-                        {CATEGORY_LABELS[item.category]}
+      {/* Must-Do Checklist Section - Compact */}
+      <section className="relative py-3 sm:py-4 px-4 sm:px-6 lg:px-12">
+        <div className="max-w-4xl mx-auto">
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.6 }}
+            className="p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-white/[0.02] border border-white/[0.06]"
+          >
+            {/* Compact Header */}
+            <div className="flex items-center justify-between mb-2 sm:mb-3">
+              <div className="flex items-center gap-2">
+                <div className="w-0.5 h-4 rounded-full" style={{ backgroundColor: colors.primary }} />
+                <span className="text-xs sm:text-sm font-medium text-white/70">필수 체크</span>
+                {mustDoItems.length > 0 && (
+                  <>
+                    <div className="h-3 w-px bg-white/10" />
+                    <div className="flex items-center gap-1.5">
+                      <div className="h-1 w-12 sm:w-16 rounded-full bg-white/[0.06] overflow-hidden">
+                        <div
+                          className="h-full rounded-full transition-all duration-500"
+                          style={{
+                            width: `${(mustDoItems.filter(i => i.done).length / mustDoItems.length) * 100}%`,
+                            backgroundColor: colors.primary
+                          }}
+                        />
+                      </div>
+                      <span className="text-[10px] text-white/40">
+                        {mustDoItems.filter(i => i.done).length}/{mustDoItems.length}
                       </span>
                     </div>
+                  </>
+                )}
+              </div>
+              <button
+                onClick={handleAddMustDo}
+                className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] sm:text-xs text-white/50 hover:text-white/80 hover:bg-white/[0.04] transition-all"
+              >
+                <Plus className="w-3 h-3" />
+                <span className="hidden sm:inline">추가</span>
+              </button>
+            </div>
 
-                    {/* Decorative Element */}
-                    {!item.done && (
-                      <div
-                        className="absolute right-3 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                        style={{ backgroundColor: colors.primary }}
-                      />
-                    )}
-                  </motion.div>
+            {/* Add/Edit Form */}
+            <AnimatePresence>
+              {showMustDoForm && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="mb-2 sm:mb-3 overflow-hidden"
+                >
+                  <div className="flex items-center gap-2 p-2 rounded-lg bg-white/[0.03] border border-white/[0.08]">
+                    <input
+                      type="text"
+                      value={mustDoFormData.title}
+                      onChange={(e) => setMustDoFormData(prev => ({ ...prev, title: e.target.value }))}
+                      placeholder="체크리스트 항목 입력..."
+                      className="flex-1 bg-transparent text-xs sm:text-sm text-white/80 placeholder:text-white/30 focus:outline-none"
+                      autoFocus
+                      onKeyDown={(e) => e.key === 'Enter' && handleSaveMustDo()}
+                    />
+                    <select
+                      value={mustDoFormData.category}
+                      onChange={(e) => setMustDoFormData(prev => ({ ...prev, category: e.target.value as TaskCategory }))}
+                      className="px-2 py-1 bg-white/[0.04] border border-white/[0.08] rounded text-[10px] sm:text-xs text-white/60 focus:outline-none cursor-pointer"
+                    >
+                      {Object.entries(CATEGORY_LABELS).map(([value, label]) => (
+                        <option key={value} value={value} className="bg-[#0d1525]">{label}</option>
+                      ))}
+                    </select>
+                    <button
+                      onClick={handleSaveMustDo}
+                      className="p-1.5 rounded-md hover:bg-white/[0.06] transition-colors"
+                      style={{ color: colors.primary }}
+                    >
+                      <Check className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={handleCancelMustDo}
+                      className="p-1.5 rounded-md text-white/40 hover:text-white/60 hover:bg-white/[0.06] transition-colors"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* Compact Checklist */}
+            {mustDoItems.length > 0 ? (
+              <div className="space-y-1">
+                {mustDoItems.map((item) => (
+                  <div
+                    key={item.id}
+                    className="group flex items-center gap-2 py-1.5 px-2 -mx-2 rounded-lg hover:bg-white/[0.02] transition-colors"
+                  >
+                    {/* Checkbox */}
+                    <button
+                      onClick={() => toggleMustDo(item.id)}
+                      className={`flex-shrink-0 w-4 h-4 rounded border transition-all flex items-center justify-center ${
+                        item.done
+                          ? 'border-transparent'
+                          : 'border-white/20 hover:border-white/40'
+                      }`}
+                      style={{ backgroundColor: item.done ? colors.primary : 'transparent' }}
+                    >
+                      {item.done && (
+                        <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                        </svg>
+                      )}
+                    </button>
+
+                    {/* Title */}
+                    <span className={`flex-1 text-xs sm:text-sm truncate transition-all ${
+                      item.done ? 'text-white/30 line-through' : 'text-white/70'
+                    }`}>
+                      {item.title}
+                    </span>
+
+                    {/* Category Badge */}
+                    <span
+                      className={`hidden sm:inline text-[9px] px-1.5 py-0.5 rounded transition-all ${
+                        item.done ? 'opacity-30' : 'opacity-60'
+                      }`}
+                      style={{ backgroundColor: `${colors.primary}15`, color: colors.primary }}
+                    >
+                      {CATEGORY_LABELS[item.category]}
+                    </span>
+
+                    {/* Action Buttons */}
+                    <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleEditMustDo(item); }}
+                        className="p-1 rounded text-white/30 hover:text-white/60 hover:bg-white/[0.04] transition-colors"
+                      >
+                        <Pencil className="w-3 h-3" />
+                      </button>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleDeleteMustDo(item.id); }}
+                        className="p-1 rounded text-white/30 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                    </div>
+                  </div>
                 ))}
               </div>
-
-              {/* Progress Bar */}
-              <div className="mt-4 sm:mt-5">
-                <div className="h-1 sm:h-1.5 rounded-full bg-white/[0.06] overflow-hidden">
-                  <motion.div
-                    initial={{ width: 0 }}
-                    animate={{
-                      width: `${(mustDoItems.filter(item => item.done).length / mustDoItems.length) * 100}%`
-                    }}
-                    transition={{ duration: 0.8, ease: 'easeOut' }}
-                    className="h-full rounded-full"
-                    style={{
-                      background: `linear-gradient(90deg, ${colors.primary}, ${colors.primary}80)`
-                    }}
-                  />
-                </div>
-              </div>
-            </motion.div>
-          </div>
-        </section>
-      )}
+            ) : (
+              <p className="text-xs text-white/30 text-center py-2">
+                이번 달 필수 체크 항목이 없습니다
+              </p>
+            )}
+          </motion.div>
+        </div>
+      </section>
 
       {/* Week Tabs & Tasks Section */}
       <section className="relative py-6 px-4 sm:px-6 lg:px-12">
