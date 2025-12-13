@@ -11,6 +11,7 @@ import {
   IssueStatus,
   TaskCategory,
   Task,
+  ContentItem,
   ISSUE_TYPE_LABELS,
   ISSUE_TYPE_COLORS,
   ISSUE_PRIORITY_LABELS,
@@ -20,6 +21,7 @@ import {
   ISSUE_STATUS_COLORS,
   CATEGORY_LABELS,
   MONTHS_INFO,
+  CONTENT_TYPES,
 } from '@/lib/types';
 import { toast } from '@/lib/store/toast-store';
 
@@ -32,8 +34,11 @@ interface IssueModalProps {
   defaultYear?: number;
   defaultMonth?: number;
   tasks?: Task[]; // 월별플랜 업무 목록
+  contentItems?: ContentItem[]; // 캘린더 컨텐츠 목록
   initialMode?: 'view' | 'edit';
 }
+
+type RelatedItemTab = 'tasks' | 'content';
 
 const TYPE_OPTIONS: IssueType[] = ['issue', 'risk', 'decision'];
 const PRIORITY_OPTIONS: IssuePriority[] = ['low', 'medium', 'high', 'critical'];
@@ -56,6 +61,7 @@ export default function IssueModal({
   defaultYear = 2026,
   defaultMonth = 1,
   tasks = [],
+  contentItems = [],
   initialMode = 'edit',
 }: IssueModalProps) {
   const [formData, setFormData] = useState({
@@ -78,6 +84,7 @@ export default function IssueModal({
   const [isEditing, setIsEditing] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [showTaskSelector, setShowTaskSelector] = useState(false);
+  const [relatedItemTab, setRelatedItemTab] = useState<RelatedItemTab>('tasks');
 
   useEffect(() => {
     setIsMobile(window.innerWidth < 640);
@@ -142,6 +149,12 @@ export default function IssueModal({
   // 선택한 월에 해당하는 업무만 필터링
   const filteredTasks = tasks.filter((t) => t.month === formData.month);
 
+  // 선택한 월에 해당하는 컨텐츠만 필터링
+  const filteredContentItems = contentItems.filter((c) => {
+    const contentMonth = new Date(c.date).getMonth() + 1;
+    return contentMonth === formData.month && c.year === formData.year;
+  });
+
   const handleTaskSelect = (task: Task) => {
     setFormData(prev => ({
       ...prev,
@@ -149,6 +162,17 @@ export default function IssueModal({
       relatedTaskTitle: task.title,
       title: prev.title || `[${task.title}] 관련 이슈`,
       category: task.category,
+    }));
+    setShowTaskSelector(false);
+  };
+
+  const handleContentSelect = (content: ContentItem) => {
+    setFormData(prev => ({
+      ...prev,
+      relatedTaskId: content.id,
+      relatedTaskTitle: `[캘린더] ${content.title}`,
+      title: prev.title || `[${content.title}] 관련 이슈`,
+      category: 'marketing' as TaskCategory, // 컨텐츠는 기본적으로 마케팅 카테고리
     }));
     setShowTaskSelector(false);
   };
@@ -296,7 +320,7 @@ export default function IssueModal({
             /* Edit Mode */
             <form onSubmit={handleSubmit} className="p-5 space-y-4">
               {/* Related Task Selector */}
-              {!issue && filteredTasks.length > 0 && (
+              {!issue && (filteredTasks.length > 0 || filteredContentItems.length > 0) && (
                 <div>
                   <label className="block text-sm font-medium text-foreground mb-1.5">
                     <div className="flex items-center gap-2">
@@ -325,7 +349,7 @@ export default function IssueModal({
                         onClick={() => setShowTaskSelector(!showTaskSelector)}
                         className="w-full px-4 py-2.5 bg-background border border-border rounded-xl text-left text-muted-foreground hover:border-accent/50 transition-all flex items-center justify-between"
                       >
-                        <span>월별플랜 업무에서 선택...</span>
+                        <span>연관 업무 선택...</span>
                         <ChevronDown className={`w-4 h-4 transition-transform ${showTaskSelector ? 'rotate-180' : ''}`} />
                       </button>
 
@@ -335,27 +359,78 @@ export default function IssueModal({
                             initial={{ opacity: 0, y: -10 }}
                             animate={{ opacity: 1, y: 0 }}
                             exit={{ opacity: 0, y: -10 }}
-                            className="absolute z-10 w-full mt-2 bg-[#1a1f2e] border border-white/10 rounded-xl shadow-2xl overflow-hidden max-h-60 overflow-y-auto"
+                            className="absolute z-10 w-full mt-2 bg-[#1a1f2e] border border-white/10 rounded-xl shadow-2xl overflow-hidden"
                           >
-                            {filteredTasks.length > 0 ? (
-                              filteredTasks.map((task) => (
-                                <button
-                                  key={task.id}
-                                  type="button"
-                                  onClick={() => handleTaskSelect(task)}
-                                  className="w-full px-4 py-3 text-left hover:bg-white/10 active:bg-white/15 transition-colors border-b border-white/5 last:border-0"
-                                >
-                                  <p className="text-sm font-medium text-white/90 truncate">{task.title}</p>
-                                  <p className="text-xs text-white/50 mt-0.5">
-                                    {CATEGORY_LABELS[task.category]} · {task.week}주차
-                                  </p>
-                                </button>
-                              ))
-                            ) : (
-                              <div className="px-4 py-3 text-sm text-white/40">
-                                이 달에 등록된 업무가 없습니다
-                              </div>
-                            )}
+                            {/* Tabs */}
+                            <div className="flex border-b border-white/10">
+                              <button
+                                type="button"
+                                onClick={() => setRelatedItemTab('tasks')}
+                                className={`flex-1 px-4 py-2.5 text-sm font-medium transition-colors ${
+                                  relatedItemTab === 'tasks'
+                                    ? 'text-[#b7916e] bg-[#b7916e]/10 border-b-2 border-[#b7916e]'
+                                    : 'text-white/50 hover:text-white/70'
+                                }`}
+                              >
+                                월별플랜 ({filteredTasks.length})
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setRelatedItemTab('content')}
+                                className={`flex-1 px-4 py-2.5 text-sm font-medium transition-colors ${
+                                  relatedItemTab === 'content'
+                                    ? 'text-[#b7916e] bg-[#b7916e]/10 border-b-2 border-[#b7916e]'
+                                    : 'text-white/50 hover:text-white/70'
+                                }`}
+                              >
+                                캘린더 ({filteredContentItems.length})
+                              </button>
+                            </div>
+
+                            {/* Task List */}
+                            <div className="max-h-48 overflow-y-auto">
+                              {relatedItemTab === 'tasks' ? (
+                                filteredTasks.length > 0 ? (
+                                  filteredTasks.map((task) => (
+                                    <button
+                                      key={task.id}
+                                      type="button"
+                                      onClick={() => handleTaskSelect(task)}
+                                      className="w-full px-4 py-3 text-left hover:bg-white/10 active:bg-white/15 transition-colors border-b border-white/5 last:border-0"
+                                    >
+                                      <p className="text-sm font-medium text-white/90 truncate">{task.title}</p>
+                                      <p className="text-xs text-white/50 mt-0.5">
+                                        {CATEGORY_LABELS[task.category]} · {task.week}주차
+                                      </p>
+                                    </button>
+                                  ))
+                                ) : (
+                                  <div className="px-4 py-3 text-sm text-white/40">
+                                    이 달에 등록된 업무가 없습니다
+                                  </div>
+                                )
+                              ) : (
+                                filteredContentItems.length > 0 ? (
+                                  filteredContentItems.map((content) => (
+                                    <button
+                                      key={content.id}
+                                      type="button"
+                                      onClick={() => handleContentSelect(content)}
+                                      className="w-full px-4 py-3 text-left hover:bg-white/10 active:bg-white/15 transition-colors border-b border-white/5 last:border-0"
+                                    >
+                                      <p className="text-sm font-medium text-white/90 truncate">{content.title}</p>
+                                      <p className="text-xs text-white/50 mt-0.5">
+                                        {CONTENT_TYPES[content.type]} · {new Date(content.date).getDate()}일
+                                      </p>
+                                    </button>
+                                  ))
+                                ) : (
+                                  <div className="px-4 py-3 text-sm text-white/40">
+                                    이 달에 등록된 컨텐츠가 없습니다
+                                  </div>
+                                )
+                              )}
+                            </div>
                           </motion.div>
                         )}
                       </AnimatePresence>

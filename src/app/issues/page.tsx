@@ -117,7 +117,7 @@ export default function IssuesPage() {
     getCriticalIssues,
   } = useIssueStore();
 
-  const { tasks } = useMasterPlanStore();
+  const { tasks, contentItems } = useMasterPlanStore();
 
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
@@ -260,9 +260,7 @@ export default function IssuesPage() {
                 className="text-3xl sm:text-5xl lg:text-6xl text-white/95 mb-2 sm:mb-6 leading-[1.1] tracking-tight"
                 style={{ fontFamily: "var(--font-cormorant), 'Playfair Display', Georgia, serif" }}
               >
-                <span className="sm:block inline">Issue </span>
-                <span className="sm:hidden">&amp; </span>
-                <span className="hidden sm:block">&amp;</span>
+                <span className="sm:block inline">Issue &amp; </span>
                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#b7916e] via-[#d4c4a8] to-[#b7916e]">
                   Risk Tracker
                 </span>
@@ -739,8 +737,10 @@ export default function IssuesPage() {
         onSave={handleSaveItem}
         issue={editingItem}
         defaultMonth={selectedMonth}
+        defaultYear={selectedYear}
         initialMode={modalMode}
         tasks={tasks}
+        contentItems={contentItems}
       />
     </div>
   );
