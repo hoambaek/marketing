@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useState, useEffect, useMemo } from 'react';
 import { useBudgetStore } from '@/lib/store/budget-store';
 import { toast } from '@/lib/store/toast-store';
+import { Footer } from '@/components/layout/Footer';
 import {
   BudgetItem,
   ExpenseItem,
@@ -696,6 +697,9 @@ export default function BudgetPage() {
           </AnimatePresence>
         </div>
       </section>
+
+      {/* Footer */}
+      <Footer subtitle="Budget Management" />
 
       {/* Modals */}
       <BudgetModal

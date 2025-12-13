@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { AVAILABLE_YEARS } from '@/lib/types';
+import { Footer } from '@/components/layout/Footer';
 import {
   DndContext,
   closestCenter,
@@ -460,22 +461,11 @@ export default function MonthDetailPage() {
             )}
           </div>
 
-          {/* Bottom Decoration */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 1, delay: 0.8 }}
-            className="mt-16 text-center"
-          >
-            <div className="flex items-center justify-center gap-2 mb-3">
-              <Waves className="w-4 h-4 text-[#b7916e]/50" />
-            </div>
-            <p className="text-[10px] uppercase tracking-[0.3em] text-white/20">
-              Muse de Marée · {month.name}
-            </p>
-          </motion.div>
         </div>
       </section>
+
+      {/* Footer */}
+      <Footer subtitle={month.name} />
 
       {/* Task Modal */}
       <TaskModal

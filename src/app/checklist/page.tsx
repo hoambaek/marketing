@@ -6,6 +6,7 @@ import { useMasterPlanStore } from '@/lib/store/masterplan-store';
 import { MustDoItem, MONTHS_INFO, AVAILABLE_YEARS, CATEGORY_LABELS, CATEGORY_COLORS } from '@/lib/types';
 import { CheckCircle2, Circle, Filter, Plus, Pencil, Trash2, ListChecks } from 'lucide-react';
 import MustDoModal from '@/components/MustDoModal';
+import { Footer } from '@/components/layout/Footer';
 
 type FilterType = 'all' | 'pending' | 'done';
 
@@ -425,24 +426,8 @@ export default function ChecklistPage() {
         </div>
       </section>
 
-      {/* Bottom Decoration */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 1.5, delay: 1.5 }}
-        className="relative py-20 px-6"
-      >
-        <div className="max-w-7xl mx-auto flex items-center justify-center gap-6">
-          <div className="h-px flex-1 bg-gradient-to-r from-transparent via-white/10 to-transparent" />
-          <span
-            className="text-white/10 text-sm tracking-[0.3em] uppercase"
-            style={{ fontFamily: "var(--font-cormorant), serif" }}
-          >
-            Muse de Marée
-          </span>
-          <div className="h-px flex-1 bg-gradient-to-r from-transparent via-white/10 to-transparent" />
-        </div>
-      </motion.div>
+      {/* Footer */}
+      <Footer />
 
       {/* Must-Do Modal */}
       <MustDoModal

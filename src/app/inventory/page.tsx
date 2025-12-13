@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useState, useEffect } from 'react';
 import { useInventoryStore } from '@/lib/store/inventory-store';
 import { toast } from '@/lib/store/toast-store';
+import { Footer } from '@/components/layout/Footer';
 import {
   PRODUCTS,
   Product,
@@ -1502,19 +1503,11 @@ export default function InventoryPage() {
             </motion.div>
           </motion.div>
 
-          {/* Bottom Decoration */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 1, delay: 0.8 }}
-            className="mt-20 text-center"
-          >
-            <p className="text-[10px] uppercase tracking-[0.3em] text-white/20">
-              Muse de Marée · Inventory Management
-            </p>
-          </motion.div>
         </div>
       </section>
+
+      {/* Footer */}
+      <Footer subtitle="Inventory Management" />
 
       {/* Batch Adjust Modal */}
       <BatchAdjustModal

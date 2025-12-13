@@ -7,6 +7,7 @@ import { useMasterPlanStore } from '@/lib/store/masterplan-store';
 import { useBudgetStore } from '@/lib/store/budget-store';
 import { useIssueStore } from '@/lib/store/issue-store';
 import { useInventoryStore } from '@/lib/store/inventory-store';
+import { Footer } from '@/components/layout/Footer';
 import {
   MONTHS_INFO,
   PHASE_INFO,
@@ -861,24 +862,8 @@ export default function DashboardPage() {
         </motion.div>
       </section>
 
-      {/* Bottom Decoration */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 1.5, delay: 1.5 }}
-        className="relative py-12 px-6"
-      >
-        <div className="max-w-7xl mx-auto flex items-center justify-center gap-6">
-          <div className="h-px flex-1 bg-gradient-to-r from-transparent via-white/10 to-transparent" />
-          <span
-            className="text-white/10 text-xs tracking-[0.3em] uppercase"
-            style={{ fontFamily: "var(--font-cormorant), serif" }}
-          >
-            Muse de Marée
-          </span>
-          <div className="h-px flex-1 bg-gradient-to-r from-transparent via-white/10 to-transparent" />
-        </div>
-      </motion.div>
+      {/* Footer */}
+      <Footer />
     </div>
   );
 }

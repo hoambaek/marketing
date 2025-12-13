@@ -8,6 +8,7 @@ import { useInventoryStore } from '@/lib/store/inventory-store';
 import { useBudgetStore } from '@/lib/store/budget-store';
 import { toast } from '@/lib/store/toast-store';
 import { AVAILABLE_YEARS } from '@/lib/types';
+import { Footer } from '@/components/layout/Footer';
 import {
   Download,
   Upload,
@@ -268,27 +269,27 @@ export default function SettingsPage() {
         />
       </div>
 
-      {/* Hero Section */}
-      <section className="px-4 sm:px-6 lg:px-8 pt-24 sm:pt-28 pb-8">
+      {/* Hero Section - Compact on Mobile */}
+      <section className="px-4 sm:px-6 lg:px-8 pt-8 sm:pt-24 pb-4 sm:pb-8">
         <div className="mx-auto max-w-5xl">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8 }}
-            className="text-center mb-12"
+            className="text-center mb-6 sm:mb-12"
           >
-            {/* Decorative Element */}
+            {/* Decorative Element - Smaller on Mobile */}
             <motion.div
               initial={{ opacity: 0, scale: 0.8 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.6, delay: 0.2 }}
-              className="inline-flex items-center gap-4 mb-8"
+              className="inline-flex items-center gap-2 sm:gap-4 mb-4 sm:mb-8"
             >
-              <div className="h-px w-12 sm:w-20 bg-gradient-to-r from-transparent via-[#b7916e]/50 to-[#b7916e]/80" />
-              <div className="p-3 rounded-2xl bg-gradient-to-br from-[#b7916e]/20 to-[#b7916e]/5 border border-[#b7916e]/20">
-                <Settings className="w-6 h-6 text-[#d4c4a8]" />
+              <div className="hidden sm:block h-px w-20 bg-gradient-to-r from-transparent via-[#b7916e]/50 to-[#b7916e]/80" />
+              <div className="p-2 sm:p-3 rounded-xl sm:rounded-2xl bg-gradient-to-br from-[#b7916e]/20 to-[#b7916e]/5 border border-[#b7916e]/20">
+                <Settings className="w-5 h-5 sm:w-6 sm:h-6 text-[#d4c4a8]" />
               </div>
-              <div className="h-px w-12 sm:w-20 bg-gradient-to-l from-transparent via-[#b7916e]/50 to-[#b7916e]/80" />
+              <div className="hidden sm:block h-px w-20 bg-gradient-to-l from-transparent via-[#b7916e]/50 to-[#b7916e]/80" />
             </motion.div>
 
             {/* Title */}
@@ -296,7 +297,7 @@ export default function SettingsPage() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, delay: 0.3 }}
-              className="text-4xl sm:text-5xl lg:text-6xl text-white/95 mb-4 tracking-tight"
+              className="text-3xl sm:text-5xl lg:text-6xl text-white/95 mb-2 sm:mb-4 tracking-tight"
               style={{ fontFamily: "var(--font-cormorant), 'Playfair Display', Georgia, serif" }}
             >
               설정
@@ -306,7 +307,7 @@ export default function SettingsPage() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ duration: 0.8, delay: 0.5 }}
-              className="text-white/40 text-lg max-w-md mx-auto font-light"
+              className="hidden sm:block text-white/40 text-lg max-w-md mx-auto font-light"
             >
               앱 환경 설정 및 데이터 관리
             </motion.p>
@@ -335,40 +336,40 @@ export default function SettingsPage() {
               >
                 <motion.div
                   variants={cardHover}
-                  className="relative rounded-3xl overflow-hidden"
+                  className="relative rounded-2xl sm:rounded-3xl overflow-hidden"
                 >
                   {/* Card Background */}
                   <div className="absolute inset-0 bg-gradient-to-br from-white/[0.04] to-white/[0.01]" />
-                  <div className="absolute inset-0 border border-white/[0.08] rounded-3xl" />
+                  <div className="absolute inset-0 border border-white/[0.08] rounded-2xl sm:rounded-3xl" />
 
                   {/* Header */}
-                  <div className="relative px-6 py-5 border-b border-white/[0.06] flex items-center gap-4">
-                    <div className="p-2.5 rounded-xl bg-gradient-to-br from-violet-500/20 to-violet-500/5 border border-violet-500/20">
-                      <Zap className="w-5 h-5 text-violet-400" />
+                  <div className="relative px-4 sm:px-6 py-4 sm:py-5 border-b border-white/[0.06] flex items-center gap-3 sm:gap-4">
+                    <div className="p-2 sm:p-2.5 rounded-lg sm:rounded-xl bg-gradient-to-br from-violet-500/20 to-violet-500/5 border border-violet-500/20">
+                      <Zap className="w-4 h-4 sm:w-5 sm:h-5 text-violet-400" />
                     </div>
                     <div>
                       <h2
-                        className="text-xl text-white/90"
+                        className="text-lg sm:text-xl text-white/90"
                         style={{ fontFamily: "var(--font-cormorant), 'Playfair Display', Georgia, serif" }}
                       >
                         앱 설정
                       </h2>
-                      <p className="text-sm text-white/40">기본 환경 설정</p>
+                      <p className="text-xs sm:text-sm text-white/40">기본 환경 설정</p>
                     </div>
                   </div>
 
                   {/* Content */}
-                  <div className="relative p-6 space-y-5">
+                  <div className="relative p-4 sm:p-6 space-y-4 sm:space-y-5">
                     {/* Default Year */}
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <Calendar className="w-4 h-4 text-white/40" />
-                        <span className="text-white/70">기본 연도</span>
+                      <div className="flex items-center gap-2 sm:gap-3">
+                        <Calendar className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white/40" />
+                        <span className="text-sm sm:text-base text-white/70">기본 연도</span>
                       </div>
                       <select
                         value={appSettings.defaultYear}
                         onChange={(e) => saveSettings({ defaultYear: parseInt(e.target.value) })}
-                        className="px-4 py-2 bg-white/[0.04] border border-white/[0.08] rounded-xl text-white/80 focus:outline-none focus:ring-2 focus:ring-[#b7916e]/30 focus:border-[#b7916e]/50 transition-all cursor-pointer appearance-none min-w-[120px]"
+                        className="px-3 sm:px-4 py-1.5 sm:py-2 bg-white/[0.04] border border-white/[0.08] rounded-lg sm:rounded-xl text-sm sm:text-base text-white/80 focus:outline-none focus:ring-2 focus:ring-[#b7916e]/30 focus:border-[#b7916e]/50 transition-all cursor-pointer appearance-none min-w-[100px] sm:min-w-[120px]"
                       >
                         {AVAILABLE_YEARS.map((year) => (
                           <option key={year} value={year} className="bg-[#0d1525]">
@@ -380,14 +381,14 @@ export default function SettingsPage() {
 
                     {/* Currency */}
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <Wallet className="w-4 h-4 text-white/40" />
-                        <span className="text-white/70">통화 단위</span>
+                      <div className="flex items-center gap-2 sm:gap-3">
+                        <Wallet className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white/40" />
+                        <span className="text-sm sm:text-base text-white/70">통화 단위</span>
                       </div>
                       <select
                         value={appSettings.currency}
                         onChange={(e) => saveSettings({ currency: e.target.value })}
-                        className="px-4 py-2 bg-white/[0.04] border border-white/[0.08] rounded-xl text-white/80 focus:outline-none focus:ring-2 focus:ring-[#b7916e]/30 focus:border-[#b7916e]/50 transition-all cursor-pointer appearance-none min-w-[140px]"
+                        className="px-3 sm:px-4 py-1.5 sm:py-2 bg-white/[0.04] border border-white/[0.08] rounded-lg sm:rounded-xl text-sm sm:text-base text-white/80 focus:outline-none focus:ring-2 focus:ring-[#b7916e]/30 focus:border-[#b7916e]/50 transition-all cursor-pointer appearance-none min-w-[110px] sm:min-w-[140px]"
                       >
                         {CURRENCY_OPTIONS.map((opt) => (
                           <option key={opt.value} value={opt.value} className="bg-[#0d1525]">
@@ -399,14 +400,14 @@ export default function SettingsPage() {
 
                     {/* Items per page */}
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <Eye className="w-4 h-4 text-white/40" />
-                        <span className="text-white/70">페이지당 항목</span>
+                      <div className="flex items-center gap-2 sm:gap-3">
+                        <Eye className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white/40" />
+                        <span className="text-sm sm:text-base text-white/70">페이지당 항목</span>
                       </div>
                       <select
                         value={appSettings.itemsPerPage}
                         onChange={(e) => saveSettings({ itemsPerPage: parseInt(e.target.value) })}
-                        className="px-4 py-2 bg-white/[0.04] border border-white/[0.08] rounded-xl text-white/80 focus:outline-none focus:ring-2 focus:ring-[#b7916e]/30 focus:border-[#b7916e]/50 transition-all cursor-pointer appearance-none min-w-[100px]"
+                        className="px-3 sm:px-4 py-1.5 sm:py-2 bg-white/[0.04] border border-white/[0.08] rounded-lg sm:rounded-xl text-sm sm:text-base text-white/80 focus:outline-none focus:ring-2 focus:ring-[#b7916e]/30 focus:border-[#b7916e]/50 transition-all cursor-pointer appearance-none min-w-[80px] sm:min-w-[100px]"
                       >
                         {ITEMS_PER_PAGE_OPTIONS.map((num) => (
                           <option key={num} value={num} className="bg-[#0d1525]">
@@ -421,28 +422,28 @@ export default function SettingsPage() {
 
               {/* Notification Settings Card */}
               <motion.div variants={itemVariants}>
-                <div className="relative rounded-3xl overflow-hidden">
+                <div className="relative rounded-2xl sm:rounded-3xl overflow-hidden">
                   <div className="absolute inset-0 bg-gradient-to-br from-white/[0.04] to-white/[0.01]" />
-                  <div className="absolute inset-0 border border-white/[0.08] rounded-3xl" />
+                  <div className="absolute inset-0 border border-white/[0.08] rounded-2xl sm:rounded-3xl" />
 
                   {/* Header */}
-                  <div className="relative px-6 py-5 border-b border-white/[0.06] flex items-center gap-4">
-                    <div className="p-2.5 rounded-xl bg-gradient-to-br from-amber-500/20 to-amber-500/5 border border-amber-500/20">
-                      <Bell className="w-5 h-5 text-amber-400" />
+                  <div className="relative px-4 sm:px-6 py-4 sm:py-5 border-b border-white/[0.06] flex items-center gap-3 sm:gap-4">
+                    <div className="p-2 sm:p-2.5 rounded-lg sm:rounded-xl bg-gradient-to-br from-amber-500/20 to-amber-500/5 border border-amber-500/20">
+                      <Bell className="w-4 h-4 sm:w-5 sm:h-5 text-amber-400" />
                     </div>
                     <div>
                       <h2
-                        className="text-xl text-white/90"
+                        className="text-lg sm:text-xl text-white/90"
                         style={{ fontFamily: "var(--font-cormorant), 'Playfair Display', Georgia, serif" }}
                       >
                         알림 설정
                       </h2>
-                      <p className="text-sm text-white/40">알림 및 경고 설정</p>
+                      <p className="text-xs sm:text-sm text-white/40">알림 및 경고 설정</p>
                     </div>
                   </div>
 
                   {/* Content */}
-                  <div className="relative p-6 space-y-4">
+                  <div className="relative p-3 sm:p-6 space-y-2 sm:space-y-4">
                     {/* Budget Alerts */}
                     <button
                       onClick={() =>
@@ -453,27 +454,27 @@ export default function SettingsPage() {
                           },
                         })
                       }
-                      className="w-full flex items-center justify-between p-4 rounded-2xl bg-white/[0.02] border border-white/[0.06] hover:bg-white/[0.04] transition-all group"
+                      className="w-full flex items-center justify-between p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-white/[0.02] border border-white/[0.06] hover:bg-white/[0.04] transition-all group"
                     >
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 rounded-lg bg-rose-500/10 border border-rose-500/20">
-                          <Wallet className="w-4 h-4 text-rose-400" />
+                      <div className="flex items-center gap-2 sm:gap-3">
+                        <div className="p-1.5 sm:p-2 rounded-md sm:rounded-lg bg-rose-500/10 border border-rose-500/20">
+                          <Wallet className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-rose-400" />
                         </div>
                         <div className="text-left">
-                          <p className="text-white/80 font-medium">예산 초과 알림</p>
-                          <p className="text-sm text-white/40">예산 80% 초과 시 경고</p>
+                          <p className="text-sm sm:text-base text-white/80 font-medium">예산 초과 알림</p>
+                          <p className="text-xs sm:text-sm text-white/40">예산 80% 초과 시 경고</p>
                         </div>
                       </div>
                       <div
-                        className={`w-12 h-7 rounded-full transition-all relative ${
+                        className={`w-10 sm:w-12 h-6 sm:h-7 rounded-full transition-all relative flex-shrink-0 ${
                           appSettings.notifications.budgetAlerts
                             ? 'bg-[#b7916e]'
                             : 'bg-white/10'
                         }`}
                       >
                         <div
-                          className={`absolute top-1 w-5 h-5 rounded-full bg-white shadow-lg transition-all ${
-                            appSettings.notifications.budgetAlerts ? 'left-6' : 'left-1'
+                          className={`absolute top-1 w-4 sm:w-5 h-4 sm:h-5 rounded-full bg-white shadow-lg transition-all ${
+                            appSettings.notifications.budgetAlerts ? 'left-5 sm:left-6' : 'left-1'
                           }`}
                         />
                       </div>
@@ -489,27 +490,27 @@ export default function SettingsPage() {
                           },
                         })
                       }
-                      className="w-full flex items-center justify-between p-4 rounded-2xl bg-white/[0.02] border border-white/[0.06] hover:bg-white/[0.04] transition-all group"
+                      className="w-full flex items-center justify-between p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-white/[0.02] border border-white/[0.06] hover:bg-white/[0.04] transition-all group"
                     >
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 rounded-lg bg-blue-500/10 border border-blue-500/20">
-                          <Clock className="w-4 h-4 text-blue-400" />
+                      <div className="flex items-center gap-2 sm:gap-3">
+                        <div className="p-1.5 sm:p-2 rounded-md sm:rounded-lg bg-blue-500/10 border border-blue-500/20">
+                          <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-blue-400" />
                         </div>
                         <div className="text-left">
-                          <p className="text-white/80 font-medium">마감일 알림</p>
-                          <p className="text-sm text-white/40">마감 3일 전 알림</p>
+                          <p className="text-sm sm:text-base text-white/80 font-medium">마감일 알림</p>
+                          <p className="text-xs sm:text-sm text-white/40">마감 3일 전 알림</p>
                         </div>
                       </div>
                       <div
-                        className={`w-12 h-7 rounded-full transition-all relative ${
+                        className={`w-10 sm:w-12 h-6 sm:h-7 rounded-full transition-all relative flex-shrink-0 ${
                           appSettings.notifications.dueDateAlerts
                             ? 'bg-[#b7916e]'
                             : 'bg-white/10'
                         }`}
                       >
                         <div
-                          className={`absolute top-1 w-5 h-5 rounded-full bg-white shadow-lg transition-all ${
-                            appSettings.notifications.dueDateAlerts ? 'left-6' : 'left-1'
+                          className={`absolute top-1 w-4 sm:w-5 h-4 sm:h-5 rounded-full bg-white shadow-lg transition-all ${
+                            appSettings.notifications.dueDateAlerts ? 'left-5 sm:left-6' : 'left-1'
                           }`}
                         />
                       </div>
@@ -525,27 +526,27 @@ export default function SettingsPage() {
                           },
                         })
                       }
-                      className="w-full flex items-center justify-between p-4 rounded-2xl bg-white/[0.02] border border-white/[0.06] hover:bg-white/[0.04] transition-all group"
+                      className="w-full flex items-center justify-between p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-white/[0.02] border border-white/[0.06] hover:bg-white/[0.04] transition-all group"
                     >
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
-                          <Package className="w-4 h-4 text-emerald-400" />
+                      <div className="flex items-center gap-2 sm:gap-3">
+                        <div className="p-1.5 sm:p-2 rounded-md sm:rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+                          <Package className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-400" />
                         </div>
                         <div className="text-left">
-                          <p className="text-white/80 font-medium">재고 부족 알림</p>
-                          <p className="text-sm text-white/40">재고 10개 미만 시 경고</p>
+                          <p className="text-sm sm:text-base text-white/80 font-medium">재고 부족 알림</p>
+                          <p className="text-xs sm:text-sm text-white/40">재고 10개 미만 시 경고</p>
                         </div>
                       </div>
                       <div
-                        className={`w-12 h-7 rounded-full transition-all relative ${
+                        className={`w-10 sm:w-12 h-6 sm:h-7 rounded-full transition-all relative flex-shrink-0 ${
                           appSettings.notifications.lowStockAlerts
                             ? 'bg-[#b7916e]'
                             : 'bg-white/10'
                         }`}
                       >
                         <div
-                          className={`absolute top-1 w-5 h-5 rounded-full bg-white shadow-lg transition-all ${
-                            appSettings.notifications.lowStockAlerts ? 'left-6' : 'left-1'
+                          className={`absolute top-1 w-4 sm:w-5 h-4 sm:h-5 rounded-full bg-white shadow-lg transition-all ${
+                            appSettings.notifications.lowStockAlerts ? 'left-5 sm:left-6' : 'left-1'
                           }`}
                         />
                       </div>
@@ -556,80 +557,80 @@ export default function SettingsPage() {
 
               {/* Data Management Card */}
               <motion.div variants={itemVariants}>
-                <div className="relative rounded-3xl overflow-hidden">
+                <div className="relative rounded-2xl sm:rounded-3xl overflow-hidden">
                   <div className="absolute inset-0 bg-gradient-to-br from-white/[0.04] to-white/[0.01]" />
-                  <div className="absolute inset-0 border border-white/[0.08] rounded-3xl" />
+                  <div className="absolute inset-0 border border-white/[0.08] rounded-2xl sm:rounded-3xl" />
 
                   {/* Header */}
-                  <div className="relative px-6 py-5 border-b border-white/[0.06] flex items-center gap-4">
-                    <div className="p-2.5 rounded-xl bg-gradient-to-br from-blue-500/20 to-blue-500/5 border border-blue-500/20">
-                      <Shield className="w-5 h-5 text-blue-400" />
+                  <div className="relative px-4 sm:px-6 py-4 sm:py-5 border-b border-white/[0.06] flex items-center gap-3 sm:gap-4">
+                    <div className="p-2 sm:p-2.5 rounded-lg sm:rounded-xl bg-gradient-to-br from-blue-500/20 to-blue-500/5 border border-blue-500/20">
+                      <Shield className="w-4 h-4 sm:w-5 sm:h-5 text-blue-400" />
                     </div>
                     <div>
                       <h2
-                        className="text-xl text-white/90"
+                        className="text-lg sm:text-xl text-white/90"
                         style={{ fontFamily: "var(--font-cormorant), 'Playfair Display', Georgia, serif" }}
                       >
                         데이터 관리
                       </h2>
-                      <p className="text-sm text-white/40">백업 및 복원</p>
+                      <p className="text-xs sm:text-sm text-white/40">백업 및 복원</p>
                     </div>
                   </div>
 
                   {/* Content */}
-                  <div className="relative p-6 space-y-3">
+                  <div className="relative p-3 sm:p-6 space-y-2 sm:space-y-3">
                     {/* Export */}
                     <button
                       onClick={handleExport}
-                      className="w-full flex items-center gap-4 p-4 rounded-2xl bg-white/[0.02] border border-white/[0.06] hover:bg-blue-500/[0.05] hover:border-blue-500/20 transition-all text-left group"
+                      className="w-full flex items-center gap-3 sm:gap-4 p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-white/[0.02] border border-white/[0.06] hover:bg-blue-500/[0.05] hover:border-blue-500/20 transition-all text-left group"
                     >
-                      <div className="p-2.5 rounded-xl bg-blue-500/20 border border-blue-500/30 group-hover:bg-blue-500/30 transition-colors">
-                        <Download className="w-5 h-5 text-blue-400" />
+                      <div className="p-2 sm:p-2.5 rounded-lg sm:rounded-xl bg-blue-500/20 border border-blue-500/30 group-hover:bg-blue-500/30 transition-colors">
+                        <Download className="w-4 h-4 sm:w-5 sm:h-5 text-blue-400" />
                       </div>
-                      <div className="flex-1">
-                        <p className="font-medium text-white/80">데이터 내보내기</p>
-                        <p className="text-sm text-white/40">JSON 파일로 백업</p>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm sm:text-base font-medium text-white/80">데이터 내보내기</p>
+                        <p className="text-xs sm:text-sm text-white/40">JSON 파일로 백업</p>
                       </div>
-                      <ChevronRight className="w-5 h-5 text-white/20 group-hover:text-white/40 transition-colors" />
+                      <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5 text-white/20 group-hover:text-white/40 transition-colors flex-shrink-0" />
                     </button>
 
                     {/* Import */}
                     <button
                       onClick={handleImport}
-                      className="w-full flex items-center gap-4 p-4 rounded-2xl bg-white/[0.02] border border-white/[0.06] hover:bg-emerald-500/[0.05] hover:border-emerald-500/20 transition-all text-left group"
+                      className="w-full flex items-center gap-3 sm:gap-4 p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-white/[0.02] border border-white/[0.06] hover:bg-emerald-500/[0.05] hover:border-emerald-500/20 transition-all text-left group"
                     >
-                      <div className="p-2.5 rounded-xl bg-emerald-500/20 border border-emerald-500/30 group-hover:bg-emerald-500/30 transition-colors">
-                        <Upload className="w-5 h-5 text-emerald-400" />
+                      <div className="p-2 sm:p-2.5 rounded-lg sm:rounded-xl bg-emerald-500/20 border border-emerald-500/30 group-hover:bg-emerald-500/30 transition-colors">
+                        <Upload className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-400" />
                       </div>
-                      <div className="flex-1">
-                        <p className="font-medium text-white/80">데이터 가져오기</p>
-                        <p className="text-sm text-white/40">백업 파일 복원</p>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm sm:text-base font-medium text-white/80">데이터 가져오기</p>
+                        <p className="text-xs sm:text-sm text-white/40">백업 파일 복원</p>
                       </div>
-                      <ChevronRight className="w-5 h-5 text-white/20 group-hover:text-white/40 transition-colors" />
+                      <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5 text-white/20 group-hover:text-white/40 transition-colors flex-shrink-0" />
                     </button>
 
                     {/* Danger Zone */}
-                    <div className="pt-4 mt-4 border-t border-white/[0.06]">
-                      <p className="text-xs text-white/30 uppercase tracking-wider mb-3">위험 구역</p>
+                    <div className="pt-3 sm:pt-4 mt-3 sm:mt-4 border-t border-white/[0.06]">
+                      <p className="text-[10px] sm:text-xs text-white/30 uppercase tracking-wider mb-2 sm:mb-3">위험 구역</p>
                       <div className="flex gap-2">
                         <button
                           onClick={() => openPasswordModal('reset')}
-                          className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-white/[0.02] border border-white/[0.06] hover:bg-amber-500/[0.08] hover:border-amber-500/30 transition-all group"
+                          className="flex-1 flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg sm:rounded-xl bg-white/[0.02] border border-white/[0.06] hover:bg-amber-500/[0.08] hover:border-amber-500/30 transition-all group"
                         >
-                          <Lock className="w-3.5 h-3.5 text-amber-500/50" />
-                          <RefreshCw className="w-4 h-4 text-amber-400" />
-                          <span className="text-sm text-white/50 group-hover:text-amber-400 transition-colors">
+                          <Lock className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-amber-500/50" />
+                          <RefreshCw className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-400" />
+                          <span className="text-xs sm:text-sm text-white/50 group-hover:text-amber-400 transition-colors">
                             초기화
                           </span>
                         </button>
                         <button
                           onClick={() => openPasswordModal('clear')}
-                          className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-white/[0.02] border border-white/[0.06] hover:bg-red-500/[0.08] hover:border-red-500/30 transition-all group"
+                          className="flex-1 flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg sm:rounded-xl bg-white/[0.02] border border-white/[0.06] hover:bg-red-500/[0.08] hover:border-red-500/30 transition-all group"
                         >
-                          <Lock className="w-3.5 h-3.5 text-red-500/50" />
-                          <Trash2 className="w-4 h-4 text-red-400" />
-                          <span className="text-sm text-white/50 group-hover:text-red-400 transition-colors">
-                            저장소 삭제
+                          <Lock className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-red-500/50" />
+                          <Trash2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-red-400" />
+                          <span className="text-xs sm:text-sm text-white/50 group-hover:text-red-400 transition-colors">
+                            삭제
                           </span>
                         </button>
                       </div>
@@ -640,26 +641,26 @@ export default function SettingsPage() {
             </div>
 
             {/* Right Column - Stats & Info */}
-            <div className="space-y-6">
+            <div className="space-y-4 sm:space-y-6">
               {/* Progress Card */}
               <motion.div variants={itemVariants}>
-                <div className="relative rounded-3xl overflow-hidden">
+                <div className="relative rounded-2xl sm:rounded-3xl overflow-hidden">
                   <div className="absolute inset-0 bg-gradient-to-br from-[#b7916e]/10 to-[#b7916e]/[0.02]" />
-                  <div className="absolute inset-0 border border-[#b7916e]/20 rounded-3xl" />
+                  <div className="absolute inset-0 border border-[#b7916e]/20 rounded-2xl sm:rounded-3xl" />
 
-                  <div className="relative p-6">
-                    <div className="text-center mb-4">
+                  <div className="relative p-4 sm:p-6">
+                    <div className="text-center mb-3 sm:mb-4">
                       <p
-                        className="text-5xl text-[#d4c4a8] mb-1"
+                        className="text-4xl sm:text-5xl text-[#d4c4a8] mb-1"
                         style={{ fontFamily: "var(--font-cormorant), 'Playfair Display', Georgia, serif" }}
                       >
                         {progressPercent}%
                       </p>
-                      <p className="text-sm text-[#b7916e]/60">전체 진행률</p>
+                      <p className="text-xs sm:text-sm text-[#b7916e]/60">전체 진행률</p>
                     </div>
 
                     {/* Progress Bar */}
-                    <div className="h-2 bg-white/[0.05] rounded-full overflow-hidden">
+                    <div className="h-1.5 sm:h-2 bg-white/[0.05] rounded-full overflow-hidden">
                       <motion.div
                         initial={{ width: 0 }}
                         animate={{ width: `${progressPercent}%` }}
@@ -668,7 +669,7 @@ export default function SettingsPage() {
                       />
                     </div>
 
-                    <p className="text-center text-xs text-white/30 mt-3">
+                    <p className="text-center text-[10px] sm:text-xs text-white/30 mt-2 sm:mt-3">
                       {stats.completedTasks} / {stats.tasks} 업무 완료
                     </p>
                   </div>
@@ -677,23 +678,23 @@ export default function SettingsPage() {
 
               {/* Data Stats Card */}
               <motion.div variants={itemVariants}>
-                <div className="relative rounded-3xl overflow-hidden">
+                <div className="relative rounded-2xl sm:rounded-3xl overflow-hidden">
                   <div className="absolute inset-0 bg-gradient-to-br from-white/[0.04] to-white/[0.01]" />
-                  <div className="absolute inset-0 border border-white/[0.08] rounded-3xl" />
+                  <div className="absolute inset-0 border border-white/[0.08] rounded-2xl sm:rounded-3xl" />
 
-                  <div className="relative px-6 py-5 border-b border-white/[0.06] flex items-center gap-3">
-                    <div className="p-2 rounded-xl bg-[#b7916e]/20 border border-[#b7916e]/30">
-                      <Database className="w-4 h-4 text-[#d4c4a8]" />
+                  <div className="relative px-4 sm:px-6 py-4 sm:py-5 border-b border-white/[0.06] flex items-center gap-2 sm:gap-3">
+                    <div className="p-1.5 sm:p-2 rounded-lg sm:rounded-xl bg-[#b7916e]/20 border border-[#b7916e]/30">
+                      <Database className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#d4c4a8]" />
                     </div>
                     <h3
-                      className="text-lg text-white/90"
+                      className="text-base sm:text-lg text-white/90"
                       style={{ fontFamily: "var(--font-cormorant), 'Playfair Display', Georgia, serif" }}
                     >
                       데이터 현황
                     </h3>
                   </div>
 
-                  <div className="relative p-4 space-y-2">
+                  <div className="relative p-3 sm:p-4 space-y-1 sm:space-y-2">
                     {[
                       { label: 'Must-Do', value: `${stats.completedMustDo}/${stats.mustDoItems}`, color: 'text-violet-400' },
                       { label: 'KPI 항목', value: stats.kpiItems, color: 'text-blue-400' },
@@ -705,24 +706,24 @@ export default function SettingsPage() {
                     ].map((item, i) => (
                       <div
                         key={item.label}
-                        className="flex items-center justify-between py-2 px-3 rounded-xl hover:bg-white/[0.02] transition-colors"
+                        className="flex items-center justify-between py-1.5 sm:py-2 px-2 sm:px-3 rounded-lg sm:rounded-xl hover:bg-white/[0.02] transition-colors"
                       >
-                        <span className="text-sm text-white/50">{item.label}</span>
-                        <span className={`text-sm font-medium ${item.color}`}>{item.value}</span>
+                        <span className="text-xs sm:text-sm text-white/50">{item.label}</span>
+                        <span className={`text-xs sm:text-sm font-medium ${item.color}`}>{item.value}</span>
                       </div>
                     ))}
 
                     {/* Budget Summary */}
-                    <div className="pt-3 mt-2 border-t border-white/[0.06] space-y-2">
-                      <div className="flex items-center justify-between py-2 px-3 rounded-xl bg-emerald-500/[0.05]">
-                        <span className="text-sm text-emerald-400/70">총 예산</span>
-                        <span className="text-sm font-medium text-emerald-400">
+                    <div className="pt-2 sm:pt-3 mt-1 sm:mt-2 border-t border-white/[0.06] space-y-1 sm:space-y-2">
+                      <div className="flex items-center justify-between py-1.5 sm:py-2 px-2 sm:px-3 rounded-lg sm:rounded-xl bg-emerald-500/[0.05]">
+                        <span className="text-xs sm:text-sm text-emerald-400/70">총 예산</span>
+                        <span className="text-xs sm:text-sm font-medium text-emerald-400">
                           {stats.totalBudget.toLocaleString()}원
                         </span>
                       </div>
-                      <div className="flex items-center justify-between py-2 px-3 rounded-xl bg-rose-500/[0.05]">
-                        <span className="text-sm text-rose-400/70">총 지출</span>
-                        <span className="text-sm font-medium text-rose-400">
+                      <div className="flex items-center justify-between py-1.5 sm:py-2 px-2 sm:px-3 rounded-lg sm:rounded-xl bg-rose-500/[0.05]">
+                        <span className="text-xs sm:text-sm text-rose-400/70">총 지출</span>
+                        <span className="text-xs sm:text-sm font-medium text-rose-400">
                           {stats.totalExpense.toLocaleString()}원
                         </span>
                       </div>
@@ -733,20 +734,20 @@ export default function SettingsPage() {
 
               {/* Storage Status Card */}
               <motion.div variants={itemVariants}>
-                <div className="relative rounded-3xl overflow-hidden">
+                <div className="relative rounded-2xl sm:rounded-3xl overflow-hidden">
                   <div className="absolute inset-0 bg-gradient-to-br from-white/[0.04] to-white/[0.01]" />
-                  <div className="absolute inset-0 border border-white/[0.08] rounded-3xl" />
+                  <div className="absolute inset-0 border border-white/[0.08] rounded-2xl sm:rounded-3xl" />
 
-                  <div className="relative p-5">
-                    <div className="flex items-center gap-3 mb-4">
+                  <div className="relative p-4 sm:p-5">
+                    <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
                       {isSupabaseConfigured ? (
-                        <Cloud className="w-5 h-5 text-emerald-400" />
+                        <Cloud className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-400" />
                       ) : (
-                        <CloudOff className="w-5 h-5 text-amber-400" />
+                        <CloudOff className="w-4 h-4 sm:w-5 sm:h-5 text-amber-400" />
                       )}
                       <div>
-                        <p className="text-sm font-medium text-white/80">저장소 상태</p>
-                        <p className="text-xs text-white/40">
+                        <p className="text-xs sm:text-sm font-medium text-white/80">저장소 상태</p>
+                        <p className="text-[10px] sm:text-xs text-white/40">
                           {isSupabaseConfigured ? 'Supabase 연결됨' : '로컬 저장소 사용'}
                         </p>
                       </div>
@@ -754,11 +755,11 @@ export default function SettingsPage() {
 
                     <div className="flex items-center gap-2">
                       <div
-                        className={`w-2 h-2 rounded-full ${
+                        className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full ${
                           isSupabaseConfigured ? 'bg-emerald-400' : 'bg-amber-400'
                         } animate-pulse`}
                       />
-                      <span className="text-xs text-white/30">
+                      <span className="text-[10px] sm:text-xs text-white/30">
                         {isSupabaseConfigured ? '클라우드 동기화 활성' : '오프라인 모드'}
                       </span>
                     </div>
@@ -768,17 +769,17 @@ export default function SettingsPage() {
 
               {/* About Card */}
               <motion.div variants={itemVariants}>
-                <div className="relative rounded-3xl overflow-hidden">
+                <div className="relative rounded-2xl sm:rounded-3xl overflow-hidden">
                   <div className="absolute inset-0 bg-gradient-to-br from-white/[0.04] to-white/[0.01]" />
-                  <div className="absolute inset-0 border border-white/[0.08] rounded-3xl" />
+                  <div className="absolute inset-0 border border-white/[0.08] rounded-2xl sm:rounded-3xl" />
 
-                  <div className="relative p-5">
-                    <div className="flex items-center gap-3 mb-4">
-                      <Info className="w-5 h-5 text-white/30" />
-                      <span className="text-sm text-white/60">정보</span>
+                  <div className="relative p-4 sm:p-5">
+                    <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
+                      <Info className="w-4 h-4 sm:w-5 sm:h-5 text-white/30" />
+                      <span className="text-xs sm:text-sm text-white/60">정보</span>
                     </div>
 
-                    <div className="space-y-3 text-sm">
+                    <div className="space-y-2 sm:space-y-3 text-xs sm:text-sm">
                       <div className="flex justify-between">
                         <span className="text-white/40">버전</span>
                         <span className="text-white/70">1.0.0</span>
@@ -793,9 +794,9 @@ export default function SettingsPage() {
                       </div>
                     </div>
 
-                    <div className="mt-6 pt-4 border-t border-white/[0.06] text-center">
-                      <Waves className="w-5 h-5 text-[#b7916e]/50 mx-auto mb-2" />
-                      <p className="text-[11px] text-white/20 italic">
+                    <div className="mt-4 sm:mt-6 pt-3 sm:pt-4 border-t border-white/[0.06] text-center">
+                      <Waves className="w-4 h-4 sm:w-5 sm:h-5 text-[#b7916e]/50 mx-auto mb-1.5 sm:mb-2" />
+                      <p className="text-[10px] sm:text-[11px] text-white/20 italic">
                         해저에서 숙성되는 시간,
                         <br />
                         브랜드가 완성되는 여정
@@ -807,19 +808,11 @@ export default function SettingsPage() {
             </div>
           </div>
 
-          {/* Footer Decoration */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 1, delay: 1 }}
-            className="mt-16 text-center"
-          >
-            <p className="text-[10px] uppercase tracking-[0.3em] text-white/15">
-              Muse de Marée · Settings
-            </p>
-          </motion.div>
         </motion.div>
       </section>
+
+      {/* Footer */}
+      <Footer subtitle="Settings" />
 
       {/* Password Modal */}
       <AnimatePresence>

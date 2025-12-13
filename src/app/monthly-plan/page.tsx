@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useState, useEffect, useRef } from 'react';
 import { useMasterPlanStore } from '@/lib/store/masterplan-store';
 import { MONTHS_INFO, PHASE_INFO, AVAILABLE_YEARS, Task, TaskStatus } from '@/lib/types';
+import { Footer } from '@/components/layout/Footer';
 import {
   DndContext,
   closestCenter,
@@ -678,24 +679,8 @@ export default function MonthlyPlanPage() {
         </div>
       </section>
 
-      {/* Bottom Decoration */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 1.5, delay: 1.5 }}
-        className="relative py-20 px-6"
-      >
-        <div className="max-w-7xl mx-auto flex items-center justify-center gap-6">
-          <div className="h-px flex-1 bg-gradient-to-r from-transparent via-white/10 to-transparent" />
-          <span
-            className="text-white/10 text-sm tracking-[0.3em] uppercase"
-            style={{ fontFamily: "var(--font-cormorant), serif" }}
-          >
-            Muse de Marée
-          </span>
-          <div className="h-px flex-1 bg-gradient-to-r from-transparent via-white/10 to-transparent" />
-        </div>
-      </motion.div>
+      {/* Footer */}
+      <Footer />
 
       {/* Task Modal */}
       <TaskModal
