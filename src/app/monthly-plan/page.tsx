@@ -436,7 +436,7 @@ export default function MonthlyPlanPage() {
                           {/* Month number or progress */}
                           <span
                             className={`transition-all ${
-                              isSelected ? 'text-[10px] sm:text-xs text-white font-medium' : isPast ? 'text-[8px] sm:text-[10px] text-white/80' : 'text-[8px] sm:text-[10px] text-white/50'
+                              isSelected ? 'text-[10px] sm:text-xs text-white font-medium' : isPast ? 'text-[8px] sm:text-[10px] text-white/60' : 'text-[8px] sm:text-[10px] text-white/25'
                             }`}
                             style={{
                               fontFamily: isSelected
