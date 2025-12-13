@@ -372,7 +372,10 @@ export default function MonthlyPlanPage() {
             {/* 12-Month Timeline Strip */}
             <div className="relative">
               {/* Background Track */}
-              <div className="absolute top-1/2 left-0 right-0 h-px bg-white/[0.06] -translate-y-1/2" />
+              <div
+                className="absolute top-1/2 left-0 right-0 h-px -translate-y-1/2 transition-colors duration-500"
+                style={{ backgroundColor: `${colors.primary}25` }}
+              />
 
               {/* Progress Track */}
               <motion.div
