@@ -55,11 +55,6 @@ const itemVariants = {
   },
 };
 
-const cardHover = {
-  rest: { scale: 1, y: 0 },
-  hover: { scale: 1.01, y: -2, transition: { duration: 0.3 } },
-};
-
 // ═══════════════════════════════════════════════════════════════════════════
 // Constants
 // ═══════════════════════════════════════════════════════════════════════════
@@ -332,16 +327,8 @@ export default function SettingsPage() {
             {/* Left Column - Main Settings */}
             <div className="lg:col-span-2 space-y-6">
               {/* App Settings Card */}
-              <motion.div
-                variants={itemVariants}
-                initial="rest"
-                whileHover="hover"
-                animate="rest"
-              >
-                <motion.div
-                  variants={cardHover}
-                  className="relative rounded-2xl sm:rounded-3xl overflow-hidden"
-                >
+              <motion.div variants={itemVariants}>
+                <div className="relative rounded-2xl sm:rounded-3xl overflow-hidden">
                   {/* Card Background */}
                   <div className="absolute inset-0 bg-gradient-to-br from-white/[0.04] to-white/[0.01]" />
                   <div className="absolute inset-0 border border-white/[0.08] rounded-2xl sm:rounded-3xl" />
@@ -373,7 +360,7 @@ export default function SettingsPage() {
                       <select
                         value={appSettings.defaultYear}
                         onChange={(e) => saveSettings({ defaultYear: parseInt(e.target.value) })}
-                        className="px-3 sm:px-4 h-9 sm:h-10 bg-white/[0.04] border border-white/[0.08] rounded-lg sm:rounded-xl text-sm sm:text-base text-white/80 focus:outline-none focus:ring-2 focus:ring-[#b7916e]/30 focus:border-[#b7916e]/50 transition-all cursor-pointer appearance-none min-w-[100px] sm:min-w-[120px] leading-none"
+                        className="px-3 sm:px-4 h-9 sm:h-10 bg-white/[0.04] border border-white/[0.08] rounded-lg sm:rounded-xl text-sm sm:text-base text-white/80 focus:outline-none focus:ring-2 focus:ring-[#b7916e]/30 focus:border-[#b7916e]/50 transition-all cursor-pointer appearance-none min-w-[100px] sm:min-w-[120px] leading-none text-center"
                       >
                         {AVAILABLE_YEARS.map((year) => (
                           <option key={year} value={year} className="bg-[#0d1525]">
@@ -392,7 +379,7 @@ export default function SettingsPage() {
                       <select
                         value={appSettings.currency}
                         onChange={(e) => saveSettings({ currency: e.target.value })}
-                        className="px-3 sm:px-4 h-9 sm:h-10 bg-white/[0.04] border border-white/[0.08] rounded-lg sm:rounded-xl text-sm sm:text-base text-white/80 focus:outline-none focus:ring-2 focus:ring-[#b7916e]/30 focus:border-[#b7916e]/50 transition-all cursor-pointer appearance-none min-w-[110px] sm:min-w-[140px] leading-none"
+                        className="px-3 sm:px-4 h-9 sm:h-10 bg-white/[0.04] border border-white/[0.08] rounded-lg sm:rounded-xl text-sm sm:text-base text-white/80 focus:outline-none focus:ring-2 focus:ring-[#b7916e]/30 focus:border-[#b7916e]/50 transition-all cursor-pointer appearance-none min-w-[110px] sm:min-w-[140px] leading-none text-center"
                       >
                         {CURRENCY_OPTIONS.map((opt) => (
                           <option key={opt.value} value={opt.value} className="bg-[#0d1525]">
@@ -411,7 +398,7 @@ export default function SettingsPage() {
                       <select
                         value={appSettings.itemsPerPage}
                         onChange={(e) => saveSettings({ itemsPerPage: parseInt(e.target.value) })}
-                        className="px-3 sm:px-4 h-9 sm:h-10 bg-white/[0.04] border border-white/[0.08] rounded-lg sm:rounded-xl text-sm sm:text-base text-white/80 focus:outline-none focus:ring-2 focus:ring-[#b7916e]/30 focus:border-[#b7916e]/50 transition-all cursor-pointer appearance-none min-w-[80px] sm:min-w-[100px] leading-none"
+                        className="px-3 sm:px-4 h-9 sm:h-10 bg-white/[0.04] border border-white/[0.08] rounded-lg sm:rounded-xl text-sm sm:text-base text-white/80 focus:outline-none focus:ring-2 focus:ring-[#b7916e]/30 focus:border-[#b7916e]/50 transition-all cursor-pointer appearance-none min-w-[80px] sm:min-w-[100px] leading-none text-center"
                       >
                         {ITEMS_PER_PAGE_OPTIONS.map((num) => (
                           <option key={num} value={num} className="bg-[#0d1525]">
@@ -421,7 +408,7 @@ export default function SettingsPage() {
                       </select>
                     </div>
                   </div>
-                </motion.div>
+                </div>
               </motion.div>
 
               {/* Notification Settings Card */}
