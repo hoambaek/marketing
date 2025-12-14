@@ -3,8 +3,9 @@
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { motion } from 'framer-motion';
-import { CheckCircle2, Clock, Circle, GripVertical, Pencil, Trash2, FileText } from 'lucide-react';
+import { CheckCircle2, Clock, Circle, GripVertical, Pencil, Trash2, FileText, Calendar } from 'lucide-react';
 import { Task, CATEGORY_LABELS, TaskCategory, TaskStatus } from '@/lib/types';
+import { formatDateKorean, formatDDay, getDDayColorClass } from '@/lib/utils/date';
 
 interface SortableTaskItemProps {
   task: Task;
@@ -92,6 +93,29 @@ export default function SortableTaskItem({
             >
               {CATEGORY_LABELS[task.category as TaskCategory]}
             </span>
+
+            {/* Due Date with D-Day - Only show if not done */}
+            {task.dueDate && task.status !== 'done' && (
+              <>
+                <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-white/[0.04] text-xs text-white/50">
+                  <Calendar className="w-3 h-3" />
+                  {formatDateKorean(task.dueDate)}
+                </span>
+                <span
+                  className={`px-2 py-0.5 rounded text-[10px] font-medium ${getDDayColorClass(task.dueDate).bg} ${getDDayColorClass(task.dueDate).text}`}
+                >
+                  {formatDDay(task.dueDate)}
+                </span>
+              </>
+            )}
+
+            {/* Due Date for completed tasks - muted style */}
+            {task.dueDate && task.status === 'done' && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-white/[0.02] text-xs text-white/30">
+                <Calendar className="w-3 h-3" />
+                {formatDateKorean(task.dueDate)}
+              </span>
+            )}
 
             {/* Assignee */}
             {task.assignee && (

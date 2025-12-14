@@ -256,11 +256,10 @@ export default function AiChat() {
             onClick={() => setIsOpen(!isOpen)}
             className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-[60]
                        w-14 h-14 rounded-full shadow-2xl
-                       bg-gradient-to-br from-amber-600 via-amber-700 to-amber-800
-                       hover:from-amber-500 hover:via-amber-600 hover:to-amber-700
+                       bg-[#0a0f1a] hover:bg-[#0f1520]
                        transition-all duration-300 ease-out
                        flex items-center justify-center
-                       border border-amber-500/30"
+                       border border-[#b7916e]/30"
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             initial={{ opacity: 0, scale: 0.8 }}
@@ -274,7 +273,7 @@ export default function AiChat() {
                   initial={{ rotate: -90, opacity: 0 }}
                   animate={{ rotate: 0, opacity: 1 }}
                   exit={{ rotate: 90, opacity: 0 }}
-                  className="w-6 h-6 text-white"
+                  className="w-6 h-6 text-[#b7916e]"
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
@@ -287,7 +286,7 @@ export default function AiChat() {
                   initial={{ scale: 0, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
                   exit={{ scale: 0, opacity: 0 }}
-                  className="w-6 h-6 text-white"
+                  className="w-6 h-6 text-[#b7916e]"
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
@@ -297,11 +296,6 @@ export default function AiChat() {
                 </motion.svg>
               )}
             </AnimatePresence>
-
-            {/* 펄스 애니메이션 */}
-            {!isOpen && (
-              <span className="absolute inset-0 rounded-full bg-amber-400/20 animate-ping" />
-            )}
           </motion.button>
         )}
       </AnimatePresence>
@@ -316,8 +310,8 @@ export default function AiChat() {
             exit={{ opacity: 0, y: 20 }}
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
             className="fixed z-50 flex flex-col
-                       bg-gradient-to-b from-stone-900 to-stone-950
-                       border-amber-900/30
+                       bg-[#0a0f1a]
+                       border-white/[0.06]
                        inset-0
                        sm:inset-auto sm:bottom-24 sm:right-6 sm:w-[400px] sm:h-[600px] sm:max-h-[80vh]
                        sm:rounded-2xl sm:border sm:shadow-2xl"
@@ -331,35 +325,34 @@ export default function AiChat() {
           >
             {/* 헤더 - Safe Area 대응 */}
             <div
-              className="flex-shrink-0 px-4 py-3 border-b border-amber-900/20
-                        bg-gradient-to-r from-amber-900/20 via-stone-900/80 to-amber-900/20
-                        backdrop-blur-sm"
+              className="flex-shrink-0 px-4 py-3 border-b border-white/[0.06]
+                        bg-[#0a0f1a]/80 backdrop-blur-xl"
               style={{
                 paddingTop: isMobile ? 'max(12px, env(safe-area-inset-top))' : '12px',
               }}
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-amber-600 to-amber-800
-                                flex items-center justify-center shadow-lg">
-                    <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <div className="w-10 h-10 rounded-full bg-white/[0.08] border border-white/[0.06]
+                                flex items-center justify-center">
+                    <svg className="w-5 h-5 text-[#b7916e]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
                         d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456zM16.894 20.567L16.5 21.75l-.394-1.183a2.25 2.25 0 00-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 001.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 001.423 1.423l1.183.394-1.183.394a2.25 2.25 0 00-1.423 1.423z" />
                     </svg>
                   </div>
                   <div>
-                    <h3 className="text-amber-100 font-medium tracking-wide text-base" style={{ fontFamily: 'var(--font-cormorant)' }}>
+                    <h3 className="text-white/90 font-medium tracking-wide text-base" style={{ fontFamily: 'var(--font-cormorant)' }}>
                       Muse AI
                     </h3>
-                    <p className="text-[11px] text-amber-700/80">마케팅 어시스턴트</p>
+                    <p className="text-[11px] text-[#b7916e]">마케팅 어시스턴트</p>
                   </div>
                 </div>
                 {/* 닫기 버튼 */}
                 <button
                   onClick={() => setIsOpen(false)}
                   className="w-10 h-10 rounded-full flex items-center justify-center
-                           text-stone-400 hover:text-white hover:bg-stone-800/50
-                           active:bg-stone-700/50 transition-all duration-200"
+                           text-white/40 hover:text-white/80 hover:bg-white/[0.04]
+                           active:bg-white/[0.08] transition-all duration-200"
                 >
                   <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -379,16 +372,16 @@ export default function AiChat() {
             >
               {messages.length === 0 && (
                 <div className="h-full flex flex-col items-center justify-center text-center px-4 py-8">
-                  <div className="w-16 h-16 rounded-full bg-amber-900/20 flex items-center justify-center mb-4">
-                    <svg className="w-8 h-8 text-amber-600/60" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <div className="w-16 h-16 rounded-full bg-white/[0.04] border border-white/[0.06] flex items-center justify-center mb-4">
+                    <svg className="w-8 h-8 text-[#b7916e]/60" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
                         d="M8.625 9.75a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375m-13.5 3.01c0 1.6 1.123 2.994 2.707 3.227 1.087.16 2.185.283 3.293.369V21l4.184-4.183a1.14 1.14 0 01.778-.332 48.294 48.294 0 005.83-.498c1.585-.233 2.708-1.626 2.708-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0012 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018z" />
                     </svg>
                   </div>
-                  <h4 className="text-amber-200/80 font-medium mb-2 text-lg" style={{ fontFamily: 'var(--font-cormorant)' }}>
+                  <h4 className="text-white/80 font-medium mb-2 text-lg" style={{ fontFamily: 'var(--font-cormorant)' }}>
                     무엇을 도와드릴까요?
                   </h4>
-                  <p className="text-sm text-stone-500 leading-relaxed mb-6">
+                  <p className="text-sm text-white/40 leading-relaxed mb-6">
                     월별 플랜, 이슈, 컨텐츠를<br />
                     자연어로 관리하세요.
                   </p>
@@ -404,9 +397,9 @@ export default function AiChat() {
                           setInput(suggestion);
                           inputRef.current?.focus();
                         }}
-                        className="w-full px-4 py-3 text-left text-sm text-amber-300/80
-                                 bg-amber-900/10 hover:bg-amber-900/20 rounded-xl
-                                 border border-amber-900/20 hover:border-amber-700/30
+                        className="w-full px-4 py-3 text-left text-sm text-white/60
+                                 bg-white/[0.04] hover:bg-white/[0.08] rounded-xl
+                                 border border-white/[0.06] hover:border-[#b7916e]/30
                                  transition-all duration-200 active:scale-[0.98]"
                       >
                         {suggestion}
@@ -426,8 +419,8 @@ export default function AiChat() {
                   <div
                     className={`max-w-[85%] rounded-2xl px-4 py-3 ${
                       message.role === 'user'
-                        ? 'bg-gradient-to-br from-amber-700 to-amber-800 text-white'
-                        : 'bg-stone-800/80 text-stone-200 border border-stone-700/50'
+                        ? 'bg-[#b7916e]/20 text-white border border-[#b7916e]/30'
+                        : 'bg-white/[0.04] text-white/90 border border-white/[0.06]'
                     }`}
                   >
                     {message.role === 'user' ? (
@@ -436,22 +429,22 @@ export default function AiChat() {
                       </p>
                     ) : (
                       <div className="text-[15px] leading-relaxed prose prose-invert prose-sm max-w-none
-                        prose-headings:text-amber-400 prose-headings:font-semibold prose-headings:mt-3 prose-headings:mb-2
+                        prose-headings:text-[#d4a574] prose-headings:font-semibold prose-headings:mt-3 prose-headings:mb-2
                         prose-h3:text-base prose-h4:text-sm
-                        prose-p:my-1.5 prose-p:text-stone-200
-                        prose-strong:text-amber-300 prose-strong:font-semibold
-                        prose-ul:my-1.5 prose-ul:pl-4 prose-li:my-0.5 prose-li:text-stone-300
+                        prose-p:my-1.5 prose-p:text-white/80
+                        prose-strong:text-[#d4a574] prose-strong:font-semibold
+                        prose-ul:my-1.5 prose-ul:pl-4 prose-li:my-0.5 prose-li:text-white/70
                         prose-ol:my-1.5 prose-ol:pl-4
-                        prose-code:text-amber-400 prose-code:bg-stone-900/50 prose-code:px-1 prose-code:rounded
-                        prose-pre:bg-stone-900/50 prose-pre:rounded-lg">
+                        prose-code:text-[#b7916e] prose-code:bg-white/[0.04] prose-code:px-1 prose-code:rounded
+                        prose-pre:bg-white/[0.04] prose-pre:rounded-lg">
                         <ReactMarkdown>{message.content}</ReactMarkdown>
                       </div>
                     )}
 
                     {/* 실행된 함수 표시 */}
                     {message.executedFunctions && message.executedFunctions.length > 0 && (
-                      <div className="mt-2 pt-2 border-t border-stone-600/30">
-                        <p className="text-xs text-amber-500/70 flex items-center gap-1">
+                      <div className="mt-2 pt-2 border-t border-white/[0.06]">
+                        <p className="text-xs text-[#b7916e]/70 flex items-center gap-1">
                           <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                               d="M5 13l4 4L19 7" />
@@ -478,14 +471,14 @@ export default function AiChat() {
                   animate={{ opacity: 1, y: 0 }}
                   className="flex justify-start"
                 >
-                  <div className="bg-stone-800/80 border border-stone-700/50 rounded-2xl px-4 py-3">
+                  <div className="bg-white/[0.04] border border-white/[0.06] rounded-2xl px-4 py-3">
                     <div className="flex items-center gap-2">
                       <div className="flex gap-1">
-                        <span className="w-2 h-2 bg-amber-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                        <span className="w-2 h-2 bg-amber-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                        <span className="w-2 h-2 bg-amber-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                        <span className="w-2 h-2 bg-[#b7916e] rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                        <span className="w-2 h-2 bg-[#b7916e] rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                        <span className="w-2 h-2 bg-[#b7916e] rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
                       </div>
-                      <span className="text-xs text-stone-400">생각 중...</span>
+                      <span className="text-xs text-white/40">생각 중...</span>
                     </div>
                   </div>
                 </motion.div>
@@ -497,7 +490,7 @@ export default function AiChat() {
 
             {/* 입력 영역 - Safe Area 대응 */}
             <div
-              className="flex-shrink-0 p-3 border-t border-amber-900/20 bg-stone-900/90 backdrop-blur-sm"
+              className="flex-shrink-0 p-3 border-t border-white/[0.06] bg-[#0a0f1a]/90 backdrop-blur-sm"
               style={{
                 paddingBottom: isMobile ? 'max(12px, env(safe-area-inset-bottom))' : '12px',
               }}
@@ -512,9 +505,9 @@ export default function AiChat() {
                   onKeyDown={handleKeyDown}
                   onFocus={handleInputFocus}
                   placeholder="메시지를 입력하세요..."
-                  className="flex-1 px-4 py-3 bg-stone-800/50 border border-stone-700/50
-                           rounded-xl text-stone-200 placeholder-stone-500
-                           focus:outline-none focus:border-amber-700/50 focus:ring-1 focus:ring-amber-700/30
+                  className="flex-1 px-4 py-3 bg-white/[0.04] border border-white/[0.06]
+                           rounded-xl text-white/90 placeholder-white/30
+                           focus:outline-none focus:border-[#b7916e]/50 focus:ring-1 focus:ring-[#b7916e]/30
                            transition-all duration-200
                            text-base"
                   style={{
@@ -532,13 +525,13 @@ export default function AiChat() {
                 <button
                   onClick={sendMessage}
                   disabled={!input.trim() || isLoading}
-                  className="flex-shrink-0 w-12 h-12 bg-gradient-to-br from-amber-600 to-amber-700
-                           hover:from-amber-500 hover:to-amber-600
-                           disabled:from-stone-700 disabled:to-stone-800 disabled:cursor-not-allowed
+                  className="flex-shrink-0 w-12 h-12 bg-[#b7916e]/20 border border-[#b7916e]/30
+                           hover:bg-[#b7916e]/30 hover:border-[#b7916e]/50
+                           disabled:bg-white/[0.04] disabled:border-white/[0.06] disabled:cursor-not-allowed
                            rounded-xl transition-all duration-200
                            flex items-center justify-center active:scale-95"
                 >
-                  <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg className="w-5 h-5 text-[#b7916e]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                       d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
                   </svg>

@@ -5,6 +5,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useMasterPlanStore } from '@/lib/store/masterplan-store';
 import { MONTHS_INFO, PHASE_INFO, AVAILABLE_YEARS, Task, TaskStatus, MustDoItem, CATEGORY_LABELS, TaskCategory } from '@/lib/types';
 import { Footer } from '@/components/layout/Footer';
+import { formatWeekDateRange, isCurrentWeek, formatDateKorean, getDaysUntil, formatDDay, getDDayColorClass } from '@/lib/utils/date';
 import {
   DndContext,
   closestCenter,
@@ -28,6 +29,7 @@ import {
   Trash2,
   X,
   Check,
+  Calendar,
 } from 'lucide-react';
 import TaskModal from '@/components/TaskModal';
 import SortableTaskItem from '@/components/SortableTaskItem';
@@ -737,19 +739,21 @@ export default function MonthlyPlanPage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 1.0 }}
           >
-            {/* Week Tabs */}
+            {/* Week Tabs with Date Ranges */}
             <div className="relative mb-6">
               <div className="flex items-center gap-1 sm:gap-2 p-1 sm:p-1.5 rounded-xl sm:rounded-2xl bg-white/[0.02] border border-white/[0.06]">
                 {[1, 2, 3, 4].map((week) => {
                   const weekTasksCount = getTasksByMonthAndWeek(selectedYear, selectedMonth, week);
                   const completedCount = weekTasksCount.filter((t) => t.status === 'done').length;
                   const isSelected = week === selectedWeek;
+                  const isCurrent = isMounted && isCurrentWeek(selectedYear, selectedMonth, week);
+                  const dateRange = formatWeekDateRange(selectedYear, selectedMonth, week);
 
                   return (
                     <button
                       key={week}
                       onClick={() => setSelectedWeek(week)}
-                      className={`relative flex-1 py-2.5 sm:py-3 px-1 sm:px-4 rounded-lg sm:rounded-xl text-xs sm:text-sm font-medium transition-all ${
+                      className={`relative flex-1 py-2 sm:py-3 px-1 sm:px-3 rounded-lg sm:rounded-xl transition-all ${
                         isSelected
                           ? 'text-white'
                           : 'text-white/40 hover:text-white/60'
@@ -766,11 +770,24 @@ export default function MonthlyPlanPage() {
                           transition={{ type: 'spring', bounce: 0.2, duration: 0.6 }}
                         />
                       )}
-                      <span className="relative z-10 flex items-center justify-center gap-1 sm:gap-2">
-                        <span className="hidden sm:inline">{weekTitles[week].full}</span>
-                        <span className="sm:hidden">{weekTitles[week].short}</span>
+                      <span className="relative z-10 flex flex-col items-center gap-0.5">
+                        {/* Week Label with Current Indicator */}
+                        <span className="flex items-center gap-1.5 text-xs sm:text-sm font-medium">
+                          {weekTitles[week].short}
+                          {isCurrent && (
+                            <span
+                              className="w-1.5 h-1.5 rounded-full animate-pulse"
+                              style={{ backgroundColor: colors.primary }}
+                            />
+                          )}
+                        </span>
+                        {/* Date Range */}
+                        <span className={`text-[9px] sm:text-[10px] ${isSelected ? 'text-white/60' : 'text-white/30'}`}>
+                          {dateRange}
+                        </span>
+                        {/* Task Count */}
                         <span
-                          className={`px-1 sm:px-1.5 py-0.5 rounded text-[10px] sm:text-xs ${
+                          className={`mt-0.5 px-1.5 py-0.5 rounded text-[9px] sm:text-[10px] ${
                             isSelected
                               ? 'bg-white/10'
                               : 'bg-white/[0.04]'
@@ -798,13 +815,23 @@ export default function MonthlyPlanPage() {
                 <div className="absolute inset-0 bg-gradient-to-br from-white/[0.04] to-white/[0.01] backdrop-blur-sm" />
                 <div className="absolute inset-0 border border-white/[0.06] rounded-2xl" />
 
-                {/* Header */}
-                <div className="relative flex items-center justify-between px-6 py-4 border-b border-white/[0.06]">
-                  <div className="flex items-center gap-3">
-                    <Sparkles className="w-4 h-4" style={{ color: colors.primary }} />
-                    <span className="text-white/60 text-sm">
-                      {currentMonthInfo?.name} · {weekTitles[selectedWeek].full}
-                    </span>
+                {/* Header with Date Range */}
+                <div className="relative flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-white/[0.06]">
+                  <div className="flex items-center gap-2 sm:gap-3">
+                    <div
+                      className="p-1.5 sm:p-2 rounded-lg"
+                      style={{ backgroundColor: `${colors.primary}15` }}
+                    >
+                      <Calendar className="w-3.5 h-3.5 sm:w-4 sm:h-4" style={{ color: colors.primary }} />
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-white/80 text-sm sm:text-base font-medium">
+                        {currentMonthInfo?.name} {weekTitles[selectedWeek].full}
+                      </span>
+                      <span className="text-white/40 text-[10px] sm:text-xs">
+                        {formatWeekDateRange(selectedYear, selectedMonth, selectedWeek)}
+                      </span>
+                    </div>
                   </div>
                   <motion.button
                     whileHover={{ scale: 1.05 }}

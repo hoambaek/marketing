@@ -2,9 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Pencil, Calendar, User, FileText, Tag, Clock } from 'lucide-react';
+import { X, Pencil, Calendar, User, FileText, Tag, Clock, CalendarDays } from 'lucide-react';
 import { Task, TaskCategory, TaskStatus, CATEGORY_LABELS, MONTHS_INFO } from '@/lib/types';
 import { toast } from '@/lib/store/toast-store';
+import { formatWeekDateRange, getWeekDateRange, formatDateKorean, formatDDay, getDDayColorClass } from '@/lib/utils/date';
 
 interface TaskModalProps {
   isOpen: boolean;
@@ -47,6 +48,8 @@ export default function TaskModal({ isOpen, onClose, onSave, task, month, week }
     notes: '',
     month: month,
     week: week,
+    dueDate: '',
+    year: 2026,
   });
 
   // Mobile: view mode first, then edit mode
@@ -87,9 +90,15 @@ export default function TaskModal({ isOpen, onClose, onSave, task, month, week }
         notes: task.notes || '',
         month: task.month,
         week: task.week,
+        dueDate: task.dueDate || '',
+        year: task.year || 2026,
       });
       setIsEditing(!mobile || !task);
     } else {
+      // Calculate default due date based on week
+      const { endDate } = getWeekDateRange(2026, month, week);
+      const defaultDueDate = endDate.toISOString().split('T')[0];
+
       setFormData({
         title: '',
         description: '',
@@ -100,6 +109,8 @@ export default function TaskModal({ isOpen, onClose, onSave, task, month, week }
         notes: '',
         month: month,
         week: week,
+        dueDate: defaultDueDate,
+        year: 2026,
       });
       setIsEditing(true);
     }
@@ -114,9 +125,11 @@ export default function TaskModal({ isOpen, onClose, onSave, task, month, week }
       description: formData.description.trim() || undefined,
       month: formData.month,
       week: formData.week,
+      year: formData.year,
       category: formData.category,
       status: formData.status,
       assignee: formData.assignee.trim() || undefined,
+      dueDate: formData.dueDate || undefined,
       deliverables: formData.deliverables
         ? formData.deliverables.split(',').map((d) => d.trim()).filter(Boolean)
         : undefined,
@@ -172,6 +185,10 @@ export default function TaskModal({ isOpen, onClose, onSave, task, month, week }
 
   const handleNotesChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setFormData(prev => ({ ...prev, notes: e.target.value }));
+  };
+
+  const handleDueDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData(prev => ({ ...prev, dueDate: e.target.value }));
   };
 
   return (
@@ -344,6 +361,43 @@ export default function TaskModal({ isOpen, onClose, onSave, task, month, week }
                 </div>
               )}
 
+              {/* Due Date */}
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-1.5">
+                  <span className="flex items-center gap-2">
+                    <CalendarDays className="w-4 h-4 text-muted-foreground" />
+                    마감일
+                  </span>
+                </label>
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <div className="flex-1">
+                    <input
+                      type="date"
+                      value={formData.dueDate}
+                      onChange={handleDueDateChange}
+                      className="w-full px-4 py-2.5 bg-background border border-border rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all cursor-pointer"
+                    />
+                  </div>
+                  {/* D-Day Preview */}
+                  {formData.dueDate && (
+                    <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-muted/30">
+                      <span className="text-sm text-muted-foreground">
+                        {formatDateKorean(formData.dueDate)}
+                      </span>
+                      <span
+                        className={`px-2 py-0.5 rounded text-xs font-medium ${getDDayColorClass(formData.dueDate).bg} ${getDDayColorClass(formData.dueDate).text}`}
+                      >
+                        {formatDDay(formData.dueDate)}
+                      </span>
+                    </div>
+                  )}
+                </div>
+                {/* Week date range hint */}
+                <p className="mt-1.5 text-xs text-muted-foreground">
+                  {formData.month}월 {WEEK_LABELS[formData.week]}: {formatWeekDateRange(formData.year, formData.month, formData.week)}
+                </p>
+              </div>
+
               {/* Assignee */}
               <div>
                 <label className="block text-sm font-medium text-foreground mb-1.5">
@@ -436,24 +490,34 @@ export default function TaskModal({ isOpen, onClose, onSave, task, month, week }
                 </div>
               )}
 
-              {/* Month & Week */}
+              {/* Month, Week & Due Date */}
               <div className="flex gap-3">
                 <div className="flex-1 p-4 bg-muted/30 rounded-xl">
                   <div className="flex items-center gap-2 mb-1">
                     <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
-                    <p className="text-xs text-muted-foreground">월</p>
+                    <p className="text-xs text-muted-foreground">일정</p>
                   </div>
                   <p className="text-foreground font-medium">
-                    {monthInfo ? monthInfo.name : '-'}
+                    {monthInfo ? monthInfo.name : '-'} {WEEK_LABELS[formData.week]}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {formatWeekDateRange(formData.year, formData.month, formData.week)}
                   </p>
                 </div>
-                <div className="flex-1 p-4 bg-muted/30 rounded-xl">
-                  <div className="flex items-center gap-2 mb-1">
-                    <Clock className="w-3.5 h-3.5 text-muted-foreground" />
-                    <p className="text-xs text-muted-foreground">주차</p>
+                {formData.dueDate && (
+                  <div className="flex-1 p-4 bg-muted/30 rounded-xl">
+                    <div className="flex items-center gap-2 mb-1">
+                      <CalendarDays className="w-3.5 h-3.5 text-muted-foreground" />
+                      <p className="text-xs text-muted-foreground">마감일</p>
+                    </div>
+                    <p className="text-foreground font-medium">{formatDateKorean(formData.dueDate)}</p>
+                    <span
+                      className={`inline-block mt-1 px-2 py-0.5 rounded text-xs font-medium ${getDDayColorClass(formData.dueDate).bg} ${getDDayColorClass(formData.dueDate).text}`}
+                    >
+                      {formatDDay(formData.dueDate)}
+                    </span>
                   </div>
-                  <p className="text-foreground font-medium">{WEEK_LABELS[formData.week]}</p>
-                </div>
+                )}
               </div>
 
               {/* Assignee & Deliverables */}
