@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, Pencil, Calendar, User, FileText, Tag, Clock, CalendarDays } from 'lucide-react';
 import { Task, TaskCategory, TaskStatus, CATEGORY_LABELS, MONTHS_INFO } from '@/lib/types';
 import { toast } from '@/lib/store/toast-store';
-import { formatWeekDateRange, getWeekDateRange, formatDateKorean, formatDDay, getDDayColorClass } from '@/lib/utils/date';
+import { formatWeekDateRange, getWeekDateRange, formatDateKorean, formatDDay, getDDayColorClass, getWeekOfMonth } from '@/lib/utils/date';
 
 interface TaskModalProps {
   isOpen: boolean;
@@ -17,13 +17,6 @@ interface TaskModalProps {
 }
 
 const CATEGORIES: TaskCategory[] = ['operation', 'marketing', 'design', 'filming', 'pr', 'b2b'];
-const WEEKS = [1, 2, 3, 4];
-const WEEK_LABELS: Record<number, string> = {
-  1: '첫째 주',
-  2: '둘째 주',
-  3: '셋째 주',
-  4: '넷째 주',
-};
 
 const STATUS_LABELS: Record<TaskStatus, string> = {
   pending: '대기',
@@ -167,13 +160,6 @@ export default function TaskModal({ isOpen, onClose, onSave, task, month, week }
     setFormData(prev => ({ ...prev, status: e.target.value as TaskStatus }));
   };
 
-  const handleMonthChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setFormData(prev => ({ ...prev, month: parseInt(e.target.value) }));
-  };
-
-  const handleWeekChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setFormData(prev => ({ ...prev, week: parseInt(e.target.value) }));
-  };
 
   const handleAssigneeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData(prev => ({ ...prev, assignee: e.target.value }));
@@ -188,7 +174,20 @@ export default function TaskModal({ isOpen, onClose, onSave, task, month, week }
   };
 
   const handleDueDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData(prev => ({ ...prev, dueDate: e.target.value }));
+    const newDueDate = e.target.value;
+    if (newDueDate) {
+      const date = new Date(newDueDate);
+      const newMonth = date.getMonth() + 1;
+      const newWeek = getWeekOfMonth(date);
+      setFormData(prev => ({
+        ...prev,
+        dueDate: newDueDate,
+        month: newMonth,
+        week: newWeek,
+      }));
+    } else {
+      setFormData(prev => ({ ...prev, dueDate: newDueDate }));
+    }
   };
 
   return (
@@ -308,58 +307,6 @@ export default function TaskModal({ isOpen, onClose, onSave, task, month, week }
                 </div>
               </div>
 
-              {/* Month & Week Row */}
-              {task && (
-                <div className="flex flex-col sm:flex-row gap-4">
-                  <div className="flex-1">
-                    <label className="block text-sm font-medium text-foreground mb-1.5">
-                      월
-                    </label>
-                    <div className="relative">
-                      <select
-                        value={formData.month}
-                        onChange={handleMonthChange}
-                        className="w-full px-4 py-2.5 pr-10 bg-background border border-border rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all appearance-none cursor-pointer"
-                      >
-                        {MONTHS_INFO.map((m) => (
-                          <option key={m.id} value={m.id}>
-                            {m.name} - {m.title}
-                          </option>
-                        ))}
-                      </select>
-                      <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
-                        <svg className="w-4 h-4 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                        </svg>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex-1">
-                    <label className="block text-sm font-medium text-foreground mb-1.5">
-                      주차
-                    </label>
-                    <div className="relative">
-                      <select
-                        value={formData.week}
-                        onChange={handleWeekChange}
-                        className="w-full px-4 py-2.5 pr-10 bg-background border border-border rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all appearance-none cursor-pointer"
-                      >
-                        {WEEKS.map((w) => (
-                          <option key={w} value={w}>
-                            {WEEK_LABELS[w]}
-                          </option>
-                        ))}
-                      </select>
-                      <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
-                        <svg className="w-4 h-4 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                        </svg>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
 
               {/* Due Date */}
               <div>
@@ -392,10 +339,12 @@ export default function TaskModal({ isOpen, onClose, onSave, task, month, week }
                     </div>
                   )}
                 </div>
-                {/* Week date range hint */}
-                <p className="mt-1.5 text-xs text-muted-foreground">
-                  {formData.month}월 {WEEK_LABELS[formData.week]}: {formatWeekDateRange(formData.year, formData.month, formData.week)}
-                </p>
+                {/* Auto-calculated placement info */}
+                {formData.dueDate && (
+                  <p className="mt-1.5 text-xs text-muted-foreground">
+                    → {formData.month}월 {formData.week}주차에 자동 배치됩니다
+                  </p>
+                )}
               </div>
 
               {/* Assignee */}
@@ -490,20 +439,8 @@ export default function TaskModal({ isOpen, onClose, onSave, task, month, week }
                 </div>
               )}
 
-              {/* Month, Week & Due Date */}
+              {/* Due Date & Schedule */}
               <div className="flex gap-3">
-                <div className="flex-1 p-4 bg-muted/30 rounded-xl">
-                  <div className="flex items-center gap-2 mb-1">
-                    <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
-                    <p className="text-xs text-muted-foreground">일정</p>
-                  </div>
-                  <p className="text-foreground font-medium">
-                    {monthInfo ? monthInfo.name : '-'} {WEEK_LABELS[formData.week]}
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    {formatWeekDateRange(formData.year, formData.month, formData.week)}
-                  </p>
-                </div>
                 {formData.dueDate && (
                   <div className="flex-1 p-4 bg-muted/30 rounded-xl">
                     <div className="flex items-center gap-2 mb-1">

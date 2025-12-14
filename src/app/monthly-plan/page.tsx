@@ -827,10 +827,7 @@ export default function MonthlyPlanPage() {
                     </div>
                     <div className="flex flex-col">
                       <span className="text-white/80 text-sm sm:text-base font-medium">
-                        {currentMonthInfo?.name} {weekTitles[selectedWeek].full}
-                      </span>
-                      <span className="text-white/40 text-[10px] sm:text-xs">
-                        {formatWeekDateRange(selectedYear, selectedMonth, selectedWeek)}
+                        {currentMonthInfo?.name} {formatWeekDateRange(selectedYear, selectedMonth, selectedWeek)}
                       </span>
                     </div>
                   </div>
