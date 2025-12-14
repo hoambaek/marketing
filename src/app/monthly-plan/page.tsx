@@ -43,10 +43,10 @@ const phaseColors = {
 };
 
 const weekTitles: Record<number, { short: string; full: string }> = {
-  1: { short: 'W1', full: '첫째 주' },
-  2: { short: 'W2', full: '둘째 주' },
-  3: { short: 'W3', full: '셋째 주' },
-  4: { short: 'W4', full: '넷째 주' },
+  1: { short: '1주차', full: '첫째 주' },
+  2: { short: '2주차', full: '둘째 주' },
+  3: { short: '3주차', full: '셋째 주' },
+  4: { short: '4주차', full: '넷째 주' },
 };
 
 // Get current month and week based on today's date
@@ -771,29 +771,30 @@ export default function MonthlyPlanPage() {
                         />
                       )}
                       <span className="relative z-10 flex flex-col items-center gap-0.5">
-                        {/* Week Label with Current Indicator */}
-                        <span className="flex items-center gap-1.5 text-xs sm:text-sm font-medium">
-                          {weekTitles[week].short}
-                          {isCurrent && (
-                            <span
-                              className="w-1.5 h-1.5 rounded-full animate-pulse"
-                              style={{ backgroundColor: colors.primary }}
-                            />
-                          )}
+                        {/* Week Label + Task Count (horizontal) */}
+                        <span className="flex items-center gap-2 text-xs sm:text-sm font-medium">
+                          <span className="flex items-center gap-1">
+                            {weekTitles[week].short}
+                            {isCurrent && (
+                              <span
+                                className="w-1.5 h-1.5 rounded-full animate-pulse"
+                                style={{ backgroundColor: colors.primary }}
+                              />
+                            )}
+                          </span>
+                          <span
+                            className={`px-1.5 py-0.5 rounded text-[10px] sm:text-xs ${
+                              isSelected
+                                ? 'bg-white/10'
+                                : 'bg-white/[0.04]'
+                            }`}
+                          >
+                            {isMounted ? `${completedCount}/${weekTasksCount.length}` : '—'}
+                          </span>
                         </span>
                         {/* Date Range */}
                         <span className={`text-[9px] sm:text-[10px] ${isSelected ? 'text-white/60' : 'text-white/30'}`}>
                           {dateRange}
-                        </span>
-                        {/* Task Count */}
-                        <span
-                          className={`mt-0.5 px-1.5 py-0.5 rounded text-[9px] sm:text-[10px] ${
-                            isSelected
-                              ? 'bg-white/10'
-                              : 'bg-white/[0.04]'
-                          }`}
-                        >
-                          {isMounted ? `${completedCount}/${weekTasksCount.length}` : '—'}
                         </span>
                       </span>
                     </button>
