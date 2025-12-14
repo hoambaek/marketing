@@ -256,6 +256,7 @@ export default function DashboardPage() {
   } = useBudgetStore();
 
   const {
+    issues,
     getOpenIssues,
     getCriticalIssues,
     isInitialized: issueInitialized,
@@ -297,6 +298,9 @@ export default function DashboardPage() {
 
   const openIssues = mounted ? getOpenIssues() : [];
   const criticalIssues = mounted ? getCriticalIssues() : [];
+  const totalIssues = mounted ? issues.length : 0;
+  const resolvedIssues = mounted ? issues.filter(i => i.status === 'resolved' || i.status === 'closed').length : 0;
+  const issueResolutionRate = totalIssues > 0 ? Math.round((resolvedIssues / totalIssues) * 100) : 100;
 
   const mustDoCompleted = mounted ? mustDoItems.filter(m => m.done).length : 0;
   const mustDoTotal = mounted ? mustDoItems.length : 0;
@@ -505,11 +509,12 @@ export default function DashboardPage() {
               alert={budgetUsage > 90}
             />
             <StatCard
-              label="미해결 이슈"
-              value={openIssues.length}
+              label="이슈 해결률"
+              value={`${issueResolutionRate}%`}
+              progress={issueResolutionRate}
               icon={AlertCircle}
               href="/issues"
-              subValue={criticalIssues.length > 0 ? `${criticalIssues.length}개 긴급` : '긴급 없음'}
+              subValue={openIssues.length > 0 ? `${openIssues.length}개 미해결` : '모두 해결'}
               alert={criticalIssues.length > 0}
             />
             <StatCard
