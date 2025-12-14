@@ -53,19 +53,19 @@ const VIEW_OPTIONS: { value: OceanDataView; label: string; days: string }[] = [
 // Floating particles component for oceanic atmosphere
 function OceanParticles() {
   return (
-    <div className="absolute inset-0 overflow-hidden pointer-events-none">
+    <div className="absolute inset-0 overflow-hidden pointer-events-none hidden sm:block">
       {[...Array(20)].map((_, i) => (
         <motion.div
           key={i}
           className="absolute w-1 h-1 rounded-full bg-cyan-400/20"
           initial={{
-            x: Math.random() * 100 + '%',
+            x: Math.random() * 80 + 10 + '%',
             y: '100%',
             scale: Math.random() * 0.5 + 0.5,
           }}
           animate={{
-            y: '-10%',
-            x: `calc(${Math.random() * 100}% + ${Math.sin(i) * 50}px)`,
+            y: '10%',
+            x: `calc(${Math.random() * 80 + 10}% + ${Math.sin(i) * 30}px)`,
           }}
           transition={{
             duration: Math.random() * 20 + 15,
@@ -474,7 +474,7 @@ export default function DataLogPage() {
                       initial={{ opacity: 0, y: 8 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: 8 }}
-                      className="absolute top-full mt-2 right-0 w-48 bg-[#0d1421] border border-white/10 rounded-xl overflow-hidden shadow-2xl z-10"
+                      className="absolute top-full mt-2 left-0 sm:left-auto sm:right-0 w-48 bg-[#0d1421] border border-white/10 rounded-xl overflow-hidden shadow-2xl z-10"
                     >
                       {VIEW_OPTIONS.map((option) => (
                         <button
@@ -536,8 +536,36 @@ export default function DataLogPage() {
         </motion.div>
 
         {/* Current Conditions Grid */}
-        <div className="flex gap-6 mb-10">
-          {/* Depth gauge */}
+        <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 mb-10">
+          {/* Mobile Depth indicator */}
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className="sm:hidden bg-[#0d1421]/60 backdrop-blur-xl border border-white/[0.06] rounded-xl p-3"
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 bg-cyan-500/10 rounded-lg">
+                  <Anchor className="w-4 h-4 text-cyan-400" />
+                </div>
+                <span className="text-xs text-white/50 uppercase tracking-wider">숙성 깊이</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-24 h-2 bg-white/5 rounded-full overflow-hidden">
+                  <motion.div
+                    className="h-full bg-gradient-to-r from-cyan-500 to-teal-400 rounded-full"
+                    initial={{ width: 0 }}
+                    animate={{ width: `${(agingDepth / 30) * 100}%` }}
+                    transition={{ duration: 1, ease: 'easeOut' }}
+                  />
+                </div>
+                <span className="text-lg font-light text-cyan-400 font-mono">{agingDepth}m</span>
+              </div>
+            </div>
+          </motion.div>
+
+          {/* Desktop Depth gauge */}
           <motion.div
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
