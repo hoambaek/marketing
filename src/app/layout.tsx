@@ -70,7 +70,10 @@ export default function RootLayout({
 
           {/* Main Content */}
           <SupabaseInitializer>
-            <main className="pt-16 min-h-screen">
+            <main
+              className="min-h-screen"
+              style={{ paddingTop: 'calc(4rem + env(safe-area-inset-top, 0px))' }}
+            >
               {children}
             </main>
           </SupabaseInitializer>
