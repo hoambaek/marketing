@@ -1,87 +1,28 @@
 'use client';
 
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import Link from 'next/link';
-import { useRef, useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useMasterPlanStore } from '@/lib/store/masterplan-store';
 import { useBudgetStore } from '@/lib/store/budget-store';
 import { useIssueStore } from '@/lib/store/issue-store';
 import { useInventoryStore } from '@/lib/store/inventory-store';
 import { Footer } from '@/components/layout/Footer';
 import {
-  MONTHS_INFO,
   PHASE_INFO,
-  CATEGORY_LABELS,
-  TaskCategory,
   AVAILABLE_YEARS,
-  ISSUE_PRIORITY_LABELS,
-  ISSUE_PRIORITY_COLORS,
 } from '@/lib/types';
 import {
-  CheckCircle2,
-  Clock,
-  Circle,
-  ArrowRight,
-  Calendar,
-  Target,
-  TrendingUp,
-  ChevronLeft,
-  ChevronRight,
-  Sparkles,
   AlertTriangle,
+  TrendingUp,
   Wallet,
-  Wine,
-  BarChart3,
   AlertCircle,
-  Activity,
-  Layers,
-  Package,
-  Zap,
+  Target,
+  ArrowUpRight,
+  Sparkles,
+  Clock,
+  Wine,
 } from 'lucide-react';
-
-// ═══════════════════════════════════════════════════════════════════════════
-// Animation Variants
-// ═══════════════════════════════════════════════════════════════════════════
-
-const containerVariants = {
-  hidden: { opacity: 0 },
-  visible: {
-    opacity: 1,
-    transition: {
-      staggerChildren: 0.06,
-      delayChildren: 0.1,
-    },
-  },
-};
-
-const itemVariants = {
-  hidden: { opacity: 0, y: 30 },
-  visible: {
-    opacity: 1,
-    y: 0,
-    transition: {
-      duration: 0.6,
-      ease: [0.22, 1, 0.36, 1] as const,
-    },
-  },
-};
-
-const cardHover = {
-  rest: { scale: 1 },
-  hover: { scale: 1.02, transition: { duration: 0.3 } },
-};
-
-// ═══════════════════════════════════════════════════════════════════════════
-// Phase Colors
-// ═══════════════════════════════════════════════════════════════════════════
-
-const phaseColors = {
-  1: { primary: '#3B82F6', gradient: 'from-blue-500/20 to-blue-600/5', bg: 'bg-blue-500' },
-  2: { primary: '#10B981', gradient: 'from-emerald-500/20 to-emerald-600/5', bg: 'bg-emerald-500' },
-  3: { primary: '#F59E0B', gradient: 'from-amber-500/20 to-amber-600/5', bg: 'bg-amber-500' },
-  4: { primary: '#EC4899', gradient: 'from-rose-500/20 to-rose-600/5', bg: 'bg-rose-500' },
-  5: { primary: '#8B7355', gradient: 'from-amber-700/20 to-amber-800/5', bg: 'bg-amber-700' },
-};
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Helper Functions
@@ -98,10 +39,8 @@ function getDaysUntilLaunch(): number {
 function getCurrentPhase(): number {
   const today = new Date();
   const targetYear = 2026;
-
   if (today.getFullYear() < targetYear) return 1;
   if (today.getFullYear() > targetYear) return 5;
-
   const month = today.getMonth() + 1;
   for (const phase of PHASE_INFO) {
     if (phase.months.includes(month)) return phase.id;
@@ -110,37 +49,40 @@ function getCurrentPhase(): number {
 }
 
 function formatCurrency(amount: number): string {
-  if (amount >= 100000000) {
-    return `${(amount / 100000000).toFixed(1)}억`;
-  } else if (amount >= 10000) {
-    return `${(amount / 10000).toFixed(0)}만`;
-  }
+  if (amount >= 100000000) return `${(amount / 100000000).toFixed(1)}억`;
+  if (amount >= 10000) return `${(amount / 10000).toFixed(0)}만`;
   return amount.toLocaleString();
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// Circular Progress Component
+// Health Score Ring Component
 // ═══════════════════════════════════════════════════════════════════════════
 
-function CircularProgress({
-  value,
-  size = 120,
-  strokeWidth = 8,
-  children
-}: {
-  value: number;
-  size?: number;
-  strokeWidth?: number;
-  children?: React.ReactNode;
-}) {
+function HealthScoreRing({ score, size = 240 }: { score: number; size?: number }) {
+  const strokeWidth = 12;
   const radius = (size - strokeWidth) / 2;
   const circumference = radius * 2 * Math.PI;
-  const offset = circumference - (value / 100) * circumference;
+  const offset = circumference - (score / 100) * circumference;
+
+  // Health color based on score
+  const getHealthColor = (s: number) => {
+    if (s >= 70) return { stroke: '#22c55e', glow: 'rgba(34, 197, 94, 0.3)', label: 'Healthy' };
+    if (s >= 40) return { stroke: '#f59e0b', glow: 'rgba(245, 158, 11, 0.3)', label: 'Attention' };
+    return { stroke: '#ef4444', glow: 'rgba(239, 68, 68, 0.3)', label: 'Critical' };
+  };
+
+  const health = getHealthColor(score);
 
   return (
     <div className="relative" style={{ width: size, height: size }}>
+      {/* Glow effect */}
+      <div
+        className="absolute inset-0 rounded-full blur-3xl opacity-40"
+        style={{ backgroundColor: health.glow }}
+      />
+
       <svg className="transform -rotate-90" width={size} height={size}>
-        {/* Background circle */}
+        {/* Background ring */}
         <circle
           cx={size / 2}
           cy={size / 2}
@@ -149,33 +91,147 @@ function CircularProgress({
           stroke="rgba(255,255,255,0.06)"
           strokeWidth={strokeWidth}
         />
-        {/* Progress circle */}
+        {/* Progress ring */}
         <motion.circle
           cx={size / 2}
           cy={size / 2}
           r={radius}
           fill="none"
-          stroke="url(#progressGradient)"
+          stroke={health.stroke}
           strokeWidth={strokeWidth}
           strokeLinecap="round"
           initial={{ strokeDashoffset: circumference }}
           animate={{ strokeDashoffset: offset }}
-          transition={{ duration: 1.5, ease: [0.22, 1, 0.36, 1] }}
-          style={{
-            strokeDasharray: circumference,
-          }}
+          transition={{ duration: 2, ease: [0.22, 1, 0.36, 1] }}
+          style={{ strokeDasharray: circumference }}
         />
-        <defs>
-          <linearGradient id="progressGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stopColor="#b7916e" />
-            <stop offset="100%" stopColor="#d4c4a8" />
-          </linearGradient>
-        </defs>
       </svg>
-      <div className="absolute inset-0 flex items-center justify-center">
-        {children}
+
+      {/* Center content */}
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
+        <motion.span
+          initial={{ opacity: 0, scale: 0.5 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.8, delay: 0.5 }}
+          className="text-6xl sm:text-7xl font-light text-white/95"
+          style={{ fontFamily: "var(--font-cormorant), 'Playfair Display', Georgia, serif" }}
+        >
+          {score}
+        </motion.span>
+        <span className="text-xs tracking-[0.3em] uppercase text-white/40 mt-1">
+          {health.label}
+        </span>
       </div>
     </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Stat Card Component
+// ═══════════════════════════════════════════════════════════════════════════
+
+function StatCard({
+  label,
+  value,
+  subValue,
+  progress,
+  icon: Icon,
+  href,
+  alert
+}: {
+  label: string;
+  value: string | number;
+  subValue?: string;
+  progress?: number;
+  icon: React.ElementType;
+  href: string;
+  alert?: boolean;
+}) {
+  return (
+    <Link href={href}>
+      <motion.div
+        whileHover={{ y: -4, scale: 1.02 }}
+        transition={{ duration: 0.2 }}
+        className={`relative p-5 rounded-2xl cursor-pointer group overflow-hidden ${
+          alert
+            ? 'bg-gradient-to-br from-rose-500/10 to-rose-500/[0.02] border border-rose-500/20'
+            : 'bg-gradient-to-br from-white/[0.04] to-white/[0.01] border border-white/[0.08]'
+        }`}
+      >
+        {/* Hover glow */}
+        <div className="absolute inset-0 bg-gradient-to-br from-[#b7916e]/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+
+        <div className="relative">
+          <div className="flex items-center justify-between mb-3">
+            <Icon className={`w-5 h-5 ${alert ? 'text-rose-400' : 'text-white/30'}`} />
+            <ArrowUpRight className="w-4 h-4 text-white/20 group-hover:text-[#b7916e] transition-colors" />
+          </div>
+
+          <p className={`text-3xl font-light mb-1 ${alert ? 'text-rose-400' : 'text-white/90'}`}
+             style={{ fontFamily: "var(--font-cormorant), serif" }}>
+            {value}
+          </p>
+
+          <p className="text-xs text-white/40 mb-3">{label}</p>
+
+          {progress !== undefined && (
+            <div className="h-1 rounded-full bg-white/[0.06] overflow-hidden">
+              <motion.div
+                initial={{ width: 0 }}
+                animate={{ width: `${Math.min(progress, 100)}%` }}
+                transition={{ duration: 1, delay: 0.3 }}
+                className={`h-full rounded-full ${
+                  alert ? 'bg-rose-500' :
+                  progress > 80 ? 'bg-emerald-500' :
+                  progress > 50 ? 'bg-amber-500' : 'bg-white/30'
+                }`}
+              />
+            </div>
+          )}
+
+          {subValue && (
+            <p className="text-[10px] text-white/30 mt-2">{subValue}</p>
+          )}
+        </div>
+      </motion.div>
+    </Link>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Attention Item Component
+// ═══════════════════════════════════════════════════════════════════════════
+
+function AttentionItem({
+  type,
+  title,
+  severity,
+  href
+}: {
+  type: 'issue' | 'budget' | 'task' | 'deadline';
+  title: string;
+  severity: 'critical' | 'warning' | 'info';
+  href: string;
+}) {
+  const severityStyles = {
+    critical: { bg: 'bg-rose-500/10', border: 'border-rose-500/30', dot: 'bg-rose-500', text: 'text-rose-300' },
+    warning: { bg: 'bg-amber-500/10', border: 'border-amber-500/30', dot: 'bg-amber-500', text: 'text-amber-300' },
+    info: { bg: 'bg-blue-500/10', border: 'border-blue-500/30', dot: 'bg-blue-500', text: 'text-blue-300' },
+  };
+
+  const style = severityStyles[severity];
+
+  return (
+    <Link href={href}>
+      <motion.div
+        whileHover={{ x: 4 }}
+        className={`flex items-center gap-3 p-3 rounded-xl ${style.bg} border ${style.border} cursor-pointer group`}
+      >
+        <div className={`w-2 h-2 rounded-full ${style.dot} ${severity === 'critical' ? 'animate-pulse' : ''}`} />
+        <p className={`text-sm ${style.text} flex-1 truncate`}>{title}</p>
+        <ArrowUpRight className="w-4 h-4 text-white/20 group-hover:text-white/40 transition-colors" />
+      </motion.div>
+    </Link>
   );
 }
 
@@ -186,7 +242,6 @@ function CircularProgress({
 export default function DashboardPage() {
   const {
     getTotalProgress,
-    getProgressByMonth,
     tasks,
     mustDoItems,
     isInitialized: masterplanInitialized,
@@ -194,8 +249,6 @@ export default function DashboardPage() {
   } = useMasterPlanStore();
 
   const {
-    budgetItems,
-    expenseItems,
     getTotalBudgeted,
     getTotalSpent,
     isInitialized: budgetInitialized,
@@ -203,7 +256,6 @@ export default function DashboardPage() {
   } = useBudgetStore();
 
   const {
-    issues,
     getOpenIssues,
     getCriticalIssues,
     isInitialized: issueInitialized,
@@ -216,16 +268,13 @@ export default function DashboardPage() {
     initializeInventory
   } = useInventoryStore();
 
-  const timelineRef = useRef<HTMLDivElement>(null);
   const [selectedYear, setSelectedYear] = useState<number>(2026);
   const [mounted, setMounted] = useState(false);
 
-  // Set mounted state to prevent hydration mismatch
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  // Initialize stores
   useEffect(() => {
     if (!masterplanInitialized) initMasterplan();
     if (!budgetInitialized) initBudget();
@@ -233,96 +282,127 @@ export default function DashboardPage() {
     if (!inventoryInitialized) initializeInventory();
   }, [masterplanInitialized, budgetInitialized, issueInitialized, inventoryInitialized, initMasterplan, initBudget, initIssues, initializeInventory]);
 
-  // Computed values (only calculate after mount to prevent hydration mismatch)
-  const totalProgress = mounted ? getTotalProgress() : 0;
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Computed Values
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  const taskProgress = mounted ? getTotalProgress() : 0;
   const daysUntilLaunch = mounted ? getDaysUntilLaunch() : 0;
   const currentPhase = mounted ? getCurrentPhase() : 1;
   const currentPhaseInfo = PHASE_INFO.find(p => p.id === currentPhase);
 
-  const statusCounts = mounted ? {
-    done: tasks.filter((t) => t.status === 'done').length,
-    in_progress: tasks.filter((t) => t.status === 'in_progress').length,
-    pending: tasks.filter((t) => t.status === 'pending').length,
-  } : { done: 0, in_progress: 0, pending: 0 };
-
   const totalBudget = mounted ? getTotalBudgeted(selectedYear) : 0;
   const totalSpent = mounted ? getTotalSpent(selectedYear) : 0;
-  const budgetUsagePercent = totalBudget > 0 ? Math.round((totalSpent / totalBudget) * 100) : 0;
+  const budgetUsage = totalBudget > 0 ? Math.round((totalSpent / totalBudget) * 100) : 0;
 
   const openIssues = mounted ? getOpenIssues() : [];
   const criticalIssues = mounted ? getCriticalIssues() : [];
 
-  const inventory = mounted ? getTotalInventoryValue() : { totalBottles: 0, available: 0, sold: 0, reserved: 0 };
-  const soldPercent = inventory.totalBottles > 0
-    ? Math.round((inventory.sold / inventory.totalBottles) * 100)
-    : 0;
-
   const mustDoCompleted = mounted ? mustDoItems.filter(m => m.done).length : 0;
   const mustDoTotal = mounted ? mustDoItems.length : 0;
-  const mustDoPercent = mustDoTotal > 0 ? Math.round((mustDoCompleted / mustDoTotal) * 100) : 0;
+  const mustDoProgress = mustDoTotal > 0 ? Math.round((mustDoCompleted / mustDoTotal) * 100) : 0;
 
-  // This month's tasks
-  const currentMonth = mounted ? new Date().getMonth() + 1 : 1;
-  const thisMonthTasks = mounted ? tasks.filter((t) => t.year === selectedYear && t.month === currentMonth) : [];
-  const thisWeekTasks = mounted ? tasks.filter((t) => t.year === selectedYear && t.month === 1 && t.week === 1).slice(0, 4) : [];
+  const inventory = mounted ? getTotalInventoryValue() : { totalBottles: 0, available: 0, sold: 0, reserved: 0 };
 
-  // Timeline scroll
-  const scrollTimeline = (direction: 'left' | 'right') => {
-    if (timelineRef.current) {
-      const scrollAmount = 400;
-      timelineRef.current.scrollBy({
-        left: direction === 'left' ? -scrollAmount : scrollAmount,
-        behavior: 'smooth',
-      });
-    }
-  };
+  // Calculate Health Score (weighted average)
+  const healthScore = mounted ? Math.round(
+    (taskProgress * 0.35) +           // 35% weight on task progress
+    (mustDoProgress * 0.25) +         // 25% weight on must-do completion
+    ((100 - Math.min(budgetUsage, 100)) * 0.20) +  // 20% weight on budget health (inverse)
+    ((100 - Math.min(criticalIssues.length * 20, 100)) * 0.20)  // 20% weight on issue severity
+  ) : 0;
 
-  const getPhaseBarPosition = (phase: typeof PHASE_INFO[0]) => {
-    const startMonth = Math.min(...phase.months);
-    const endMonth = Math.max(...phase.months);
-    const startWeek = (startMonth - 1) * 4;
-    const endWeek = endMonth * 4;
-    return { startWeek, endWeek, width: endWeek - startWeek };
-  };
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Attention Items (things that need attention)
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  const attentionItems: Array<{
+    type: 'issue' | 'budget' | 'task' | 'deadline';
+    title: string;
+    severity: 'critical' | 'warning' | 'info';
+    href: string;
+  }> = [];
+
+  // Add critical issues
+  criticalIssues.forEach(issue => {
+    attentionItems.push({
+      type: 'issue',
+      title: issue.title,
+      severity: 'critical',
+      href: '/issues'
+    });
+  });
+
+  // Add budget warning if over 70%
+  if (budgetUsage > 70) {
+    attentionItems.push({
+      type: 'budget',
+      title: `${selectedYear}년 예산 ${budgetUsage}% 소진`,
+      severity: budgetUsage > 90 ? 'critical' : 'warning',
+      href: '/budget'
+    });
+  }
+
+  // Add overdue tasks (tasks that are pending in past months)
+  const currentMonth = new Date().getMonth() + 1;
+  const overdueTasks = mounted ? tasks.filter(t =>
+    t.year === selectedYear &&
+    t.month < currentMonth &&
+    t.status === 'pending'
+  ).slice(0, 2) : [];
+
+  overdueTasks.forEach(task => {
+    attentionItems.push({
+      type: 'task',
+      title: `${task.month}월 미완료: ${task.title}`,
+      severity: 'warning',
+      href: `/month/${task.month}`
+    });
+  });
+
+  // Limit to 5 items max
+  const displayAttentionItems = attentionItems.slice(0, 5);
 
   return (
     <div className="min-h-screen relative overflow-hidden pb-20">
       {/* Ambient Background */}
       <div className="fixed inset-0 -z-10">
         <div className="absolute inset-0 bg-gradient-to-br from-[#070b12] via-[#0a1018] to-[#0d1525]" />
-        <div className="absolute top-0 left-1/4 w-[600px] h-[600px] bg-[#b7916e]/[0.03] rounded-full blur-[120px]" />
-        <div className="absolute bottom-0 right-1/4 w-[500px] h-[500px] bg-blue-500/[0.02] rounded-full blur-[100px]" />
+        <div className="absolute top-1/4 left-1/4 w-[800px] h-[800px] bg-[#b7916e]/[0.02] rounded-full blur-[150px]" />
+        <div className="absolute bottom-0 right-0 w-[600px] h-[600px] bg-emerald-500/[0.015] rounded-full blur-[120px]" />
         <div
-          className="absolute inset-0 opacity-[0.02]"
+          className="absolute inset-0 opacity-[0.015]"
           style={{
             backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")`,
           }}
         />
       </div>
 
-      {/* Hero Section - Compact on Mobile */}
-      <section className="px-4 sm:px-6 lg:px-8 pt-8 sm:pt-20 pb-4 sm:pb-6">
-        <div className="mx-auto max-w-7xl">
+      {/* Main Content */}
+      <div className="px-4 sm:px-6 lg:px-8 pt-8 sm:pt-16">
+        <div className="mx-auto max-w-5xl">
+
+          {/* Header */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8 }}
-            className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 sm:gap-4"
+            className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-12"
           >
             <div>
               <motion.div
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ duration: 0.6, delay: 0.2 }}
-                className="flex items-center gap-2 sm:gap-3 mb-2 sm:mb-3"
+                className="flex items-center gap-3 mb-2"
               >
-                <div className="hidden sm:block h-px w-8 bg-gradient-to-r from-[#b7916e] to-transparent" />
-                <span className="text-[#b7916e] text-[10px] sm:text-xs tracking-[0.2em] sm:tracking-[0.25em] uppercase font-light">
-                  Launch Masterplan
+                <div className="h-px w-8 bg-gradient-to-r from-[#b7916e] to-transparent" />
+                <span className="text-[#b7916e] text-xs tracking-[0.25em] uppercase font-light">
+                  Command Center
                 </span>
               </motion.div>
               <h1
-                className="text-3xl sm:text-5xl lg:text-6xl text-white/95 tracking-tight"
+                className="text-4xl sm:text-5xl lg:text-6xl text-white/95 tracking-tight"
                 style={{ fontFamily: "var(--font-cormorant), 'Playfair Display', Georgia, serif" }}
               >
                 Dashboard
@@ -334,13 +414,13 @@ export default function DashboardPage() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ duration: 0.6, delay: 0.4 }}
-              className="flex items-center gap-1 sm:gap-2"
+              className="flex items-center gap-2"
             >
               {AVAILABLE_YEARS.map((year) => (
                 <button
                   key={year}
                   onClick={() => setSelectedYear(year)}
-                  className={`px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl text-xs sm:text-sm font-medium transition-all ${
+                  className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
                     selectedYear === year
                       ? 'bg-[#b7916e]/20 text-[#d4c4a8] border border-[#b7916e]/30'
                       : 'text-white/40 hover:text-white/60 hover:bg-white/[0.04]'
@@ -352,521 +432,177 @@ export default function DashboardPage() {
               ))}
             </motion.div>
           </motion.div>
-        </div>
-      </section>
 
-      {/* Main Dashboard Grid */}
-      <section className="px-4 sm:px-6 lg:px-8 py-4">
-        <motion.div
-          variants={containerVariants}
-          initial="hidden"
-          animate="visible"
-          className="mx-auto max-w-7xl"
-        >
-          {/* Top Row - Key Metrics */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-4">
-            {/* Launch Countdown */}
-            <motion.div variants={itemVariants} className="col-span-2 lg:col-span-1">
-              <div className="relative h-full rounded-2xl sm:rounded-3xl overflow-hidden group">
-                <div className="absolute inset-0 bg-gradient-to-br from-[#b7916e]/10 to-[#b7916e]/[0.02]" />
-                <div className="absolute inset-0 border border-[#b7916e]/20 rounded-2xl sm:rounded-3xl" />
-
-                <div className="relative p-4 sm:p-5 flex items-center gap-4">
-                  <CircularProgress value={Math.min(100, 100 - (daysUntilLaunch / 600 * 100))} size={80} strokeWidth={6}>
-                    <div className="text-center">
-                      <p className="text-xl sm:text-2xl font-light text-[#d4c4a8]" style={{ fontFamily: "var(--font-cormorant), serif" }}>
-                        {daysUntilLaunch}
-                      </p>
-                      <p className="text-[8px] text-white/40 uppercase tracking-wider">days</p>
-                    </div>
-                  </CircularProgress>
-                  <div>
-                    <p className="text-xs text-white/40 mb-1">런칭까지</p>
-                    <p className="text-lg sm:text-xl text-white/90 font-light" style={{ fontFamily: "var(--font-cormorant), serif" }}>
-                      D-{daysUntilLaunch}
-                    </p>
-                    <p className="text-[10px] text-[#b7916e]/60 mt-1">2026년 8월 1일</p>
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-
-            {/* Overall Progress */}
-            <motion.div variants={itemVariants} className="col-span-2 lg:col-span-1">
-              <div className="relative h-full rounded-2xl sm:rounded-3xl overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-br from-white/[0.04] to-white/[0.01]" />
-                <div className="absolute inset-0 border border-white/[0.08] rounded-2xl sm:rounded-3xl" />
-
-                <div className="relative p-4 sm:p-5">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-2">
-                      <Activity className="w-4 h-4 text-emerald-400" />
-                      <span className="text-xs text-white/40">전체 진행률</span>
-                    </div>
-                    <span className="text-2xl sm:text-3xl text-white/90 font-light" style={{ fontFamily: "var(--font-cormorant), serif" }}>
-                      {totalProgress}%
-                    </span>
-                  </div>
-                  <div className="h-2 rounded-full bg-white/[0.06] overflow-hidden">
-                    <motion.div
-                      initial={{ width: 0 }}
-                      animate={{ width: `${totalProgress}%` }}
-                      transition={{ duration: 1, delay: 0.5 }}
-                      className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-emerald-400"
-                    />
-                  </div>
-                  <div className="flex justify-between mt-2 text-[10px] text-white/30">
-                    <span>{statusCounts.done} 완료</span>
-                    <span>{statusCounts.in_progress} 진행중</span>
-                    <span>{statusCounts.pending} 대기</span>
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-
-            {/* Budget Overview */}
-            <motion.div variants={itemVariants}>
-              <div className="relative h-full rounded-2xl sm:rounded-3xl overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-br from-white/[0.04] to-white/[0.01]" />
-                <div className="absolute inset-0 border border-white/[0.08] rounded-2xl sm:rounded-3xl" />
-
-                <div className="relative p-4 sm:p-5">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Wallet className="w-4 h-4 text-blue-400" />
-                    <span className="text-xs text-white/40">예산</span>
-                  </div>
-                  <p className="text-xl sm:text-2xl text-white/90 font-light mb-1" style={{ fontFamily: "var(--font-cormorant), serif" }}>
-                    {formatCurrency(totalSpent)}
-                  </p>
-                  <div className="h-1.5 rounded-full bg-white/[0.06] overflow-hidden mb-1">
-                    <motion.div
-                      initial={{ width: 0 }}
-                      animate={{ width: `${Math.min(budgetUsagePercent, 100)}%` }}
-                      transition={{ duration: 1, delay: 0.6 }}
-                      className={`h-full rounded-full ${budgetUsagePercent > 80 ? 'bg-rose-500' : 'bg-blue-500'}`}
-                    />
-                  </div>
-                  <p className="text-[10px] text-white/30">
-                    {formatCurrency(totalBudget)} 중 {budgetUsagePercent}%
-                  </p>
-                </div>
-              </div>
-            </motion.div>
-
-            {/* Inventory */}
-            <motion.div variants={itemVariants}>
-              <div className="relative h-full rounded-2xl sm:rounded-3xl overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-br from-white/[0.04] to-white/[0.01]" />
-                <div className="absolute inset-0 border border-white/[0.08] rounded-2xl sm:rounded-3xl" />
-
-                <div className="relative p-4 sm:p-5">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Wine className="w-4 h-4 text-violet-400" />
-                    <span className="text-xs text-white/40">재고</span>
-                  </div>
-                  <p className="text-xl sm:text-2xl text-white/90 font-light mb-1" style={{ fontFamily: "var(--font-cormorant), serif" }}>
-                    {inventory.available}<span className="text-sm text-white/40">병</span>
-                  </p>
-                  <div className="flex items-center gap-2 text-[10px]">
-                    <span className="text-emerald-400">{inventory.sold} 판매</span>
-                    <span className="text-white/20">|</span>
-                    <span className="text-amber-400">{inventory.reserved} 예약</span>
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-          </div>
-
-          {/* Second Row - Status Cards */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-4 mb-4">
-            {/* Current Phase */}
-            <motion.div variants={itemVariants}>
-              <div className="relative h-full rounded-2xl sm:rounded-3xl overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-br from-violet-500/10 to-violet-500/[0.02]" />
-                <div className="absolute inset-0 border border-violet-500/20 rounded-2xl sm:rounded-3xl" />
-
-                <div className="relative p-5 sm:p-6">
-                  <div className="flex items-start justify-between mb-4">
-                    <div>
-                      <div className="flex items-center gap-2 mb-2">
-                        <Layers className="w-4 h-4 text-violet-400" />
-                        <span className="text-xs text-white/40">현재 단계</span>
-                      </div>
-                      <p className="text-2xl sm:text-3xl text-white/90 font-light" style={{ fontFamily: "var(--font-cormorant), serif" }}>
-                        Phase {currentPhase}
-                      </p>
-                      <p className="text-sm text-violet-400 mt-1">{currentPhaseInfo?.name}</p>
-                    </div>
-                    <div className="flex gap-1">
-                      {PHASE_INFO.map((phase) => (
-                        <div
-                          key={phase.id}
-                          className={`w-2 h-8 rounded-full ${
-                            phase.id <= currentPhase
-                              ? 'bg-violet-500'
-                              : 'bg-white/10'
-                          }`}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                  <p className="text-xs text-white/40 leading-relaxed">{currentPhaseInfo?.description}</p>
-                </div>
-              </div>
-            </motion.div>
-
-            {/* Critical Issues */}
-            <motion.div variants={itemVariants}>
-              <div className="relative h-full rounded-2xl sm:rounded-3xl overflow-hidden">
-                <div className={`absolute inset-0 ${criticalIssues.length > 0 ? 'bg-gradient-to-br from-rose-500/10 to-rose-500/[0.02]' : 'bg-gradient-to-br from-white/[0.04] to-white/[0.01]'}`} />
-                <div className={`absolute inset-0 border ${criticalIssues.length > 0 ? 'border-rose-500/20' : 'border-white/[0.08]'} rounded-2xl sm:rounded-3xl`} />
-
-                <div className="relative p-5 sm:p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-2">
-                      <AlertTriangle className={`w-4 h-4 ${criticalIssues.length > 0 ? 'text-rose-400' : 'text-white/40'}`} />
-                      <span className="text-xs text-white/40">이슈 현황</span>
-                    </div>
-                    <Link href="/issues" className="text-xs text-[#b7916e] hover:text-[#d4c4a8] transition-colors">
-                      전체 보기 →
-                    </Link>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="p-3 rounded-xl bg-white/[0.04]">
-                      <p className="text-2xl text-white/90 font-light" style={{ fontFamily: "var(--font-cormorant), serif" }}>
-                        {openIssues.length}
-                      </p>
-                      <p className="text-[10px] text-white/40">미해결</p>
-                    </div>
-                    <div className={`p-3 rounded-xl ${criticalIssues.length > 0 ? 'bg-rose-500/20' : 'bg-white/[0.04]'}`}>
-                      <p className={`text-2xl font-light ${criticalIssues.length > 0 ? 'text-rose-400' : 'text-white/90'}`} style={{ fontFamily: "var(--font-cormorant), serif" }}>
-                        {criticalIssues.length}
-                      </p>
-                      <p className="text-[10px] text-white/40">긴급</p>
-                    </div>
-                  </div>
-
-                  {criticalIssues.length > 0 && (
-                    <div className="mt-3 p-2 rounded-lg bg-rose-500/10 border border-rose-500/20">
-                      <p className="text-xs text-rose-300 truncate">
-                        ⚠️ {criticalIssues[0].title}
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </motion.div>
-
-            {/* Must-Do Progress */}
-            <motion.div variants={itemVariants}>
-              <div className="relative h-full rounded-2xl sm:rounded-3xl overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-br from-amber-500/10 to-amber-500/[0.02]" />
-                <div className="absolute inset-0 border border-amber-500/20 rounded-2xl sm:rounded-3xl" />
-
-                <div className="relative p-5 sm:p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-2">
-                      <Target className="w-4 h-4 text-amber-400" />
-                      <span className="text-xs text-white/40">Must-Do</span>
-                    </div>
-                    <Link href="/checklist" className="text-xs text-[#b7916e] hover:text-[#d4c4a8] transition-colors">
-                      전체 보기 →
-                    </Link>
-                  </div>
-
-                  <div className="flex items-end justify-between mb-3">
-                    <p className="text-3xl text-white/90 font-light" style={{ fontFamily: "var(--font-cormorant), serif" }}>
-                      {mustDoCompleted}<span className="text-lg text-white/40">/{mustDoTotal}</span>
-                    </p>
-                    <p className="text-sm text-amber-400">{mustDoPercent}%</p>
-                  </div>
-
-                  <div className="h-2 rounded-full bg-white/[0.06] overflow-hidden">
-                    <motion.div
-                      initial={{ width: 0 }}
-                      animate={{ width: `${mustDoPercent}%` }}
-                      transition={{ duration: 1, delay: 0.7 }}
-                      className="h-full rounded-full bg-gradient-to-r from-amber-500 to-amber-400"
-                    />
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-          </div>
-
-          {/* Third Row - Tasks & Activity */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 mb-6">
-            {/* This Week Tasks */}
-            <motion.div variants={itemVariants}>
-              <div className="relative rounded-2xl sm:rounded-3xl overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-br from-white/[0.04] to-white/[0.01]" />
-                <div className="absolute inset-0 border border-white/[0.08] rounded-2xl sm:rounded-3xl" />
-
-                <div className="relative p-5 sm:p-6">
-                  <div className="flex items-center justify-between mb-5">
-                    <div className="flex items-center gap-2">
-                      <Calendar className="w-4 h-4 text-[#b7916e]" />
-                      <span className="text-sm text-white/60">이번 주 업무</span>
-                    </div>
-                    <Link href="/month/1" className="text-xs text-[#b7916e] hover:text-[#d4c4a8] transition-colors">
-                      전체 보기 →
-                    </Link>
-                  </div>
-
-                  <div className="space-y-3">
-                    {thisWeekTasks.length > 0 ? thisWeekTasks.map((task) => (
-                      <div key={task.id} className="flex items-start gap-3 p-3 rounded-xl bg-white/[0.02] hover:bg-white/[0.04] transition-colors">
-                        {task.status === 'done' ? (
-                          <CheckCircle2 className="w-4 h-4 text-emerald-400 mt-0.5 flex-shrink-0" />
-                        ) : task.status === 'in_progress' ? (
-                          <Clock className="w-4 h-4 text-amber-400 mt-0.5 flex-shrink-0" />
-                        ) : (
-                          <Circle className="w-4 h-4 text-white/30 mt-0.5 flex-shrink-0" />
-                        )}
-                        <div className="flex-1 min-w-0">
-                          <p className={`text-sm ${task.status === 'done' ? 'text-white/40 line-through' : 'text-white/80'}`}>
-                            {task.title}
-                          </p>
-                          <span className="inline-block mt-1 px-2 py-0.5 rounded-full text-[10px] bg-white/[0.06] text-white/50">
-                            {CATEGORY_LABELS[task.category as TaskCategory]}
-                          </span>
-                        </div>
-                      </div>
-                    )) : (
-                      <p className="text-sm text-white/30 text-center py-4">이번 주 업무가 없습니다</p>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-
-            {/* Task Statistics */}
-            <motion.div variants={itemVariants}>
-              <div className="relative rounded-2xl sm:rounded-3xl overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-br from-white/[0.04] to-white/[0.01]" />
-                <div className="absolute inset-0 border border-white/[0.08] rounded-2xl sm:rounded-3xl" />
-
-                <div className="relative p-5 sm:p-6">
-                  <div className="flex items-center gap-2 mb-5">
-                    <BarChart3 className="w-4 h-4 text-[#b7916e]" />
-                    <span className="text-sm text-white/60">업무 현황</span>
-                  </div>
-
-                  <div className="grid grid-cols-3 gap-3">
-                    <div className="text-center p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
-                      <CheckCircle2 className="w-5 h-5 text-emerald-400 mx-auto mb-2" />
-                      <p className="text-2xl text-white/90 font-light" style={{ fontFamily: "var(--font-cormorant), serif" }}>
-                        {statusCounts.done}
-                      </p>
-                      <p className="text-[10px] text-white/40">완료</p>
-                    </div>
-                    <div className="text-center p-4 rounded-xl bg-amber-500/10 border border-amber-500/20">
-                      <Clock className="w-5 h-5 text-amber-400 mx-auto mb-2" />
-                      <p className="text-2xl text-white/90 font-light" style={{ fontFamily: "var(--font-cormorant), serif" }}>
-                        {statusCounts.in_progress}
-                      </p>
-                      <p className="text-[10px] text-white/40">진행중</p>
-                    </div>
-                    <div className="text-center p-4 rounded-xl bg-white/[0.04] border border-white/[0.08]">
-                      <Circle className="w-5 h-5 text-white/40 mx-auto mb-2" />
-                      <p className="text-2xl text-white/90 font-light" style={{ fontFamily: "var(--font-cormorant), serif" }}>
-                        {statusCounts.pending}
-                      </p>
-                      <p className="text-[10px] text-white/40">대기</p>
-                    </div>
-                  </div>
-
-                  {/* Monthly Progress Bar */}
-                  <div className="mt-5 pt-4 border-t border-white/[0.06]">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs text-white/40">월별 진행률</span>
-                      <span className="text-xs text-white/60">{selectedYear}</span>
-                    </div>
-                    <div className="flex gap-1">
-                      {MONTHS_INFO.slice(0, 8).map((month) => {
-                        const progress = mounted ? getProgressByMonth(selectedYear, month.id) : 0;
-                        return (
-                          <div key={month.id} className="flex-1">
-                            <div className="h-12 rounded bg-white/[0.04] relative overflow-hidden">
-                              <motion.div
-                                initial={{ height: 0 }}
-                                animate={{ height: `${progress}%` }}
-                                transition={{ duration: 0.8, delay: 0.8 + month.id * 0.05 }}
-                                className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-[#b7916e] to-[#d4c4a8]"
-                              />
-                            </div>
-                            <p className="text-[8px] text-white/30 text-center mt-1">{month.id}월</p>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-          </div>
-
-          {/* Phase Overview (Bottom) */}
-          <motion.div variants={itemVariants}>
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-8 h-px bg-white/20" />
-              <span className="text-white/30 text-xs tracking-[0.2em] uppercase">Phase Overview</span>
+          {/* Hero Section - Health Score + Launch Info */}
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.3 }}
+            className="flex flex-col lg:flex-row items-center justify-center gap-8 lg:gap-16 mb-12"
+          >
+            {/* Health Score Ring */}
+            <div className="relative">
+              <HealthScoreRing score={healthScore} size={220} />
             </div>
 
-            <div className="relative rounded-2xl sm:rounded-3xl overflow-hidden">
-              <div className="absolute inset-0 bg-gradient-to-br from-white/[0.04] to-white/[0.01]" />
-              <div className="absolute inset-0 border border-white/[0.08] rounded-2xl sm:rounded-3xl" />
-
-              {/* Timeline Header */}
-              <div className="relative flex items-center justify-between p-4 border-b border-white/[0.06]">
-                <h2 className="text-lg text-white/90" style={{ fontFamily: "var(--font-cormorant), serif" }}>
-                  {selectedYear} Roadmap
-                </h2>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => scrollTimeline('left')}
-                    className="p-2 rounded-xl text-white/40 hover:text-white/80 hover:bg-white/[0.04] transition-all"
-                  >
-                    <ChevronLeft className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => scrollTimeline('right')}
-                    className="p-2 rounded-xl text-white/40 hover:text-white/80 hover:bg-white/[0.04] transition-all"
-                  >
-                    <ChevronRight className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-
-              {/* Timeline Container */}
-              <div
-                ref={timelineRef}
-                className="relative flex overflow-x-auto scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent"
+            {/* Launch Info */}
+            <div className="text-center lg:text-left">
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.6, delay: 0.8 }}
               >
-                {/* Phase Color Indicators */}
-                <div className="w-8 sm:w-10 flex-shrink-0 border-r border-white/[0.06] bg-[#0a0f1a]/80">
-                  <div className="h-10 sm:h-12 border-b border-white/[0.06]" />
-                  {PHASE_INFO.map((phase) => {
-                    const colors = phaseColors[phase.id as keyof typeof phaseColors];
-                    return (
-                      <div
-                        key={phase.id}
-                        className="h-10 sm:h-12 flex items-center justify-center border-b border-white/[0.04]"
-                      >
-                        <div
-                          className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full"
-                          style={{ backgroundColor: colors.primary }}
-                        />
-                      </div>
-                    );
-                  })}
+                <p className="text-7xl sm:text-8xl font-light text-white/90 mb-2"
+                   style={{ fontFamily: "var(--font-cormorant), serif" }}>
+                  D-{daysUntilLaunch}
+                </p>
+                <p className="text-sm text-white/40 tracking-wide mb-4">2026년 8월 1일 런칭</p>
+
+                {/* Phase Indicator */}
+                <div className="flex items-center gap-2 justify-center lg:justify-start">
+                  {PHASE_INFO.map((phase) => (
+                    <div
+                      key={phase.id}
+                      className={`w-3 h-3 rounded-full transition-all ${
+                        phase.id < currentPhase
+                          ? 'bg-emerald-500'
+                          : phase.id === currentPhase
+                          ? 'bg-[#b7916e] ring-2 ring-[#b7916e]/30 ring-offset-2 ring-offset-[#0a0f1a]'
+                          : 'bg-white/10'
+                      }`}
+                    />
+                  ))}
                 </div>
-
-                {/* Timeline Area */}
-                <div className="flex-1">
-                  {/* Month Header */}
-                  <div className="flex h-10 sm:h-12 border-b border-white/[0.06] bg-white/[0.02]">
-                    {MONTHS_INFO.map((month) => (
-                      <div key={month.id} className="flex-shrink-0 w-[160px] sm:w-[240px]">
-                        <Link href={`/month/${month.id}`}>
-                          <div className="h-5 sm:h-6 flex items-center justify-center border-b border-white/[0.04] hover:bg-white/[0.04] transition-colors cursor-pointer">
-                            <span className="text-[10px] sm:text-xs font-medium text-white/60">
-                              {month.name}
-                            </span>
-                            {month.id === 1 && (
-                              <span className="ml-1 w-1.5 h-1.5 rounded-full bg-[#b7916e] animate-pulse" />
-                            )}
-                          </div>
-                        </Link>
-                        <div className="h-5 sm:h-6 flex">
-                          {[1, 2, 3, 4].map((week) => (
-                            <div
-                              key={week}
-                              className="flex-1 flex items-center justify-center text-[7px] sm:text-[9px] text-white/20 border-r border-white/[0.04]"
-                            >
-                              W{week}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Phase Bars */}
-                  {PHASE_INFO.map((phase, phaseIndex) => {
-                    const { startWeek, width } = getPhaseBarPosition(phase);
-                    const phaseProgress = mounted ? phase.months.reduce(
-                      (acc, monthId) => acc + getProgressByMonth(selectedYear, monthId),
-                      0
-                    ) / phase.months.length : 0;
-                    const colors = phaseColors[phase.id as keyof typeof phaseColors];
-
-                    return (
-                      <div
-                        key={phase.id}
-                        className="h-10 sm:h-12 flex items-center border-b border-white/[0.04] relative"
-                        style={{ width: '1920px' }}
-                      >
-                        {/* Grid lines */}
-                        {Array.from({ length: 48 }).map((_, i) => (
-                          <div
-                            key={i}
-                            className="absolute top-0 bottom-0 border-r border-white/[0.03]"
-                            style={{ left: `${(i + 1) * 40}px` }}
-                          />
-                        ))}
-
-                        {/* Phase Bar */}
-                        <motion.div
-                          initial={{ width: 0, opacity: 0 }}
-                          animate={{ width: `${width * 40 - 8}px`, opacity: 1 }}
-                          transition={{ duration: 0.8, delay: 0.8 + phaseIndex * 0.1 }}
-                          className={`absolute h-7 sm:h-8 rounded-lg ${colors.bg} shadow-lg cursor-pointer overflow-hidden`}
-                          style={{ left: `${startWeek * 40 + 4}px` }}
-                        >
-                          <Link href={`/month/${phase.months[0]}`} className="block h-full relative">
-                            <div
-                              className="absolute inset-0 bg-white/20"
-                              style={{ width: `${phaseProgress}%` }}
-                            />
-                            <div className="relative h-full px-2 sm:px-3 flex items-center justify-between">
-                              <span className="text-[10px] sm:text-xs font-medium text-white truncate">
-                                {phase.description}
-                              </span>
-                              <span className="text-[9px] sm:text-[10px] text-white/80 ml-1 flex-shrink-0">
-                                {Math.round(phaseProgress)}%
-                              </span>
-                            </div>
-                          </Link>
-                        </motion.div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Legend */}
-              <div className="relative p-3 border-t border-white/[0.06] flex flex-wrap gap-4">
-                {PHASE_INFO.map((phase) => {
-                  const colors = phaseColors[phase.id as keyof typeof phaseColors];
-                  return (
-                    <div key={phase.id} className="flex items-center gap-1.5">
-                      <div
-                        className="w-2 h-2 rounded"
-                        style={{ backgroundColor: colors.primary }}
-                      />
-                      <span className="text-[9px] sm:text-[10px] text-white/40">
-                        P{phase.id}: {phase.name}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
+                <p className="text-xs text-[#b7916e] mt-2">
+                  Phase {currentPhase}: {currentPhaseInfo?.name}
+                </p>
+              </motion.div>
             </div>
           </motion.div>
-        </motion.div>
-      </section>
+
+          {/* Quick Stats Grid */}
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.5 }}
+            className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8"
+          >
+            <StatCard
+              label="태스크 진행률"
+              value={`${taskProgress}%`}
+              progress={taskProgress}
+              icon={TrendingUp}
+              href="/monthly-plan"
+              subValue={`${tasks.filter(t => t.status === 'done').length}개 완료`}
+            />
+            <StatCard
+              label="예산 소진"
+              value={`${budgetUsage}%`}
+              progress={budgetUsage}
+              icon={Wallet}
+              href="/budget"
+              subValue={`${formatCurrency(totalSpent)} / ${formatCurrency(totalBudget)}`}
+              alert={budgetUsage > 90}
+            />
+            <StatCard
+              label="미해결 이슈"
+              value={openIssues.length}
+              icon={AlertCircle}
+              href="/issues"
+              subValue={criticalIssues.length > 0 ? `${criticalIssues.length}개 긴급` : '긴급 없음'}
+              alert={criticalIssues.length > 0}
+            />
+            <StatCard
+              label="Must-Do"
+              value={`${mustDoProgress}%`}
+              progress={mustDoProgress}
+              icon={Target}
+              href="/checklist"
+              subValue={`${mustDoCompleted} / ${mustDoTotal} 완료`}
+            />
+          </motion.div>
+
+          {/* Attention Section */}
+          {displayAttentionItems.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, delay: 0.7 }}
+              className="mb-8"
+            >
+              <div className="flex items-center gap-3 mb-4">
+                <AlertTriangle className="w-4 h-4 text-amber-400" />
+                <span className="text-sm text-white/60 tracking-wide">Attention Needed</span>
+                <div className="flex-1 h-px bg-gradient-to-r from-white/10 to-transparent" />
+              </div>
+
+              <div className="space-y-2">
+                {displayAttentionItems.map((item, index) => (
+                  <motion.div
+                    key={index}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.4, delay: 0.8 + index * 0.1 }}
+                  >
+                    <AttentionItem {...item} />
+                  </motion.div>
+                ))}
+              </div>
+            </motion.div>
+          )}
+
+          {/* All Clear State */}
+          {displayAttentionItems.length === 0 && mounted && (
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, delay: 0.7 }}
+              className="mb-8"
+            >
+              <div className="relative p-8 rounded-2xl overflow-hidden text-center">
+                <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 to-emerald-500/[0.02]" />
+                <div className="absolute inset-0 border border-emerald-500/20 rounded-2xl" />
+
+                <div className="relative">
+                  <Sparkles className="w-8 h-8 text-emerald-400 mx-auto mb-3" />
+                  <p className="text-lg text-emerald-300" style={{ fontFamily: "var(--font-cormorant), serif" }}>
+                    All Systems Nominal
+                  </p>
+                  <p className="text-xs text-white/40 mt-1">현재 주의가 필요한 항목이 없습니다</p>
+                </div>
+              </div>
+            </motion.div>
+          )}
+
+          {/* Quick Links */}
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.9 }}
+            className="grid grid-cols-2 sm:grid-cols-4 gap-3"
+          >
+            {[
+              { label: '월별플랜', href: '/monthly-plan', icon: Clock },
+              { label: '이슈관리', href: '/issues', icon: AlertTriangle },
+              { label: '재고현황', href: '/inventory', icon: Wine },
+              { label: '캘린더', href: '/calendar', icon: Target },
+            ].map((link) => (
+              <Link key={link.href} href={link.href}>
+                <motion.div
+                  whileHover={{ y: -2 }}
+                  className="flex items-center justify-center gap-2 p-4 rounded-xl bg-white/[0.02] border border-white/[0.06] hover:bg-white/[0.04] hover:border-[#b7916e]/20 transition-all cursor-pointer group"
+                >
+                  <link.icon className="w-4 h-4 text-white/30 group-hover:text-[#b7916e] transition-colors" />
+                  <span className="text-sm text-white/50 group-hover:text-white/70 transition-colors">
+                    {link.label}
+                  </span>
+                </motion.div>
+              </Link>
+            ))}
+          </motion.div>
+
+        </div>
+      </div>
 
       {/* Footer */}
       <Footer />
