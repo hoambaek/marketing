@@ -33,6 +33,11 @@ export function Header() {
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50">
+      {/* iOS PWA Safe Area Background */}
+      <div
+        className="bg-[#0a0f1a] w-full"
+        style={{ height: 'env(safe-area-inset-top, 0px)' }}
+      />
       {/* Glassmorphism Background */}
       <div className="bg-[#0a0f1a]/80 backdrop-blur-xl border-b border-white/[0.06]">
         <nav className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8" aria-label="Top">
