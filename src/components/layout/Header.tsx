@@ -23,6 +23,7 @@ const navigation: NavItem[] = [
   { name: 'KPI', href: '/kpi' },
   { name: '재고관리', href: '/inventory' },
   { name: '예산관리', href: '/budget' },
+  { name: '데이터로그', href: '/data-log' },
   { name: '블로그', href: 'https://blog.musedemaree.com/admin', external: true },
 ];
 
