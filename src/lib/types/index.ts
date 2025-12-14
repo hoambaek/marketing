@@ -445,7 +445,7 @@ export const WANDO_COORDINATES = {
 } as const;
 
 // 기본 숙성 깊이 (미터)
-export const DEFAULT_AGING_DEPTH = 15;
+export const DEFAULT_AGING_DEPTH = 30;
 
 // 시간 뷰 타입
 export type OceanDataView = 'daily' | 'monthly' | 'full_cycle';
