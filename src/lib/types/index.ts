@@ -578,6 +578,7 @@ export interface CostCalculatorChampagneType {
   name: string;
   bottles: number;
   costPerBottle: number; // EUR
+  packagingCost?: number; // 제품별 패키지 제작비 (KRW)
 }
 
 // 원가계산기 설정 (년도별)

@@ -101,9 +101,9 @@ function NumberInput({
   };
 
   return (
-    <div className="space-y-1.5">
-      <label className="flex items-center gap-2 text-sm text-white/60">
-        {Icon && <Icon className="w-4 h-4 text-[#b7916e]/60" />}
+    <div className="space-y-1">
+      <label className="flex items-center gap-1.5 text-xs sm:text-sm text-white/60">
+        {Icon && <Icon className="w-3 h-3 sm:w-4 sm:h-4 text-[#b7916e]/60" />}
         {label}
       </label>
       <div className="relative">
@@ -113,11 +113,11 @@ function NumberInput({
           onChange={handleChange}
           placeholder={placeholder}
           disabled={disabled}
-          className={`w-full px-4 py-3 bg-white/[0.04] border border-white/[0.08] rounded-xl text-white placeholder:text-white/20 focus:outline-none focus:border-[#b7916e]/50 transition-colors text-right pr-12 ${
+          className={`w-full px-3 py-2 sm:px-4 sm:py-3 bg-white/[0.04] border border-white/[0.08] rounded-lg sm:rounded-xl text-sm sm:text-base text-white placeholder:text-white/20 focus:outline-none focus:border-[#b7916e]/50 transition-colors text-right pr-9 sm:pr-12 ${
             disabled ? 'opacity-60 cursor-not-allowed' : ''
           }`}
         />
-        <span className="absolute right-4 top-1/2 -translate-y-1/2 text-white/30 text-sm">
+        <span className="absolute right-3 sm:right-4 top-1/2 -translate-y-1/2 text-white/30 text-xs sm:text-sm">
           {suffix}
         </span>
       </div>
@@ -162,9 +162,9 @@ function EuroInput({
   const krwValue = value * exchangeRate;
 
   return (
-    <div className="space-y-1.5">
-      <label className="flex items-center gap-2 text-sm text-white/60">
-        {Icon && <Icon className="w-4 h-4 text-[#b7916e]/60" />}
+    <div className="space-y-1">
+      <label className="flex items-center gap-1.5 text-xs sm:text-sm text-white/60">
+        {Icon && <Icon className="w-3 h-3 sm:w-4 sm:h-4 text-[#b7916e]/60" />}
         {label}
       </label>
       <div className="relative">
@@ -173,14 +173,14 @@ function EuroInput({
           value={displayValue}
           onChange={handleChange}
           placeholder={placeholder}
-          className="w-full px-4 py-3 bg-white/[0.04] border border-white/[0.08] rounded-xl text-white placeholder:text-white/20 focus:outline-none focus:border-[#b7916e]/50 transition-colors text-right pr-10"
+          className="w-full px-3 py-2 sm:px-4 sm:py-3 bg-white/[0.04] border border-white/[0.08] rounded-lg sm:rounded-xl text-sm sm:text-base text-white placeholder:text-white/20 focus:outline-none focus:border-[#b7916e]/50 transition-colors text-right pr-8 sm:pr-10"
         />
-        <span className="absolute right-4 top-1/2 -translate-y-1/2 text-white/30 text-sm">
+        <span className="absolute right-3 sm:right-4 top-1/2 -translate-y-1/2 text-white/30 text-xs sm:text-sm">
           €
         </span>
       </div>
       {value > 0 && (
-        <p className="text-xs text-cyan-400/70 text-right">
+        <p className="text-[10px] sm:text-xs text-cyan-400/70 text-right">
           ≈ {formatNumber(krwValue)}원
         </p>
       )}
@@ -203,15 +203,15 @@ function TextInput({
   disabled?: boolean;
 }) {
   return (
-    <div className="space-y-1.5">
-      <label className="text-sm text-white/60">{label}</label>
+    <div className="space-y-1">
+      <label className="text-xs sm:text-sm text-white/60">{label}</label>
       <input
         type="text"
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         disabled={disabled}
-        className={`w-full px-4 py-3 bg-white/[0.04] border border-white/[0.08] rounded-xl text-white placeholder:text-white/20 focus:outline-none focus:border-[#b7916e]/50 transition-colors ${
+        className={`w-full px-3 py-2 sm:px-4 sm:py-3 bg-white/[0.04] border border-white/[0.08] rounded-lg sm:rounded-xl text-sm sm:text-base text-white placeholder:text-white/20 focus:outline-none focus:border-[#b7916e]/50 transition-colors ${
           disabled ? 'opacity-60 cursor-not-allowed' : ''
         }`}
       />
@@ -244,13 +244,13 @@ function ResultCard({
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className={`relative bg-gradient-to-br ${colorClasses[color]} border rounded-2xl p-5 ${large ? 'col-span-full' : ''}`}
+      className={`relative bg-gradient-to-br ${colorClasses[color]} border rounded-xl sm:rounded-2xl p-3 sm:p-5 ${large ? 'col-span-full' : ''}`}
     >
-      <p className="text-xs text-white/50 uppercase tracking-wider mb-2">{title}</p>
-      <p className={`font-light tracking-tight ${large ? 'text-3xl sm:text-4xl' : 'text-2xl'}`}>
+      <p className="text-[10px] sm:text-xs text-white/50 uppercase tracking-wider mb-1 sm:mb-2">{title}</p>
+      <p className={`font-light tracking-tight ${large ? 'text-xl sm:text-3xl md:text-4xl' : 'text-lg sm:text-2xl'}`}>
         {value}
       </p>
-      {subtitle && <p className="text-xs text-white/40 mt-1">{subtitle}</p>}
+      {subtitle && <p className="text-[10px] sm:text-xs text-white/40 mt-0.5 sm:mt-1">{subtitle}</p>}
     </motion.div>
   );
 }
@@ -273,25 +273,25 @@ function Section({
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="bg-[#0d1421]/60 backdrop-blur-xl border border-white/[0.06] rounded-2xl overflow-hidden"
+      className="bg-[#0d1421]/60 backdrop-blur-xl border border-white/[0.06] rounded-xl sm:rounded-2xl overflow-hidden"
     >
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full px-6 py-4 flex items-center justify-between hover:bg-white/[0.02] transition-colors"
+        className="w-full px-3 py-2.5 sm:px-6 sm:py-4 flex items-center justify-between hover:bg-white/[0.02] transition-colors"
       >
-        <div className="flex items-center gap-3">
-          <div className="p-2 bg-[#b7916e]/10 rounded-xl">
-            <Icon className="w-5 h-5 text-[#b7916e]" />
+        <div className="flex items-center gap-2 sm:gap-3">
+          <div className="p-1.5 sm:p-2 bg-[#b7916e]/10 rounded-lg sm:rounded-xl">
+            <Icon className="w-4 h-4 sm:w-5 sm:h-5 text-[#b7916e]" />
           </div>
-          <h3 className="text-lg font-medium text-white/90">{title}</h3>
+          <h3 className="text-sm sm:text-lg font-medium text-white/90">{title}</h3>
         </div>
         {isOpen ? (
-          <ChevronUp className="w-5 h-5 text-white/40" />
+          <ChevronUp className="w-4 h-4 sm:w-5 sm:h-5 text-white/40" />
         ) : (
-          <ChevronDown className="w-5 h-5 text-white/40" />
+          <ChevronDown className="w-4 h-4 sm:w-5 sm:h-5 text-white/40" />
         )}
       </button>
-      {isOpen && <div className="px-6 pb-6">{children}</div>}
+      {isOpen && <div className="px-3 pb-3 sm:px-6 sm:pb-6">{children}</div>}
     </motion.div>
   );
 }
@@ -302,6 +302,7 @@ interface ChampagneType {
   name: string;
   bottles: number;
   costPerBottle: number;
+  packagingCost: number; // 제품별 패키지 제작비
 }
 
 export default function CostCalculatorPage() {
@@ -313,10 +314,10 @@ export default function CostCalculatorPage() {
 
   // Champagne types (dynamic based on inventory)
   const [champagneTypes, setChampagneTypes] = useState<ChampagneType[]>([
-    { name: '제품 1', bottles: 0, costPerBottle: 0 },
-    { name: '제품 2', bottles: 0, costPerBottle: 0 },
-    { name: '제품 3', bottles: 0, costPerBottle: 0 },
-    { name: '제품 4', bottles: 0, costPerBottle: 0 },
+    { name: '제품 1', bottles: 0, costPerBottle: 0, packagingCost: 0 },
+    { name: '제품 2', bottles: 0, costPerBottle: 0, packagingCost: 0 },
+    { name: '제품 3', bottles: 0, costPerBottle: 0, packagingCost: 0 },
+    { name: '제품 4', bottles: 0, costPerBottle: 0, packagingCost: 0 },
   ]);
 
   // Exchange rate (EUR to KRW)
@@ -333,7 +334,6 @@ export default function CostCalculatorPage() {
   const [seaUsageFee, setSeaUsageFee] = useState(0);
   const [aiMonitoringCost, setAiMonitoringCost] = useState(0);
   const [certificationCost, setCertificationCost] = useState(0);
-  const [packagingCost, setPackagingCost] = useState(0);
   const [marketingCost, setMarketingCost] = useState(0);
   const [sgaCost, setSgaCost] = useState(0);
 
@@ -346,6 +346,7 @@ export default function CostCalculatorPage() {
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isInitialLoadRef = useRef(true);
   const dbCostPerBottleRef = useRef<Record<string, number>>({}); // Store DB costPerBottle values
+  const dbPackagingCostRef = useRef<Record<string, number>>({}); // Store DB packagingCost values per product
 
   // Fetch current exchange rate
   const fetchExchangeRate = async () => {
@@ -395,24 +396,33 @@ export default function CostCalculatorPage() {
         setSeaUsageFee(settings.seaUsageFee || 0);
         setAiMonitoringCost(settings.aiMonitoringCost || 0);
         setCertificationCost(settings.certificationCost || 0);
-        setPackagingCost(settings.packagingCost || 0);
         setMarketingCost(settings.marketingCost || 0);
         setSgaCost(settings.sgaCost || 0);
 
-        // Store costPerBottle values in ref for inventory sync
+        // Store costPerBottle and packagingCost values in refs for inventory sync
         const costMap: Record<string, number> = {};
+        const packagingMap: Record<string, number> = {};
         if (settings.champagneTypes && settings.champagneTypes.length > 0) {
           settings.champagneTypes.forEach((t) => {
-            if (t.id) costMap[t.id] = t.costPerBottle || 0;
+            if (t.id) {
+              costMap[t.id] = t.costPerBottle || 0;
+              packagingMap[t.id] = t.packagingCost || 0;
+            }
           });
-          setChampagneTypes(settings.champagneTypes);
+          // Ensure packagingCost is included when setting champagneTypes
+          setChampagneTypes(settings.champagneTypes.map(t => ({
+            ...t,
+            packagingCost: t.packagingCost || 0,
+          })));
         }
         dbCostPerBottleRef.current = costMap;
+        dbPackagingCostRef.current = packagingMap;
 
         setLastSaved(new Date(settings.updatedAt).toLocaleString('ko-KR'));
       } else {
         // Reset to defaults for new year
         dbCostPerBottleRef.current = {};
+        dbPackagingCostRef.current = {};
         setShippingCost(0);
         setInsuranceCost(0);
         setTaxCost(0);
@@ -421,7 +431,6 @@ export default function CostCalculatorPage() {
         setSeaUsageFee(0);
         setAiMonitoringCost(0);
         setCertificationCost(0);
-        setPackagingCost(0);
         setMarketingCost(0);
         setSgaCost(0);
         setLastSaved(null);
@@ -446,7 +455,11 @@ export default function CostCalculatorPage() {
         name: t.name,
         bottles: t.bottles,
         costPerBottle: t.costPerBottle,
+        packagingCost: t.packagingCost || 0,
       }));
+
+      // Calculate total packaging cost from all products
+      const totalPackagingCost = champagneTypes.reduce((sum, t) => sum + (t.packagingCost || 0), 0);
 
       await upsertCostCalculatorSettings({
         year: selectedYear,
@@ -460,7 +473,7 @@ export default function CostCalculatorPage() {
         seaUsageFee,
         aiMonitoringCost,
         certificationCost,
-        packagingCost,
+        packagingCost: totalPackagingCost, // Store total for backwards compatibility
         marketingCost,
         sgaCost,
       });
@@ -484,7 +497,6 @@ export default function CostCalculatorPage() {
     seaUsageFee,
     aiMonitoringCost,
     certificationCost,
-    packagingCost,
     marketingCost,
     sgaCost,
   ]);
@@ -522,7 +534,6 @@ export default function CostCalculatorPage() {
     seaUsageFee,
     aiMonitoringCost,
     certificationCost,
-    packagingCost,
     marketingCost,
     sgaCost,
     saveSettingsToDb,
@@ -543,7 +554,7 @@ export default function CostCalculatorPage() {
     return allProducts.filter((p) => p.year === selectedYear);
   }, [isInitialized, getAllProducts, selectedYear]);
 
-  // Sync inventory products (name, bottles) while preserving costPerBottle from DB
+  // Sync inventory products (name, bottles) while preserving costPerBottle and packagingCost from DB
   useEffect(() => {
     // Wait for both inventory and DB to be loaded
     if (!isInitialized || !isDbLoaded) return;
@@ -555,17 +566,19 @@ export default function CostCalculatorPage() {
       return; // Keep existing data, don't reset
     }
 
-    // Update only name and bottles from inventory, preserve costPerBottle from DB or current state
+    // Update only name and bottles from inventory, preserve costPerBottle and packagingCost from DB or current state
     setChampagneTypes((prev) => {
       const newTypes: ChampagneType[] = productsForYear.map((p) => {
         // First try to get from current state, then from DB ref
         const existing = prev.find((item) => item.id === p.id);
         const savedCost = existing?.costPerBottle ?? dbCostPerBottleRef.current[p.id] ?? 0;
+        const savedPackaging = existing?.packagingCost ?? dbPackagingCostRef.current[p.id] ?? 0;
         return {
           id: p.id,
           name: p.nameKo || p.name,
           bottles: p.totalQuantity,
           costPerBottle: savedCost, // Preserve costPerBottle from state or DB
+          packagingCost: savedPackaging, // Preserve packagingCost from state or DB
         };
       });
       return newTypes;
@@ -583,7 +596,7 @@ export default function CostCalculatorPage() {
   const addChampagneType = () => {
     setChampagneTypes((prev) => [
       ...prev,
-      { name: `제품 ${prev.length + 1}`, bottles: 0, costPerBottle: 0 },
+      { name: `제품 ${prev.length + 1}`, bottles: 0, costPerBottle: 0, packagingCost: 0 },
     ]);
   };
 
@@ -616,17 +629,23 @@ export default function CostCalculatorPage() {
     // Actual sellable bottles (97%)
     const sellableBottles = Math.floor(totalBottles * (1 - LOSS_RATE));
 
+    // Total packaging cost from all products
+    const totalPackagingCost = champagneTypes.reduce((sum, type) => sum + (type.packagingCost || 0), 0);
+
     // Category subtotals (all in KRW)
     const productCost = champagneTotalCost;
     const importCost = shippingCost + insuranceCost + taxCost + customsFee;
     const processingCost = depreciation + seaUsageFee + aiMonitoringCost + lossCost + certificationCost;
-    const sellingCost = packagingCost + marketingCost + sgaCost;
+    const sellingCost = totalPackagingCost + marketingCost + sgaCost;
 
     // Total cost
     const totalCost = productCost + importCost + processingCost + sellingCost;
 
     // Cost per bottle
     const costPerBottle = sellableBottles > 0 ? totalCost / sellableBottles : 0;
+
+    // Selling cost without packaging (marketing + SGA to be distributed by ratio)
+    const sellingCostWithoutPackaging = marketingCost + sgaCost;
 
     // Cost breakdown by type
     const typeBreakdown = champagneTypes.map((type) => {
@@ -635,9 +654,12 @@ export default function CostCalculatorPage() {
       const typeRatio = type.bottles / totalBottles;
       // Convert EUR to KRW for this type's champagne cost
       const typeChampagneCostKrw = type.bottles * type.costPerBottle * exchangeRate;
+      // Use product's own packaging cost + proportional share of other costs
+      const typePackagingCost = type.packagingCost || 0;
       const typeTotalCost =
         typeChampagneCostKrw +
-        (importCost + processingCost + sellingCost) * typeRatio;
+        typePackagingCost +
+        (importCost + processingCost + sellingCostWithoutPackaging) * typeRatio;
       const typeSellableBottles = Math.floor(type.bottles * (1 - LOSS_RATE));
       const typeCostPerBottleKrw = typeSellableBottles > 0 ? typeTotalCost / typeSellableBottles : 0;
 
@@ -660,6 +682,7 @@ export default function CostCalculatorPage() {
       importCost,
       processingCost,
       sellingCost,
+      totalPackagingCost,
       totalCost,
       costPerBottle,
       typeBreakdown,
@@ -675,7 +698,6 @@ export default function CostCalculatorPage() {
     seaUsageFee,
     aiMonitoringCost,
     certificationCost,
-    packagingCost,
     marketingCost,
     sgaCost,
   ]);
@@ -695,21 +717,21 @@ export default function CostCalculatorPage() {
       </div>
 
       {/* Hero Section */}
-      <section className="relative pt-6 sm:pt-10 pb-6 sm:pb-10 px-4 sm:px-6 lg:px-12">
+      <section className="relative pt-3 sm:pt-10 pb-3 sm:pb-10 px-3 sm:px-6 lg:px-12">
         <div className="max-w-5xl mx-auto">
           {/* Back to Budget Link */}
           <motion.div
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.5 }}
-            className="mb-6"
+            className="mb-3 sm:mb-6"
           >
             <Link
               href="/budget"
-              className="inline-flex items-center gap-2 px-3 py-1.5 text-sm text-white/50 hover:text-white/80 bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.06] rounded-lg transition-all group"
+              className="inline-flex items-center gap-1.5 sm:gap-2 px-2 py-1 sm:px-3 sm:py-1.5 text-xs sm:text-sm text-white/50 hover:text-white/80 bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.06] rounded-lg transition-all group"
             >
-              <ArrowLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
-              <Wallet className="w-4 h-4 text-[#b7916e]/60" />
+              <ArrowLeft className="w-3 h-3 sm:w-4 sm:h-4 group-hover:-translate-x-0.5 transition-transform" />
+              <Wallet className="w-3 h-3 sm:w-4 sm:h-4 text-[#b7916e]/60" />
               <span>예산관리</span>
             </Link>
           </motion.div>
@@ -720,70 +742,70 @@ export default function CostCalculatorPage() {
             transition={{ duration: 0.8, delay: 0.1 }}
             className="relative"
           >
-            <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+            <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-2 sm:gap-4">
               <div>
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="p-2.5 bg-cyan-500/10 border border-cyan-500/20 rounded-xl">
-                    <Calculator className="w-6 h-6 text-cyan-400" />
+                <div className="flex items-center gap-2 sm:gap-3 mb-1 sm:mb-3">
+                  <div className="p-1.5 sm:p-2.5 bg-cyan-500/10 border border-cyan-500/20 rounded-lg sm:rounded-xl">
+                    <Calculator className="w-4 h-4 sm:w-6 sm:h-6 text-cyan-400" />
                   </div>
                   <div>
-                    <p className="text-[10px] sm:text-xs text-white/40 uppercase tracking-wider">
+                    <p className="text-[9px] sm:text-xs text-white/40 uppercase tracking-wider">
                       Budget Management
                     </p>
                     <h1
-                      className="text-2xl sm:text-3xl lg:text-4xl text-white/95 leading-tight tracking-tight"
+                      className="text-xl sm:text-3xl lg:text-4xl text-white/95 leading-tight tracking-tight"
                       style={{ fontFamily: "var(--font-cormorant), 'Playfair Display', Georgia, serif" }}
                     >
                       원가 계산기
                     </h1>
                   </div>
                 </div>
-                <p className="text-white/40 text-sm sm:text-base max-w-md">
+                <p className="text-white/40 text-xs sm:text-base max-w-md hidden sm:block">
                   해저숙성 샴페인 상품별 원가를 계산합니다
                 </p>
               </div>
 
-              {/* Fixed settings info */}
-              <div className="flex flex-wrap gap-2 sm:gap-3">
-                <div className="flex items-center gap-2 px-4 py-2 bg-white/[0.04] border border-white/[0.08] rounded-xl">
-                  <Info className="w-4 h-4 text-[#b7916e]/60" />
-                  <span className="text-sm text-white/60">
-                    감가상각 연수: <span className="text-white/90">{DEPRECIATION_YEARS}년</span>
+              {/* Fixed settings info - compact on mobile */}
+              <div className="flex flex-wrap gap-1.5 sm:gap-3">
+                <div className="flex items-center gap-1 sm:gap-2 px-2 py-1 sm:px-4 sm:py-2 bg-white/[0.04] border border-white/[0.08] rounded-lg sm:rounded-xl">
+                  <Info className="w-3 h-3 sm:w-4 sm:h-4 text-[#b7916e]/60" />
+                  <span className="text-[10px] sm:text-sm text-white/60">
+                    감가상각: <span className="text-white/90">{DEPRECIATION_YEARS}년</span>
                   </span>
                 </div>
-                <div className="flex items-center gap-2 px-4 py-2 bg-white/[0.04] border border-white/[0.08] rounded-xl">
-                  <Info className="w-4 h-4 text-[#b7916e]/60" />
-                  <span className="text-sm text-white/60">
-                    숙성 중 손실률: <span className="text-white/90">{LOSS_RATE * 100}%</span>
+                <div className="flex items-center gap-1 sm:gap-2 px-2 py-1 sm:px-4 sm:py-2 bg-white/[0.04] border border-white/[0.08] rounded-lg sm:rounded-xl">
+                  <Info className="w-3 h-3 sm:w-4 sm:h-4 text-[#b7916e]/60" />
+                  <span className="text-[10px] sm:text-sm text-white/60">
+                    손실률: <span className="text-white/90">{LOSS_RATE * 100}%</span>
                   </span>
                 </div>
                 {/* DB Sync Status */}
-                <div className={`flex items-center gap-2 px-4 py-2 rounded-xl border ${
+                <div className={`flex items-center gap-1 sm:gap-2 px-2 py-1 sm:px-4 sm:py-2 rounded-lg sm:rounded-xl border ${
                   isDbConnected
                     ? 'bg-emerald-500/5 border-emerald-500/20'
                     : 'bg-white/[0.04] border-white/[0.08]'
                 }`}>
                   {isLoading ? (
                     <>
-                      <Loader2 className="w-4 h-4 text-cyan-400 animate-spin" />
-                      <span className="text-sm text-cyan-400">불러오는 중...</span>
+                      <Loader2 className="w-3 h-3 sm:w-4 sm:h-4 text-cyan-400 animate-spin" />
+                      <span className="text-[10px] sm:text-sm text-cyan-400">로딩...</span>
                     </>
                   ) : isSaving ? (
                     <>
-                      <Save className="w-4 h-4 text-[#b7916e] animate-pulse" />
-                      <span className="text-sm text-[#b7916e]">저장 중...</span>
+                      <Save className="w-3 h-3 sm:w-4 sm:h-4 text-[#b7916e] animate-pulse" />
+                      <span className="text-[10px] sm:text-sm text-[#b7916e]">저장...</span>
                     </>
                   ) : isDbConnected ? (
                     <>
-                      <Cloud className="w-4 h-4 text-emerald-400" />
-                      <span className="text-sm text-white/60">
-                        {lastSaved ? `저장됨: ${lastSaved}` : '자동 저장 활성화'}
+                      <Cloud className="w-3 h-3 sm:w-4 sm:h-4 text-emerald-400" />
+                      <span className="text-[10px] sm:text-sm text-white/60 hidden sm:inline">
+                        {lastSaved ? `저장됨` : '자동 저장'}
                       </span>
                     </>
                   ) : (
                     <>
-                      <CloudOff className="w-4 h-4 text-white/40" />
-                      <span className="text-sm text-white/40">오프라인 모드</span>
+                      <CloudOff className="w-3 h-3 sm:w-4 sm:h-4 text-white/40" />
+                      <span className="text-[10px] sm:text-sm text-white/40">오프라인</span>
                     </>
                   )}
                 </div>
@@ -795,18 +817,18 @@ export default function CostCalculatorPage() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.2 }}
-              className="mt-6 pt-6 border-t border-white/[0.06]"
+              className="mt-4 sm:mt-6 pt-4 sm:pt-6 border-t border-white/[0.06]"
             >
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
                 {/* Year Selector */}
-                <div className="flex items-center gap-3">
-                  <span className="text-sm text-white/50">숙성년도</span>
-                  <div className="flex gap-2">
+                <div className="flex items-center gap-2 sm:gap-3">
+                  <span className="text-xs sm:text-sm text-white/50">숙성년도</span>
+                  <div className="flex gap-1.5 sm:gap-2">
                     {AVAILABLE_YEARS.map((year) => (
                       <button
                         key={year}
                         onClick={() => setSelectedYear(year)}
-                        className={`px-4 py-2 text-sm font-medium rounded-xl transition-all ${
+                        className={`px-3 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm font-medium rounded-lg sm:rounded-xl transition-all ${
                           selectedYear === year
                             ? 'bg-[#b7916e] text-white'
                             : 'bg-white/[0.04] text-white/50 hover:text-white/80 hover:bg-white/[0.08] border border-white/[0.06]'
@@ -819,10 +841,10 @@ export default function CostCalculatorPage() {
                 </div>
 
                 {/* Exchange Rate */}
-                <div className="flex flex-col items-end gap-0.5">
-                  <div className="flex items-center gap-2">
-                    <Euro className="w-4 h-4 text-cyan-400/60" />
-                    <span className="text-sm text-white/50">EUR/KRW</span>
+                <div className="flex flex-col items-start sm:items-end gap-0.5">
+                  <div className="flex items-center gap-1.5 sm:gap-2">
+                    <Euro className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-cyan-400/60" />
+                    <span className="text-xs sm:text-sm text-white/50">EUR/KRW</span>
                     <input
                       type="text"
                       value={formatNumber(exchangeRate)}
@@ -831,16 +853,16 @@ export default function CostCalculatorPage() {
                         const num = parseInt(raw, 10) || DEFAULT_EXCHANGE_RATE;
                         setExchangeRate(num);
                       }}
-                      className="w-24 px-3 py-1.5 bg-white/[0.04] border border-white/[0.08] rounded-lg text-white text-sm text-right focus:outline-none focus:border-cyan-500/50 transition-colors"
+                      className="w-20 sm:w-24 px-2 py-1 sm:px-3 sm:py-1.5 bg-white/[0.04] border border-white/[0.08] rounded-md sm:rounded-lg text-white text-xs sm:text-sm text-right focus:outline-none focus:border-cyan-500/50 transition-colors"
                     />
-                    <span className="text-sm text-white/40">원</span>
+                    <span className="text-xs sm:text-sm text-white/40">원</span>
                     <button
                       onClick={fetchExchangeRate}
                       disabled={isLoadingRate}
-                      className="p-1.5 text-cyan-400/60 hover:text-cyan-400 hover:bg-cyan-500/10 rounded-lg transition-all disabled:opacity-50"
+                      className="p-1 sm:p-1.5 text-cyan-400/60 hover:text-cyan-400 hover:bg-cyan-500/10 rounded-md sm:rounded-lg transition-all disabled:opacity-50"
                       title="현재 환율 가져오기"
                     >
-                      <RefreshCw className={`w-4 h-4 ${isLoadingRate ? 'animate-spin' : ''}`} />
+                      <RefreshCw className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${isLoadingRate ? 'animate-spin' : ''}`} />
                     </button>
                   </div>
                   {rateLastUpdated && (
@@ -856,36 +878,36 @@ export default function CostCalculatorPage() {
       </section>
 
       {/* Main Content */}
-      <section className="px-4 sm:px-6 lg:px-8">
-        <div className="max-w-5xl mx-auto space-y-6">
+      <section className="px-3 sm:px-6 lg:px-8">
+        <div className="max-w-5xl mx-auto space-y-4 sm:space-y-6">
           {/* Champagne Types Input */}
           <Section title="샴페인 종류별 입력" icon={Wine} defaultOpen={true}>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-6">
               {champagneTypes.map((type, index) => (
                 <motion.div
                   key={type.id || index}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.1 }}
-                  className="relative p-4 bg-white/[0.02] border border-white/[0.06] rounded-xl space-y-4"
+                  className="relative p-3 sm:p-4 bg-white/[0.02] border border-white/[0.06] rounded-lg sm:rounded-xl space-y-3 sm:space-y-4"
                 >
                   {/* Remove button - disabled for inventory-linked items */}
                   {champagneTypes.length > 1 && !type.id && (
                     <button
                       onClick={() => removeChampagneType(index)}
-                      className="absolute top-3 right-3 p-1.5 text-white/30 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-all"
+                      className="absolute top-2 right-2 sm:top-3 sm:right-3 p-1 sm:p-1.5 text-white/30 hover:text-red-400 hover:bg-red-400/10 rounded-md sm:rounded-lg transition-all"
                       title="삭제"
                     >
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                       </svg>
                     </button>
                   )}
-                  <div className="flex items-center gap-2 mb-3">
-                    <div className="w-2 h-2 rounded-full bg-[#b7916e]" />
-                    <span className="text-sm font-medium text-white/70">종류 {index + 1}</span>
+                  <div className="flex items-center gap-1.5 sm:gap-2 mb-2 sm:mb-3">
+                    <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-[#b7916e]" />
+                    <span className="text-xs sm:text-sm font-medium text-white/70">종류 {index + 1}</span>
                     {type.id && (
-                      <span className="text-[10px] px-2 py-0.5 bg-cyan-500/10 text-cyan-400 rounded-full">
+                      <span className="text-[8px] sm:text-[10px] px-1.5 sm:px-2 py-0.5 bg-cyan-500/10 text-cyan-400 rounded-full">
                         재고연동
                       </span>
                     )}
@@ -897,7 +919,7 @@ export default function CostCalculatorPage() {
                     placeholder="예: Brut Nature"
                     disabled={!!type.id}
                   />
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-2 gap-2 sm:gap-4">
                     <NumberInput
                       label="병수"
                       value={type.bottles}
@@ -912,12 +934,24 @@ export default function CostCalculatorPage() {
                       exchangeRate={exchangeRate}
                     />
                   </div>
+                  <NumberInput
+                    label="패키지 제작비"
+                    value={type.packagingCost}
+                    onChange={(value) => updateChampagneType(index, 'packagingCost', value)}
+                    icon={Package}
+                  />
                   {type.bottles > 0 && type.costPerBottle > 0 && (
                     <div className="pt-2 border-t border-white/[0.06]">
-                      <p className="text-sm text-white/40">
+                      <p className="text-[11px] sm:text-sm text-white/40">
                         소계: <span className="text-cyan-400">€{formatEuro(type.bottles * type.costPerBottle)}</span>
                         <span className="text-white/30 mx-1">→</span>
                         <span className="text-[#b7916e]">{formatNumber(type.bottles * type.costPerBottle * exchangeRate)}원</span>
+                        {(type.packagingCost || 0) > 0 && (
+                          <>
+                            <span className="text-white/30 mx-1">+</span>
+                            <span className="text-purple-400">패키지 {formatNumber(type.packagingCost)}원</span>
+                          </>
+                        )}
                       </p>
                     </div>
                   )}
@@ -926,12 +960,12 @@ export default function CostCalculatorPage() {
             </div>
 
             {/* Add Type Button */}
-            <div className="mt-4">
+            <div className="mt-3 sm:mt-4">
               <button
                 onClick={addChampagneType}
-                className="flex items-center gap-2 px-4 py-2.5 text-sm text-white/50 hover:text-white/80 bg-white/[0.02] hover:bg-white/[0.04] border border-dashed border-white/[0.1] hover:border-white/[0.2] rounded-xl transition-all w-full justify-center"
+                className="flex items-center gap-1.5 sm:gap-2 px-3 py-2 sm:px-4 sm:py-2.5 text-xs sm:text-sm text-white/50 hover:text-white/80 bg-white/[0.02] hover:bg-white/[0.04] border border-dashed border-white/[0.1] hover:border-white/[0.2] rounded-lg sm:rounded-xl transition-all w-full justify-center"
               >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                 </svg>
                 <span>종류 추가</span>
@@ -941,7 +975,7 @@ export default function CostCalculatorPage() {
 
           {/* Import Costs */}
           <Section title="수입 비용" icon={Truck} defaultOpen={true}>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
               <NumberInput
                 label="운송비"
                 value={shippingCost}
@@ -971,7 +1005,7 @@ export default function CostCalculatorPage() {
 
           {/* Processing Costs */}
           <Section title="가공 원가" icon={Anchor} defaultOpen={true}>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
               <NumberInput
                 label="해저숙성 구조물 제작비"
                 value={structureCost}
@@ -997,8 +1031,8 @@ export default function CostCalculatorPage() {
                 icon={Award}
               />
             </div>
-            <div className="mt-4 p-3 bg-[#b7916e]/10 border border-[#b7916e]/20 rounded-xl">
-              <p className="text-sm text-white/60">
+            <div className="mt-3 sm:mt-4 p-2 sm:p-3 bg-[#b7916e]/10 border border-[#b7916e]/20 rounded-lg sm:rounded-xl">
+              <p className="text-xs sm:text-sm text-white/60">
                 <span className="text-[#b7916e]">자동 계산:</span> 감가상각비 = {formatNumber(calculations.depreciation)}원/년,
                 손실분 비용 = {formatNumber(calculations.lossCost)}원
               </p>
@@ -1007,13 +1041,13 @@ export default function CostCalculatorPage() {
 
           {/* Selling Costs */}
           <Section title="판매 원가" icon={Package} defaultOpen={true}>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <NumberInput
-                label="패키지 제작비"
-                value={packagingCost}
-                onChange={setPackagingCost}
-                icon={Package}
-              />
+            <div className="mb-2 sm:mb-3 p-2 sm:p-3 bg-purple-500/10 border border-purple-500/20 rounded-lg sm:rounded-xl">
+              <p className="text-xs sm:text-sm text-white/60">
+                <span className="text-purple-400">패키지 제작비</span>는 제품별로 입력됩니다.
+                총 패키지비: <span className="text-purple-400">{formatNumber(calculations.totalPackagingCost)}원</span>
+              </p>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
               <NumberInput
                 label="마케팅비"
                 value={marketingCost}
@@ -1034,37 +1068,37 @@ export default function CostCalculatorPage() {
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.5 }}
-            className="mt-8"
+            className="mt-6 sm:mt-8"
           >
-            <div className="flex items-center gap-3 mb-6">
-              <div className="p-2 bg-[#b7916e]/10 rounded-xl">
-                <TrendingUp className="w-5 h-5 text-[#b7916e]" />
+            <div className="flex items-center gap-2 sm:gap-3 mb-4 sm:mb-6">
+              <div className="p-1.5 sm:p-2 bg-[#b7916e]/10 rounded-lg sm:rounded-xl">
+                <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5 text-[#b7916e]" />
               </div>
-              <h2 className="text-xl font-medium text-white/90">계산 결과</h2>
+              <h2 className="text-lg sm:text-xl font-medium text-white/90">계산 결과</h2>
             </div>
 
             {/* Summary Stats */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
-              <div className="bg-white/[0.04] border border-white/[0.08] rounded-xl p-4">
-                <p className="text-xs text-white/40 mb-1">총 병수</p>
-                <p className="text-xl font-light text-white/90">{formatNumber(calculations.totalBottles)}병</p>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4 mb-4 sm:mb-6">
+              <div className="bg-white/[0.04] border border-white/[0.08] rounded-lg sm:rounded-xl p-2.5 sm:p-4">
+                <p className="text-[10px] sm:text-xs text-white/40 mb-0.5 sm:mb-1">총 병수</p>
+                <p className="text-base sm:text-xl font-light text-white/90">{formatNumber(calculations.totalBottles)}병</p>
               </div>
-              <div className="bg-white/[0.04] border border-white/[0.08] rounded-xl p-4">
-                <p className="text-xs text-white/40 mb-1">판매 가능 병수</p>
-                <p className="text-xl font-light text-emerald-400">{formatNumber(calculations.sellableBottles)}병</p>
+              <div className="bg-white/[0.04] border border-white/[0.08] rounded-lg sm:rounded-xl p-2.5 sm:p-4">
+                <p className="text-[10px] sm:text-xs text-white/40 mb-0.5 sm:mb-1">판매 가능 병수</p>
+                <p className="text-base sm:text-xl font-light text-emerald-400">{formatNumber(calculations.sellableBottles)}병</p>
               </div>
-              <div className="bg-white/[0.04] border border-white/[0.08] rounded-xl p-4">
-                <p className="text-xs text-white/40 mb-1">손실 병수</p>
-                <p className="text-xl font-light text-red-400">{formatNumber(calculations.totalBottles - calculations.sellableBottles)}병</p>
+              <div className="bg-white/[0.04] border border-white/[0.08] rounded-lg sm:rounded-xl p-2.5 sm:p-4">
+                <p className="text-[10px] sm:text-xs text-white/40 mb-0.5 sm:mb-1">손실 병수</p>
+                <p className="text-base sm:text-xl font-light text-red-400">{formatNumber(calculations.totalBottles - calculations.sellableBottles)}병</p>
               </div>
-              <div className="bg-white/[0.04] border border-white/[0.08] rounded-xl p-4">
-                <p className="text-xs text-white/40 mb-1">손실률</p>
-                <p className="text-xl font-light text-white/90">{LOSS_RATE * 100}%</p>
+              <div className="bg-white/[0.04] border border-white/[0.08] rounded-lg sm:rounded-xl p-2.5 sm:p-4">
+                <p className="text-[10px] sm:text-xs text-white/40 mb-0.5 sm:mb-1">손실률</p>
+                <p className="text-base sm:text-xl font-light text-white/90">{LOSS_RATE * 100}%</p>
               </div>
             </div>
 
             {/* Category Subtotals */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4 mb-4 sm:mb-6">
               <ResultCard
                 title="제품원가"
                 value={`${formatNumber(calculations.productCost)}원`}
@@ -1092,7 +1126,7 @@ export default function CostCalculatorPage() {
             </div>
 
             {/* Final Results */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-4 mb-6 sm:mb-8">
               <ResultCard
                 title="총 원가 합계"
                 value={`${formatNumber(calculations.totalCost)}원`}
@@ -1110,30 +1144,30 @@ export default function CostCalculatorPage() {
 
             {/* Type Breakdown */}
             {calculations.typeBreakdown.some((t) => t.bottles > 0) && (
-              <div className="bg-[#0d1421]/60 backdrop-blur-xl border border-white/[0.06] rounded-2xl p-6">
-                <h3 className="text-lg font-medium text-white/90 mb-4">종류별 병당 원가</h3>
-                <div className="space-y-3">
+              <div className="bg-[#0d1421]/60 backdrop-blur-xl border border-white/[0.06] rounded-xl sm:rounded-2xl p-3 sm:p-6">
+                <h3 className="text-base sm:text-lg font-medium text-white/90 mb-3 sm:mb-4">종류별 병당 원가</h3>
+                <div className="space-y-2 sm:space-y-3">
                   {calculations.typeBreakdown
                     .filter((t) => t.bottles > 0)
                     .map((type, index) => (
                       <div
                         key={index}
-                        className="flex items-center justify-between p-4 bg-white/[0.02] border border-white/[0.06] rounded-xl"
+                        className="flex items-center justify-between p-2.5 sm:p-4 bg-white/[0.02] border border-white/[0.06] rounded-lg sm:rounded-xl"
                       >
-                        <div className="flex items-center gap-3">
-                          <div className="w-2 h-2 rounded-full bg-[#b7916e]" />
+                        <div className="flex items-center gap-2 sm:gap-3">
+                          <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-[#b7916e]" />
                           <div>
-                            <p className="font-medium text-white/90">{type.name}</p>
-                            <p className="text-xs text-white/40">
+                            <p className="text-sm sm:text-base font-medium text-white/90">{type.name}</p>
+                            <p className="text-[10px] sm:text-xs text-white/40">
                               {formatNumber(type.bottles)}병 · 원가 €{formatEuro(type.costPerBottleEur)}/병
                             </p>
                           </div>
                         </div>
                         <div className="text-right">
-                          <p className="text-xl font-light text-[#d4c4a8]">
+                          <p className="text-base sm:text-xl font-light text-[#d4c4a8]">
                             {formatNumber(type.costPerBottleKrw)}원
                           </p>
-                          <p className="text-xs text-white/40">
+                          <p className="text-[10px] sm:text-xs text-white/40">
                             총 {formatNumber(type.totalCost)}원
                           </p>
                         </div>
