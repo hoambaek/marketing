@@ -952,6 +952,8 @@ export default function InventoryPage() {
   // Transaction filter state
   const [txFilterYear, setTxFilterYear] = useState<number | undefined>(undefined);
   const [txFilterMonth, setTxFilterMonth] = useState<number | undefined>(undefined);
+  const [txCurrentPage, setTxCurrentPage] = useState(1);
+  const TX_PER_PAGE = 10;
 
   // Toggle year section expansion
   const toggleYearExpanded = (year: number) => {
@@ -977,11 +979,24 @@ export default function InventoryPage() {
   const totalValue = mounted ? getTotalInventoryValue() : { totalBottles: 0, available: 0, reserved: 0, sold: 0 };
 
   // Use filtered transactions if filter is set, otherwise show recent
-  const recentTransactions = mounted
+  // Get more transactions for pagination (up to 100)
+  const allTransactions = mounted
     ? (txFilterYear || txFilterMonth)
-      ? getFilteredTransactions(txFilterYear, txFilterMonth, 20)
-      : getRecentTransactions(10)
+      ? getFilteredTransactions(txFilterYear, txFilterMonth, 100)
+      : getRecentTransactions(100)
     : [];
+
+  // Calculate pagination
+  const totalPages = Math.ceil(allTransactions.length / TX_PER_PAGE);
+  const paginatedTransactions = allTransactions.slice(
+    (txCurrentPage - 1) * TX_PER_PAGE,
+    txCurrentPage * TX_PER_PAGE
+  );
+
+  // Reset page when filter changes
+  useEffect(() => {
+    setTxCurrentPage(1);
+  }, [txFilterYear, txFilterMonth]);
 
   // Get all products and group by year
   const allProducts = mounted ? getAllProducts() : [];
@@ -1445,53 +1460,74 @@ export default function InventoryPage() {
                   </div>
                 </div>
 
-                {recentTransactions.length > 0 ? (
-                  <div className="divide-y divide-white/[0.04]">
-                    {recentTransactions.map((tx) => {
-                      const product = PRODUCTS.find((p) => p.id === tx.productId);
-                      const allProductsList = getAllProducts();
-                      const customProduct = allProductsList.find((p) => p.id === tx.productId);
-                      const productName = product?.name || customProduct?.name || tx.productId;
+                {paginatedTransactions.length > 0 ? (
+                  <>
+                    <div className="divide-y divide-white/[0.04]">
+                      {paginatedTransactions.map((tx) => {
+                        const product = PRODUCTS.find((p) => p.id === tx.productId);
+                        const allProductsList = getAllProducts();
+                        const customProduct = allProductsList.find((p) => p.id === tx.productId);
+                        const productName = product?.name || customProduct?.name || tx.productId;
 
-                      return (
-                        <div key={tx.id} className="px-4 sm:px-6 py-4 flex items-center justify-between">
-                          <div className="flex items-center gap-3 sm:gap-4">
-                            <div className="text-xs text-white/30 w-16 sm:w-20 shrink-0">
-                              {new Date(tx.createdAt).toLocaleDateString('ko-KR', {
-                                month: 'short',
-                                day: 'numeric',
-                              })}
+                        return (
+                          <div key={tx.id} className="px-4 sm:px-6 py-4 flex items-center justify-between">
+                            <div className="flex items-center gap-3 sm:gap-4">
+                              <div className="text-xs text-white/30 w-16 sm:w-20 shrink-0">
+                                {new Date(tx.createdAt).toLocaleDateString('ko-KR', {
+                                  month: 'short',
+                                  day: 'numeric',
+                                })}
+                              </div>
+                              <div className="min-w-0">
+                                <p className="text-white/70 text-sm truncate">
+                                  {productName}
+                                  {tx.bottleNumber && ` #${tx.bottleNumber}`}
+                                </p>
+                                <p className="text-xs text-white/30 truncate">
+                                  {tx.type === 'sale' && '판매'}
+                                  {tx.type === 'reservation' && '예약'}
+                                  {tx.type === 'gift' && '증정'}
+                                  {tx.type === 'damage' && '손상처리'}
+                                  {tx.type === 'return' && '반품'}
+                                  {tx.type === 'cancel_reservation' && '예약취소'}
+                                  {tx.customerName && ` - ${tx.customerName}`}
+                                </p>
+                              </div>
                             </div>
-                            <div className="min-w-0">
-                              <p className="text-white/70 text-sm truncate">
-                                {productName}
-                                {tx.bottleNumber && ` #${tx.bottleNumber}`}
+                            <div className="text-right shrink-0">
+                              <p className="text-white/60 text-sm">
+                                {tx.quantity > 1 ? `${tx.quantity}병` : '1병'}
                               </p>
-                              <p className="text-xs text-white/30 truncate">
-                                {tx.type === 'sale' && '판매'}
-                                {tx.type === 'reservation' && '예약'}
-                                {tx.type === 'gift' && '증정'}
-                                {tx.type === 'damage' && '손상처리'}
-                                {tx.type === 'return' && '반품'}
-                                {tx.type === 'cancel_reservation' && '예약취소'}
-                                {tx.customerName && ` - ${tx.customerName}`}
-                              </p>
+                              {tx.price && (
+                                <p className="text-xs text-white/30">
+                                  {tx.price.toLocaleString()}원
+                                </p>
+                              )}
                             </div>
                           </div>
-                          <div className="text-right shrink-0">
-                            <p className="text-white/60 text-sm">
-                              {tx.quantity > 1 ? `${tx.quantity}병` : '1병'}
-                            </p>
-                            {tx.price && (
-                              <p className="text-xs text-white/30">
-                                {tx.price.toLocaleString()}원
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Pagination Indicators */}
+                    {totalPages > 1 && (
+                      <div className="px-4 sm:px-6 py-4 border-t border-white/[0.04] flex items-center justify-center gap-2">
+                        {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                          <button
+                            key={page}
+                            onClick={() => setTxCurrentPage(page)}
+                            className={`w-8 h-8 rounded-full text-xs font-medium transition-all ${
+                              txCurrentPage === page
+                                ? 'bg-[#b7916e]/30 border border-[#b7916e]/50 text-[#d4c4a8]'
+                                : 'bg-white/[0.04] border border-white/[0.08] text-white/40 hover:bg-white/[0.08] hover:text-white/60'
+                            }`}
+                          >
+                            {page}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </>
                 ) : (
                   <div className="px-6 py-8 text-center">
                     <p className="text-white/30 text-sm">

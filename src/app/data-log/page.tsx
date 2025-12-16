@@ -411,51 +411,76 @@ export default function DataLogPage() {
   const currentViewOption = VIEW_OPTIONS.find((v) => v.value === currentView);
 
   return (
-    <div className="min-h-screen bg-[#060a10] text-white relative overflow-hidden">
-      {/* Background effects */}
-      <div className="absolute inset-0 bg-gradient-to-b from-cyan-950/20 via-transparent to-blue-950/20" />
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-cyan-900/10 via-transparent to-transparent" />
-      <OceanParticles />
+    <div className="min-h-screen pb-20">
+      {/* Ambient Background - Same as other pages */}
+      <div className="fixed inset-0 -z-10">
+        <div className="absolute inset-0 bg-gradient-to-b from-[#0a0f1a] via-[#0d1525] to-[#0a0f1a]" />
+        <div
+          className="absolute inset-0 opacity-30"
+          style={{
+            backgroundImage: `radial-gradient(ellipse 80% 50% at 50% -20%, rgba(183, 145, 110, 0.12), transparent),
+                              radial-gradient(ellipse 60% 40% at 20% 80%, rgba(6, 182, 212, 0.06), transparent),
+                              radial-gradient(ellipse 50% 30% at 80% 50%, rgba(34, 211, 238, 0.08), transparent)`,
+          }}
+        />
+        <div
+          className="absolute inset-0 opacity-[0.015]"
+          style={{
+            backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")`,
+          }}
+        />
+      </div>
 
-      {/* Grid pattern overlay */}
-      <div
-        className="absolute inset-0 opacity-[0.02]"
-        style={{
-          backgroundImage: `linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px),
-                           linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)`,
-          backgroundSize: '50px 50px',
-        }}
-      />
+      {/* Hero Section - Same style as other pages */}
+      <section className="relative pt-8 sm:pt-16 pb-6 sm:pb-12 px-4 sm:px-6 lg:px-12">
+        <div className="max-w-6xl mx-auto">
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 1, ease: [0.25, 0.46, 0.45, 0.94] }}
+            className="relative"
+          >
+            {/* Decorative Line - Hidden on Mobile */}
+            <motion.div
+              initial={{ scaleX: 0 }}
+              animate={{ scaleX: 1 }}
+              transition={{ duration: 1.2, delay: 0.3, ease: [0.25, 0.46, 0.45, 0.94] }}
+              className="hidden sm:block absolute -left-6 top-1/2 w-16 h-px bg-gradient-to-r from-[#b7916e] to-transparent origin-left"
+            />
 
-      {/* Main content */}
-      <main className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-12">
-        {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-          className="mb-10"
-        >
-          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-6">
-            <div>
-              <div className="flex items-center gap-3 mb-2">
-                <div className="p-2 bg-cyan-500/10 rounded-xl">
-                  <Anchor className="w-6 h-6 text-cyan-400" />
-                </div>
+            <div className="sm:pl-14 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+              <div>
+                <motion.p
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.8, delay: 0.4 }}
+                  className="text-[#b7916e] text-[10px] sm:text-sm tracking-[0.2em] sm:tracking-[0.3em] uppercase mb-2 sm:mb-4 font-light"
+                >
+                  Ocean Data Log
+                </motion.p>
+
                 <h1
-                  className="text-3xl sm:text-4xl tracking-tight text-white/95"
+                  className="text-3xl sm:text-5xl lg:text-6xl text-white/95 mb-2 sm:mb-6 leading-[1.1] tracking-tight"
                   style={{ fontFamily: "var(--font-cormorant), 'Playfair Display', Georgia, serif" }}
                 >
-                  Deep Sea Observatory
+                  <span className="sm:block inline">Deep Sea </span>
+                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#b7916e] via-[#d4c4a8] to-[#b7916e]">
+                    Observatory
+                  </span>
                 </h1>
-              </div>
-              <p className="text-white/40 text-sm flex items-center gap-2">
-                <span className="inline-block w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
-                {WANDO_COORDINATES.name} ({WANDO_COORDINATES.latitude}°N, {WANDO_COORDINATES.longitude}°E)
-              </p>
-            </div>
 
-            <div className="flex items-center gap-3">
+                <motion.p
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 1, delay: 0.8 }}
+                  className="text-white/40 text-sm sm:text-lg max-w-md font-light leading-relaxed flex items-center gap-2"
+                >
+                  <span className="inline-block w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
+                  {WANDO_COORDINATES.name} ({WANDO_COORDINATES.latitude}°N, {WANDO_COORDINATES.longitude}°E)
+                </motion.p>
+              </div>
+
+              <div className="flex items-center gap-3">
               {/* View selector */}
               <div className="relative">
                 <button
@@ -533,8 +558,13 @@ export default function DataLogPage() {
               </button>
             </motion.div>
           )}
-        </motion.div>
+          </motion.div>
+        </div>
+      </section>
 
+      {/* Main Content Section */}
+      <section className="px-4 sm:px-6 lg:px-8">
+        <div className="max-w-6xl mx-auto">
         {/* Current Conditions Grid */}
         <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 mb-10">
           {/* Mobile Depth indicator */}
@@ -789,7 +819,8 @@ export default function DataLogPage() {
             DATA SOURCE: OPEN-METEO MARINE API • REFRESH INTERVAL: MANUAL • DEPTH: {agingDepth}M
           </p>
         </motion.div>
-      </main>
+        </div>
+      </section>
 
       {/* Salinity Modal */}
       <SalinityModal

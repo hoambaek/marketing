@@ -567,3 +567,40 @@ export const OCEAN_DATA_LABELS: Record<string, { name: string; unit: string; col
   waterPressure: { name: '수압', unit: '기압', color: '#fb923c' },
   salinity: { name: '염도', unit: '‰', color: '#34d399' },
 };
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 원가계산기 타입 정의
+// ═══════════════════════════════════════════════════════════════════════════
+
+// 샴페인 종류별 입력
+export interface CostCalculatorChampagneType {
+  id?: string; // 재고연동 시 product id
+  name: string;
+  bottles: number;
+  costPerBottle: number; // EUR
+}
+
+// 원가계산기 설정 (년도별)
+export interface CostCalculatorSettings {
+  id: string;
+  year: number;
+  exchangeRate: number; // EUR/KRW
+  champagneTypes: CostCalculatorChampagneType[];
+  // 수입 비용 (KRW)
+  shippingCost: number;
+  insuranceCost: number;
+  taxCost: number;
+  customsFee: number;
+  // 가공 원가 (KRW)
+  structureCost: number;
+  seaUsageFee: number;
+  aiMonitoringCost: number;
+  certificationCost: number;
+  // 판매 원가 (KRW)
+  packagingCost: number;
+  marketingCost: number;
+  sgaCost: number;
+  // 메타데이터
+  createdAt: string;
+  updatedAt: string;
+}

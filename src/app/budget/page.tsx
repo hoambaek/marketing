@@ -28,7 +28,9 @@ import {
   Trash2,
   Calendar,
   Building2,
+  Calculator,
 } from 'lucide-react';
+import Link from 'next/link';
 import BudgetModal from '@/components/BudgetModal';
 import ExpenseModal from '@/components/ExpenseModal';
 import ExpenseLineChart from '@/components/ExpenseLineChart';
@@ -338,6 +340,13 @@ export default function BudgetPage() {
 
             {/* Action Buttons */}
             <div className="flex items-center gap-2">
+              <Link
+                href="/cost-calculator"
+                className="flex items-center gap-2 px-3 sm:px-4 py-2 text-xs sm:text-sm text-cyan-400 bg-cyan-500/10 hover:bg-cyan-500/20 active:bg-cyan-500/30 rounded-lg sm:rounded-xl transition-all font-medium"
+              >
+                <Calculator className="w-4 h-4" />
+                <span className="hidden sm:inline">원가계산</span>
+              </Link>
               <button
                 onClick={() => handleAddBudget()}
                 className="flex items-center gap-2 px-3 sm:px-4 py-2 text-xs sm:text-sm text-[#b7916e] bg-[#b7916e]/10 hover:bg-[#b7916e]/20 active:bg-[#b7916e]/30 rounded-lg sm:rounded-xl transition-all font-medium"
