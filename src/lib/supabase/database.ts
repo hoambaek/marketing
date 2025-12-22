@@ -5,7 +5,8 @@ import {
   BudgetItem, ExpenseItem, BudgetCategory,
   IssueItem, IssueType, IssuePriority, IssueImpact, IssueStatus,
   OceanDataDaily, SalinityRecord,
-  CostCalculatorSettings, CostCalculatorChampagneType
+  CostCalculatorSettings, CostCalculatorChampagneType,
+  Attachment
 } from '@/lib/types';
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -56,6 +57,7 @@ export async function createTask(task: Omit<Task, 'id' | 'createdAt' | 'updatedA
       due_date: task.dueDate,
       deliverables: task.deliverables,
       notes: task.notes,
+      attachments: task.attachments,
     })
     .select()
     .single();
@@ -83,6 +85,7 @@ export async function updateTask(id: string, updates: Partial<Task>): Promise<bo
   if (updates.dueDate !== undefined) dbUpdates.due_date = updates.dueDate;
   if (updates.deliverables !== undefined) dbUpdates.deliverables = updates.deliverables;
   if (updates.notes !== undefined) dbUpdates.notes = updates.notes;
+  if (updates.attachments !== undefined) dbUpdates.attachments = updates.attachments;
 
   const { error } = await supabase!
     .from('tasks')
@@ -469,6 +472,7 @@ function mapDbTaskToTask(dbTask: Record<string, unknown>): Task {
     dueDate: dbTask.due_date as string | undefined,
     deliverables: dbTask.deliverables as string[] | undefined,
     notes: dbTask.notes as string | undefined,
+    attachments: dbTask.attachments as Task['attachments'],
     createdAt: dbTask.created_at as string,
     updatedAt: dbTask.updated_at as string,
   };
@@ -1112,6 +1116,7 @@ interface DBIssueItem {
   owner: string | null;
   due_date: string | null;
   resolution: string | null;
+  attachments: Attachment[] | null;
   created_at: string;
   updated_at: string;
 }
@@ -1161,6 +1166,7 @@ export async function createIssueItem(
       owner: item.owner || null,
       due_date: item.dueDate || null,
       resolution: item.resolution || null,
+      attachments: item.attachments || null,
       created_at: now,
       updated_at: now,
     })
@@ -1197,6 +1203,7 @@ export async function updateIssueItem(
   if (updates.owner !== undefined) dbUpdates.owner = updates.owner || null;
   if (updates.dueDate !== undefined) dbUpdates.due_date = updates.dueDate || null;
   if (updates.resolution !== undefined) dbUpdates.resolution = updates.resolution || null;
+  if (updates.attachments !== undefined) dbUpdates.attachments = updates.attachments || null;
 
   const { error } = await supabase!
     .from('issues')
@@ -1242,6 +1249,7 @@ function mapDbIssueToIssue(dbIssue: DBIssueItem): IssueItem {
     owner: dbIssue.owner || undefined,
     dueDate: dbIssue.due_date || undefined,
     resolution: dbIssue.resolution || undefined,
+    attachments: dbIssue.attachments || undefined,
     createdAt: dbIssue.created_at,
     updatedAt: dbIssue.updated_at,
   };

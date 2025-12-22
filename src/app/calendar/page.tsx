@@ -3,7 +3,7 @@
 import { motion } from 'framer-motion';
 import { useState, useMemo } from 'react';
 import { useMasterPlanStore } from '@/lib/store/masterplan-store';
-import { ContentItem, CONTENT_TYPES, ContentType, AVAILABLE_YEARS } from '@/lib/types';
+import { ContentItem, CONTENT_TYPES, ContentType } from '@/lib/types';
 import { Footer } from '@/components/layout/Footer';
 import {
   ChevronLeft,
@@ -210,36 +210,6 @@ export default function CalendarPage() {
               >
                 월별 콘텐츠 발행 계획 및 일정 관리
               </motion.p>
-            </div>
-          </motion.div>
-        </div>
-      </section>
-
-      {/* Year Selection - Compact */}
-      <section className="relative py-2 sm:py-4 px-4 sm:px-6 lg:px-12">
-        <div className="max-w-6xl mx-auto">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.85 }}
-            className="flex items-center gap-2 sm:gap-4"
-          >
-            <span className="text-white/30 text-[10px] sm:text-xs tracking-[0.2em] uppercase">연도</span>
-            <div className="flex items-center gap-1 sm:gap-2">
-              {AVAILABLE_YEARS.map((y) => (
-                <button
-                  key={y}
-                  onClick={() => setCurrentDate(new Date(y, month, 1))}
-                  className={`px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl text-xs sm:text-sm font-medium transition-all ${
-                    year === y
-                      ? 'bg-[#b7916e] text-white'
-                      : 'text-white/40 hover:text-white/60 hover:bg-white/[0.04]'
-                  }`}
-                  style={{ fontFamily: "var(--font-cormorant), serif" }}
-                >
-                  {y}
-                </button>
-              ))}
             </div>
           </motion.div>
         </div>
@@ -475,12 +445,13 @@ export default function CalendarPage() {
             <div className="absolute inset-0 bg-gradient-to-br from-white/[0.04] to-white/[0.01] backdrop-blur-sm" />
             <div className="absolute inset-0 border border-white/[0.06] rounded-2xl" />
 
-            <div className="relative p-6">
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center gap-3">
-                  <Calendar className="w-5 h-5 text-[#b7916e]" />
+            <div className="relative p-3 sm:p-6">
+              {/* Header - no wrap */}
+              <div className="flex items-center justify-between gap-2 mb-4 sm:mb-6">
+                <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+                  <Calendar className="w-4 h-4 sm:w-5 sm:h-5 text-[#b7916e]" />
                   <h3
-                    className="text-xl text-white/90"
+                    className="text-base sm:text-xl text-white/90 whitespace-nowrap"
                     style={{ fontFamily: "var(--font-cormorant), serif" }}
                   >
                     이번 달 콘텐츠 일정
@@ -488,43 +459,41 @@ export default function CalendarPage() {
                 </div>
                 <button
                   onClick={() => handleAddContent()}
-                  className="flex items-center gap-2 px-4 py-2 text-sm text-[#b7916e] hover:bg-[#b7916e]/10 rounded-xl transition-colors"
+                  className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm text-[#b7916e] hover:bg-[#b7916e]/10 active:bg-[#b7916e]/20 rounded-lg sm:rounded-xl transition-colors flex-shrink-0"
                 >
-                  <Plus className="w-4 h-4" />
-                  추가
+                  <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                  <span className="whitespace-nowrap">추가</span>
                 </button>
               </div>
 
               {filteredContent.length > 0 ? (
-                <div className="space-y-3">
+                <div className="space-y-2 sm:space-y-3">
                   {filteredContent
                     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
                     .map((item) => (
                       <div
                         key={item.id}
                         onClick={() => handleEditContent(item)}
-                        className="flex items-start gap-4 p-4 rounded-xl bg-white/[0.02] hover:bg-white/[0.04] transition-colors cursor-pointer"
+                        className="flex items-start gap-2.5 sm:gap-4 p-2.5 sm:p-4 rounded-xl bg-white/[0.02] hover:bg-white/[0.04] active:bg-white/[0.06] transition-colors cursor-pointer"
                       >
-                        <div className={`p-2.5 rounded-lg flex-shrink-0 ${CONTENT_COLORS[item.type]}`}>
+                        <div className={`p-2 sm:p-2.5 rounded-lg flex-shrink-0 ${CONTENT_COLORS[item.type]}`}>
                           {CONTENT_ICONS[item.type]}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-start justify-between gap-3">
+                          {/* Header Row: Title + Status Badge */}
+                          <div className="flex items-start justify-between gap-2 sm:gap-3">
                             <div className="min-w-0 flex-1">
-                              <p className="font-medium text-white/80">{item.title}</p>
-                              <p className="text-sm text-white/40">
+                              <p className="text-sm sm:text-base font-medium text-white/80">{item.title}</p>
+                              <p className="text-xs sm:text-sm text-white/40">
                                 {new Date(item.date).toLocaleDateString('ko-KR', {
                                   month: 'long',
                                   day: 'numeric',
                                   weekday: 'short',
                                 })}
                               </p>
-                              {item.description && (
-                                <p className="text-sm text-white/50 mt-2 line-clamp-2">{item.description}</p>
-                              )}
                             </div>
                             <span
-                              className={`px-3 py-1 rounded-lg text-xs font-medium flex-shrink-0 ${
+                              className={`px-2 sm:px-3 py-0.5 sm:py-1 rounded-md sm:rounded-lg text-[10px] sm:text-xs font-medium flex-shrink-0 ${
                                 item.status === 'published'
                                   ? 'bg-emerald-500/20 text-emerald-400'
                                   : item.status === 'scheduled'
@@ -539,6 +508,10 @@ export default function CalendarPage() {
                                 : '초안'}
                             </span>
                           </div>
+                          {/* Description - Full width */}
+                          {item.description && (
+                            <p className="text-xs sm:text-sm text-white/50 mt-1.5 sm:mt-2 line-clamp-2">{item.description}</p>
+                          )}
                         </div>
                       </div>
                     ))}

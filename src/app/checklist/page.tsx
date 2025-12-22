@@ -378,8 +378,8 @@ export default function ChecklistPage() {
                             {item.title}
                           </span>
 
-                          {/* Actions - always visible on mobile, hover on desktop */}
-                          <div className="flex items-center gap-0.5 sm:gap-1 flex-shrink-0 opacity-60 sm:opacity-0 sm:group-hover/item:opacity-100 transition-opacity">
+                          {/* Actions - always visible */}
+                          <div className="flex items-center gap-0.5 sm:gap-1 flex-shrink-0 opacity-60 hover:opacity-100 transition-opacity">
                             <button
                               onClick={(e) => handleEditItem(item, e)}
                               className="p-1.5 sm:p-2 rounded-lg hover:bg-white/[0.06] active:bg-white/[0.08] transition-colors"

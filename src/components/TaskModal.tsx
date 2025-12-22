@@ -2,10 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Pencil, Calendar, User, FileText, Tag, Clock, CalendarDays } from 'lucide-react';
-import { Task, TaskCategory, TaskStatus, CATEGORY_LABELS, MONTHS_INFO } from '@/lib/types';
+import { X, Pencil, Calendar, User, FileText, Tag, Clock, CalendarDays, Paperclip, ExternalLink, Youtube, Image as ImageIcon } from 'lucide-react';
+import { Task, TaskCategory, TaskStatus, CATEGORY_LABELS, MONTHS_INFO, Attachment } from '@/lib/types';
 import { toast } from '@/lib/store/toast-store';
 import { formatWeekDateRange, getWeekDateRange, formatDateKorean, formatDDay, getDDayColorClass, getWeekOfMonth } from '@/lib/utils/date';
+import FileUpload from './FileUpload';
 
 interface TaskModalProps {
   isOpen: boolean;
@@ -43,6 +44,7 @@ export default function TaskModal({ isOpen, onClose, onSave, task, month, week }
     week: week,
     dueDate: '',
     year: 2026,
+    attachments: [] as Attachment[],
   });
 
   // Mobile: view mode first, then edit mode
@@ -85,6 +87,7 @@ export default function TaskModal({ isOpen, onClose, onSave, task, month, week }
         week: task.week,
         dueDate: task.dueDate || '',
         year: task.year || 2026,
+        attachments: task.attachments || [],
       });
       setIsEditing(!mobile || !task);
     } else {
@@ -104,6 +107,7 @@ export default function TaskModal({ isOpen, onClose, onSave, task, month, week }
         week: week,
         dueDate: defaultDueDate,
         year: 2026,
+        attachments: [],
       });
       setIsEditing(true);
     }
@@ -127,6 +131,7 @@ export default function TaskModal({ isOpen, onClose, onSave, task, month, week }
         ? formData.deliverables.split(',').map((d) => d.trim()).filter(Boolean)
         : undefined,
       notes: formData.notes.trim() || undefined,
+      attachments: formData.attachments.length > 0 ? formData.attachments : undefined,
     };
 
     await onSave(taskData);
@@ -188,6 +193,10 @@ export default function TaskModal({ isOpen, onClose, onSave, task, month, week }
     } else {
       setFormData(prev => ({ ...prev, dueDate: newDueDate }));
     }
+  };
+
+  const handleAttachmentsChange = (attachments: Attachment[]) => {
+    setFormData(prev => ({ ...prev, attachments }));
   };
 
   return (
@@ -389,6 +398,21 @@ export default function TaskModal({ isOpen, onClose, onSave, task, month, week }
                 />
               </div>
 
+              {/* Attachments */}
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-1.5">
+                  <span className="flex items-center gap-2">
+                    <Paperclip className="w-4 h-4 text-muted-foreground" />
+                    첨부파일
+                  </span>
+                </label>
+                <FileUpload
+                  attachments={formData.attachments}
+                  onChange={handleAttachmentsChange}
+                  maxFiles={10}
+                />
+              </div>
+
               {/* Buttons */}
               <div className="flex gap-3 pt-2">
                 <button
@@ -486,6 +510,63 @@ export default function TaskModal({ isOpen, onClose, onSave, task, month, week }
                 <div className="p-4 bg-muted/30 rounded-xl">
                   <p className="text-xs text-muted-foreground mb-1">메모</p>
                   <p className="text-foreground/80 text-sm whitespace-pre-wrap">{formData.notes}</p>
+                </div>
+              )}
+
+              {/* Attachments View */}
+              {formData.attachments && formData.attachments.length > 0 && (
+                <div className="p-4 bg-muted/30 rounded-xl">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Paperclip className="w-3.5 h-3.5 text-muted-foreground" />
+                    <p className="text-xs text-muted-foreground">첨부파일 ({formData.attachments.length})</p>
+                  </div>
+                  <div className="space-y-2">
+                    {formData.attachments.map((attachment) => (
+                      <a
+                        key={attachment.id}
+                        href={attachment.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors group"
+                      >
+                        {/* Thumbnail or Icon */}
+                        <div className="relative w-10 h-10 flex-shrink-0 rounded-lg overflow-hidden bg-muted">
+                          {attachment.type === 'image' ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={attachment.url}
+                              alt={attachment.name}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : attachment.type === 'youtube' && attachment.thumbnailUrl ? (
+                            <>
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img
+                                src={attachment.thumbnailUrl}
+                                alt={attachment.name}
+                                className="w-full h-full object-cover"
+                              />
+                              <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                                <Youtube className="w-4 h-4 text-red-500" />
+                              </div>
+                            </>
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center">
+                              <FileText className="w-5 h-5 text-muted-foreground" />
+                            </div>
+                          )}
+                        </div>
+                        {/* File Info */}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm text-foreground truncate">{attachment.name}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {attachment.type === 'youtube' ? '유튜브 영상' : attachment.type === 'image' ? '이미지' : '문서'}
+                          </p>
+                        </div>
+                        <ExternalLink className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                      </a>
+                    ))}
+                  </div>
                 </div>
               )}
 

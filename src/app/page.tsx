@@ -10,7 +10,6 @@ import { useInventoryStore } from '@/lib/store/inventory-store';
 import { Footer } from '@/components/layout/Footer';
 import {
   PHASE_INFO,
-  AVAILABLE_YEARS,
 } from '@/lib/types';
 import {
   AlertTriangle,
@@ -269,7 +268,7 @@ export default function DashboardPage() {
     initializeInventory
   } = useInventoryStore();
 
-  const [selectedYear, setSelectedYear] = useState<number>(2026);
+  const selectedYear = 2026; // Fixed year for budget/task filtering
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -413,27 +412,24 @@ export default function DashboardPage() {
               </h1>
             </div>
 
-            {/* Year Selector */}
+            {/* Today's Date */}
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ duration: 0.6, delay: 0.4 }}
-              className="flex items-center gap-2"
+              className="text-right"
             >
-              {AVAILABLE_YEARS.map((year) => (
-                <button
-                  key={year}
-                  onClick={() => setSelectedYear(year)}
-                  className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
-                    selectedYear === year
-                      ? 'bg-[#b7916e]/20 text-[#d4c4a8] border border-[#b7916e]/30'
-                      : 'text-white/40 hover:text-white/60 hover:bg-white/[0.04]'
-                  }`}
-                  style={{ fontFamily: "var(--font-cormorant), serif" }}
-                >
-                  {year}
-                </button>
-              ))}
+              <p className="text-2xl sm:text-3xl text-white/90"
+                 style={{ fontFamily: "var(--font-cormorant), serif" }}>
+                {mounted ? new Date().toLocaleDateString('ko-KR', {
+                  year: 'numeric',
+                  month: 'long',
+                  day: 'numeric'
+                }) : ''}
+              </p>
+              <p className="text-xs text-white/40 mt-0.5">
+                {mounted ? new Date().toLocaleDateString('ko-KR', { weekday: 'long' }) : ''}
+              </p>
             </motion.div>
           </motion.div>
 

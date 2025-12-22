@@ -129,10 +129,18 @@ export default function MonthlyPlanPage() {
   const weekTasks = getTasksByMonthAndWeek(selectedYear, selectedMonth, selectedWeek);
   const mustDoItems = getMustDoByMonth(selectedYear, selectedMonth);
 
-  // Navigation handlers
+  // Navigation handlers - with year transition
+  const minYear = Math.min(...AVAILABLE_YEARS);
+  const maxYear = Math.max(...AVAILABLE_YEARS);
+
   const goToPrevMonth = () => {
     if (selectedMonth > 1) {
       setSelectedMonth(selectedMonth - 1);
+      setSelectedWeek(1);
+    } else if (selectedYear > minYear) {
+      // Go to December of previous year
+      setSelectedYear(selectedYear - 1);
+      setSelectedMonth(12);
       setSelectedWeek(1);
     }
   };
@@ -141,8 +149,16 @@ export default function MonthlyPlanPage() {
     if (selectedMonth < 12) {
       setSelectedMonth(selectedMonth + 1);
       setSelectedWeek(1);
+    } else if (selectedYear < maxYear) {
+      // Go to January of next year
+      setSelectedYear(selectedYear + 1);
+      setSelectedMonth(1);
+      setSelectedWeek(1);
     }
   };
+
+  const canGoPrev = selectedMonth > 1 || selectedYear > minYear;
+  const canGoNext = selectedMonth < 12 || selectedYear < maxYear;
 
   // Task handlers
   const handleStatusToggle = async (taskId: string, currentStatus: TaskStatus) => {
@@ -304,233 +320,86 @@ export default function MonthlyPlanPage() {
         </div>
       </section>
 
-      {/* Year Selection - Minimal Inline */}
-      <section className="relative py-2 px-4 sm:px-6 lg:px-12">
-        <div className="max-w-4xl mx-auto">
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.8, delay: 0.85 }}
-            className="flex items-center justify-center gap-1"
-          >
-            {AVAILABLE_YEARS.map((year, index) => {
-              const isSelected = selectedYear === year;
-              return (
-                <motion.button
-                  key={year}
-                  onClick={() => setSelectedYear(year)}
-                  className="relative group"
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                >
-                  {/* Connector line between years */}
-                  {index > 0 && (
-                    <div className="absolute right-full top-1/2 w-3 h-px bg-white/10 -translate-y-1/2" />
-                  )}
-
-                  <motion.div
-                    className="relative px-4 py-1.5 rounded-full transition-all duration-300"
-                    animate={{
-                      backgroundColor: isSelected ? 'rgba(183, 145, 110, 0.15)' : 'transparent',
-                    }}
-                    style={{
-                      border: isSelected ? '1px solid rgba(183, 145, 110, 0.3)' : '1px solid transparent',
-                    }}
-                  >
-                    <span
-                      className={`text-lg transition-all duration-300 ${
-                        isSelected ? 'text-[#d4c4a8]' : 'text-white/30 group-hover:text-white/50'
-                      }`}
-                      style={{ fontFamily: "var(--font-cormorant), serif" }}
-                    >
-                      {year}
-                    </span>
-
-                    {/* Active indicator dot */}
-                    {isSelected && (
-                      <motion.div
-                        initial={{ scale: 0 }}
-                        animate={{ scale: 1 }}
-                        className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-[#b7916e]"
-                      />
-                    )}
-                  </motion.div>
-                </motion.button>
-              );
-            })}
-          </motion.div>
-        </div>
-      </section>
-
-      {/* Month Timeline Navigator */}
-      <section className="relative py-4 px-4 sm:px-6 lg:px-12" ref={containerRef}>
+      {/* Unified Year/Month Navigator */}
+      <section className="relative py-3 sm:py-4 px-4 sm:px-6 lg:px-12" ref={containerRef}>
         <div className="max-w-4xl mx-auto">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.9 }}
+            transition={{ duration: 0.8, delay: 0.85 }}
             className="relative"
           >
-            {/* 12-Month Timeline Strip */}
-            <div className="relative">
-              {/* Background Track */}
-              <div
-                className="absolute top-1/2 left-0 right-0 h-px -translate-y-1/2 transition-colors duration-500"
-                style={{ backgroundColor: `${colors.primary}25` }}
-              />
-
-              {/* Progress Track */}
-              <motion.div
-                className="absolute top-1/2 left-0 h-px -translate-y-1/2 origin-left"
-                style={{ backgroundColor: colors.primary }}
-                initial={{ width: 0 }}
-                animate={{ width: `${((selectedMonth - 1) / 11) * 100}%` }}
-                transition={{ duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] }}
-              />
-
-              {/* Month Nodes */}
-              <div className="relative flex items-center justify-between py-3">
-                {MONTHS_INFO.map((month) => {
-                  const monthPhase = PHASE_INFO.find((p) => p.months.includes(month.id));
-                  const monthColor = phaseColors[monthPhase?.id as keyof typeof phaseColors]?.primary || '#3B82F6';
-                  const isSelected = month.id === selectedMonth;
-                  const isPast = month.id < selectedMonth;
-                  const monthProgress = getProgressByMonth(selectedYear, month.id);
-
-                  return (
-                    <motion.button
-                      key={month.id}
-                      onClick={() => {
-                        setSelectedMonth(month.id);
-                        setSelectedWeek(1);
-                      }}
-                      className="relative group flex flex-col items-center"
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                    >
-                      {/* Node */}
-                      <motion.div
-                        className="relative flex items-center justify-center transition-all duration-300"
-                        animate={{
-                          width: isSelected ? 44 : 28,
-                          height: isSelected ? 44 : 28,
-                        }}
-                      >
-                        {/* Outer ring for selected */}
-                        {isSelected && (
-                          <motion.div
-                            initial={{ scale: 0.8, opacity: 0 }}
-                            animate={{ scale: 1, opacity: 1 }}
-                            className="absolute inset-0 rounded-full"
-                            style={{
-                              background: `linear-gradient(135deg, ${monthColor}30, ${monthColor}10)`,
-                              border: `1px solid ${monthColor}40`,
-                            }}
-                          />
-                        )}
-
-                        {/* Inner node */}
-                        <motion.div
-                          className="relative rounded-full flex items-center justify-center transition-all duration-300"
-                          animate={{
-                            width: isSelected ? 32 : isPast ? 20 : 18,
-                            height: isSelected ? 32 : isPast ? 20 : 18,
-                            backgroundColor: isSelected ? monthColor : isPast ? `${monthColor}60` : 'rgba(255,255,255,0.08)',
-                          }}
-                        >
-                          {/* Month number or progress */}
-                          <span
-                            className={`transition-all ${
-                              isSelected ? 'text-[10px] sm:text-xs text-white font-medium' : isPast ? 'text-[8px] sm:text-[10px] text-white/60' : 'text-[8px] sm:text-[10px] text-white/25'
-                            }`}
-                            style={{
-                              fontFamily: isSelected
-                                ? "var(--font-cormorant), serif"
-                                : "var(--font-lora), Georgia, serif",
-                            }}
-                          >
-                            {isSelected ? (isMounted ? `${monthProgress}%` : '—') : month.id}
-                          </span>
-                        </motion.div>
-                      </motion.div>
-
-                      {/* Month label - only visible on hover or selected */}
-                      <motion.div
-                        className={`absolute -bottom-6 left-1/2 -translate-x-1/2 whitespace-nowrap transition-all duration-200 ${
-                          isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-70'
-                        }`}
-                      >
-                        <span
-                          className="text-[10px] sm:text-xs"
-                          style={{
-                            color: isSelected ? monthColor : 'rgba(255,255,255,0.5)',
-                            fontFamily: "var(--font-cormorant), serif"
-                          }}
-                        >
-                          {month.name.slice(0, 3)}
-                        </span>
-                      </motion.div>
-                    </motion.button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Selected Month Info Bar */}
             <AnimatePresence mode="wait">
               <motion.div
-                key={selectedMonth}
+                key={`${selectedYear}-${selectedMonth}`}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}
                 transition={{ duration: 0.3 }}
-                className="mt-8 flex items-center justify-between gap-4"
+                className="flex items-center justify-between gap-4"
               >
-                {/* Left: Navigation + Month Name */}
-                <div className="flex items-center gap-3">
+                {/* Left: Year/Month Navigation */}
+                <div className="flex items-center gap-2 sm:gap-3">
+                  {/* Prev Button */}
                   <motion.button
                     whileHover={{ scale: 1.1, x: -2 }}
                     whileTap={{ scale: 0.95 }}
                     onClick={goToPrevMonth}
-                    disabled={selectedMonth <= 1}
-                    className={`p-1.5 rounded-lg transition-all ${
-                      selectedMonth <= 1
+                    disabled={!canGoPrev}
+                    className={`p-1.5 sm:p-2 rounded-lg transition-all ${
+                      !canGoPrev
                         ? 'opacity-20 cursor-not-allowed'
-                        : 'hover:bg-white/[0.06]'
+                        : 'hover:bg-white/[0.06] active:bg-white/[0.08]'
                     }`}
                   >
-                    <ChevronLeft className="w-4 h-4 text-white/40" />
+                    <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5 text-white/40" />
                   </motion.button>
 
-                  <div className="flex items-baseline gap-3">
+                  {/* Year & Month Display */}
+                  <div className="flex items-baseline gap-1.5 sm:gap-2">
+                    {/* Year */}
+                    <span
+                      className="text-base sm:text-lg text-[#b7916e]/80"
+                      style={{ fontFamily: "var(--font-cormorant), serif" }}
+                    >
+                      {selectedYear}
+                    </span>
+
+                    {/* Separator */}
+                    <span className="text-white/20 text-sm hidden sm:inline">·</span>
+
+                    {/* Month */}
                     <h2
                       className="text-2xl sm:text-3xl text-white/95"
                       style={{ fontFamily: "var(--font-cormorant), 'Playfair Display', Georgia, serif" }}
                     >
                       {currentMonthInfo?.name}
                     </h2>
-                    <span className="text-white/30 text-sm font-light hidden sm:inline">
+
+                    {/* Month Subtitle */}
+                    <span className="text-white/30 text-xs sm:text-sm font-light hidden sm:inline ml-1">
                       {currentMonthInfo?.title}
                     </span>
                   </div>
 
+                  {/* Next Button */}
                   <motion.button
                     whileHover={{ scale: 1.1, x: 2 }}
                     whileTap={{ scale: 0.95 }}
                     onClick={goToNextMonth}
-                    disabled={selectedMonth >= 12}
-                    className={`p-1.5 rounded-lg transition-all ${
-                      selectedMonth >= 12
+                    disabled={!canGoNext}
+                    className={`p-1.5 sm:p-2 rounded-lg transition-all ${
+                      !canGoNext
                         ? 'opacity-20 cursor-not-allowed'
-                        : 'hover:bg-white/[0.06]'
+                        : 'hover:bg-white/[0.06] active:bg-white/[0.08]'
                     }`}
                   >
-                    <ChevronRight className="w-4 h-4 text-white/40" />
+                    <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5 text-white/40" />
                   </motion.button>
                 </div>
 
-                {/* Right: Stats */}
-                <div className="flex items-center gap-4">
+                {/* Right: Phase & Stats */}
+                <div className="flex items-center gap-2 sm:gap-4">
                   {/* Phase Badge */}
                   <span
                     className="hidden sm:inline-flex px-2.5 py-1 rounded-full text-[10px] tracking-wider uppercase"
@@ -544,25 +413,25 @@ export default function MonthlyPlanPage() {
                   </span>
 
                   {/* Mini Stats */}
-                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/[0.03] border border-white/[0.06]">
+                  <div className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1 sm:py-1.5 rounded-full bg-white/[0.03] border border-white/[0.06]">
                     <div className="flex items-center gap-1" title="완료">
                       <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
                       <span className="text-[10px] sm:text-xs text-white/60">
-                        {isMounted ? tasks.filter(t => t.month === selectedMonth && t.status === 'done').length : '—'}
+                        {isMounted ? tasks.filter(t => t.month === selectedMonth && t.year === selectedYear && t.status === 'done').length : '—'}
                       </span>
                     </div>
                     <div className="w-px h-3 bg-white/10" />
                     <div className="flex items-center gap-1" title="진행중">
                       <div className="w-1.5 h-1.5 rounded-full bg-amber-400" />
                       <span className="text-[10px] sm:text-xs text-white/60">
-                        {isMounted ? tasks.filter(t => t.month === selectedMonth && t.status === 'in_progress').length : '—'}
+                        {isMounted ? tasks.filter(t => t.month === selectedMonth && t.year === selectedYear && t.status === 'in_progress').length : '—'}
                       </span>
                     </div>
                     <div className="w-px h-3 bg-white/10" />
                     <div className="flex items-center gap-1" title="대기">
                       <div className="w-1.5 h-1.5 rounded-full bg-white/30" />
                       <span className="text-[10px] sm:text-xs text-white/60">
-                        {isMounted ? tasks.filter(t => t.month === selectedMonth && t.status === 'pending').length : '—'}
+                        {isMounted ? tasks.filter(t => t.month === selectedMonth && t.year === selectedYear && t.status === 'pending').length : '—'}
                       </span>
                     </div>
                   </div>
@@ -704,8 +573,8 @@ export default function MonthlyPlanPage() {
                       {CATEGORY_LABELS[item.category]}
                     </span>
 
-                    {/* Action Buttons */}
-                    <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                    {/* Action Buttons - always visible */}
+                    <div className="flex items-center gap-0.5 opacity-60 hover:opacity-100 transition-opacity">
                       <button
                         onClick={(e) => { e.stopPropagation(); handleEditMustDo(item); }}
                         className="p-1 rounded text-white/30 hover:text-white/60 hover:bg-white/[0.04] transition-colors"

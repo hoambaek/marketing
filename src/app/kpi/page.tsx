@@ -4,7 +4,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useState } from 'react';
 import { useMasterPlanStore } from '@/lib/store/masterplan-store';
 import { KPICategory, KPIItem, MONTHS_INFO, AVAILABLE_YEARS } from '@/lib/types';
-import { YearMonthSelector } from '@/components/ui/YearMonthSelector';
 import { Footer } from '@/components/layout/Footer';
 import {
   Instagram,
@@ -22,6 +21,9 @@ import {
   Pencil,
   X,
   Save,
+  ChevronLeft,
+  ChevronRight,
+  CalendarRange,
 } from 'lucide-react';
 
 const KPI_ICONS: Record<KPICategory, React.ReactNode> = {
@@ -248,6 +250,42 @@ export default function KPIPage() {
   const [editingKPI, setEditingKPI] = useState<KPIItem | null>(null);
   const [isAllSelected, setIsAllSelected] = useState<boolean>(false);
 
+  // Navigation handlers - with year transition
+  const minYear = Math.min(...AVAILABLE_YEARS);
+  const maxYear = Math.max(...AVAILABLE_YEARS);
+
+  const goToPrevMonth = () => {
+    if (isAllSelected) {
+      // When "전체" is selected, go to December of the selected year
+      setIsAllSelected(false);
+      setSelectedMonth(12);
+    } else if (selectedMonth > 1) {
+      setSelectedMonth(selectedMonth - 1);
+    } else if (selectedYear > minYear) {
+      // Go to December of previous year
+      setSelectedYear(selectedYear - 1);
+      setSelectedMonth(12);
+    }
+  };
+
+  const goToNextMonth = () => {
+    if (selectedMonth < 12 && !isAllSelected) {
+      setSelectedMonth(selectedMonth + 1);
+    } else if (selectedYear < maxYear && !isAllSelected) {
+      // Go to January of next year
+      setSelectedYear(selectedYear + 1);
+      setSelectedMonth(1);
+    } else if (isAllSelected && selectedYear < maxYear) {
+      // When "전체" and at max, go to next year's January
+      setSelectedYear(selectedYear + 1);
+      setSelectedMonth(1);
+      setIsAllSelected(false);
+    }
+  };
+
+  const canGoPrev = !isAllSelected ? (selectedMonth > 1 || selectedYear > minYear) : true;
+  const canGoNext = !isAllSelected ? (selectedMonth < 12 || selectedYear < maxYear) : selectedYear < maxYear;
+
   // Handle "전체" selection
   const handleAllSelect = () => {
     setIsAllSelected(true);
@@ -258,6 +296,9 @@ export default function KPIPage() {
     setIsAllSelected(false);
     setSelectedMonth(month);
   };
+
+  // Get current month info
+  const currentMonthInfo = MONTHS_INFO.find(m => m.id === selectedMonth);
 
   // Get KPIs - either for selected month or aggregated for all months (yearly)
   const displayKPIs = isAllSelected
@@ -395,41 +436,124 @@ export default function KPIPage() {
         </div>
       </section>
 
-      {/* Controls Section */}
-      <section className="px-4 sm:px-6 lg:px-8 mb-6">
+      {/* Unified Year/Month Navigator - Compact Inline Layout */}
+      <section className="relative py-2 sm:py-4 px-4 sm:px-6 lg:px-12">
         <div className="max-w-6xl mx-auto">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.5 }}
+            className="relative"
+          >
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={`${selectedYear}-${selectedMonth}-${isAllSelected}`}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.3 }}
+                className="flex items-center justify-between gap-2"
+              >
+                {/* Left: Year/Month Navigation */}
+                <div className="flex items-center gap-1 sm:gap-2">
+                  {/* Prev Button */}
+                  <motion.button
+                    whileHover={{ scale: 1.1, x: -2 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={goToPrevMonth}
+                    disabled={!canGoPrev}
+                    className={`p-1 sm:p-1.5 rounded-lg transition-all ${
+                      !canGoPrev
+                        ? 'opacity-20 cursor-not-allowed'
+                        : 'hover:bg-white/[0.06] active:bg-white/[0.08]'
+                    }`}
+                  >
+                    <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5 text-white/40" />
+                  </motion.button>
 
-          {/* Year & Month Selector */}
-          <motion.div variants={itemVariants} initial="hidden" animate="visible">
-            <YearMonthSelector
-              selectedYear={selectedYear}
-              selectedMonth={selectedMonth}
-              onYearChange={(year) => {
-                setSelectedYear(year);
-                setIsAllSelected(false);
-              }}
-              onMonthChange={handleMonthChange}
-              showAllOption={true}
-              onAllSelect={handleAllSelect}
-              isAllSelected={isAllSelected}
-              className="mb-6"
-            />
+                  {/* Year & Month Display */}
+                  <div className="flex items-baseline gap-1 sm:gap-1.5">
+                    {/* Year */}
+                    <span
+                      className="text-sm sm:text-base text-[#b7916e]/80"
+                      style={{ fontFamily: "var(--font-cormorant), serif" }}
+                    >
+                      {selectedYear}
+                    </span>
+
+                    {/* Separator */}
+                    <span className="text-white/20 text-xs">·</span>
+
+                    {/* Month or "전체" */}
+                    <h2
+                      className="text-xl sm:text-2xl text-white/95"
+                      style={{ fontFamily: "var(--font-cormorant), 'Playfair Display', Georgia, serif" }}
+                    >
+                      {isAllSelected ? '전체' : `${selectedMonth}월`}
+                    </h2>
+
+                    {/* Month Subtitle - only when month is selected */}
+                    {!isAllSelected && currentMonthInfo && (
+                      <span className="text-white/30 text-[10px] sm:text-xs font-light hidden sm:inline ml-0.5">
+                        {currentMonthInfo.title}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Next Button */}
+                  <motion.button
+                    whileHover={{ scale: 1.1, x: 2 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={goToNextMonth}
+                    disabled={!canGoNext}
+                    className={`p-1 sm:p-1.5 rounded-lg transition-all ${
+                      !canGoNext
+                        ? 'opacity-20 cursor-not-allowed'
+                        : 'hover:bg-white/[0.06] active:bg-white/[0.08]'
+                    }`}
+                  >
+                    <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5 text-white/40" />
+                  </motion.button>
+                </div>
+
+                {/* Right: "전체" (All Year) Toggle - Compact */}
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={handleAllSelect}
+                  className={`flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all ${
+                    isAllSelected
+                      ? 'bg-[#b7916e]/20 text-[#d4c4a8] border border-[#b7916e]/30'
+                      : 'text-white/40 hover:text-white/60 hover:bg-white/[0.04] border border-white/[0.08]'
+                  }`}
+                >
+                  <CalendarRange className="w-3 h-3 sm:w-4 sm:h-4" />
+                  <span className="hidden sm:inline">{selectedYear}년 전체</span>
+                  <span className="sm:hidden">전체</span>
+                </motion.button>
+              </motion.div>
+            </AnimatePresence>
           </motion.div>
+        </div>
+      </section>
 
-          {/* Category Filter */}
+      {/* Controls Section - Compact Mobile */}
+      <section className="px-4 sm:px-6 lg:px-8 mb-4 sm:mb-6">
+        <div className="max-w-6xl mx-auto">
+          {/* Category Filter - Compact Pills */}
           <motion.div
             variants={itemVariants}
             initial="hidden"
             animate="visible"
-            className="relative rounded-2xl overflow-hidden mb-8"
+            className="relative rounded-xl sm:rounded-2xl overflow-hidden mb-4 sm:mb-8"
           >
             <div className="absolute inset-0 bg-gradient-to-br from-white/[0.04] to-white/[0.01] backdrop-blur-sm" />
-            <div className="absolute inset-0 border border-white/[0.06] rounded-2xl" />
-            <div className="relative p-4">
-              <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide">
+            <div className="absolute inset-0 border border-white/[0.06] rounded-xl sm:rounded-2xl" />
+            <div className="relative p-2 sm:p-4">
+              <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto scrollbar-hide pb-1">
                 <button
                   onClick={() => setSelectedCategory('all')}
-                  className={`px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all duration-300 ${
+                  className={`px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl text-[11px] sm:text-sm font-medium whitespace-nowrap transition-all duration-300 ${
                     selectedCategory === 'all'
                       ? 'bg-white/10 text-white border border-white/20'
                       : 'text-white/40 hover:text-white/60 hover:bg-white/[0.04]'
@@ -441,29 +565,29 @@ export default function KPIPage() {
                   <button
                     key={cat}
                     onClick={() => setSelectedCategory(cat)}
-                    className={`px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all duration-300 flex items-center gap-2 ${
+                    className={`px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl text-[11px] sm:text-sm font-medium whitespace-nowrap transition-all duration-300 flex items-center gap-1 sm:gap-2 ${
                       selectedCategory === cat
                         ? `${KPI_COLORS[cat].bg} ${KPI_COLORS[cat].text} border border-current/30`
                         : 'text-white/40 hover:text-white/60 hover:bg-white/[0.04]'
                     }`}
                   >
-                    {KPI_ICONS[cat]}
-                    <span>{KPI_LABELS[cat]}</span>
+                    <span className="[&>svg]:w-3.5 [&>svg]:h-3.5 sm:[&>svg]:w-5 sm:[&>svg]:h-5">{KPI_ICONS[cat]}</span>
+                    <span className="hidden sm:inline">{KPI_LABELS[cat]}</span>
                   </button>
                 ))}
               </div>
             </div>
           </motion.div>
 
-          {/* Overall Progress Card */}
+          {/* Overall Progress Card - Compact Mobile */}
           <motion.div
             variants={itemVariants}
             initial="hidden"
             animate="visible"
-            className="relative rounded-2xl overflow-hidden mb-10"
+            className="relative rounded-xl sm:rounded-2xl overflow-hidden mb-6 sm:mb-10"
           >
             <div className="absolute inset-0 bg-gradient-to-br from-[#b7916e]/[0.08] to-white/[0.02] backdrop-blur-sm" />
-            <div className="absolute inset-0 border border-[#b7916e]/20 rounded-2xl" />
+            <div className="absolute inset-0 border border-[#b7916e]/20 rounded-xl sm:rounded-2xl" />
             {/* Glow effect */}
             <div
               className="absolute inset-0 opacity-40"
@@ -471,27 +595,36 @@ export default function KPIPage() {
                 background: 'radial-gradient(circle at 50% 0%, rgba(183, 145, 110, 0.15), transparent 50%)',
               }}
             />
-            <div className="relative p-8">
-              <div className="flex items-center gap-4 mb-6">
-                <div className="p-3 rounded-2xl bg-[#b7916e]/20 border border-[#b7916e]/30">
-                  <Sparkles className="w-6 h-6 text-[#d4c4a8]" />
+            <div className="relative p-4 sm:p-8">
+              <div className="flex items-center gap-3 sm:gap-4 mb-3 sm:mb-6">
+                <div className="p-2 sm:p-3 rounded-xl sm:rounded-2xl bg-[#b7916e]/20 border border-[#b7916e]/30">
+                  <Sparkles className="w-4 h-4 sm:w-6 sm:h-6 text-[#d4c4a8]" />
                 </div>
-                <div>
-                  <p className="text-white/40 text-sm">
-                    {isAllSelected
-                      ? `${selectedYear}년 연간 전체 목표 달성률`
-                      : `${MONTHS_INFO.find((m) => m.id === selectedMonth)?.name} 전체 목표 달성률`}
-                  </p>
-                  <p
-                    className="text-4xl text-white/90"
-                    style={{ fontFamily: "var(--font-cormorant), 'Playfair Display', Georgia, serif" }}
-                  >
-                    {overallPercent}
-                    <span className="text-xl text-white/40">%</span>
-                  </p>
+                <div className="flex-1 flex items-center justify-between">
+                  <div>
+                    <p className="text-white/40 text-[10px] sm:text-sm">
+                      {isAllSelected
+                        ? `${selectedYear}년 연간 목표`
+                        : `${MONTHS_INFO.find((m) => m.id === selectedMonth)?.name} 목표`}
+                    </p>
+                    <p
+                      className="text-2xl sm:text-4xl text-white/90"
+                      style={{ fontFamily: "var(--font-cormorant), 'Playfair Display', Georgia, serif" }}
+                    >
+                      {overallPercent}
+                      <span className="text-base sm:text-xl text-white/40">%</span>
+                    </p>
+                  </div>
+                  {/* Mobile: Show current/target inline */}
+                  <div className="text-right sm:hidden">
+                    <p className="text-[10px] text-white/30">달성/목표</p>
+                    <p className="text-xs text-white/50">
+                      {overallProgress.current.toLocaleString()}/{overallProgress.target.toLocaleString()}
+                    </p>
+                  </div>
                 </div>
               </div>
-              <div className="h-3 rounded-full bg-white/[0.06] overflow-hidden">
+              <div className="h-2 sm:h-3 rounded-full bg-white/[0.06] overflow-hidden">
                 <motion.div
                   initial={{ width: 0 }}
                   animate={{ width: `${Math.min(overallPercent, 100)}%` }}
@@ -504,97 +637,112 @@ export default function KPIPage() {
         </div>
       </section>
 
-      {/* KPI Cards Grid */}
+      {/* KPI Cards Grid - Compact Mobile */}
       <section className="px-4 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-6xl">
           <motion.div
             variants={containerVariants}
             initial="hidden"
             animate="visible"
-            className="grid md:grid-cols-2 lg:grid-cols-3 gap-5"
+            className="grid grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-5"
           >
             {filteredKPIs.map((kpi, index) => {
               const colors = KPI_COLORS[kpi.category];
               const percent = Math.round((kpi.current / kpi.target) * 100);
               const canEdit = isManualInput(kpi.category);
 
+              const isAchieved = percent >= 100;
+
               return (
                 <motion.div
                   key={kpi.id}
                   variants={itemVariants}
-                  className="group relative rounded-2xl overflow-hidden"
+                  className="group relative rounded-xl sm:rounded-2xl overflow-hidden"
                 >
-                  <div className="absolute inset-0 bg-gradient-to-br from-white/[0.04] to-white/[0.01] backdrop-blur-sm" />
-                  <div className="absolute inset-0 border border-white/[0.06] rounded-2xl" />
+                  {/* Background - Changes when achieved */}
+                  <div className={`absolute inset-0 backdrop-blur-sm transition-colors duration-500 ${
+                    isAchieved
+                      ? 'bg-gradient-to-br from-emerald-500/[0.12] to-emerald-500/[0.04]'
+                      : 'bg-gradient-to-br from-white/[0.04] to-white/[0.01]'
+                  }`} />
+                  <div className={`absolute inset-0 rounded-xl sm:rounded-2xl transition-colors duration-500 ${
+                    isAchieved
+                      ? 'border border-emerald-500/30'
+                      : 'border border-white/[0.06]'
+                  }`} />
                   {/* Hover glow */}
                   <div
                     className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
                     style={{
-                      background: `radial-gradient(circle at 50% 100%, ${colors.glow}, transparent 70%)`,
+                      background: isAchieved
+                        ? 'radial-gradient(circle at 50% 100%, rgba(16, 185, 129, 0.2), transparent 70%)'
+                        : `radial-gradient(circle at 50% 100%, ${colors.glow}, transparent 70%)`,
                     }}
                   />
 
-                  {/* Card Header */}
-                  <div className={`relative px-5 py-4 ${colors.bg} border-b border-white/[0.04]`}>
+                  {/* Card Header - Compact */}
+                  <div className={`relative px-2.5 sm:px-5 py-2 sm:py-4 ${colors.bg} border-b border-white/[0.04]`}>
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className={`p-2.5 rounded-xl bg-[#0a0f1a]/50 ${colors.text}`}>
+                      <div className="flex items-center gap-1.5 sm:gap-3">
+                        <div className={`p-1.5 sm:p-2.5 rounded-lg sm:rounded-xl bg-[#0a0f1a]/50 ${colors.text} [&>svg]:w-3.5 [&>svg]:h-3.5 sm:[&>svg]:w-5 sm:[&>svg]:h-5`}>
                           {KPI_ICONS[kpi.category]}
                         </div>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <p className={`font-medium ${colors.text}`}>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1">
+                            <p className={`text-[11px] sm:text-sm font-medium ${colors.text} truncate`}>
                               {KPI_LABELS[kpi.category]}
                             </p>
                             {canEdit && (
-                              <span className="text-[10px] px-1.5 py-0.5 rounded bg-white/10 text-white/40">
-                                수동입력
+                              <span className="hidden sm:inline text-[9px] px-1 py-0.5 rounded bg-white/10 text-white/40">
+                                수동
                               </span>
                             )}
                           </div>
-                          <p className="text-xs text-white/30">{kpi.metric}</p>
+                          <p className="text-[9px] sm:text-xs text-white/30 truncate hidden sm:block">{kpi.metric}</p>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-0.5 sm:gap-2">
                         {canEdit && (
                           <button
                             onClick={() => setEditingKPI(kpi)}
-                            className="p-2 rounded-lg hover:bg-white/[0.1] transition-colors text-white/40 hover:text-white/70"
+                            className="p-1 sm:p-2 rounded-lg hover:bg-white/[0.1] transition-colors text-white/40 hover:text-white/70"
                             title="수정"
                           >
-                            <Pencil className="w-4 h-4" />
+                            <Pencil className="w-3 h-3 sm:w-4 sm:h-4" />
                           </button>
                         )}
-                        {getTrendIcon(kpi.current, kpi.target)}
+                        <span className="[&>svg]:w-3 [&>svg]:h-3 sm:[&>svg]:w-4 sm:[&>svg]:h-4">
+                          {getTrendIcon(kpi.current, kpi.target)}
+                        </span>
                       </div>
                     </div>
                   </div>
 
-                  {/* Card Body */}
-                  <div className="relative p-5">
-                    {/* Main Metric */}
-                    <div className="flex items-end justify-between mb-5">
+                  {/* Card Body - Compact */}
+                  <div className="relative p-2.5 sm:p-5">
+                    {/* Main Metric - Compact Layout */}
+                    <div className="flex items-end justify-between mb-2 sm:mb-5">
                       <div>
-                        <p className="text-xs text-white/40 mb-1 uppercase tracking-wider">현재</p>
+                        <p className="text-[9px] sm:text-xs text-white/40 mb-0.5 uppercase tracking-wider">현재</p>
                         <p
-                          className="text-3xl text-white/90"
+                          className="text-lg sm:text-3xl text-white/90"
                           style={{ fontFamily: "var(--font-cormorant), 'Playfair Display', Georgia, serif" }}
                         >
                           {kpi.current.toLocaleString()}
                         </p>
                       </div>
                       <div className="text-right">
-                        <p className="text-xs text-white/40 mb-1 uppercase tracking-wider">목표</p>
-                        <p className="text-xl text-white/40">
+                        <p className="text-[9px] sm:text-xs text-white/40 mb-0.5 uppercase tracking-wider">목표</p>
+                        <p className="text-sm sm:text-xl text-white/40">
                           {kpi.target.toLocaleString()}
                         </p>
                       </div>
                     </div>
 
-                    {/* Progress Bar */}
-                    <div className="mb-4">
-                      <div className="flex justify-between text-xs mb-2">
-                        <span className="text-white/40 uppercase tracking-wider">달성률</span>
+                    {/* Progress Bar - Compact */}
+                    <div>
+                      <div className="flex justify-between text-[9px] sm:text-xs mb-1 sm:mb-2">
+                        <span className="text-white/40 uppercase tracking-wider hidden sm:inline">달성률</span>
                         <span
                           className={`font-medium ${
                             percent >= 100
@@ -607,7 +755,9 @@ export default function KPIPage() {
                           {percent}%
                         </span>
                       </div>
-                      <div className="h-2 rounded-full bg-white/[0.06] overflow-hidden">
+                      <div className={`h-1.5 sm:h-2 rounded-full overflow-hidden ${
+                        isAchieved ? 'bg-emerald-500/20' : 'bg-white/[0.06]'
+                      }`}>
                         <motion.div
                           initial={{ width: 0 }}
                           animate={{ width: `${Math.min(percent, 100)}%` }}
@@ -616,20 +766,12 @@ export default function KPIPage() {
                             delay: 0.3 + index * 0.05,
                             ease: [0.25, 0.46, 0.45, 0.94] as const,
                           }}
-                          className={`h-full rounded-full bg-gradient-to-r ${colors.accent}`}
+                          className={`h-full rounded-full bg-gradient-to-r ${
+                            isAchieved ? 'from-emerald-500 to-emerald-400' : colors.accent
+                          }`}
                         />
                       </div>
                     </div>
-
-                    {/* Achievement Badge */}
-                    {percent >= 100 && (
-                      <div className="flex items-center gap-2 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
-                        <Target className="w-4 h-4 text-emerald-400" />
-                        <span className="text-xs font-medium text-emerald-400">
-                          목표 달성!
-                        </span>
-                      </div>
-                    )}
                   </div>
                 </motion.div>
               );
@@ -654,59 +796,59 @@ export default function KPIPage() {
             </motion.div>
           )}
 
-          {/* Summary Cards */}
+          {/* Summary Cards - Compact Mobile */}
           <motion.div
             variants={containerVariants}
             initial="hidden"
             animate="visible"
-            className="mt-10 grid md:grid-cols-3 gap-5"
+            className="mt-6 sm:mt-10 grid grid-cols-3 gap-2 sm:gap-5"
           >
             {/* Achieved */}
-            <motion.div variants={itemVariants} className="relative rounded-2xl overflow-hidden group">
+            <motion.div variants={itemVariants} className="relative rounded-xl sm:rounded-2xl overflow-hidden group">
               <div className="absolute inset-0 bg-gradient-to-br from-white/[0.04] to-white/[0.01] backdrop-blur-sm" />
-              <div className="absolute inset-0 border border-white/[0.06] rounded-2xl" />
+              <div className="absolute inset-0 border border-white/[0.06] rounded-xl sm:rounded-2xl" />
               <div
                 className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
                 style={{
                   background: 'radial-gradient(circle at 50% 100%, rgba(16, 185, 129, 0.08), transparent 70%)',
                 }}
               />
-              <div className="relative p-6">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="p-2.5 rounded-xl bg-emerald-500/20 border border-emerald-500/20">
-                    <TrendingUp className="w-5 h-5 text-emerald-400" />
+              <div className="relative p-3 sm:p-6">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-3 mb-2 sm:mb-4">
+                  <div className="p-1.5 sm:p-2.5 rounded-lg sm:rounded-xl bg-emerald-500/20 border border-emerald-500/20 w-fit">
+                    <TrendingUp className="w-3.5 h-3.5 sm:w-5 sm:h-5 text-emerald-400" />
                   </div>
-                  <p className="text-sm text-white/40">목표 달성</p>
+                  <p className="text-[10px] sm:text-sm text-white/40">달성</p>
                 </div>
                 <p
-                  className="text-4xl text-white/90"
+                  className="text-xl sm:text-4xl text-white/90"
                   style={{ fontFamily: "var(--font-cormorant), 'Playfair Display', Georgia, serif" }}
                 >
                   {displayKPIs.filter((k) => k.current >= k.target).length}
-                  <span className="text-lg text-white/30">/{displayKPIs.length}</span>
+                  <span className="text-xs sm:text-lg text-white/30">/{displayKPIs.length}</span>
                 </p>
               </div>
             </motion.div>
 
             {/* On Track */}
-            <motion.div variants={itemVariants} className="relative rounded-2xl overflow-hidden group">
+            <motion.div variants={itemVariants} className="relative rounded-xl sm:rounded-2xl overflow-hidden group">
               <div className="absolute inset-0 bg-gradient-to-br from-white/[0.04] to-white/[0.01] backdrop-blur-sm" />
-              <div className="absolute inset-0 border border-white/[0.06] rounded-2xl" />
+              <div className="absolute inset-0 border border-white/[0.06] rounded-xl sm:rounded-2xl" />
               <div
                 className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
                 style={{
                   background: 'radial-gradient(circle at 50% 100%, rgba(245, 158, 11, 0.08), transparent 70%)',
                 }}
               />
-              <div className="relative p-6">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="p-2.5 rounded-xl bg-amber-500/20 border border-amber-500/20">
-                    <ArrowRight className="w-5 h-5 text-amber-400" />
+              <div className="relative p-3 sm:p-6">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-3 mb-2 sm:mb-4">
+                  <div className="p-1.5 sm:p-2.5 rounded-lg sm:rounded-xl bg-amber-500/20 border border-amber-500/20 w-fit">
+                    <ArrowRight className="w-3.5 h-3.5 sm:w-5 sm:h-5 text-amber-400" />
                   </div>
-                  <p className="text-sm text-white/40">진행중 (70%+)</p>
+                  <p className="text-[10px] sm:text-sm text-white/40">진행중</p>
                 </div>
                 <p
-                  className="text-4xl text-white/90"
+                  className="text-xl sm:text-4xl text-white/90"
                   style={{ fontFamily: "var(--font-cormorant), 'Playfair Display', Georgia, serif" }}
                 >
                   {
@@ -715,30 +857,30 @@ export default function KPIPage() {
                       return p >= 70 && p < 100;
                     }).length
                   }
-                  <span className="text-lg text-white/30">개</span>
+                  <span className="text-xs sm:text-lg text-white/30">개</span>
                 </p>
               </div>
             </motion.div>
 
             {/* Need Attention */}
-            <motion.div variants={itemVariants} className="relative rounded-2xl overflow-hidden group">
+            <motion.div variants={itemVariants} className="relative rounded-xl sm:rounded-2xl overflow-hidden group">
               <div className="absolute inset-0 bg-gradient-to-br from-white/[0.04] to-white/[0.01] backdrop-blur-sm" />
-              <div className="absolute inset-0 border border-white/[0.06] rounded-2xl" />
+              <div className="absolute inset-0 border border-white/[0.06] rounded-xl sm:rounded-2xl" />
               <div
                 className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
                 style={{
                   background: 'radial-gradient(circle at 50% 100%, rgba(239, 68, 68, 0.08), transparent 70%)',
                 }}
               />
-              <div className="relative p-6">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="p-2.5 rounded-xl bg-red-500/20 border border-red-500/20">
-                    <TrendingDown className="w-5 h-5 text-red-400" />
+              <div className="relative p-3 sm:p-6">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-3 mb-2 sm:mb-4">
+                  <div className="p-1.5 sm:p-2.5 rounded-lg sm:rounded-xl bg-red-500/20 border border-red-500/20 w-fit">
+                    <TrendingDown className="w-3.5 h-3.5 sm:w-5 sm:h-5 text-red-400" />
                   </div>
-                  <p className="text-sm text-white/40">주의 필요</p>
+                  <p className="text-[10px] sm:text-sm text-white/40">주의</p>
                 </div>
                 <p
-                  className="text-4xl text-white/90"
+                  className="text-xl sm:text-4xl text-white/90"
                   style={{ fontFamily: "var(--font-cormorant), 'Playfair Display', Georgia, serif" }}
                 >
                   {
@@ -747,7 +889,7 @@ export default function KPIPage() {
                       return p < 70;
                     }).length
                   }
-                  <span className="text-lg text-white/30">개</span>
+                  <span className="text-xs sm:text-lg text-white/30">개</span>
                 </p>
               </div>
             </motion.div>
