@@ -60,9 +60,10 @@ export default function FileUpload({
 
   // 파일 업로드 처리
   const uploadFile = async (file: File): Promise<Attachment | null> => {
-    // 파일 크기 검증
-    if (file.size > MAX_FILE_SIZE) {
-      toast.error(`파일 크기가 10MB를 초과합니다: ${file.name}`);
+    // Vercel Serverless 제한: 4.5MB
+    const VERCEL_MAX_SIZE = 4.5 * 1024 * 1024;
+    if (file.size > VERCEL_MAX_SIZE) {
+      toast.error(`파일 크기가 4.5MB를 초과합니다: ${file.name}`);
       return null;
     }
 
@@ -75,15 +76,20 @@ export default function FileUpload({
         body: formData,
       });
 
+      const data = await response.json();
+
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || '업로드 실패');
+        const errorMsg = data.details
+          ? `${data.error}: ${data.details}`
+          : data.error || '업로드 실패';
+        throw new Error(errorMsg);
       }
 
-      return await response.json();
+      return data;
     } catch (error) {
       console.error('Upload error:', error);
-      toast.error(`업로드 실패: ${file.name}`);
+      const errorMessage = error instanceof Error ? error.message : '업로드 실패';
+      toast.error(`${file.name}: ${errorMessage}`);
       return null;
     }
   };
@@ -216,7 +222,7 @@ export default function FileUpload({
                   파일을 드래그하거나 클릭하여 업로드
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  이미지, PDF, 문서 (최대 10MB)
+                  이미지, PDF, 문서 (최대 4.5MB)
                 </p>
               </div>
             </>

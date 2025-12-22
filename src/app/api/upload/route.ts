@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 30; // Vercel Pro: 최대 30초
 
 // Cloudflare R2 설정
 const R2_ACCOUNT_ID = process.env.CLOUDFLARE_R2_ACCOUNT_ID;
@@ -59,11 +60,28 @@ function getAttachmentType(mimeType: string): 'image' | 'document' {
 
 export async function POST(request: NextRequest) {
   try {
+    // 환경변수 확인
+    const missingEnvVars = [];
+    if (!R2_ACCOUNT_ID) missingEnvVars.push('CLOUDFLARE_R2_ACCOUNT_ID');
+    if (!R2_ACCESS_KEY_ID) missingEnvVars.push('CLOUDFLARE_R2_ACCESS_KEY_ID');
+    if (!R2_SECRET_ACCESS_KEY) missingEnvVars.push('CLOUDFLARE_R2_SECRET_ACCESS_KEY');
+    if (!R2_PUBLIC_URL) missingEnvVars.push('CLOUDFLARE_R2_PUBLIC_URL');
+
+    if (missingEnvVars.length > 0) {
+      return NextResponse.json(
+        {
+          error: 'Cloudflare R2 환경변수가 설정되지 않았습니다.',
+          missing: missingEnvVars,
+        },
+        { status: 500 }
+      );
+    }
+
     const r2Client = getR2Client();
 
     if (!r2Client) {
       return NextResponse.json(
-        { error: 'Cloudflare R2가 설정되지 않았습니다. 환경변수를 확인해주세요.' },
+        { error: 'R2 클라이언트 생성 실패' },
         { status: 500 }
       );
     }
@@ -78,11 +96,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 파일 크기 검증 (10MB)
-    const maxSize = 10 * 1024 * 1024;
+    // Vercel Serverless 제한: 4.5MB (Free), 50MB (Pro)
+    const maxSize = 4.5 * 1024 * 1024;
     if (file.size > maxSize) {
       return NextResponse.json(
-        { error: '파일 크기는 10MB를 초과할 수 없습니다.' },
+        { error: '파일 크기는 4.5MB를 초과할 수 없습니다. (Vercel 제한)' },
         { status: 400 }
       );
     }
@@ -111,7 +129,7 @@ export async function POST(request: NextRequest) {
 
     if (!allowedMimeTypes.includes(file.type)) {
       return NextResponse.json(
-        { error: '허용되지 않은 파일 형식입니다.' },
+        { error: `허용되지 않은 파일 형식입니다: ${file.type}` },
         { status: 400 }
       );
     }
@@ -127,19 +145,28 @@ export async function POST(request: NextRequest) {
     const fileName = `attachments/${timestamp}-${randomString}.${extension}`;
 
     // R2에 업로드
-    await r2Client.send(
-      new PutObjectCommand({
-        Bucket: R2_BUCKET_NAME,
-        Key: fileName,
-        Body: buffer,
-        ContentType: file.type,
-      })
-    );
+    try {
+      await r2Client.send(
+        new PutObjectCommand({
+          Bucket: R2_BUCKET_NAME,
+          Key: fileName,
+          Body: buffer,
+          ContentType: file.type,
+        })
+      );
+    } catch (r2Error) {
+      console.error('R2 Upload Error:', r2Error);
+      return NextResponse.json(
+        {
+          error: 'R2 업로드 실패',
+          details: r2Error instanceof Error ? r2Error.message : String(r2Error),
+        },
+        { status: 500 }
+      );
+    }
 
     // 공개 URL 생성
-    const publicUrl = R2_PUBLIC_URL
-      ? `${R2_PUBLIC_URL}/${fileName}`
-      : `https://${R2_BUCKET_NAME}.${R2_ACCOUNT_ID}.r2.cloudflarestorage.com/${fileName}`;
+    const publicUrl = `${R2_PUBLIC_URL}/${fileName}`;
 
     // 응답 데이터
     const attachmentData = {
@@ -156,7 +183,10 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Upload error:', error);
     return NextResponse.json(
-      { error: '파일 업로드 중 오류가 발생했습니다.' },
+      {
+        error: '파일 업로드 중 오류가 발생했습니다.',
+        details: error instanceof Error ? error.message : String(error),
+      },
       { status: 500 }
     );
   }
