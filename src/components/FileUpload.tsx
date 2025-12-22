@@ -48,7 +48,6 @@ function formatFileSize(bytes: number): string {
 
 // 크기 제한
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
-const DIRECT_UPLOAD_LIMIT = 4 * 1024 * 1024; // 4MB - Vercel 제한
 
 export default function FileUpload({
   attachments,
@@ -109,30 +108,7 @@ export default function FileUpload({
     }
   };
 
-  // 직접 업로드 (작은 파일용)
-  const uploadDirect = async (file: File): Promise<Attachment | null> => {
-    const formData = new FormData();
-    formData.append('file', file);
-
-    const response = await fetch('/api/upload', {
-      method: 'POST',
-      body: formData,
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      // 파일이 너무 크면 presigned URL 사용
-      if (response.status === 413 || data.error === 'USE_PRESIGNED_URL') {
-        return uploadWithPresignedUrl(file);
-      }
-      throw new Error(data.details ? `${data.error}: ${data.details}` : data.error);
-    }
-
-    return data;
-  };
-
-  // 파일 업로드 처리
+  // 파일 업로드 처리 (모든 파일 presigned URL로 직접 R2 업로드)
   const uploadFile = async (file: File): Promise<Attachment | null> => {
     // 최대 파일 크기 검증
     if (file.size > MAX_FILE_SIZE) {
@@ -141,13 +117,7 @@ export default function FileUpload({
     }
 
     try {
-      // 4MB 이상이면 presigned URL 사용
-      if (file.size > DIRECT_UPLOAD_LIMIT) {
-        setUploadProgress(`${file.name} 업로드 중... (대용량 파일)`);
-        return await uploadWithPresignedUrl(file);
-      } else {
-        return await uploadDirect(file);
-      }
+      return await uploadWithPresignedUrl(file);
     } catch (error) {
       console.error('Upload error:', error);
       const errorMessage = error instanceof Error ? error.message : '업로드 실패';
