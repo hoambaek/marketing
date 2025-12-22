@@ -4,8 +4,12 @@ import type { NextRequest } from 'next/server';
 
 const isClerkConfigured = !!process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
 
-// 공개 라우트 정의 (로그인/회원가입 페이지만 공개)
-const isPublicRoute = createRouteMatcher(['/sign-in(.*)', '/sign-up(.*)']);
+// 공개 라우트 정의 (로그인/회원가입 페이지 및 API 라우트)
+const isPublicRoute = createRouteMatcher([
+  '/sign-in(.*)',
+  '/sign-up(.*)',
+  '/api/(.*)',
+]);
 
 // Clerk가 설정되지 않은 경우 기본 미들웨어
 function defaultMiddleware(request: NextRequest) {
