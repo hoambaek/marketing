@@ -3,7 +3,7 @@
 import { useState, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Upload, X, FileText, Image as ImageIcon, Youtube, Link, Loader2, Trash2, ExternalLink } from 'lucide-react';
-import { Attachment, AttachmentType, MAX_FILE_SIZE } from '@/lib/types';
+import { Attachment, AttachmentType } from '@/lib/types';
 import { toast } from '@/lib/store/toast-store';
 
 interface FileUploadProps {
@@ -33,7 +33,7 @@ function getYoutubeThumbnail(videoId: string): string {
 }
 
 // 파일 아이콘 선택
-function getFileIcon(type: AttachmentType, mimeType?: string) {
+function getFileIcon(type: AttachmentType) {
   if (type === 'youtube') return Youtube;
   if (type === 'image') return ImageIcon;
   return FileText;
@@ -46,6 +46,10 @@ function formatFileSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+// 크기 제한
+const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
+const DIRECT_UPLOAD_LIMIT = 4 * 1024 * 1024; // 4MB - Vercel 제한
+
 export default function FileUpload({
   attachments,
   onChange,
@@ -54,38 +58,96 @@ export default function FileUpload({
 }: FileUploadProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<string>('');
   const [showYoutubeInput, setShowYoutubeInput] = useState(false);
   const [youtubeUrl, setYoutubeUrl] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Presigned URL로 직접 업로드 (큰 파일용)
+  const uploadWithPresignedUrl = async (file: File): Promise<Attachment | null> => {
+    try {
+      // 1. Presigned URL 요청
+      const params = new URLSearchParams({
+        fileName: file.name,
+        fileType: file.type,
+        fileSize: file.size.toString(),
+      });
+
+      const presignedResponse = await fetch(`/api/upload?${params}`);
+      const presignedData = await presignedResponse.json();
+
+      if (!presignedResponse.ok) {
+        throw new Error(presignedData.error || 'Presigned URL 요청 실패');
+      }
+
+      // 2. R2에 직접 업로드
+      const uploadResponse = await fetch(presignedData.presignedUrl, {
+        method: 'PUT',
+        body: file,
+        headers: {
+          'Content-Type': file.type,
+        },
+      });
+
+      if (!uploadResponse.ok) {
+        throw new Error('R2 업로드 실패');
+      }
+
+      // 3. Attachment 데이터 반환
+      return {
+        id: presignedData.id,
+        type: presignedData.type,
+        name: file.name,
+        url: presignedData.publicUrl,
+        size: file.size,
+        mimeType: file.type,
+        createdAt: new Date().toISOString(),
+      };
+    } catch (error) {
+      console.error('Presigned upload error:', error);
+      throw error;
+    }
+  };
+
+  // 직접 업로드 (작은 파일용)
+  const uploadDirect = async (file: File): Promise<Attachment | null> => {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const response = await fetch('/api/upload', {
+      method: 'POST',
+      body: formData,
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      // 파일이 너무 크면 presigned URL 사용
+      if (response.status === 413 || data.error === 'USE_PRESIGNED_URL') {
+        return uploadWithPresignedUrl(file);
+      }
+      throw new Error(data.details ? `${data.error}: ${data.details}` : data.error);
+    }
+
+    return data;
+  };
+
   // 파일 업로드 처리
   const uploadFile = async (file: File): Promise<Attachment | null> => {
-    // 최대 파일 크기: 50MB
-    const MAX_SIZE = 50 * 1024 * 1024;
-    if (file.size > MAX_SIZE) {
+    // 최대 파일 크기 검증
+    if (file.size > MAX_FILE_SIZE) {
       toast.error(`파일 크기가 50MB를 초과합니다: ${file.name}`);
       return null;
     }
 
-    const formData = new FormData();
-    formData.append('file', file);
-
     try {
-      const response = await fetch('/api/upload', {
-        method: 'POST',
-        body: formData,
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        const errorMsg = data.details
-          ? `${data.error}: ${data.details}`
-          : data.error || '업로드 실패';
-        throw new Error(errorMsg);
+      // 4MB 이상이면 presigned URL 사용
+      if (file.size > DIRECT_UPLOAD_LIMIT) {
+        setUploadProgress(`${file.name} 업로드 중... (대용량 파일)`);
+        return await uploadWithPresignedUrl(file);
+      } else {
+        return await uploadDirect(file);
       }
-
-      return data;
     } catch (error) {
       console.error('Upload error:', error);
       const errorMessage = error instanceof Error ? error.message : '업로드 실패';
@@ -109,7 +171,9 @@ export default function FileUpload({
       setIsUploading(true);
 
       const uploadedFiles: Attachment[] = [];
-      for (const file of filesToUpload) {
+      for (let i = 0; i < filesToUpload.length; i++) {
+        const file = filesToUpload[i];
+        setUploadProgress(`${file.name} 업로드 중... (${i + 1}/${filesToUpload.length})`);
         const result = await uploadFile(file);
         if (result) {
           uploadedFiles.push(result);
@@ -122,6 +186,7 @@ export default function FileUpload({
       }
 
       setIsUploading(false);
+      setUploadProgress('');
     },
     [attachments, onChange, maxFiles, disabled]
   );
@@ -212,7 +277,7 @@ export default function FileUpload({
           {isUploading ? (
             <>
               <Loader2 className="w-8 h-8 text-accent animate-spin" />
-              <p className="text-sm text-muted-foreground">업로드 중...</p>
+              <p className="text-sm text-muted-foreground">{uploadProgress || '업로드 중...'}</p>
             </>
           ) : (
             <>
@@ -281,7 +346,7 @@ export default function FileUpload({
             className="space-y-2"
           >
             {attachments.map((attachment) => {
-              const Icon = getFileIcon(attachment.type, attachment.mimeType);
+              const Icon = getFileIcon(attachment.type);
               return (
                 <motion.div
                   key={attachment.id}

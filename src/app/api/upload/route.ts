@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
 export const dynamic = 'force-dynamic';
-export const maxDuration = 30; // Vercel Pro: 최대 30초
 
 // Cloudflare R2 설정
 const R2_ACCOUNT_ID = process.env.CLOUDFLARE_R2_ACCOUNT_ID;
@@ -58,6 +58,109 @@ function getAttachmentType(mimeType: string): 'image' | 'document' {
   return 'document';
 }
 
+// 허용된 MIME 타입
+const allowedMimeTypes = [
+  'image/jpeg',
+  'image/png',
+  'image/gif',
+  'image/webp',
+  'image/svg+xml',
+  'application/pdf',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'application/vnd.ms-powerpoint',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  'text/plain',
+  'text/csv',
+  'application/haansoft-hwp',
+  'application/x-hwp',
+];
+
+// GET: Presigned URL 발급 (큰 파일 직접 업로드용)
+export async function GET(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const fileName = searchParams.get('fileName');
+    const fileType = searchParams.get('fileType');
+    const fileSize = searchParams.get('fileSize');
+
+    if (!fileName || !fileType) {
+      return NextResponse.json(
+        { error: '파일 이름과 타입이 필요합니다.' },
+        { status: 400 }
+      );
+    }
+
+    // 환경변수 확인
+    if (!R2_ACCOUNT_ID || !R2_ACCESS_KEY_ID || !R2_SECRET_ACCESS_KEY || !R2_PUBLIC_URL) {
+      return NextResponse.json(
+        { error: 'R2 환경변수가 설정되지 않았습니다.' },
+        { status: 500 }
+      );
+    }
+
+    // MIME 타입 검증
+    if (!allowedMimeTypes.includes(fileType)) {
+      return NextResponse.json(
+        { error: `허용되지 않은 파일 형식입니다: ${fileType}` },
+        { status: 400 }
+      );
+    }
+
+    // 파일 크기 검증 (50MB)
+    const maxSize = 50 * 1024 * 1024;
+    if (fileSize && parseInt(fileSize) > maxSize) {
+      return NextResponse.json(
+        { error: '파일 크기는 50MB를 초과할 수 없습니다.' },
+        { status: 400 }
+      );
+    }
+
+    const r2Client = getR2Client();
+    if (!r2Client) {
+      return NextResponse.json(
+        { error: 'R2 클라이언트 생성 실패' },
+        { status: 500 }
+      );
+    }
+
+    // 고유 파일명 생성
+    const timestamp = Date.now();
+    const randomString = Math.random().toString(36).substring(2, 10);
+    const extension = getExtensionFromMimeType(fileType);
+    const key = `attachments/${timestamp}-${randomString}.${extension}`;
+
+    // Presigned URL 생성
+    const command = new PutObjectCommand({
+      Bucket: R2_BUCKET_NAME,
+      Key: key,
+      ContentType: fileType,
+    });
+
+    const presignedUrl = await getSignedUrl(r2Client, command, { expiresIn: 300 });
+
+    return NextResponse.json({
+      presignedUrl,
+      key,
+      publicUrl: `${R2_PUBLIC_URL}/${key}`,
+      id: `${timestamp}-${randomString}`,
+      type: getAttachmentType(fileType),
+    });
+  } catch (error) {
+    console.error('Presigned URL error:', error);
+    return NextResponse.json(
+      {
+        error: 'Presigned URL 생성 실패',
+        details: error instanceof Error ? error.message : String(error),
+      },
+      { status: 500 }
+    );
+  }
+}
+
+// POST: 작은 파일 직접 업로드 (4MB 이하)
 export async function POST(request: NextRequest) {
   try {
     // 환경변수 확인
@@ -96,36 +199,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Vercel Pro: 50MB 제한
-    const maxSize = 50 * 1024 * 1024;
+    // Vercel 요청 크기 제한: 4MB (안전 마진)
+    const maxSize = 4 * 1024 * 1024;
     if (file.size > maxSize) {
       return NextResponse.json(
-        { error: '파일 크기는 50MB를 초과할 수 없습니다.' },
-        { status: 400 }
+        { error: 'USE_PRESIGNED_URL', message: '파일이 4MB를 초과합니다. Presigned URL을 사용하세요.' },
+        { status: 413 }
       );
     }
-
-    // 파일 확장자 및 MIME 타입 검증
-    const allowedMimeTypes = [
-      // 이미지
-      'image/jpeg',
-      'image/png',
-      'image/gif',
-      'image/webp',
-      'image/svg+xml',
-      // 문서
-      'application/pdf',
-      'application/msword',
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      'application/vnd.ms-excel',
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      'application/vnd.ms-powerpoint',
-      'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-      'text/plain',
-      'text/csv',
-      'application/haansoft-hwp',
-      'application/x-hwp',
-    ];
 
     if (!allowedMimeTypes.includes(file.type)) {
       return NextResponse.json(
@@ -204,9 +285,6 @@ export async function DELETE(request: NextRequest) {
         { status: 400 }
       );
     }
-
-    // R2에서 파일 삭제 로직 (필요시 구현)
-    // 현재는 Supabase에서만 참조 삭제
 
     return NextResponse.json({ success: true });
   } catch (error) {
