@@ -60,10 +60,10 @@ export default function FileUpload({
 
   // 파일 업로드 처리
   const uploadFile = async (file: File): Promise<Attachment | null> => {
-    // Vercel Serverless 제한: 4.5MB
-    const VERCEL_MAX_SIZE = 4.5 * 1024 * 1024;
-    if (file.size > VERCEL_MAX_SIZE) {
-      toast.error(`파일 크기가 4.5MB를 초과합니다: ${file.name}`);
+    // 최대 파일 크기: 50MB
+    const MAX_SIZE = 50 * 1024 * 1024;
+    if (file.size > MAX_SIZE) {
+      toast.error(`파일 크기가 50MB를 초과합니다: ${file.name}`);
       return null;
     }
 
@@ -222,7 +222,7 @@ export default function FileUpload({
                   파일을 드래그하거나 클릭하여 업로드
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  이미지, PDF, 문서 (최대 4.5MB)
+                  이미지, PDF, 문서 (최대 50MB)
                 </p>
               </div>
             </>

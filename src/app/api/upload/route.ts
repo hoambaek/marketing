@@ -96,11 +96,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Vercel Serverless 제한: 4.5MB (Free), 50MB (Pro)
-    const maxSize = 4.5 * 1024 * 1024;
+    // Vercel Pro: 50MB 제한
+    const maxSize = 50 * 1024 * 1024;
     if (file.size > maxSize) {
       return NextResponse.json(
-        { error: '파일 크기는 4.5MB를 초과할 수 없습니다. (Vercel 제한)' },
+        { error: '파일 크기는 50MB를 초과할 수 없습니다.' },
         { status: 400 }
       );
     }
