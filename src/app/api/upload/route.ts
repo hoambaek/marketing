@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import { auth } from '@clerk/nextjs/server';
 
 export const dynamic = 'force-dynamic';
 
@@ -81,6 +82,15 @@ const allowedMimeTypes = [
 // GET: Presigned URL 발급 (큰 파일 직접 업로드용)
 export async function GET(request: NextRequest) {
   try {
+    // 인증 확인
+    const { userId } = await auth();
+    if (!userId) {
+      return NextResponse.json(
+        { error: '인증이 필요합니다.' },
+        { status: 401 }
+      );
+    }
+
     const { searchParams } = new URL(request.url);
     const fileName = searchParams.get('fileName');
     const fileType = searchParams.get('fileType');
@@ -89,6 +99,14 @@ export async function GET(request: NextRequest) {
     if (!fileName || !fileType) {
       return NextResponse.json(
         { error: '파일 이름과 타입이 필요합니다.' },
+        { status: 400 }
+      );
+    }
+
+    // fileSize 필수 검증
+    if (!fileSize) {
+      return NextResponse.json(
+        { error: '파일 크기가 필요합니다.' },
         { status: 400 }
       );
     }
@@ -132,11 +150,15 @@ export async function GET(request: NextRequest) {
     const extension = getExtensionFromMimeType(fileType);
     const key = `attachments/${timestamp}-${randomString}.${extension}`;
 
-    // Presigned URL 생성
+    // 파일 크기를 숫자로 변환
+    const fileSizeNum = parseInt(fileSize);
+
+    // Presigned URL 생성 - ContentLength 조건 추가로 업로드 크기 강제
     const command = new PutObjectCommand({
       Bucket: R2_BUCKET_NAME,
       Key: key,
       ContentType: fileType,
+      ContentLength: fileSizeNum, // 정확한 파일 크기 강제
     });
 
     const presignedUrl = await getSignedUrl(r2Client, command, { expiresIn: 300 });
@@ -163,6 +185,15 @@ export async function GET(request: NextRequest) {
 // POST: 작은 파일 직접 업로드 (4MB 이하)
 export async function POST(request: NextRequest) {
   try {
+    // 인증 확인
+    const { userId } = await auth();
+    if (!userId) {
+      return NextResponse.json(
+        { error: '인증이 필요합니다.' },
+        { status: 401 }
+      );
+    }
+
     // 환경변수 확인
     const missingEnvVars = [];
     if (!R2_ACCOUNT_ID) missingEnvVars.push('CLOUDFLARE_R2_ACCOUNT_ID');
@@ -276,6 +307,15 @@ export async function POST(request: NextRequest) {
 // DELETE: 파일 삭제 (선택적)
 export async function DELETE(request: NextRequest) {
   try {
+    // 인증 확인
+    const { userId } = await auth();
+    if (!userId) {
+      return NextResponse.json(
+        { error: '인증이 필요합니다.' },
+        { status: 401 }
+      );
+    }
+
     const { searchParams } = new URL(request.url);
     const fileUrl = searchParams.get('url');
 
@@ -286,7 +326,11 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    return NextResponse.json({ success: true });
+    // 실제 R2 삭제 구현 필요 - 현재는 미지원 응답
+    return NextResponse.json(
+      { error: '파일 삭제 기능은 현재 지원되지 않습니다.' },
+      { status: 501 }
+    );
   } catch (error) {
     console.error('Delete error:', error);
     return NextResponse.json(

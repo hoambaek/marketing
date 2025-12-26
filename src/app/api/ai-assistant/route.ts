@@ -1,13 +1,79 @@
 import { GoogleGenerativeAI, Content, Part } from '@google/generative-ai';
 import { NextRequest, NextResponse } from 'next/server';
+import { auth } from '@clerk/nextjs/server';
 import { functionDeclarations, executeFunction, SYSTEM_PROMPT } from '@/lib/ai/functions';
 
 // Gemini 3 Pro Preview 모델 초기화
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 
+// 허용된 함수 목록 (안전한 읽기 전용 함수만)
+const ALLOWED_FUNCTIONS = [
+  'get_tasks',
+  'get_tasks_by_month',
+  'get_task',
+  'get_kpi_items',
+  'get_content_items',
+  'get_must_do_items',
+  'get_issues',
+  'get_budget_items',
+  'get_inventory_summary',
+  'get_month_summary',
+  'search_tasks',
+];
+
+// 쓰기 권한이 필요한 함수들
+const WRITE_FUNCTIONS = [
+  'create_task',
+  'update_task',
+  'delete_task',
+  'create_issue',
+  'update_issue',
+  'resolve_issue',
+  'create_budget_item',
+  'update_budget_item',
+  'delete_budget_item',
+];
+
 export async function POST(request: NextRequest) {
   try {
-    const { messages, history } = await request.json();
+    // 인증 확인
+    const { userId } = await auth();
+    if (!userId) {
+      return NextResponse.json(
+        { error: '인증이 필요합니다. 로그인 후 다시 시도해주세요.' },
+        { status: 401 }
+      );
+    }
+
+    // 페이로드 파싱 및 검증
+    let body;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json(
+        { error: '잘못된 요청 형식입니다.' },
+        { status: 400 }
+      );
+    }
+
+    const { messages, history } = body;
+
+    // messages 배열 검증
+    if (!messages || !Array.isArray(messages) || messages.length === 0) {
+      return NextResponse.json(
+        { error: '메시지가 필요합니다.' },
+        { status: 400 }
+      );
+    }
+
+    // 마지막 메시지 구조 검증
+    const lastMessage = messages[messages.length - 1];
+    if (!lastMessage || typeof lastMessage.content !== 'string') {
+      return NextResponse.json(
+        { error: '메시지 형식이 올바르지 않습니다.' },
+        { status: 400 }
+      );
+    }
 
     if (!process.env.GEMINI_API_KEY) {
       return NextResponse.json(
@@ -48,6 +114,22 @@ export async function POST(request: NextRequest) {
 
       for (const call of functionCalls) {
         console.log(`Executing function: ${call.name}`, call.args);
+
+        // 함수 허용 목록 검증
+        const isAllowed = ALLOWED_FUNCTIONS.includes(call.name);
+        const isWriteFunction = WRITE_FUNCTIONS.includes(call.name);
+
+        // 허용되지 않은 함수는 실행하지 않음
+        if (!isAllowed && !isWriteFunction) {
+          console.warn(`Blocked unauthorized function call: ${call.name}`);
+          functionResponses.push({
+            functionResponse: {
+              name: call.name,
+              response: { error: '허용되지 않은 함수입니다.' },
+            },
+          });
+          continue;
+        }
 
         const functionResult = await executeFunction(
           call.name,

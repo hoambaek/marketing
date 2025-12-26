@@ -32,7 +32,9 @@ import {
   Zap,
   Eye,
   Clock,
+  Video,
 } from 'lucide-react';
+import Link from 'next/link';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Animation Variants
@@ -795,6 +797,46 @@ export default function SettingsPage() {
                     </div>
                   </div>
                 </div>
+              </motion.div>
+
+              {/* Video Generator Card */}
+              <motion.div variants={itemVariants}>
+                <Link href="/video-generator" className="block group">
+                  <div className="relative rounded-2xl sm:rounded-3xl overflow-hidden transition-all group-hover:scale-[1.02]">
+                    <div className="absolute inset-0 bg-gradient-to-br from-[#9a754b]/10 to-[#ccb69a]/5" />
+                    <div className="absolute inset-0 border border-[#ccb69a]/20 rounded-2xl sm:rounded-3xl group-hover:border-[#ccb69a]/40 transition-colors" />
+
+                    <div className="relative p-4 sm:p-5">
+                      <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
+                        <div className="p-1.5 sm:p-2 rounded-lg sm:rounded-xl bg-gradient-to-br from-[#ccb69a]/20 to-[#9a754b]/10 border border-[#ccb69a]/30">
+                          <Video className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#ccb69a]" />
+                        </div>
+                        <div>
+                          <p className="text-xs sm:text-sm font-medium text-white/80 group-hover:text-white transition-colors">
+                            영상 생성
+                          </p>
+                          <p className="text-[10px] sm:text-xs text-white/40">
+                            AI Video Generator
+                          </p>
+                        </div>
+                      </div>
+
+                      <p className="text-[11px] sm:text-xs text-white/50 leading-relaxed mb-3 sm:mb-4">
+                        Google Veo 3.1로 1080p 영상을 생성합니다. 이미지와 프롬프트를 입력하세요.
+                      </p>
+
+                      <div className="flex items-center justify-between pt-3 sm:pt-4 border-t border-[#ccb69a]/10">
+                        <span className="text-[10px] sm:text-xs text-[#ccb69a]/60">
+                          1080p HD
+                        </span>
+                        <div className="flex items-center gap-1 text-[10px] sm:text-xs text-[#ccb69a] group-hover:translate-x-1 transition-transform">
+                          <span>시작하기</span>
+                          <ChevronRight className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </Link>
               </motion.div>
             </div>
           </div>
