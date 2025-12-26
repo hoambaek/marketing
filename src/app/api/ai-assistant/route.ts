@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { functionDeclarations, executeFunction, SYSTEM_PROMPT } from '@/lib/ai/functions';
 
-// Gemini 3 Pro Preview 모델 초기화
+// Gemini 3 Flash Preview 모델 초기화
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 
 // 허용된 함수 목록 (안전한 읽기 전용 함수만)
@@ -82,9 +82,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Gemini 3 Pro Preview 모델 사용
+    // Gemini 3 Flash Preview 모델 사용
     const model = genAI.getGenerativeModel({
-      model: 'gemini-3-pro-preview',
+      model: 'gemini-3-flash-preview',
       systemInstruction: SYSTEM_PROMPT,
       tools: [{ functionDeclarations }],
     });
@@ -192,6 +192,6 @@ export async function GET() {
   return NextResponse.json({
     status: 'ok',
     message: 'AI Assistant API is running',
-    model: 'gemini-3-pro-preview',
+    model: 'gemini-3-flash-preview',
   });
 }
