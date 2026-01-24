@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { apiLogger } from '@/lib/logger';
 
 // Download video by proxying from Google's servers
 export async function GET(request: NextRequest) {
@@ -30,7 +31,7 @@ export async function GET(request: NextRequest) {
     const response = await fetch(downloadUrl);
 
     if (!response.ok) {
-      console.error('Video download failed:', response.status, response.statusText);
+      apiLogger.error('Video download failed:', response.status, response.statusText);
       return NextResponse.json(
         { error: '영상 다운로드에 실패했습니다.' },
         { status: 500 }
@@ -48,7 +49,7 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error('Video download error:', error);
+    apiLogger.error('Video download error:', error);
 
     return NextResponse.json(
       { error: '다운로드 중 오류가 발생했습니다.' },

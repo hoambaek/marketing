@@ -5,8 +5,8 @@ import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { useMasterPlanStore } from '@/lib/store/masterplan-store';
 import { useBudgetStore } from '@/lib/store/budget-store';
-import { useIssueStore } from '@/lib/store/issue-store';
 import { useInventoryStore } from '@/lib/store/inventory-store';
+import { useShallow } from 'zustand/react/shallow';
 import { Footer } from '@/components/layout/Footer';
 import {
   PHASE_INFO,
@@ -15,10 +15,8 @@ import {
   AlertTriangle,
   TrendingUp,
   Wallet,
-  AlertCircle,
   Target,
   ArrowUpRight,
-  Sparkles,
   Clock,
   Wine,
 } from 'lucide-react';
@@ -202,12 +200,11 @@ function StatCard({
 // ═══════════════════════════════════════════════════════════════════════════
 
 function AttentionItem({
-  type,
   title,
   severity,
   href
 }: {
-  type: 'issue' | 'budget' | 'task' | 'deadline';
+  type: 'budget' | 'task' | 'deadline';
   title: string;
   severity: 'critical' | 'warning' | 'info';
   href: string;
@@ -239,34 +236,48 @@ function AttentionItem({
 // ═══════════════════════════════════════════════════════════════════════════
 
 export default function DashboardPage() {
+  // 선택적 구독 - 필요한 상태만 구독하여 불필요한 리렌더링 방지
   const {
     getTotalProgress,
     tasks,
-    mustDoItems,
+    contentItems,
     isInitialized: masterplanInitialized,
     initializeFromSupabase: initMasterplan
-  } = useMasterPlanStore();
+  } = useMasterPlanStore(
+    useShallow((state) => ({
+      getTotalProgress: state.getTotalProgress,
+      tasks: state.tasks,
+      contentItems: state.contentItems,
+      isInitialized: state.isInitialized,
+      initializeFromSupabase: state.initializeFromSupabase,
+    }))
+  );
 
   const {
     getTotalBudgeted,
     getTotalSpent,
     isInitialized: budgetInitialized,
     initializeFromSupabase: initBudget
-  } = useBudgetStore();
-
-  const {
-    issues,
-    getOpenIssues,
-    getCriticalIssues,
-    isInitialized: issueInitialized,
-    initializeFromSupabase: initIssues
-  } = useIssueStore();
+  } = useBudgetStore(
+    useShallow((state) => ({
+      getTotalBudgeted: state.getTotalBudgeted,
+      getTotalSpent: state.getTotalSpent,
+      isInitialized: state.isInitialized,
+      initializeFromSupabase: state.initializeFromSupabase,
+    }))
+  );
 
   const {
     getTotalInventoryValue,
     isInitialized: inventoryInitialized,
     initializeInventory
-  } = useInventoryStore();
+  } = useInventoryStore(
+    useShallow((state) => ({
+      getTotalInventoryValue: state.getTotalInventoryValue,
+      isInitialized: state.isInitialized,
+      initializeInventory: state.initializeInventory,
+    }))
+  );
 
   const selectedYear = 2026; // Fixed year for budget/task filtering
   const [mounted, setMounted] = useState(false);
@@ -275,12 +286,21 @@ export default function DashboardPage() {
     setMounted(true);
   }, []);
 
+  // 병렬 초기화 - 모든 스토어를 동시에 초기화하여 워터폴 제거
   useEffect(() => {
-    if (!masterplanInitialized) initMasterplan();
-    if (!budgetInitialized) initBudget();
-    if (!issueInitialized) initIssues();
-    if (!inventoryInitialized) initializeInventory();
-  }, [masterplanInitialized, budgetInitialized, issueInitialized, inventoryInitialized, initMasterplan, initBudget, initIssues, initializeInventory]);
+    const initializeStores = async () => {
+      const initTasks = [];
+      if (!masterplanInitialized) initTasks.push(initMasterplan());
+      if (!budgetInitialized) initTasks.push(initBudget());
+      if (!inventoryInitialized) initTasks.push(initializeInventory());
+
+      if (initTasks.length > 0) {
+        await Promise.all(initTasks);
+      }
+    };
+
+    initializeStores();
+  }, [masterplanInitialized, budgetInitialized, inventoryInitialized, initMasterplan, initBudget, initializeInventory]);
 
   // ═══════════════════════════════════════════════════════════════════════════
   // Computed Values
@@ -295,24 +315,22 @@ export default function DashboardPage() {
   const totalSpent = mounted ? getTotalSpent(selectedYear) : 0;
   const budgetUsage = totalBudget > 0 ? Math.round((totalSpent / totalBudget) * 100) : 0;
 
-  const openIssues = mounted ? getOpenIssues() : [];
-  const criticalIssues = mounted ? getCriticalIssues() : [];
-  const totalIssues = mounted ? issues.length : 0;
-  const resolvedIssues = mounted ? issues.filter(i => i.status === 'resolved' || i.status === 'closed').length : 0;
-  const issueResolutionRate = totalIssues > 0 ? Math.round((resolvedIssues / totalIssues) * 100) : 100;
-
-  const mustDoCompleted = mounted ? mustDoItems.filter(m => m.done).length : 0;
-  const mustDoTotal = mounted ? mustDoItems.length : 0;
-  const mustDoProgress = mustDoTotal > 0 ? Math.round((mustDoCompleted / mustDoTotal) * 100) : 0;
-
   const inventory = mounted ? getTotalInventoryValue() : { totalBottles: 0, available: 0, sold: 0, reserved: 0 };
+
+  // 콘텐츠 일정 계산 (이번 달 기준)
+  const currentMonth = new Date().getMonth() + 1;
+  const currentYear = new Date().getFullYear();
+  const thisMonthContent = mounted ? contentItems.filter(c => {
+    const contentDate = new Date(c.date);
+    return contentDate.getMonth() + 1 === currentMonth && contentDate.getFullYear() === currentYear;
+  }) : [];
+  const publishedContent = thisMonthContent.filter(c => c.status === 'published').length;
+  const totalMonthContent = thisMonthContent.length;
 
   // Calculate Health Score (weighted average)
   const healthScore = mounted ? Math.round(
-    (taskProgress * 0.35) +           // 35% weight on task progress
-    (mustDoProgress * 0.25) +         // 25% weight on must-do completion
-    ((100 - Math.min(budgetUsage, 100)) * 0.20) +  // 20% weight on budget health (inverse)
-    ((100 - Math.min(criticalIssues.length * 20, 100)) * 0.20)  // 20% weight on issue severity
+    (taskProgress * 0.50) +           // 50% weight on task progress
+    ((100 - Math.min(budgetUsage, 100)) * 0.50)   // 50% weight on budget health (inverse)
   ) : 0;
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -320,21 +338,11 @@ export default function DashboardPage() {
   // ═══════════════════════════════════════════════════════════════════════════
 
   const attentionItems: Array<{
-    type: 'issue' | 'budget' | 'task' | 'deadline';
+    type: 'budget' | 'task' | 'deadline';
     title: string;
     severity: 'critical' | 'warning' | 'info';
     href: string;
   }> = [];
-
-  // Add critical issues
-  criticalIssues.forEach(issue => {
-    attentionItems.push({
-      type: 'issue',
-      title: issue.title,
-      severity: 'critical',
-      href: '/issues'
-    });
-  });
 
   // Add budget warning if over 70%
   if (budgetUsage > 70) {
@@ -347,7 +355,6 @@ export default function DashboardPage() {
   }
 
   // Add overdue tasks (tasks that are pending in past months)
-  const currentMonth = new Date().getMonth() + 1;
   const overdueTasks = mounted ? tasks.filter(t =>
     t.year === selectedYear &&
     t.month < currentMonth &&
@@ -505,21 +512,20 @@ export default function DashboardPage() {
               alert={budgetUsage > 90}
             />
             <StatCard
-              label="이슈 해결률"
-              value={`${issueResolutionRate}%`}
-              progress={issueResolutionRate}
-              icon={AlertCircle}
-              href="/issues"
-              subValue={openIssues.length > 0 ? `${openIssues.length}개 미해결` : '모두 해결'}
-              alert={criticalIssues.length > 0}
+              label="재고 현황"
+              value={`${inventory.totalBottles}`}
+              progress={inventory.totalBottles > 0 ? Math.round((inventory.available / inventory.totalBottles) * 100) : 0}
+              icon={Wine}
+              href="/inventory"
+              subValue={`${inventory.available}병 판매가능`}
             />
             <StatCard
-              label="Must-Do"
-              value={`${mustDoProgress}%`}
-              progress={mustDoProgress}
+              label="콘텐츠 일정"
+              value={`${publishedContent}/${totalMonthContent}`}
+              progress={totalMonthContent > 0 ? Math.round((publishedContent / totalMonthContent) * 100) : 0}
               icon={Target}
-              href="/checklist"
-              subValue={`${mustDoCompleted} / ${mustDoTotal} 완료`}
+              href="/calendar"
+              subValue={`${currentMonth}월 발행 현황`}
             />
           </motion.div>
 
@@ -552,29 +558,6 @@ export default function DashboardPage() {
             </motion.div>
           )}
 
-          {/* All Clear State */}
-          {displayAttentionItems.length === 0 && mounted && (
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, delay: 0.7 }}
-              className="mb-8"
-            >
-              <div className="relative p-8 rounded-2xl overflow-hidden text-center">
-                <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 to-emerald-500/[0.02]" />
-                <div className="absolute inset-0 border border-emerald-500/20 rounded-2xl" />
-
-                <div className="relative">
-                  <Sparkles className="w-8 h-8 text-emerald-400 mx-auto mb-3" />
-                  <p className="text-lg text-emerald-300" style={{ fontFamily: "var(--font-cormorant), serif" }}>
-                    All Systems Nominal
-                  </p>
-                  <p className="text-xs text-white/40 mt-1">현재 주의가 필요한 항목이 없습니다</p>
-                </div>
-              </div>
-            </motion.div>
-          )}
-
           {/* Quick Links */}
           <motion.div
             initial={{ opacity: 0, y: 30 }}
@@ -584,7 +567,7 @@ export default function DashboardPage() {
           >
             {[
               { label: '월별플랜', href: '/monthly-plan', icon: Clock },
-              { label: '이슈관리', href: '/issues', icon: AlertTriangle },
+              { label: '예산관리', href: '/budget', icon: Wallet },
               { label: '재고현황', href: '/inventory', icon: Wine },
               { label: '캘린더', href: '/calendar', icon: Target },
             ].map((link) => (

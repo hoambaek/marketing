@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { logger } from '@/lib/logger';
 import { motion, AnimatePresence } from 'framer-motion';
 import ReactMarkdown from 'react-markdown';
 import { useMasterPlanStore } from '@/lib/store/masterplan-store';
@@ -74,12 +75,12 @@ export default function AiChat() {
 
     // 필요한 스토어만 리프레시
     if (needsMasterplanRefresh) {
-      console.log('Refreshing masterplan store...');
+      logger.log('Refreshing masterplan store...');
       refreshMasterplan();
     }
 
     if (needsInventoryRefresh) {
-      console.log('Refreshing inventory store...');
+      logger.log('Refreshing inventory store...');
       refreshInventory();
     }
   }, [refreshMasterplan, refreshInventory]);
@@ -215,7 +216,7 @@ export default function AiChat() {
         refreshStoresIfNeeded(data.executedFunctions);
       }
     } catch (error) {
-      console.error('Chat error:', error);
+      logger.error('Chat error:', error);
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
@@ -254,6 +255,7 @@ export default function AiChat() {
         {(!isOpen || !isMobile) && (
           <motion.button
             onClick={() => setIsOpen(!isOpen)}
+            aria-label={isOpen ? '채팅창 닫기' : '채팅창 열기'}
             className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-[60]
                        w-14 h-14 rounded-full shadow-2xl
                        bg-[#0a0f1a] hover:bg-[#0f1520]
@@ -350,6 +352,7 @@ export default function AiChat() {
                 {/* 닫기 버튼 */}
                 <button
                   onClick={() => setIsOpen(false)}
+                  aria-label="채팅창 닫기"
                   className="w-10 h-10 rounded-full flex items-center justify-center
                            text-white/40 hover:text-white/80 hover:bg-white/[0.04]
                            active:bg-white/[0.08] transition-all duration-200"
@@ -525,6 +528,7 @@ export default function AiChat() {
                 <button
                   onClick={sendMessage}
                   disabled={!input.trim() || isLoading}
+                  aria-label="메시지 전송"
                   className="flex-shrink-0 w-12 h-12 bg-[#b7916e]/20 border border-[#b7916e]/30
                            hover:bg-[#b7916e]/30 hover:border-[#b7916e]/50
                            disabled:bg-white/[0.04] disabled:border-white/[0.06] disabled:cursor-not-allowed

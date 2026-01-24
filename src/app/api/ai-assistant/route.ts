@@ -1,10 +1,9 @@
 import { GoogleGenerativeAI, Content, Part } from '@google/generative-ai';
+import { aiLogger } from '@/lib/logger';
+import { envValidators, EnvError } from '@/lib/env';
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { functionDeclarations, executeFunction, SYSTEM_PROMPT } from '@/lib/ai/functions';
-
-// Gemini 3 Flash Preview 모델 초기화
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 
 // 허용된 함수 목록 (안전한 읽기 전용 함수만)
 const ALLOWED_FUNCTIONS = [
@@ -75,14 +74,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!process.env.GEMINI_API_KEY) {
-      return NextResponse.json(
-        { error: 'Gemini API 키가 설정되지 않았습니다.' },
-        { status: 500 }
-      );
+    // Gemini API 키 검증
+    let apiKey: string;
+    try {
+      apiKey = envValidators.requireGeminiApiKey();
+    } catch (error) {
+      if (error instanceof EnvError) {
+        return NextResponse.json(error.toJSON(), { status: 500 });
+      }
+      throw error;
     }
 
     // Gemini 3 Flash Preview 모델 사용
+    const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({
       model: 'gemini-3-flash-preview',
       systemInstruction: SYSTEM_PROMPT,
@@ -113,7 +117,7 @@ export async function POST(request: NextRequest) {
       const functionResponses: Part[] = [];
 
       for (const call of functionCalls) {
-        console.log(`Executing function: ${call.name}`, call.args);
+        aiLogger.log(`Executing function: ${call.name}`, call.args);
 
         // 함수 허용 목록 검증
         const isAllowed = ALLOWED_FUNCTIONS.includes(call.name);
@@ -121,7 +125,7 @@ export async function POST(request: NextRequest) {
 
         // 허용되지 않은 함수는 실행하지 않음
         if (!isAllowed && !isWriteFunction) {
-          console.warn(`Blocked unauthorized function call: ${call.name}`);
+          aiLogger.warn(`Blocked unauthorized function call: ${call.name}`);
           functionResponses.push({
             functionResponse: {
               name: call.name,
@@ -163,7 +167,7 @@ export async function POST(request: NextRequest) {
       executedFunctions,
     });
   } catch (error) {
-    console.error('AI Assistant Error:', error);
+    aiLogger.error('AI Assistant Error:', error);
 
     // 에러 메시지 처리
     let errorMessage = '요청 처리 중 오류가 발생했습니다.';

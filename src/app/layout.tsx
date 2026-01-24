@@ -4,6 +4,7 @@ import './globals.css';
 import { Header } from '@/components/layout/Header';
 import SupabaseInitializer from '@/components/SupabaseInitializer';
 import { ClerkWrapper } from '@/components/ClerkWrapper';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 import Toast from '@/components/Toast';
 import AiChat from '@/components/AiChat';
 
@@ -68,15 +69,17 @@ export default function RootLayout({
           {/* Header */}
           <Header />
 
-          {/* Main Content */}
-          <SupabaseInitializer>
-            <main
-              className="min-h-screen"
-              style={{ paddingTop: 'calc(4rem + env(safe-area-inset-top, 0px))' }}
-            >
-              {children}
-            </main>
-          </SupabaseInitializer>
+          {/* Main Content with Error Boundary */}
+          <ErrorBoundary>
+            <SupabaseInitializer>
+              <main
+                className="min-h-screen"
+                style={{ paddingTop: 'calc(4rem + env(safe-area-inset-top, 0px))' }}
+              >
+                {children}
+              </main>
+            </SupabaseInitializer>
+          </ErrorBoundary>
 
           {/* Toast Notifications */}
           <Toast />

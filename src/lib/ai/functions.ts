@@ -1,5 +1,6 @@
 import { FunctionDeclaration, SchemaType } from '@google/generative-ai';
 import * as db from '@/lib/supabase/database';
+import { aiLogger } from '@/lib/logger';
 import {
   Task, TaskCategory, TaskStatus,
   IssueItem, IssueType, IssuePriority, IssueImpact, IssueStatus,
@@ -1328,7 +1329,7 @@ export async function executeFunction(
         };
     }
   } catch (error) {
-    console.error(`Function execution error (${name}):`, error);
+    aiLogger.error(`Function execution error (${name}):`, error);
     return {
       success: false,
       message: `함수 실행 중 오류가 발생했습니다: ${error instanceof Error ? error.message : 'Unknown error'}`,

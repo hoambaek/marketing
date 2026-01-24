@@ -32,7 +32,8 @@ const STATUS_COLORS: Record<TaskStatus, string> = {
 };
 
 export default function TaskModal({ isOpen, onClose, onSave, task, month, week }: TaskModalProps) {
-  const [formData, setFormData] = useState({
+  // lazy state init - 불필요한 객체 재생성 방지
+  const [formData, setFormData] = useState(() => ({
     title: '',
     description: '',
     category: 'operation' as TaskCategory,
@@ -45,7 +46,7 @@ export default function TaskModal({ isOpen, onClose, onSave, task, month, week }
     dueDate: '',
     year: 2026,
     attachments: [] as Attachment[],
-  });
+  }));
 
   // Mobile: view mode first, then edit mode
   const [isEditing, setIsEditing] = useState(false);

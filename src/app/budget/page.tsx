@@ -1,7 +1,8 @@
 'use client';
 
 import { motion, AnimatePresence } from 'framer-motion';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
+import dynamic from 'next/dynamic';
 import { useBudgetStore } from '@/lib/store/budget-store';
 import { toast } from '@/lib/store/toast-store';
 import { Footer } from '@/components/layout/Footer';
@@ -31,9 +32,24 @@ import {
   Calculator,
 } from 'lucide-react';
 import Link from 'next/link';
-import BudgetModal from '@/components/BudgetModal';
-import ExpenseModal from '@/components/ExpenseModal';
-import ExpenseLineChart from '@/components/ExpenseLineChart';
+
+// 동적 임포트 - 모달과 차트는 필요할 때만 로드
+const BudgetModal = dynamic(() => import('@/components/BudgetModal'), {
+  loading: () => <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center">
+    <div className="w-12 h-12 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
+  </div>,
+});
+
+const ExpenseModal = dynamic(() => import('@/components/ExpenseModal'), {
+  loading: () => <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center">
+    <div className="w-12 h-12 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
+  </div>,
+});
+
+const ExpenseLineChart = dynamic(() => import('@/components/ExpenseLineChart'), {
+  loading: () => <div className="h-64 bg-white/[0.02] rounded-2xl animate-pulse" />,
+  ssr: false,
+});
 
 // ═══════════════════════════════════════════════════════════════════════════
 // 애니메이션 변형

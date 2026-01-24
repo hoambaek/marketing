@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useCallback } from 'react';
+import { logger } from '@/lib/logger';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Upload, X, FileText, Image as ImageIcon, Youtube, Link, Loader2, Trash2, ExternalLink } from 'lucide-react';
 import { Attachment, AttachmentType } from '@/lib/types';
@@ -103,7 +104,7 @@ export default function FileUpload({
         createdAt: new Date().toISOString(),
       };
     } catch (error) {
-      console.error('Presigned upload error:', error);
+      logger.error('Presigned upload error:', error);
       throw error;
     }
   };
@@ -119,7 +120,7 @@ export default function FileUpload({
     try {
       return await uploadWithPresignedUrl(file);
     } catch (error) {
-      console.error('Upload error:', error);
+      logger.error('Upload error:', error);
       const errorMessage = error instanceof Error ? error.message : '업로드 실패';
       toast.error(`${file.name}: ${errorMessage}`);
       return null;

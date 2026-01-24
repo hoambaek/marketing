@@ -35,7 +35,7 @@ const itemVariants = {
 };
 
 export default function ChecklistPage() {
-  const { mustDoItems, toggleMustDo, addMustDo, updateMustDo, deleteMustDo } = useMasterPlanStore();
+  const { mustDoItems, toggleMustDo, addMustDo, updateMustDo, deleteMustDo, isLoading, isInitialized } = useMasterPlanStore();
   const [filter, setFilter] = useState<FilterType>('all');
   const [selectedYear, setSelectedYear] = useState<number>(2026);
 
@@ -102,6 +102,21 @@ export default function ChecklistPage() {
   const handleToggle = async (id: string) => {
     await toggleMustDo(id);
   };
+
+  // 로딩 상태 체크
+  if (isLoading || !isInitialized) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#0a0f1a]">
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="text-white/60"
+        >
+          로딩 중...
+        </motion.div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen relative overflow-hidden">

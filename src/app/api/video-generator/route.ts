@@ -1,5 +1,6 @@
 import { GoogleGenAI } from '@google/genai';
 import { NextRequest, NextResponse } from 'next/server';
+import { apiLogger } from '@/lib/logger';
 
 // Initialize Google Gen AI client
 const getAIClient = () => {
@@ -60,7 +61,7 @@ export async function POST(request: NextRequest) {
       message: '영상 생성이 시작되었습니다. 잠시 기다려주세요.',
     });
   } catch (error) {
-    console.error('Video generation error:', error);
+    apiLogger.error('Video generation error:', error);
 
     let errorMessage = '영상 생성 중 오류가 발생했습니다.';
     if (error instanceof Error) {
@@ -116,7 +117,7 @@ export async function GET(request: NextRequest) {
 
     if (!response.ok) {
       const errorData = await response.json();
-      console.error('Operation poll error:', errorData);
+      apiLogger.error('Operation poll error:', errorData);
       return NextResponse.json(
         { error: '상태 확인 중 오류가 발생했습니다.' },
         { status: 500 }
@@ -124,11 +125,11 @@ export async function GET(request: NextRequest) {
     }
 
     const operation = await response.json();
-    console.log('Operation response:', JSON.stringify(operation, null, 2));
+    apiLogger.info('Operation response:', JSON.stringify(operation, null, 2));
 
     if (operation.done) {
       // Video is ready
-      console.log('Operation done, response:', JSON.stringify(operation.response, null, 2));
+      apiLogger.info('Operation done, response:', JSON.stringify(operation.response, null, 2));
 
       // Handle different response structures
       const generatedVideos = operation.response?.generatedVideos;
@@ -155,7 +156,7 @@ export async function GET(request: NextRequest) {
 
       // Check for errors
       if (operation.error) {
-        console.error('Video generation error:', operation.error);
+        apiLogger.error('Video generation error:', operation.error);
         return NextResponse.json({
           done: true,
           success: false,
@@ -177,7 +178,7 @@ export async function GET(request: NextRequest) {
       });
     }
   } catch (error) {
-    console.error('Operation polling error:', error);
+    apiLogger.error('Operation polling error:', error);
 
     return NextResponse.json(
       { error: '상태 확인 중 오류가 발생했습니다.' },

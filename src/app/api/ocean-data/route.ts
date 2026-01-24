@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { WANDO_COORDINATES } from '@/lib/types';
+import { apiLogger } from '@/lib/logger';
 
 // Open-Meteo Marine API endpoint
 const MARINE_API_URL = 'https://marine-api.open-meteo.com/v1/marine';
@@ -56,7 +57,7 @@ export async function GET(request: Request) {
 
     if (!marineResponse.ok) {
       const errorText = await marineResponse.text();
-      console.error('Marine API Error:', errorText);
+      apiLogger.error('Marine API Error:', errorText);
       return NextResponse.json(
         { error: 'Failed to fetch marine data', details: errorText },
         { status: marineResponse.status }
@@ -65,7 +66,7 @@ export async function GET(request: Request) {
 
     if (!weatherResponse.ok) {
       const errorText = await weatherResponse.text();
-      console.error('Weather API Error:', errorText);
+      apiLogger.error('Weather API Error:', errorText);
       return NextResponse.json(
         { error: 'Failed to fetch weather data', details: errorText },
         { status: weatherResponse.status }
@@ -102,7 +103,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json(combinedData);
   } catch (error) {
-    console.error('Ocean Data API Error:', error);
+    apiLogger.error('Ocean Data API Error:', error);
     return NextResponse.json(
       { error: 'Internal server error', details: String(error) },
       { status: 500 }

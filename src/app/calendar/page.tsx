@@ -42,7 +42,7 @@ const MONTH_NAMES = [
 ];
 
 export default function CalendarPage() {
-  const { contentItems, addContent, updateContent, deleteContent } = useMasterPlanStore();
+  const { contentItems, addContent, updateContent, deleteContent, isLoading, isInitialized } = useMasterPlanStore();
   // Start with current year/month
   const [currentDate, setCurrentDate] = useState(() => new Date());
   const [selectedType, setSelectedType] = useState<ContentType | 'all'>('all');
@@ -144,6 +144,21 @@ export default function CalendarPage() {
     });
     return counts;
   }, [contentItems, year, month]);
+
+  // 로딩 상태 체크
+  if (isLoading || !isInitialized) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#0a0f1a]">
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="text-white/60"
+        >
+          로딩 중...
+        </motion.div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen relative overflow-hidden">

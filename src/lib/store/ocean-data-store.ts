@@ -1,6 +1,7 @@
 'use client';
 
 import { create } from 'zustand';
+import { storeLogger } from '@/lib/logger';
 import {
   OceanDataDaily,
   OceanDataHourly,
@@ -207,7 +208,7 @@ export const useOceanDataStore = create<OceanDataState>((set, get) => ({
         get().saveDataToSupabase();
       }
     } catch (error) {
-      console.error('Error fetching ocean data:', error);
+      storeLogger.error('Error fetching ocean data:', error);
       set({
         error: error instanceof Error ? error.message : 'Unknown error',
         isLoading: false,
@@ -260,7 +261,7 @@ export const useOceanDataStore = create<OceanDataState>((set, get) => ({
 
       set({ currentConditions, isLoading: false });
     } catch (error) {
-      console.error('Error fetching current conditions:', error);
+      storeLogger.error('Error fetching current conditions:', error);
       set({
         error: error instanceof Error ? error.message : 'Unknown error',
         isLoading: false,
@@ -278,7 +279,7 @@ export const useOceanDataStore = create<OceanDataState>((set, get) => ({
         set({ salinityRecords: records });
       }
     } catch (error) {
-      console.error('Error loading salinity records:', error);
+      storeLogger.error('Error loading salinity records:', error);
     }
   },
 
@@ -323,7 +324,7 @@ export const useOceanDataStore = create<OceanDataState>((set, get) => ({
           }));
         }
       } catch (error) {
-        console.error('Error saving salinity record:', error);
+        storeLogger.error('Error saving salinity record:', error);
       }
     }
   },
@@ -343,7 +344,7 @@ export const useOceanDataStore = create<OceanDataState>((set, get) => ({
       try {
         await updateOceanDataSalinity(date, salinity);
       } catch (error) {
-        console.error('Error updating salinity in database:', error);
+        storeLogger.error('Error updating salinity in database:', error);
       }
     }
   },
@@ -374,7 +375,7 @@ export const useOceanDataStore = create<OceanDataState>((set, get) => ({
         });
       }
     } catch (error) {
-      console.error('Error saving data to Supabase:', error);
+      storeLogger.error('Error saving data to Supabase:', error);
     } finally {
       set({ isSaving: false });
     }

@@ -1,10 +1,11 @@
 import { createClient } from '@supabase/supabase-js';
+import { logger } from '@/lib/logger';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
 if (!supabaseUrl || !supabaseAnonKey) {
-  console.warn('Supabase credentials not found. Using localStorage fallback.');
+  logger.warn('Supabase credentials not found. Using localStorage fallback.');
 }
 
 export const supabase = supabaseUrl && supabaseAnonKey

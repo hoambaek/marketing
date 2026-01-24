@@ -243,7 +243,7 @@ function KPIEditModal({
 }
 
 export default function KPIPage() {
-  const { kpiItems, updateKPI } = useMasterPlanStore();
+  const { kpiItems, updateKPI, isLoading, isInitialized } = useMasterPlanStore();
   const [selectedYear, setSelectedYear] = useState<number>(2026);
   const [selectedMonth, setSelectedMonth] = useState<number>(1);
   const [selectedCategory, setSelectedCategory] = useState<KPICategory | 'all'>('all');
@@ -361,6 +361,21 @@ export default function KPIPage() {
   const handleSaveKPI = async (id: string, value: number) => {
     await updateKPI(id, value);
   };
+
+  // 로딩 상태 체크
+  if (isLoading || !isInitialized) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#0a0f1a]">
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="text-white/60"
+        >
+          로딩 중...
+        </motion.div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen pb-20">

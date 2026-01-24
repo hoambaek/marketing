@@ -11,6 +11,7 @@ import {
 } from '@/lib/types';
 import { isSupabaseConfigured } from '@/lib/supabase/client';
 import * as db from '@/lib/supabase/database';
+import { storeLogger } from '@/lib/logger';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // 인벤토리 스토어 인터페이스
@@ -181,7 +182,7 @@ export const useInventoryStore = create<InventoryState>()((set, get) => ({
             useSupabase: true,
           });
         } catch (error) {
-          console.error('Failed to load inventory from Supabase:', error);
+          storeLogger.error('Failed to load inventory from Supabase:', error);
           // 실패 시 로컬 데이터 사용
           set({
             numberedBottles: createInitialNumberedBottles(),
@@ -219,7 +220,7 @@ export const useInventoryStore = create<InventoryState>()((set, get) => ({
             isLoading: false,
           });
         } catch (error) {
-          console.error('Failed to refresh from Supabase:', error);
+          storeLogger.error('Failed to refresh from Supabase:', error);
           set({ isLoading: false });
         }
       },

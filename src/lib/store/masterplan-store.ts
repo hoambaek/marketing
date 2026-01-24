@@ -1,6 +1,7 @@
 'use client';
 
 import { create } from 'zustand';
+import { storeLogger } from '@/lib/logger';
 import { persist } from 'zustand/middleware';
 import { Task, MustDoItem, KPIItem, ContentItem, TaskStatus } from '@/lib/types';
 import { INITIAL_TASKS, INITIAL_MUST_DO, INITIAL_KPI, INITIAL_CONTENT, STORAGE_KEYS } from '@/lib/data/initial-data';
@@ -113,7 +114,7 @@ export const useMasterPlanStore = create<MasterPlanState>()(
 
           // 데이터가 없으면 초기 데이터로 시드
           if (!tasks || tasks.length === 0) {
-            console.log('No data in Supabase, seeding initial data...');
+            storeLogger.log('No data in Supabase, seeding initial data...');
             await db.seedInitialData(
               INITIAL_TASKS,
               INITIAL_MUST_DO,
@@ -150,7 +151,7 @@ export const useMasterPlanStore = create<MasterPlanState>()(
             });
           }
         } catch (error) {
-          console.error('Failed to initialize from Supabase:', error);
+          storeLogger.error('Failed to initialize from Supabase:', error);
           // Supabase 실패 시 로컬 데이터 유지
           set({ isLoading: false, isInitialized: true, useSupabase: false });
         }

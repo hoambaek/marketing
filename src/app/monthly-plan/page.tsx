@@ -1,38 +1,26 @@
 'use client';
 
 import { motion, AnimatePresence } from 'framer-motion';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import dynamic from 'next/dynamic';
 import { useMasterPlanStore } from '@/lib/store/masterplan-store';
-import { MONTHS_INFO, PHASE_INFO, AVAILABLE_YEARS, Task, TaskStatus, MustDoItem, CATEGORY_LABELS, TaskCategory } from '@/lib/types';
+import { useShallow } from 'zustand/react/shallow';
+import { MONTHS_INFO, PHASE_INFO, AVAILABLE_YEARS, Task, TaskStatus, TaskCategory } from '@/lib/types';
 import { Footer } from '@/components/layout/Footer';
-import { formatWeekDateRange, isCurrentWeek, formatDateKorean, getDaysUntil, formatDDay, getDDayColorClass } from '@/lib/utils/date';
-import {
-  DndContext,
-  closestCenter,
-  KeyboardSensor,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  DragEndEvent,
-} from '@dnd-kit/core';
-import {
-  SortableContext,
-  sortableKeyboardCoordinates,
-  verticalListSortingStrategy,
-} from '@dnd-kit/sortable';
 import {
   ChevronLeft,
   ChevronRight,
   Plus,
-  Sparkles,
-  Pencil,
-  Trash2,
-  X,
-  Check,
   Calendar,
 } from 'lucide-react';
-import TaskModal from '@/components/TaskModal';
 import SortableTaskItem from '@/components/SortableTaskItem';
+
+// 동적 임포트 - 모달은 필요할 때만 로드
+const TaskModal = dynamic(() => import('@/components/TaskModal'), {
+  loading: () => <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center">
+    <div className="w-12 h-12 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
+  </div>,
+});
 
 const phaseColors = {
   1: { primary: '#3B82F6', gradient: 'from-blue-500/20 to-blue-600/5', glow: 'rgba(59, 130, 246, 0.15)' },
@@ -42,66 +30,47 @@ const phaseColors = {
   5: { primary: '#8B7355', gradient: 'from-amber-700/20 to-amber-800/5', glow: 'rgba(139, 115, 85, 0.15)' },
 };
 
-const weekTitles: Record<number, { short: string; full: string }> = {
-  1: { short: '1주차', full: '첫째 주' },
-  2: { short: '2주차', full: '둘째 주' },
-  3: { short: '3주차', full: '셋째 주' },
-  4: { short: '4주차', full: '넷째 주' },
-};
-
-// Get current month and week based on today's date
-const getCurrentMonthAndWeek = () => {
-  const today = new Date();
-  const currentMonth = today.getMonth() + 1; // 1-12
-  const currentDay = today.getDate();
-
-  // Calculate current week (1-4)
-  let currentWeek = Math.ceil(currentDay / 7);
-  if (currentWeek > 4) currentWeek = 4;
-
-  // For 2026 project, default to month 1 if we're not in 2026
-  const year = today.getFullYear();
-  if (year !== 2026) {
-    return { month: 1, week: 1 };
-  }
-
-  // Clamp month to 1-12
-  const clampedMonth = Math.max(1, Math.min(12, currentMonth));
-
-  return { month: clampedMonth, week: currentWeek };
-};
+// 카테고리 필터 옵션
+const CATEGORY_FILTER_OPTIONS: { value: TaskCategory | 'all'; label: string }[] = [
+  { value: 'all', label: '전체' },
+  { value: 'operation', label: '운영' },
+  { value: 'marketing', label: '마케팅' },
+  { value: 'design', label: '디자인' },
+  { value: 'filming', label: '촬영' },
+  { value: 'pr', label: 'PR' },
+  { value: 'b2b', label: 'B2B' },
+];
 
 export default function MonthlyPlanPage() {
+  // 선택적 구독 - 필요한 상태만 구독하여 불필요한 리렌더링 방지
   const {
     getProgressByMonth,
-    getTasksByMonthAndWeek,
+    getTasksByMonth,
     tasks,
     updateTaskStatus,
     addTask,
     updateTask,
     deleteTask,
-    reorderTasks,
-    getMustDoByMonth,
-    toggleMustDo,
-    addMustDo,
-    updateMustDo,
-    deleteMustDo,
-  } = useMasterPlanStore();
+  } = useMasterPlanStore(
+    useShallow((state) => ({
+      getProgressByMonth: state.getProgressByMonth,
+      getTasksByMonth: state.getTasksByMonth,
+      tasks: state.tasks,
+      updateTaskStatus: state.updateTaskStatus,
+      addTask: state.addTask,
+      updateTask: state.updateTask,
+      deleteTask: state.deleteTask,
+    }))
+  );
 
   const [selectedYear, setSelectedYear] = useState<number>(2026);
-  const { month: initialMonth, week: initialWeek } = getCurrentMonthAndWeek();
-  const [selectedMonth, setSelectedMonth] = useState<number>(initialMonth);
-  const [selectedWeek, setSelectedWeek] = useState<number>(initialWeek);
+  const [selectedMonth, setSelectedMonth] = useState<number>(1);
+  const [selectedCategory, setSelectedCategory] = useState<TaskCategory | 'all'>('all');
   const [isMounted, setIsMounted] = useState(false);
 
   // Modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
-
-  // Must-Do state
-  const [showMustDoForm, setShowMustDoForm] = useState(false);
-  const [editingMustDoId, setEditingMustDoId] = useState<string | null>(null);
-  const [mustDoFormData, setMustDoFormData] = useState({ title: '', category: 'operation' as TaskCategory });
 
   // Refs for swipe gestures
   const containerRef = useRef<HTMLDivElement>(null);
@@ -110,24 +79,24 @@ export default function MonthlyPlanPage() {
     setIsMounted(true);
   }, []);
 
-  // DnD Sensors
-  const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 8,
-      },
-    }),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    })
-  );
-
   const currentMonthInfo = MONTHS_INFO.find((m) => m.id === selectedMonth);
   const phase = PHASE_INFO.find((p) => p.months.includes(selectedMonth));
   const colors = phaseColors[phase?.id as keyof typeof phaseColors] || phaseColors[1];
   const progress = getProgressByMonth(selectedYear, selectedMonth);
-  const weekTasks = getTasksByMonthAndWeek(selectedYear, selectedMonth, selectedWeek);
-  const mustDoItems = getMustDoByMonth(selectedYear, selectedMonth);
+
+  // 월별 태스크 가져오기 (카테고리 필터 적용 + 마감일 정렬)
+  const monthTasks = getTasksByMonth(selectedYear, selectedMonth);
+  const filteredTasks = (selectedCategory === 'all'
+    ? monthTasks
+    : monthTasks.filter(t => t.category === selectedCategory)
+  ).sort((a, b) => {
+    // 마감일이 없는 항목은 맨 뒤로
+    if (!a.dueDate && !b.dueDate) return 0;
+    if (!a.dueDate) return 1;
+    if (!b.dueDate) return -1;
+    // 마감일이 가까운 순서로 정렬 (오름차순)
+    return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+  });
 
   // Navigation handlers - with year transition
   const minYear = Math.min(...AVAILABLE_YEARS);
@@ -136,24 +105,18 @@ export default function MonthlyPlanPage() {
   const goToPrevMonth = () => {
     if (selectedMonth > 1) {
       setSelectedMonth(selectedMonth - 1);
-      setSelectedWeek(1);
     } else if (selectedYear > minYear) {
-      // Go to December of previous year
       setSelectedYear(selectedYear - 1);
       setSelectedMonth(12);
-      setSelectedWeek(1);
     }
   };
 
   const goToNextMonth = () => {
     if (selectedMonth < 12) {
       setSelectedMonth(selectedMonth + 1);
-      setSelectedWeek(1);
     } else if (selectedYear < maxYear) {
-      // Go to January of next year
       setSelectedYear(selectedYear + 1);
       setSelectedMonth(1);
-      setSelectedWeek(1);
     }
   };
 
@@ -187,58 +150,6 @@ export default function MonthlyPlanPage() {
       await updateTask(editingTask.id, taskData);
     } else {
       await addTask(taskData as Omit<Task, 'id' | 'createdAt' | 'updatedAt'>);
-    }
-  };
-
-  // Must-Do handlers
-  const handleAddMustDo = () => {
-    setEditingMustDoId(null);
-    setMustDoFormData({ title: '', category: 'operation' });
-    setShowMustDoForm(true);
-  };
-
-  const handleEditMustDo = (item: MustDoItem) => {
-    setEditingMustDoId(item.id);
-    setMustDoFormData({ title: item.title, category: item.category });
-    setShowMustDoForm(true);
-  };
-
-  const handleDeleteMustDo = async (id: string) => {
-    await deleteMustDo(id);
-  };
-
-  const handleSaveMustDo = async () => {
-    if (!mustDoFormData.title.trim()) return;
-
-    if (editingMustDoId) {
-      await updateMustDo(editingMustDoId, {
-        title: mustDoFormData.title,
-        category: mustDoFormData.category,
-      });
-    } else {
-      await addMustDo({
-        year: selectedYear,
-        month: selectedMonth,
-        title: mustDoFormData.title,
-        done: false,
-        category: mustDoFormData.category,
-      });
-    }
-    setShowMustDoForm(false);
-    setEditingMustDoId(null);
-    setMustDoFormData({ title: '', category: 'operation' });
-  };
-
-  const handleCancelMustDo = () => {
-    setShowMustDoForm(false);
-    setEditingMustDoId(null);
-    setMustDoFormData({ title: '', category: 'operation' });
-  };
-
-  const handleDragEnd = (event: DragEndEvent) => {
-    const { active, over } = event;
-    if (over && active.id !== over.id) {
-      reorderTasks(selectedYear, selectedMonth, selectedWeek, active.id as string, over.id as string);
     }
   };
 
@@ -442,187 +353,28 @@ export default function MonthlyPlanPage() {
         </div>
       </section>
 
-      {/* Must-Do Checklist Section - Compact */}
-      <section className="relative py-3 sm:py-4 px-4 sm:px-6 lg:px-12">
-        <div className="max-w-4xl mx-auto">
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.6 }}
-            className="p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-white/[0.02] border border-white/[0.06]"
-          >
-            {/* Compact Header */}
-            <div className="flex items-center justify-between mb-2 sm:mb-3">
-              <div className="flex items-center gap-2">
-                <div className="w-0.5 h-4 rounded-full" style={{ backgroundColor: colors.primary }} />
-                <span className="text-xs sm:text-sm font-medium text-white/70">필수 체크</span>
-                {mustDoItems.length > 0 && (
-                  <>
-                    <div className="h-3 w-px bg-white/10" />
-                    <div className="flex items-center gap-1.5">
-                      <div className="h-1 w-12 sm:w-16 rounded-full bg-white/[0.06] overflow-hidden">
-                        <div
-                          className="h-full rounded-full transition-all duration-500"
-                          style={{
-                            width: `${(mustDoItems.filter(i => i.done).length / mustDoItems.length) * 100}%`,
-                            backgroundColor: colors.primary
-                          }}
-                        />
-                      </div>
-                      <span className="text-[10px] text-white/40">
-                        {mustDoItems.filter(i => i.done).length}/{mustDoItems.length}
-                      </span>
-                    </div>
-                  </>
-                )}
-              </div>
-              <button
-                onClick={handleAddMustDo}
-                className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] sm:text-xs text-white/50 hover:text-white/80 hover:bg-white/[0.04] transition-all"
-              >
-                <Plus className="w-3 h-3" />
-                <span className="hidden sm:inline">추가</span>
-              </button>
-            </div>
-
-            {/* Add/Edit Form */}
-            <AnimatePresence>
-              {showMustDoForm && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  exit={{ opacity: 0, height: 0 }}
-                  className="mb-2 sm:mb-3 overflow-hidden"
-                >
-                  <div className="flex items-center gap-2 p-2 rounded-lg bg-white/[0.03] border border-white/[0.08]">
-                    <input
-                      type="text"
-                      value={mustDoFormData.title}
-                      onChange={(e) => setMustDoFormData(prev => ({ ...prev, title: e.target.value }))}
-                      placeholder="체크리스트 항목 입력..."
-                      className="flex-1 bg-transparent text-xs sm:text-sm text-white/80 placeholder:text-white/30 focus:outline-none"
-                      autoFocus
-                      onKeyDown={(e) => e.key === 'Enter' && handleSaveMustDo()}
-                    />
-                    <select
-                      value={mustDoFormData.category}
-                      onChange={(e) => setMustDoFormData(prev => ({ ...prev, category: e.target.value as TaskCategory }))}
-                      className="px-2 py-1 bg-white/[0.04] border border-white/[0.08] rounded text-[10px] sm:text-xs text-white/60 focus:outline-none cursor-pointer"
-                    >
-                      {Object.entries(CATEGORY_LABELS).map(([value, label]) => (
-                        <option key={value} value={value} className="bg-[#0d1525]">{label}</option>
-                      ))}
-                    </select>
-                    <button
-                      onClick={handleSaveMustDo}
-                      className="p-1.5 rounded-md hover:bg-white/[0.06] transition-colors"
-                      style={{ color: colors.primary }}
-                    >
-                      <Check className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      onClick={handleCancelMustDo}
-                      className="p-1.5 rounded-md text-white/40 hover:text-white/60 hover:bg-white/[0.06] transition-colors"
-                    >
-                      <X className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            {/* Compact Checklist */}
-            {mustDoItems.length > 0 ? (
-              <div className="space-y-1">
-                {mustDoItems.map((item) => (
-                  <div
-                    key={item.id}
-                    className="group flex items-center gap-2 py-1.5 px-2 -mx-2 rounded-lg hover:bg-white/[0.02] transition-colors"
-                  >
-                    {/* Checkbox */}
-                    <button
-                      onClick={() => toggleMustDo(item.id)}
-                      className={`flex-shrink-0 w-4 h-4 rounded border transition-all flex items-center justify-center ${
-                        item.done
-                          ? 'border-transparent'
-                          : 'border-white/20 hover:border-white/40'
-                      }`}
-                      style={{ backgroundColor: item.done ? colors.primary : 'transparent' }}
-                    >
-                      {item.done && (
-                        <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                        </svg>
-                      )}
-                    </button>
-
-                    {/* Title */}
-                    <span className={`flex-1 text-xs sm:text-sm truncate transition-all ${
-                      item.done ? 'text-white/30 line-through' : 'text-white/70'
-                    }`}>
-                      {item.title}
-                    </span>
-
-                    {/* Category Badge */}
-                    <span
-                      className={`hidden sm:inline text-[9px] px-1.5 py-0.5 rounded transition-all ${
-                        item.done ? 'opacity-30' : 'opacity-60'
-                      }`}
-                      style={{ backgroundColor: `${colors.primary}15`, color: colors.primary }}
-                    >
-                      {CATEGORY_LABELS[item.category]}
-                    </span>
-
-                    {/* Action Buttons - always visible */}
-                    <div className="flex items-center gap-0.5 opacity-60 hover:opacity-100 transition-opacity">
-                      <button
-                        onClick={(e) => { e.stopPropagation(); handleEditMustDo(item); }}
-                        className="p-1 rounded text-white/30 hover:text-white/60 hover:bg-white/[0.04] transition-colors"
-                      >
-                        <Pencil className="w-3 h-3" />
-                      </button>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); handleDeleteMustDo(item.id); }}
-                        className="p-1 rounded text-white/30 hover:text-red-400 hover:bg-red-500/10 transition-colors"
-                      >
-                        <Trash2 className="w-3 h-3" />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-xs text-white/30 text-center py-2">
-                이번 달 필수 체크 항목이 없습니다
-              </p>
-            )}
-          </motion.div>
-        </div>
-      </section>
-
-      {/* Week Tabs & Tasks Section */}
+      {/* Category Filter & Tasks Section */}
       <section className="relative py-6 px-4 sm:px-6 lg:px-12">
         <div className="max-w-4xl mx-auto">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 1.0 }}
+            transition={{ duration: 0.8, delay: 0.6 }}
           >
-            {/* Week Tabs with Date Ranges */}
+            {/* Category Filter Tabs */}
             <div className="relative mb-6">
-              <div className="flex items-center gap-1 sm:gap-2 p-1 sm:p-1.5 rounded-xl sm:rounded-2xl bg-white/[0.02] border border-white/[0.06]">
-                {[1, 2, 3, 4].map((week) => {
-                  const weekTasksCount = getTasksByMonthAndWeek(selectedYear, selectedMonth, week);
-                  const completedCount = weekTasksCount.filter((t) => t.status === 'done').length;
-                  const isSelected = week === selectedWeek;
-                  const isCurrent = isMounted && isCurrentWeek(selectedYear, selectedMonth, week);
-                  const dateRange = formatWeekDateRange(selectedYear, selectedMonth, week);
+              <div className="flex items-center gap-1 sm:gap-2 p-1 sm:p-1.5 rounded-xl sm:rounded-2xl bg-white/[0.02] border border-white/[0.06] overflow-x-auto">
+                {CATEGORY_FILTER_OPTIONS.map((option) => {
+                  const isSelected = selectedCategory === option.value;
+                  const categoryCount = option.value === 'all'
+                    ? monthTasks.length
+                    : monthTasks.filter(t => t.category === option.value).length;
 
                   return (
                     <button
-                      key={week}
-                      onClick={() => setSelectedWeek(week)}
-                      className={`relative flex-1 py-2 sm:py-3 px-1 sm:px-3 rounded-lg sm:rounded-xl transition-all ${
+                      key={option.value}
+                      onClick={() => setSelectedCategory(option.value)}
+                      className={`relative flex-shrink-0 py-2 sm:py-2.5 px-3 sm:px-4 rounded-lg sm:rounded-xl transition-all ${
                         isSelected
                           ? 'text-white'
                           : 'text-white/40 hover:text-white/60'
@@ -630,7 +382,7 @@ export default function MonthlyPlanPage() {
                     >
                       {isSelected && (
                         <motion.div
-                          layoutId="activeWeekTab"
+                          layoutId="activeCategoryTab"
                           className="absolute inset-0 rounded-lg sm:rounded-xl"
                           style={{
                             background: `linear-gradient(135deg, ${colors.primary}20, ${colors.primary}10)`,
@@ -639,31 +391,14 @@ export default function MonthlyPlanPage() {
                           transition={{ type: 'spring', bounce: 0.2, duration: 0.6 }}
                         />
                       )}
-                      <span className="relative z-10 flex flex-col items-center gap-0.5">
-                        {/* Week Label + Task Count (horizontal) */}
-                        <span className="flex items-center gap-2 text-xs sm:text-sm font-medium">
-                          <span className="flex items-center gap-1">
-                            {weekTitles[week].short}
-                            {isCurrent && (
-                              <span
-                                className="w-1.5 h-1.5 rounded-full animate-pulse"
-                                style={{ backgroundColor: colors.primary }}
-                              />
-                            )}
-                          </span>
-                          <span
-                            className={`px-1.5 py-0.5 rounded text-[10px] sm:text-xs ${
-                              isSelected
-                                ? 'bg-white/10'
-                                : 'bg-white/[0.04]'
-                            }`}
-                          >
-                            {isMounted ? `${completedCount}/${weekTasksCount.length}` : '—'}
-                          </span>
-                        </span>
-                        {/* Date Range */}
-                        <span className={`text-[9px] sm:text-[10px] ${isSelected ? 'text-white/60' : 'text-white/30'}`}>
-                          {dateRange}
+                      <span className="relative z-10 flex items-center gap-2 text-xs sm:text-sm font-medium whitespace-nowrap">
+                        {option.label}
+                        <span
+                          className={`px-1.5 py-0.5 rounded text-[10px] sm:text-xs ${
+                            isSelected ? 'bg-white/10' : 'bg-white/[0.04]'
+                          }`}
+                        >
+                          {isMounted ? categoryCount : '—'}
                         </span>
                       </span>
                     </button>
@@ -675,7 +410,7 @@ export default function MonthlyPlanPage() {
             {/* Tasks List */}
             <AnimatePresence mode="wait">
               <motion.div
-                key={`${selectedMonth}-${selectedWeek}`}
+                key={`${selectedMonth}-${selectedCategory}`}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}
@@ -685,7 +420,7 @@ export default function MonthlyPlanPage() {
                 <div className="absolute inset-0 bg-gradient-to-br from-white/[0.04] to-white/[0.01] backdrop-blur-sm" />
                 <div className="absolute inset-0 border border-white/[0.06] rounded-2xl" />
 
-                {/* Header with Date Range */}
+                {/* Header */}
                 <div className="relative flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-white/[0.06]">
                   <div className="flex items-center gap-2 sm:gap-3">
                     <div
@@ -696,7 +431,7 @@ export default function MonthlyPlanPage() {
                     </div>
                     <div className="flex flex-col">
                       <span className="text-white/80 text-sm sm:text-base font-medium">
-                        {currentMonthInfo?.name} {formatWeekDateRange(selectedYear, selectedMonth, selectedWeek)}
+                        {currentMonthInfo?.name} 업무 목록
                       </span>
                     </div>
                   </div>
@@ -718,43 +453,30 @@ export default function MonthlyPlanPage() {
 
                 {/* Tasks Content */}
                 <div className="relative p-5 min-h-[300px]">
-                  {weekTasks.length > 0 ? (
-                    isMounted ? (
-                      <DndContext
-                        sensors={sensors}
-                        collisionDetection={closestCenter}
-                        onDragEnd={handleDragEnd}
-                      >
-                        <SortableContext
-                          items={weekTasks.map((t) => t.id)}
-                          strategy={verticalListSortingStrategy}
+                  {!isMounted ? (
+                    <div className="space-y-3">
+                      {[1, 2, 3].map((i) => (
+                        <div
+                          key={i}
+                          className="p-4 rounded-xl bg-white/[0.02] animate-pulse"
                         >
-                          <div className="space-y-3">
-                            {weekTasks.map((task) => (
-                              <SortableTaskItem
-                                key={task.id}
-                                task={task}
-                                onStatusToggle={handleStatusToggle}
-                                onEdit={handleEditTask}
-                                onDelete={handleDeleteTask}
-                              />
-                            ))}
-                          </div>
-                        </SortableContext>
-                      </DndContext>
-                    ) : (
-                      <div className="space-y-3">
-                        {weekTasks.map((task) => (
-                          <div
-                            key={task.id}
-                            className="p-4 rounded-xl bg-white/[0.02] animate-pulse"
-                          >
-                            <div className="h-5 bg-white/[0.06] rounded w-3/4 mb-2" />
-                            <div className="h-3 bg-white/[0.04] rounded w-1/2" />
-                          </div>
-                        ))}
-                      </div>
-                    )
+                          <div className="h-5 bg-white/[0.06] rounded w-3/4 mb-2" />
+                          <div className="h-3 bg-white/[0.04] rounded w-1/2" />
+                        </div>
+                      ))}
+                    </div>
+                  ) : filteredTasks.length > 0 ? (
+                    <div className="space-y-3">
+                      {filteredTasks.map((task) => (
+                        <SortableTaskItem
+                          key={task.id}
+                          task={task}
+                          onStatusToggle={handleStatusToggle}
+                          onEdit={handleEditTask}
+                          onDelete={handleDeleteTask}
+                        />
+                      ))}
+                    </div>
                   ) : (
                     <div className="flex flex-col items-center justify-center py-16 text-center">
                       <motion.div
@@ -769,7 +491,11 @@ export default function MonthlyPlanPage() {
                       >
                         <Plus className="w-8 h-8" style={{ color: colors.primary, opacity: 0.5 }} />
                       </motion.div>
-                      <p className="text-white/40 mb-2">이번 주에 등록된 업무가 없습니다</p>
+                      <p className="text-white/40 mb-2">
+                        {selectedCategory === 'all'
+                          ? '이번 달에 등록된 업무가 없습니다'
+                          : `${CATEGORY_FILTER_OPTIONS.find(o => o.value === selectedCategory)?.label} 카테고리에 업무가 없습니다`}
+                      </p>
                       <p className="text-white/20 text-sm mb-6">새로운 업무를 추가해보세요</p>
                       <motion.button
                         whileHover={{ scale: 1.02 }}
@@ -804,7 +530,7 @@ export default function MonthlyPlanPage() {
         onSave={handleSaveTask}
         task={editingTask}
         month={selectedMonth}
-        week={selectedWeek}
+        week={1}
       />
     </div>
   );

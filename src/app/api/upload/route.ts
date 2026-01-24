@@ -2,30 +2,32 @@ import { NextRequest, NextResponse } from 'next/server';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { auth } from '@clerk/nextjs/server';
+import { apiLogger } from '@/lib/logger';
+import { envValidators, EnvError } from '@/lib/env';
 
 export const dynamic = 'force-dynamic';
 
-// Cloudflare R2 설정
-const R2_ACCOUNT_ID = process.env.CLOUDFLARE_R2_ACCOUNT_ID;
-const R2_ACCESS_KEY_ID = process.env.CLOUDFLARE_R2_ACCESS_KEY_ID;
-const R2_SECRET_ACCESS_KEY = process.env.CLOUDFLARE_R2_SECRET_ACCESS_KEY;
-const R2_BUCKET_NAME = process.env.CLOUDFLARE_R2_BUCKET_NAME || 'musedemaree';
-const R2_PUBLIC_URL = process.env.CLOUDFLARE_R2_PUBLIC_URL;
-
-// R2 클라이언트 생성
+// R2 클라이언트 생성 (환경 변수 검증 포함)
 function getR2Client() {
-  if (!R2_ACCOUNT_ID || !R2_ACCESS_KEY_ID || !R2_SECRET_ACCESS_KEY) {
-    return null;
+  try {
+    const config = envValidators.requireR2Config();
+    return {
+      client: new S3Client({
+        region: 'auto',
+        endpoint: `https://${config.accountId}.r2.cloudflarestorage.com`,
+        credentials: {
+          accessKeyId: config.accessKeyId,
+          secretAccessKey: config.secretAccessKey,
+        },
+      }),
+      config,
+    };
+  } catch (error) {
+    if (error instanceof EnvError) {
+      return null;
+    }
+    throw error;
   }
-
-  return new S3Client({
-    region: 'auto',
-    endpoint: `https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
-    credentials: {
-      accessKeyId: R2_ACCESS_KEY_ID,
-      secretAccessKey: R2_SECRET_ACCESS_KEY,
-    },
-  });
 }
 
 // MIME 타입에서 확장자 추출
@@ -111,14 +113,6 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // 환경변수 확인
-    if (!R2_ACCOUNT_ID || !R2_ACCESS_KEY_ID || !R2_SECRET_ACCESS_KEY || !R2_PUBLIC_URL) {
-      return NextResponse.json(
-        { error: 'R2 환경변수가 설정되지 않았습니다.' },
-        { status: 500 }
-      );
-    }
-
     // MIME 타입 검증
     if (!allowedMimeTypes.includes(fileType)) {
       return NextResponse.json(
@@ -136,10 +130,11 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const r2Client = getR2Client();
-    if (!r2Client) {
+    // R2 클라이언트 생성 (환경 변수 검증 포함)
+    const r2 = getR2Client();
+    if (!r2) {
       return NextResponse.json(
-        { error: 'R2 클라이언트 생성 실패' },
+        { error: 'R2 환경변수가 설정되지 않았습니다.', hint: 'CLOUDFLARE_R2_* 환경 변수를 확인하세요.' },
         { status: 500 }
       );
     }
@@ -155,23 +150,23 @@ export async function GET(request: NextRequest) {
 
     // Presigned URL 생성 - ContentLength 조건 추가로 업로드 크기 강제
     const command = new PutObjectCommand({
-      Bucket: R2_BUCKET_NAME,
+      Bucket: r2.config.bucketName,
       Key: key,
       ContentType: fileType,
       ContentLength: fileSizeNum, // 정확한 파일 크기 강제
     });
 
-    const presignedUrl = await getSignedUrl(r2Client, command, { expiresIn: 300 });
+    const presignedUrl = await getSignedUrl(r2.client, command, { expiresIn: 300 });
 
     return NextResponse.json({
       presignedUrl,
       key,
-      publicUrl: `${R2_PUBLIC_URL}/${key}`,
+      publicUrl: `${r2.config.publicUrl}/${key}`,
       id: `${timestamp}-${randomString}`,
       type: getAttachmentType(fileType),
     });
   } catch (error) {
-    console.error('Presigned URL error:', error);
+    apiLogger.error('Presigned URL error:', error);
     return NextResponse.json(
       {
         error: 'Presigned URL 생성 실패',
@@ -194,28 +189,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 환경변수 확인
-    const missingEnvVars = [];
-    if (!R2_ACCOUNT_ID) missingEnvVars.push('CLOUDFLARE_R2_ACCOUNT_ID');
-    if (!R2_ACCESS_KEY_ID) missingEnvVars.push('CLOUDFLARE_R2_ACCESS_KEY_ID');
-    if (!R2_SECRET_ACCESS_KEY) missingEnvVars.push('CLOUDFLARE_R2_SECRET_ACCESS_KEY');
-    if (!R2_PUBLIC_URL) missingEnvVars.push('CLOUDFLARE_R2_PUBLIC_URL');
-
-    if (missingEnvVars.length > 0) {
+    // R2 클라이언트 생성 (환경 변수 검증 포함)
+    const r2 = getR2Client();
+    if (!r2) {
       return NextResponse.json(
-        {
-          error: 'Cloudflare R2 환경변수가 설정되지 않았습니다.',
-          missing: missingEnvVars,
-        },
-        { status: 500 }
-      );
-    }
-
-    const r2Client = getR2Client();
-
-    if (!r2Client) {
-      return NextResponse.json(
-        { error: 'R2 클라이언트 생성 실패' },
+        { error: 'R2 환경변수가 설정되지 않았습니다.', hint: 'CLOUDFLARE_R2_* 환경 변수를 확인하세요.' },
         { status: 500 }
       );
     }
@@ -258,16 +236,16 @@ export async function POST(request: NextRequest) {
 
     // R2에 업로드
     try {
-      await r2Client.send(
+      await r2.client.send(
         new PutObjectCommand({
-          Bucket: R2_BUCKET_NAME,
+          Bucket: r2.config.bucketName,
           Key: fileName,
           Body: buffer,
           ContentType: file.type,
         })
       );
     } catch (r2Error) {
-      console.error('R2 Upload Error:', r2Error);
+      apiLogger.error('R2 Upload Error:', r2Error);
       return NextResponse.json(
         {
           error: 'R2 업로드 실패',
@@ -278,7 +256,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 공개 URL 생성
-    const publicUrl = `${R2_PUBLIC_URL}/${fileName}`;
+    const publicUrl = `${r2.config.publicUrl}/${fileName}`;
 
     // 응답 데이터
     const attachmentData = {
@@ -293,7 +271,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(attachmentData);
   } catch (error) {
-    console.error('Upload error:', error);
+    apiLogger.error('Upload error:', error);
     return NextResponse.json(
       {
         error: '파일 업로드 중 오류가 발생했습니다.',
@@ -332,7 +310,7 @@ export async function DELETE(request: NextRequest) {
       { status: 501 }
     );
   } catch (error) {
-    console.error('Delete error:', error);
+    apiLogger.error('Delete error:', error);
     return NextResponse.json(
       { error: '파일 삭제 중 오류가 발생했습니다.' },
       { status: 500 }

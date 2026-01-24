@@ -5,6 +5,7 @@ import { persist } from 'zustand/middleware';
 import { IssueItem, IssueStatus } from '@/lib/types';
 import { isSupabaseConfigured } from '@/lib/supabase/client';
 import * as db from '@/lib/supabase/database';
+import { storeLogger } from '@/lib/logger';
 
 // Initial sample data
 const INITIAL_ISSUES: IssueItem[] = [
@@ -189,7 +190,7 @@ export const useIssueStore = create<IssueState>()(
             });
           }
         } catch (error) {
-          console.error('Failed to initialize issues from Supabase:', error);
+          storeLogger.error('Failed to initialize issues from Supabase:', error);
           set({ isLoading: false, isInitialized: true, useSupabase: false });
         }
       },

@@ -5,6 +5,7 @@ import { persist } from 'zustand/middleware';
 import { BudgetItem, ExpenseItem, BudgetCategory } from '@/lib/types';
 import { isSupabaseConfigured } from '@/lib/supabase/client';
 import * as db from '@/lib/supabase/database';
+import { storeLogger } from '@/lib/logger';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // 스토어 인터페이스
@@ -92,7 +93,7 @@ export const useBudgetStore = create<BudgetState>()(
             useSupabase: true,
           });
         } catch (error) {
-          console.error('Failed to initialize budget from Supabase:', error);
+          storeLogger.error('Failed to initialize budget from Supabase:', error);
           set({ isLoading: false, isInitialized: true, useSupabase: false });
         }
       },

@@ -1,7 +1,7 @@
 'use client';
 
 import { motion, AnimatePresence } from 'framer-motion';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useInventoryStore } from '@/lib/store/inventory-store';
 import { toast } from '@/lib/store/toast-store';
 import { Footer } from '@/components/layout/Footer';
@@ -949,6 +949,22 @@ export default function InventoryPage() {
   // Year section expanded state - all collapsed by default
   const [expandedYears, setExpandedYears] = useState<number[]>([]);
 
+  // Custom years state (years added by user)
+  const [customYears, setCustomYears] = useState<number[]>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('inventory_custom_years');
+      return saved ? JSON.parse(saved) : [];
+    }
+    return [];
+  });
+
+  // Save customYears to localStorage when changed
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('inventory_custom_years', JSON.stringify(customYears));
+    }
+  }, [customYears]);
+
   // Transaction filter state
   const [txFilterYear, setTxFilterYear] = useState<number | undefined>(undefined);
   const [txFilterMonth, setTxFilterMonth] = useState<number | undefined>(undefined);
@@ -960,6 +976,28 @@ export default function InventoryPage() {
     setExpandedYears(prev =>
       prev.includes(year) ? prev.filter(y => y !== year) : [...prev, year]
     );
+  };
+
+  // Add new year
+  const handleAddYear = () => {
+    const currentYear = new Date().getFullYear();
+    // Find next available year (starting from current year + 1)
+    const existingYears = [...new Set([...availableYears, 2026, ...customYears])];
+    let nextYear = currentYear;
+    while (existingYears.includes(nextYear)) {
+      nextYear++;
+    }
+    setCustomYears(prev => [...prev, nextYear].sort((a, b) => a - b));
+    // Auto-expand the new year
+    setExpandedYears(prev => [...prev, nextYear]);
+    toast.success(`${nextYear}년 컬렉션이 추가되었습니다`);
+  };
+
+  // Remove custom year
+  const handleRemoveYear = (year: number) => {
+    setCustomYears(prev => prev.filter(y => y !== year));
+    setExpandedYears(prev => prev.filter(y => y !== year));
+    toast.info(`${year}년 컬렉션이 제거되었습니다`);
   };
 
   useEffect(() => {
@@ -1000,6 +1038,15 @@ export default function InventoryPage() {
 
   // Get all products and group by year
   const allProducts = mounted ? getAllProducts() : [];
+
+  // Map 조회 최적화 - O(n) find() 대신 O(1) Map.get() 사용
+  const productMap = useMemo(() => {
+    const map = new Map<string, { name: string; nameKo: string }>();
+    PRODUCTS.forEach(p => map.set(p.id, { name: p.name, nameKo: p.nameKo }));
+    allProducts.forEach(p => map.set(p.id, { name: p.name, nameKo: p.nameKo }));
+    return map;
+  }, [allProducts]);
+
   const productsByYear = allProducts.reduce((acc, product) => {
     if (!product.isNumbered) {
       const year = product.year;
@@ -1015,8 +1062,8 @@ export default function InventoryPage() {
     .filter(y => y >= 2026)
     .sort((a, b) => a - b);
 
-  // Add default years if they don't have products yet
-  const displayYears = [...new Set([...availableYears, 2026, 2027, 2028])].sort((a, b) => a - b);
+  // Add default years if they don't have products yet (2026 + customYears)
+  const displayYears = [...new Set([...availableYears, 2026, ...customYears])].sort((a, b) => a - b);
 
   const handleBatchAction = (
     action: 'sell' | 'reserve' | 'gift' | 'damage' | 'confirm' | 'cancel',
@@ -1340,14 +1387,28 @@ export default function InventoryPage() {
                       </div>
                     </div>
 
-                    {/* Add Product Button */}
-                    <button
-                      onClick={(e) => { e.stopPropagation(); setAddProductYear(year); }}
-                      className="flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl bg-white/[0.04] border border-white/[0.1] text-white/50 hover:bg-[#b7916e]/10 hover:border-[#b7916e]/30 hover:text-[#d4c4a8] transition-all"
-                    >
-                      <Plus className="w-4 h-4" />
-                      <span className="text-xs sm:text-sm hidden sm:inline">상품 추가</span>
-                    </button>
+                    {/* Action Buttons */}
+                    <div className="flex items-center gap-2">
+                      {/* Add Product Button */}
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setAddProductYear(year); }}
+                        className="flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl bg-white/[0.04] border border-white/[0.1] text-white/50 hover:bg-[#b7916e]/10 hover:border-[#b7916e]/30 hover:text-[#d4c4a8] transition-all"
+                      >
+                        <Plus className="w-4 h-4" />
+                        <span className="text-xs sm:text-sm hidden sm:inline">상품 추가</span>
+                      </button>
+
+                      {/* Remove Year Button (only for custom years) */}
+                      {customYears.includes(year) && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleRemoveYear(year); }}
+                          className="flex items-center gap-2 px-3 py-2 sm:py-2.5 rounded-xl bg-white/[0.04] border border-white/[0.1] text-white/30 hover:bg-red-500/10 hover:border-red-500/30 hover:text-red-400 transition-all"
+                          title="년도 제거"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
                   </div>
 
                   {/* Collapsible Content */}
@@ -1392,6 +1453,23 @@ export default function InventoryPage() {
           </section>
         );
       })}
+
+      {/* Add Year Button Section */}
+      <section className="px-4 sm:px-6 lg:px-8 mb-6">
+        <div className="mx-auto max-w-6xl">
+          <motion.button
+            onClick={handleAddYear}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            whileHover={{ scale: 1.01 }}
+            whileTap={{ scale: 0.99 }}
+            className="w-full py-4 rounded-2xl border-2 border-dashed border-white/[0.08] hover:border-[#b7916e]/30 bg-white/[0.01] hover:bg-[#b7916e]/5 text-white/30 hover:text-[#d4c4a8] transition-all flex items-center justify-center gap-3"
+          >
+            <Plus className="w-5 h-5" />
+            <span className="text-sm font-medium">년도 추가</span>
+          </motion.button>
+        </div>
+      </section>
 
       {/* Recent Transactions Section */}
       <section className="px-4 sm:px-6 lg:px-8">
@@ -1464,10 +1542,9 @@ export default function InventoryPage() {
                   <>
                     <div className="divide-y divide-white/[0.04]">
                       {paginatedTransactions.map((tx) => {
-                        const product = PRODUCTS.find((p) => p.id === tx.productId);
-                        const allProductsList = getAllProducts();
-                        const customProduct = allProductsList.find((p) => p.id === tx.productId);
-                        const productName = product?.name || customProduct?.name || tx.productId;
+                        // Map 조회 최적화 - O(1) 조회
+                        const productInfo = productMap.get(tx.productId);
+                        const productName = productInfo?.name || tx.productId;
 
                         return (
                           <div key={tx.id} className="px-4 sm:px-6 py-4 flex items-center justify-between">

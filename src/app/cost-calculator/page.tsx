@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
+import { logger } from '@/lib/logger';
 import { motion } from 'framer-motion';
 import {
   Calculator,
@@ -362,7 +363,7 @@ export default function CostCalculatorPage() {
         }
       }
     } catch (error) {
-      console.error('Failed to fetch exchange rate:', error);
+      logger.error('Failed to fetch exchange rate:', error);
       // Keep the default or previously set rate
     } finally {
       setIsLoadingRate(false);
@@ -436,7 +437,7 @@ export default function CostCalculatorPage() {
         setLastSaved(null);
       }
     } catch (error) {
-      console.error('Failed to load settings:', error);
+      logger.error('Failed to load settings:', error);
     } finally {
       setIsLoading(false);
       setIsDbLoaded(true); // Mark DB load as complete
@@ -480,7 +481,7 @@ export default function CostCalculatorPage() {
 
       setLastSaved(new Date().toLocaleString('ko-KR'));
     } catch (error) {
-      console.error('Failed to save settings:', error);
+      logger.error('Failed to save settings:', error);
     } finally {
       setIsSaving(false);
     }

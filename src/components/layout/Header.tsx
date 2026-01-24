@@ -18,7 +18,6 @@ interface NavItem {
 const navigation: NavItem[] = [
   { name: '대시보드', href: '/' },
   { name: '월별플랜', href: '/monthly-plan' },
-  { name: '이슈관리', href: '/issues' },
   { name: '캘린더', href: '/calendar' },
   { name: 'KPI', href: '/kpi' },
   { name: '재고관리', href: '/inventory' },

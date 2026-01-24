@@ -3,6 +3,7 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState, useRef, useCallback } from 'react';
 import { Footer } from '@/components/layout/Footer';
+import { logger } from '@/lib/logger';
 import {
   Video,
   Upload,
@@ -135,7 +136,7 @@ export default function VideoGeneratorPage() {
         setStatusMessage(data.message || '영상 생성 중...');
       }
     } catch (error) {
-      console.error('Polling error:', error);
+      logger.error('Polling error:', error);
       setStatus('error');
       setErrorMessage('상태 확인 중 오류가 발생했습니다.');
       if (pollingRef.current) {
@@ -190,7 +191,7 @@ export default function VideoGeneratorPage() {
         setTimeout(() => pollStatus(data.operationName), 5000);
       }
     } catch (error) {
-      console.error('Generation error:', error);
+      logger.error('Generation error:', error);
       setStatus('error');
       setErrorMessage('영상 생성 요청 중 오류가 발생했습니다.');
     }
@@ -224,7 +225,7 @@ export default function VideoGeneratorPage() {
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
     } catch (error) {
-      console.error('Download error:', error);
+      logger.error('Download error:', error);
       setErrorMessage('다운로드 중 오류가 발생했습니다.');
     }
   };
