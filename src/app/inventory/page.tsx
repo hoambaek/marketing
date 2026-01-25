@@ -725,8 +725,8 @@ interface Structure {
   capacity: number;
   maxWeight: number;
   structureWeight: number;
-  isSlotOnly?: boolean;
-  slotOnlyType?: string;
+  isSlotOnly: boolean;
+  slotOnlyType: string | null;
   items: StructureItem[];
 }
 
@@ -741,6 +741,8 @@ const getDefaultStructuresForYear = (year: number): Structure[] => {
         capacity: 250,
         maxWeight: 500,
         structureWeight: 150,
+        isSlotOnly: false,
+        slotOnlyType: null,
         items: [
           { id: 'item_1', name: '샴페인', volume: '750ml', weight: 1.5, quantity: 227 },
           { id: 'item_2', name: '조옥화 안동소주', volume: '800ml', weight: 0.8, quantity: 4 },
@@ -758,6 +760,8 @@ const getDefaultStructuresForYear = (year: number): Structure[] => {
         capacity: 250,
         maxWeight: 500,
         structureWeight: 165,
+        isSlotOnly: false,
+        slotOnlyType: null,
         items: [
           { id: 'item_8', name: '샴페인 (매그넘)', volume: '1500ml', weight: 3.5, quantity: 24 },
           { id: 'item_9', name: '샴페인', volume: '750ml', weight: 1.5, quantity: 167 },
@@ -1032,6 +1036,8 @@ function WeightManagementModal({
       capacity: 250,
       maxWeight: 500,
       structureWeight: 150,
+      isSlotOnly: false,
+      slotOnlyType: null,
       items: [],
     }]);
     setExpandedStructure(newId);
