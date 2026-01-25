@@ -96,3 +96,23 @@ export {
   upsertCostCalculatorSettings,
   deleteCostCalculatorSettings,
 } from './cost-calculator';
+
+// Structures
+export {
+  fetchStructuresByYear,
+  createStructure,
+  updateStructure,
+  deleteStructure,
+  createStructureItem,
+  updateStructureItem,
+  deleteStructureItem,
+  saveStructuresForYear,
+  mapDbStructureToStructure,
+} from './structures';
+
+export type {
+  DBStructure,
+  DBStructureItem,
+  Structure as DBStructureApp,
+  StructureItem as DBStructureItemApp,
+} from './structures';

@@ -32,7 +32,16 @@ import {
   Plus,
   RefreshCw,
   Filter,
+  Scale,
+  Trash2,
+  Anchor,
+  Loader2,
 } from 'lucide-react';
+import {
+  fetchStructuresByYear,
+  saveStructuresForYear,
+  Structure as DBStructureApp,
+} from '@/lib/supabase/database';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // 애니메이션 변형
@@ -699,6 +708,759 @@ function AddProductModal({
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
+// 무게관리 모달
+// ═══════════════════════════════════════════════════════════════════════════
+
+interface StructureItem {
+  id: string;
+  name: string;
+  volume: string;
+  weight: number;
+  quantity: number;
+}
+
+interface Structure {
+  id: string;
+  year: number;
+  name: string;
+  capacity: number;
+  maxWeight: number;
+  structureWeight: number;
+  isSlotOnly?: boolean;
+  slotOnlyType?: string;
+  items: StructureItem[];
+}
+
+// 년도별 기본 구조물 생성
+const getDefaultStructuresForYear = (year: number): Structure[] => {
+  if (year === 2026) {
+    return [
+      {
+        id: 'default_1',
+        year: 2026,
+        name: '구조물 1번',
+        capacity: 250,
+        maxWeight: 500,
+        structureWeight: 150,
+        items: [
+          { id: 'item_1', name: '샴페인', volume: '750ml', weight: 1.5, quantity: 227 },
+          { id: 'item_2', name: '조옥화 안동소주', volume: '800ml', weight: 0.8, quantity: 4 },
+          { id: 'item_3', name: '더치커피', volume: '300ml', weight: 0.3, quantity: 4 },
+          { id: 'item_4', name: '코리진', volume: '500ml', weight: 0.5, quantity: 2 },
+          { id: 'item_5', name: '강릉소주', volume: '375ml', weight: 0.4, quantity: 2 },
+          { id: 'item_6', name: '소우주 탄산수', volume: '325ml', weight: 0.33, quantity: 6 },
+          { id: 'item_7', name: '지란지교 약주', volume: '500ml', weight: 0.5, quantity: 2 },
+        ],
+      },
+      {
+        id: 'default_2',
+        year: 2026,
+        name: '구조물 2번',
+        capacity: 250,
+        maxWeight: 500,
+        structureWeight: 165,
+        items: [
+          { id: 'item_8', name: '샴페인 (매그넘)', volume: '1500ml', weight: 3.5, quantity: 24 },
+          { id: 'item_9', name: '샴페인', volume: '750ml', weight: 1.5, quantity: 167 },
+        ],
+      },
+      {
+        id: 'default_3',
+        year: 2026,
+        name: '구조물 3번',
+        capacity: 50,
+        maxWeight: 500,
+        structureWeight: 100,
+        isSlotOnly: true,
+        slotOnlyType: 'champagne_750',
+        items: [
+          { id: 'item_10', name: '샴페인', volume: '750ml', weight: 1.5, quantity: 50 },
+        ],
+      },
+    ];
+  }
+  // 다른 년도는 빈 구조물로 시작
+  return [];
+};
+
+function WeightManagementModal({
+  isOpen,
+  onClose,
+  year,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  year: number;
+}) {
+  // 아이템에 ID가 없으면 추가
+  const ensureItemIds = (structures: Structure[]): Structure[] => {
+    return structures.map(s => ({
+      ...s,
+      items: s.items.map((item, idx) => ({
+        ...item,
+        id: item.id || `item_${s.id}_${idx}_${Date.now()}`
+      }))
+    }));
+  };
+
+  const [structures, setStructures] = useState<Structure[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [expandedStructure, setExpandedStructure] = useState<string | null>(null);
+  const [hasInitialized, setHasInitialized] = useState(false);
+
+  // Supabase에서 데이터 로드 (실패 시 localStorage 폴백)
+  const loadFromSupabase = useCallback(async () => {
+    setIsLoading(true);
+    const storageKey = `weight_management_structures_${year}`;
+
+    try {
+      const data = await fetchStructuresByYear(year);
+      if (data && data.length > 0) {
+        // Supabase 데이터가 있으면 사용
+        setStructures(data);
+        setExpandedStructure(prev => prev || data[0].id);
+      } else {
+        // Supabase에 데이터가 없으면 localStorage 확인
+        const localData = localStorage.getItem(storageKey);
+        if (localData) {
+          const parsed = ensureItemIds(JSON.parse(localData));
+          setStructures(parsed);
+          setExpandedStructure(prev => prev || (parsed.length > 0 ? parsed[0].id : null));
+        } else {
+          // localStorage도 없으면 기본값 사용
+          const defaults = getDefaultStructuresForYear(year);
+          setStructures(defaults);
+          setExpandedStructure(prev => prev || (defaults.length > 0 ? defaults[0].id : null));
+        }
+      }
+    } catch (error) {
+      console.error('Error loading structures from Supabase:', error);
+      // 에러 시 localStorage 확인
+      const localData = localStorage.getItem(storageKey);
+      if (localData) {
+        const parsed = ensureItemIds(JSON.parse(localData));
+        setStructures(parsed);
+        setExpandedStructure(prev => prev || (parsed.length > 0 ? parsed[0].id : null));
+      } else {
+        // localStorage도 없으면 기본값 사용
+        const defaults = getDefaultStructuresForYear(year);
+        setStructures(defaults);
+        setExpandedStructure(prev => prev || (defaults.length > 0 ? defaults[0].id : null));
+      }
+    } finally {
+      setIsLoading(false);
+      setHasInitialized(true);
+    }
+  }, [year]);
+
+  // 년도가 변경될 때 또는 모달이 열릴 때 데이터 로드
+  useEffect(() => {
+    if (isOpen) {
+      loadFromSupabase();
+    }
+  }, [year, isOpen, loadFromSupabase]);
+
+  // Supabase에 저장 (실패 시 localStorage 폴백)
+  const saveToSupabase = useCallback(async (dataToSave: Structure[]) => {
+    if (!hasInitialized) return;
+
+    const storageKey = `weight_management_structures_${year}`;
+
+    setIsSaving(true);
+    try {
+      const success = await saveStructuresForYear(year, dataToSave);
+      if (!success) {
+        // Supabase 저장 실패 시 localStorage에 백업
+        console.warn('Supabase save failed, falling back to localStorage');
+        localStorage.setItem(storageKey, JSON.stringify(dataToSave));
+      }
+    } catch (error) {
+      console.error('Error saving structures to Supabase:', error);
+      // 에러 시에도 localStorage에 백업
+      localStorage.setItem(storageKey, JSON.stringify(dataToSave));
+    } finally {
+      setIsSaving(false);
+    }
+  }, [year, hasInitialized]);
+
+  // 구조물 변경 시 자동 저장 (debounce)
+  useEffect(() => {
+    if (!hasInitialized || isLoading) return;
+
+    const timeoutId = setTimeout(() => {
+      saveToSupabase(structures);
+    }, 1000); // 1초 후 자동 저장
+
+    return () => clearTimeout(timeoutId);
+  }, [structures, hasInitialized, isLoading, saveToSupabase]);
+
+  // 구조물별 계산
+  const calculateStructure = (structure: Structure) => {
+    let totalBottles = 0;
+    let totalWeight = 0;
+
+    structure.items.forEach((item) => {
+      totalBottles += item.quantity;
+      totalWeight += item.quantity * item.weight;
+    });
+
+    const totalWeightWithStructure = totalWeight + structure.structureWeight;
+    const capacityPercent = (totalBottles / structure.capacity) * 100;
+    const weightPercent = (totalWeightWithStructure / structure.maxWeight) * 100;
+
+    return {
+      totalBottles,
+      totalWeight: totalWeight.toFixed(1),
+      totalWeightWithStructure: totalWeightWithStructure.toFixed(1),
+      capacityPercent: Math.min(capacityPercent, 100),
+      weightPercent: Math.min(weightPercent, 100),
+      isOverCapacity: totalBottles > structure.capacity,
+      isOverWeight: totalWeightWithStructure > structure.maxWeight,
+    };
+  };
+
+  // 전체 현황 계산
+  const calculateTotal = () => {
+    let totalPlanned = 0;
+    let totalCapacity = 0;
+    let totalWeight = 0;
+    let totalMaxWeight = 0;
+
+    structures.forEach((structure) => {
+      const calc = calculateStructure(structure);
+      totalPlanned += parseInt(calc.totalBottles.toString());
+      totalCapacity += structure.capacity;
+      totalWeight += parseFloat(calc.totalWeightWithStructure);
+      totalMaxWeight += structure.maxWeight;
+    });
+
+    return {
+      totalPlanned,
+      totalCapacity,
+      overflow: Math.max(0, totalPlanned - totalCapacity),
+      totalWeight: totalWeight.toFixed(1),
+      totalMaxWeight,
+    };
+  };
+
+  // 아이템 수량 변경
+  const updateItemQuantity = (structureId: string, itemId: string, newQuantity: number) => {
+    setStructures((prev) =>
+      prev.map((s) => {
+        if (s.id === structureId) {
+          return {
+            ...s,
+            items: s.items.map((item) =>
+              item.id === itemId ? { ...item, quantity: Math.max(0, newQuantity) } : item
+            ),
+          };
+        }
+        return s;
+      })
+    );
+  };
+
+  // 아이템 필드 업데이트
+  const updateItemField = (structureId: string, itemId: string, field: 'name' | 'volume' | 'weight', value: string | number) => {
+    setStructures((prev) =>
+      prev.map((s) => {
+        if (s.id === structureId) {
+          return {
+            ...s,
+            items: s.items.map((item) =>
+              item.id === itemId ? { ...item, [field]: value } : item
+            ),
+          };
+        }
+        return s;
+      })
+    );
+  };
+
+  // 아이템 추가
+  const addItem = (structureId: string) => {
+    const newItemId = `item_${Date.now()}`;
+    setStructures((prev) =>
+      prev.map((s) => {
+        if (s.id === structureId) {
+          return {
+            ...s,
+            items: [...s.items, {
+              id: newItemId,
+              name: '',
+              volume: '',
+              weight: 0,
+              quantity: 1
+            }],
+          };
+        }
+        return s;
+      })
+    );
+  };
+
+  // 아이템 삭제
+  const removeItem = (structureId: string, itemId: string) => {
+    setStructures((prev) =>
+      prev.map((s) => {
+        if (s.id === structureId) {
+          return {
+            ...s,
+            items: s.items.filter((item) => item.id !== itemId),
+          };
+        }
+        return s;
+      })
+    );
+  };
+
+  // 구조물 무게 변경
+  const updateStructureWeight = (structureId: string, newWeight: number) => {
+    setStructures((prev) =>
+      prev.map((s) => (s.id === structureId ? { ...s, structureWeight: Math.max(0, newWeight) } : s))
+    );
+  };
+
+  // 구조물 추가
+  const addStructure = () => {
+    const newId = `structure_${Date.now()}`;
+    const structureNumber = structures.length + 1;
+    setStructures(prev => [...prev, {
+      id: newId,
+      year,
+      name: `구조물 ${structureNumber}번`,
+      capacity: 250,
+      maxWeight: 500,
+      structureWeight: 150,
+      items: [],
+    }]);
+    setExpandedStructure(newId);
+  };
+
+  // 구조물 삭제
+  const removeStructure = (structureId: string) => {
+    setStructures(prev => prev.filter(s => s.id !== structureId));
+  };
+
+  // 구조물 설정 변경
+  const updateStructureSettings = (structureId: string, field: 'capacity' | 'maxWeight', value: number) => {
+    setStructures(prev => prev.map(s =>
+      s.id === structureId ? { ...s, [field]: Math.max(0, value) } : s
+    ));
+  };
+
+  // 초기화
+  const resetToDefault = () => {
+    setStructures(getDefaultStructuresForYear(year));
+  };
+
+  const total = calculateTotal();
+
+  if (!isOpen) return null;
+
+  return (
+    <AnimatePresence>
+      <motion.div
+        key="weight-modal-backdrop"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        onClick={onClose}
+        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50"
+      />
+      <motion.div
+        key="weight-modal-content"
+        initial={{ opacity: 0, scale: 0.95, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: 20 }}
+        className="fixed inset-4 z-50 mx-auto max-w-4xl my-auto max-h-[90vh] overflow-hidden"
+      >
+        <div className="relative rounded-2xl overflow-hidden h-full flex flex-col">
+          <div className="absolute inset-0 bg-[#0d1525]" />
+          <div className="absolute inset-0 bg-gradient-to-br from-white/[0.06] to-white/[0.02]" />
+          <div className="absolute inset-0 border border-white/[0.1] rounded-2xl" />
+
+          <div className="relative flex flex-col h-full">
+            {/* Header */}
+            <div className="px-5 py-4 sm:px-6 bg-cyan-500/10 border-b border-white/[0.06] shrink-0">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 rounded-xl bg-[#0a0f1a]/50 text-cyan-400">
+                    <Anchor className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-medium text-cyan-400 text-base sm:text-lg">{year}년 해저숙성 구조물</h3>
+                      {isSaving && (
+                        <span className="flex items-center gap-1 text-xs text-white/40">
+                          <Loader2 className="w-3 h-3 animate-spin" />
+                          저장 중...
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-white/30">구조물별 적재 현황 및 무게 계산</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={addStructure}
+                    disabled={isLoading}
+                    className="px-3 py-1.5 rounded-lg bg-cyan-500/20 border border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/30 text-xs flex items-center gap-1 disabled:opacity-50"
+                  >
+                    <Plus className="w-3 h-3" />
+                    구조물 추가
+                  </button>
+                  <button
+                    onClick={resetToDefault}
+                    disabled={isLoading}
+                    className="px-3 py-1.5 rounded-lg bg-white/[0.04] border border-white/[0.1] text-white/40 hover:text-white/60 text-xs disabled:opacity-50"
+                  >
+                    초기화
+                  </button>
+                  <button onClick={onClose} className="p-2 rounded-xl hover:bg-white/[0.06] text-white/40">
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Summary Cards */}
+            <div className="px-4 sm:px-6 py-4 border-b border-white/[0.06] shrink-0">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="p-3 rounded-xl bg-white/[0.03] border border-white/[0.06]">
+                  <p className="text-[10px] text-white/40 uppercase tracking-wider mb-1">총 적재 예정</p>
+                  <p className="text-xl sm:text-2xl text-white/80 font-medium">{total.totalPlanned}<span className="text-sm text-white/40">병</span></p>
+                </div>
+                <div className="p-3 rounded-xl bg-white/[0.03] border border-white/[0.06]">
+                  <p className="text-[10px] text-white/40 uppercase tracking-wider mb-1">적재 가능</p>
+                  <p className="text-xl sm:text-2xl text-emerald-400 font-medium">{total.totalCapacity}<span className="text-sm text-emerald-400/50">병</span></p>
+                </div>
+                <div className="p-3 rounded-xl bg-white/[0.03] border border-white/[0.06]">
+                  <p className="text-[10px] text-white/40 uppercase tracking-wider mb-1">초과</p>
+                  <p className={`text-xl sm:text-2xl font-medium ${total.overflow > 0 ? 'text-red-400' : 'text-white/40'}`}>
+                    {total.overflow}<span className={`text-sm ${total.overflow > 0 ? 'text-red-400/50' : 'text-white/20'}`}>병</span>
+                  </p>
+                </div>
+                <div className="p-3 rounded-xl bg-white/[0.03] border border-white/[0.06]">
+                  <p className="text-[10px] text-white/40 uppercase tracking-wider mb-1">총 무게</p>
+                  <p className="text-xl sm:text-2xl text-cyan-400 font-medium">{total.totalWeight}<span className="text-sm text-cyan-400/50">kg</span></p>
+                </div>
+              </div>
+            </div>
+
+            {/* Structures List */}
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
+              {isLoading && (
+                <div className="p-8 rounded-xl bg-white/[0.02] border border-white/[0.06] text-center">
+                  <div className="flex flex-col items-center gap-3">
+                    <Loader2 className="w-8 h-8 text-cyan-400 animate-spin" />
+                    <p className="text-white/40 text-sm">데이터를 불러오는 중...</p>
+                  </div>
+                </div>
+              )}
+              {!isLoading && structures.length === 0 && (
+                <div className="p-8 rounded-xl bg-white/[0.02] border border-white/[0.06] text-center">
+                  <div className="p-3 rounded-xl bg-white/[0.04] inline-block mb-3">
+                    <Anchor className="w-6 h-6 text-white/20" />
+                  </div>
+                  <p className="text-white/40 text-sm mb-2">등록된 구조물이 없습니다</p>
+                  <p className="text-white/30 text-xs mb-4">{year}년 해저숙성 구조물을 추가해주세요</p>
+                  <button
+                    onClick={addStructure}
+                    className="px-4 py-2 rounded-lg bg-cyan-500/20 border border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/30 text-sm flex items-center gap-2 mx-auto"
+                  >
+                    <Plus className="w-4 h-4" />
+                    첫 번째 구조물 추가
+                  </button>
+                </div>
+              )}
+              {!isLoading && structures.map((structure) => {
+                const calc = calculateStructure(structure);
+                const isExpanded = expandedStructure === structure.id;
+
+                return (
+                  <div key={structure.id} className="rounded-xl bg-white/[0.02] border border-white/[0.06] overflow-hidden">
+                    {/* Structure Header */}
+                    <div
+                      className="p-4 flex items-center justify-between cursor-pointer hover:bg-white/[0.02] transition-all"
+                      onClick={() => setExpandedStructure(isExpanded ? null : structure.id)}
+                    >
+                      <div className="flex items-center gap-3">
+                        <motion.div animate={{ rotate: isExpanded ? 0 : -90 }} transition={{ duration: 0.2 }}>
+                          <ChevronDown className="w-4 h-4 text-white/40" />
+                        </motion.div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <h4 className="text-white/80 font-medium">{structure.name}</h4>
+                            {structure.isSlotOnly && (
+                              <span className="px-2 py-0.5 rounded bg-amber-500/20 text-[10px] text-amber-400">슬롯 전용</span>
+                            )}
+                            <span className={`px-2 py-0.5 rounded text-[10px] ${
+                              calc.isOverCapacity || calc.isOverWeight ? 'bg-red-500/20 text-red-400' : 'bg-emerald-500/20 text-emerald-400'
+                            }`}>
+                              {calc.isOverCapacity || calc.isOverWeight ? '초과' : '적재 완료'}
+                            </span>
+                          </div>
+                          <p className="text-xs text-white/30">
+                            용량 {structure.capacity}병 | 최대 허용 무게 {structure.maxWeight}kg
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <div className="text-right">
+                          <p className="text-sm text-white/60">
+                            <span className={calc.isOverCapacity ? 'text-red-400' : ''}>{calc.totalBottles}</span>
+                            <span className="text-white/30">/{structure.capacity}병</span>
+                          </p>
+                          <p className="text-xs text-white/40">
+                            <span className={calc.isOverWeight ? 'text-red-400' : ''}>{calc.totalWeightWithStructure}</span>
+                            <span className="text-white/30">/{structure.maxWeight}kg</span>
+                          </p>
+                        </div>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); removeStructure(structure.id); }}
+                          className="p-1.5 rounded-lg hover:bg-red-500/20 text-white/30 hover:text-red-400 transition-all"
+                          title="구조물 삭제"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Expanded Content */}
+                    <AnimatePresence initial={false}>
+                      {isExpanded && (
+                        <motion.div
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: 'auto', opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          transition={{ duration: 0.3 }}
+                          className="overflow-hidden"
+                        >
+                          <div className="border-t border-white/[0.04] p-4 space-y-4">
+                            {/* Progress Bars */}
+                            <div className="grid grid-cols-2 gap-4">
+                              <div>
+                                <div className="flex justify-between text-xs mb-1">
+                                  <span className="text-white/40">용량</span>
+                                  <span className={calc.isOverCapacity ? 'text-red-400' : 'text-white/50'}>
+                                    {calc.capacityPercent.toFixed(1)}%
+                                  </span>
+                                </div>
+                                <div className="h-2 rounded-full bg-white/[0.06] overflow-hidden">
+                                  <div
+                                    className={`h-full rounded-full transition-all ${
+                                      calc.isOverCapacity ? 'bg-red-500' : 'bg-cyan-500'
+                                    }`}
+                                    style={{ width: `${Math.min(calc.capacityPercent, 100)}%` }}
+                                  />
+                                </div>
+                              </div>
+                              <div>
+                                <div className="flex justify-between text-xs mb-1">
+                                  <span className="text-white/40">무게</span>
+                                  <span className={calc.isOverWeight ? 'text-red-400' : 'text-white/50'}>
+                                    {calc.weightPercent.toFixed(1)}%
+                                  </span>
+                                </div>
+                                <div className="h-2 rounded-full bg-white/[0.06] overflow-hidden">
+                                  <div
+                                    className={`h-full rounded-full transition-all ${
+                                      calc.isOverWeight ? 'bg-red-500' : 'bg-emerald-500'
+                                    }`}
+                                    style={{ width: `${Math.min(calc.weightPercent, 100)}%` }}
+                                  />
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Structure Settings */}
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3 rounded-lg bg-white/[0.02]">
+                              <div className="flex items-center justify-between">
+                                <span className="text-sm text-white/50">용량</span>
+                                <div className="flex items-center gap-2">
+                                  <input
+                                    type="number"
+                                    value={structure.capacity}
+                                    onChange={(e) => updateStructureSettings(structure.id, 'capacity', parseInt(e.target.value) || 0)}
+                                    className="w-20 px-2 py-1 rounded bg-white/[0.04] border border-white/[0.1] text-white/80 text-sm text-right focus:outline-none focus:border-cyan-500/50"
+                                  />
+                                  <span className="text-sm text-white/30">병</span>
+                                </div>
+                              </div>
+                              <div className="flex items-center justify-between">
+                                <span className="text-sm text-white/50">최대 허용 무게</span>
+                                <div className="flex items-center gap-2">
+                                  <input
+                                    type="number"
+                                    value={structure.maxWeight}
+                                    onChange={(e) => updateStructureSettings(structure.id, 'maxWeight', parseFloat(e.target.value) || 0)}
+                                    className="w-20 px-2 py-1 rounded bg-white/[0.04] border border-white/[0.1] text-white/80 text-sm text-right focus:outline-none focus:border-cyan-500/50"
+                                  />
+                                  <span className="text-sm text-white/30">kg</span>
+                                </div>
+                              </div>
+                              <div className="flex items-center justify-between">
+                                <span className="text-sm text-white/50">구조물 자체 무게</span>
+                                <div className="flex items-center gap-2">
+                                  <input
+                                    type="number"
+                                    value={structure.structureWeight}
+                                    onChange={(e) => updateStructureWeight(structure.id, parseFloat(e.target.value) || 0)}
+                                    className="w-20 px-2 py-1 rounded bg-white/[0.04] border border-white/[0.1] text-white/80 text-sm text-right focus:outline-none focus:border-cyan-500/50"
+                                  />
+                                  <span className="text-sm text-white/30">kg</span>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Items Table */}
+                            <div className="rounded-lg border border-white/[0.06] overflow-hidden">
+                              <table className="w-full">
+                                <thead>
+                                  <tr className="bg-white/[0.02]">
+                                    <th className="px-3 py-2 text-left text-[10px] text-white/40 uppercase tracking-wider">품목명</th>
+                                    <th className="px-3 py-2 text-center text-[10px] text-white/40 uppercase tracking-wider">용량</th>
+                                    <th className="px-3 py-2 text-center text-[10px] text-white/40 uppercase tracking-wider">개당 무게</th>
+                                    <th className="px-3 py-2 text-center text-[10px] text-white/40 uppercase tracking-wider">수량</th>
+                                    <th className="px-3 py-2 text-right text-[10px] text-white/40 uppercase tracking-wider">총 무게</th>
+                                    <th className="px-3 py-2 w-10"></th>
+                                  </tr>
+                                </thead>
+                                <tbody className="divide-y divide-white/[0.04]">
+                                  {structure.items.map((item, itemIndex) => {
+                                    const itemTotalWeight = (item.quantity * item.weight).toFixed(1);
+                                    const itemKey = item.id || `item_${structure.id}_${itemIndex}`;
+
+                                    return (
+                                      <tr key={itemKey}>
+                                        <td className="px-2 py-2">
+                                          <input
+                                            type="text"
+                                            value={item.name}
+                                            onChange={(e) => updateItemField(structure.id, item.id, 'name', e.target.value)}
+                                            placeholder="품목명"
+                                            className="w-full px-2 py-1.5 rounded bg-white/[0.04] border border-white/[0.1] text-white/80 text-sm focus:outline-none focus:border-cyan-500/50 placeholder:text-white/30"
+                                          />
+                                        </td>
+                                        <td className="px-2 py-2">
+                                          <input
+                                            type="text"
+                                            value={item.volume}
+                                            onChange={(e) => updateItemField(structure.id, item.id, 'volume', e.target.value)}
+                                            placeholder="750ml"
+                                            className="w-20 px-2 py-1.5 rounded bg-white/[0.04] border border-white/[0.1] text-white/80 text-sm text-center focus:outline-none focus:border-cyan-500/50 placeholder:text-white/30"
+                                          />
+                                        </td>
+                                        <td className="px-2 py-2">
+                                          <div className="flex items-center justify-center gap-1">
+                                            <input
+                                              type="number"
+                                              step="0.01"
+                                              value={item.weight}
+                                              onChange={(e) => updateItemField(structure.id, item.id, 'weight', parseFloat(e.target.value) || 0)}
+                                              className="w-16 px-2 py-1.5 rounded bg-white/[0.04] border border-white/[0.1] text-white/80 text-sm text-center focus:outline-none focus:border-cyan-500/50"
+                                            />
+                                            <span className="text-xs text-white/30">kg</span>
+                                          </div>
+                                        </td>
+                                        <td className="px-2 py-2 text-center">
+                                          <input
+                                            type="number"
+                                            value={item.quantity}
+                                            onChange={(e) => updateItemQuantity(structure.id, item.id, parseInt(e.target.value) || 0)}
+                                            className="w-16 px-2 py-1.5 rounded bg-white/[0.04] border border-white/[0.1] text-white/80 text-sm text-center focus:outline-none focus:border-cyan-500/50"
+                                          />
+                                        </td>
+                                        <td className="px-3 py-2 text-sm text-white/50 text-right">{itemTotalWeight}kg</td>
+                                        <td className="px-2 py-2">
+                                          <button
+                                            onClick={() => removeItem(structure.id, item.id)}
+                                            className="p-1.5 rounded hover:bg-red-500/20 text-white/30 hover:text-red-400 transition-all"
+                                          >
+                                            <Trash2 className="w-3.5 h-3.5" />
+                                          </button>
+                                        </td>
+                                      </tr>
+                                    );
+                                  })}
+                                </tbody>
+                                <tfoot>
+                                  <tr className="bg-white/[0.02]">
+                                    <td colSpan={3} className="px-3 py-2 text-sm text-white/50 font-medium">적재물 소계</td>
+                                    <td className="px-3 py-2 text-sm text-white/70 text-center font-medium">{calc.totalBottles}병</td>
+                                    <td className="px-3 py-2 text-sm text-white/70 text-right font-medium">{calc.totalWeight}kg</td>
+                                    <td></td>
+                                  </tr>
+                                  <tr className="bg-cyan-500/10">
+                                    <td colSpan={3} className="px-3 py-2 text-sm text-cyan-400 font-medium">총 무게 (구조물 + 적재물)</td>
+                                    <td></td>
+                                    <td className="px-3 py-2 text-sm text-cyan-400 text-right font-medium">
+                                      {calc.totalWeightWithStructure}kg / {structure.maxWeight}kg
+                                    </td>
+                                    <td></td>
+                                  </tr>
+                                </tfoot>
+                              </table>
+                            </div>
+
+                            {/* Add Item Button */}
+                            <button
+                              onClick={() => addItem(structure.id)}
+                              className="w-full py-3 rounded-xl border-2 border-dashed border-white/[0.08] hover:border-cyan-500/30 bg-white/[0.01] hover:bg-cyan-500/5 text-white/40 hover:text-cyan-400 transition-all flex items-center justify-center gap-2"
+                            >
+                              <Plus className="w-4 h-4" />
+                              <span className="text-sm">품목 추가</span>
+                            </button>
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                );
+              })}
+
+              {/* Warning Note */}
+              {total.overflow > 0 && (
+                <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/20">
+                  <div className="flex items-start gap-3">
+                    <AlertTriangle className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
+                    <div>
+                      <h4 className="text-sm text-red-400 font-medium mb-1">주의: {total.overflow}병 초과</h4>
+                      <p className="text-xs text-white/50">
+                        현재 총 {total.totalPlanned}병 중 {total.totalCapacity}병만 적재 가능합니다.
+                      </p>
+                      <div className="mt-2 text-xs text-white/40 space-y-1">
+                        <p>해결 방안:</p>
+                        <p>1. 소형 구조물 추가 제작 ({total.overflow}병용)</p>
+                        <p>2. {total.overflow}병은 다음 배치로 연기</p>
+                        <p>3. 기타 제품 중 일부를 제외하고 샴페인 추가 적재</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="px-5 py-4 border-t border-white/[0.06] shrink-0">
+              <button
+                onClick={onClose}
+                className="w-full px-4 py-3 rounded-xl bg-cyan-500/20 border border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/30 transition-all flex items-center justify-center gap-2"
+              >
+                <Check className="w-4 h-4" />
+                확인
+              </button>
+            </div>
+          </div>
+        </div>
+      </motion.div>
+    </AnimatePresence>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
 // 상품 카드 컴포넌트
 // ═══════════════════════════════════════════════════════════════════════════
 
@@ -945,6 +1707,7 @@ export default function InventoryPage() {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [mounted, setMounted] = useState(false);
   const [addProductYear, setAddProductYear] = useState<number | null>(null);
+  const [weightModalYear, setWeightModalYear] = useState<number | null>(null);
 
   // Year section expanded state - all collapsed by default
   const [expandedYears, setExpandedYears] = useState<number[]>([]);
@@ -1307,7 +2070,7 @@ export default function InventoryPage() {
                 </div>
 
                 {/* Quick Stats */}
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-3">
                   <div className="flex items-center gap-1.5">
                     <span className="text-[10px] text-white/30">총</span>
                     <span className="text-sm text-amber-400 font-medium">50</span>
@@ -1389,6 +2152,15 @@ export default function InventoryPage() {
 
                     {/* Action Buttons */}
                     <div className="flex items-center gap-2">
+                      {/* Weight Management Button */}
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setWeightModalYear(year); }}
+                        className="flex items-center gap-1.5 px-3 py-2 sm:py-2.5 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 hover:bg-cyan-500/20 transition-all"
+                      >
+                        <Scale className="w-4 h-4" />
+                        <span className="text-xs sm:text-sm hidden sm:inline">무게관리</span>
+                      </button>
+
                       {/* Add Product Button */}
                       <button
                         onClick={(e) => { e.stopPropagation(); setAddProductYear(year); }}
@@ -1636,6 +2408,13 @@ export default function InventoryPage() {
         onClose={() => setAddProductYear(null)}
         year={addProductYear || 2026}
         onAdd={handleAddProduct}
+      />
+
+      {/* Weight Management Modal */}
+      <WeightManagementModal
+        isOpen={weightModalYear !== null}
+        onClose={() => setWeightModalYear(null)}
+        year={weightModalYear || 2025}
       />
     </div>
   );
