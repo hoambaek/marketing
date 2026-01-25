@@ -1079,51 +1079,57 @@ function WeightManagementModal({
         initial={{ opacity: 0, scale: 0.95, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 20 }}
-        className="fixed inset-4 z-50 mx-auto max-w-4xl my-auto max-h-[90vh] overflow-hidden"
+        className="fixed inset-0 sm:inset-4 z-50 sm:mx-auto max-w-4xl sm:my-auto sm:max-h-[90vh] overflow-hidden"
       >
-        <div className="relative rounded-2xl overflow-hidden h-full flex flex-col">
+        <div className="relative sm:rounded-2xl overflow-hidden h-full flex flex-col touch-manipulation" style={{ overscrollBehavior: 'contain' }}>
           <div className="absolute inset-0 bg-[#0d1525]" />
           <div className="absolute inset-0 bg-gradient-to-br from-white/[0.06] to-white/[0.02]" />
-          <div className="absolute inset-0 border border-white/[0.1] rounded-2xl" />
+          <div className="absolute inset-0 border border-white/[0.1] sm:rounded-2xl" />
 
-          <div className="relative flex flex-col h-full">
+          <div className="relative flex flex-col h-full pb-[env(safe-area-inset-bottom)]">
             {/* Header */}
-            <div className="px-5 py-4 sm:px-6 bg-cyan-500/10 border-b border-white/[0.06] shrink-0">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="p-2.5 rounded-xl bg-[#0a0f1a]/50 text-cyan-400">
-                    <Anchor className="w-5 h-5" />
+            <div className="px-4 py-3 sm:px-6 sm:py-4 bg-cyan-500/10 border-b border-white/[0.06] shrink-0 pt-[env(safe-area-inset-top)]">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+                  <div className="p-2 sm:p-2.5 rounded-xl bg-[#0a0f1a]/50 text-cyan-400 shrink-0">
+                    <Anchor className="w-4 h-4 sm:w-5 sm:h-5" />
                   </div>
-                  <div>
+                  <div className="min-w-0">
                     <div className="flex items-center gap-2">
-                      <h3 className="font-medium text-cyan-400 text-base sm:text-lg">{year}년 해저숙성 구조물</h3>
+                      <h3 className="font-medium text-cyan-400 text-sm sm:text-lg truncate">{year}년 해저숙성 구조물</h3>
                       {isSaving && (
-                        <span className="flex items-center gap-1 text-xs text-white/40">
+                        <span className="flex items-center gap-1 text-xs text-white/40 shrink-0">
                           <Loader2 className="w-3 h-3 animate-spin" />
-                          저장 중...
+                          <span className="hidden sm:inline">저장 중…</span>
                         </span>
                       )}
                     </div>
-                    <p className="text-xs text-white/30">구조물별 적재 현황 및 무게 계산</p>
+                    <p className="text-[10px] sm:text-xs text-white/30 hidden sm:block">구조물별 적재 현황 및 무게 계산</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
                   <button
                     onClick={addStructure}
                     disabled={isLoading}
-                    className="px-3 py-1.5 rounded-lg bg-cyan-500/20 border border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/30 text-xs flex items-center gap-1 disabled:opacity-50"
+                    className="min-h-[44px] min-w-[44px] sm:min-w-0 px-2 sm:px-3 py-2 sm:py-1.5 rounded-lg bg-cyan-500/20 border border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/30 active:bg-cyan-500/40 text-xs flex items-center justify-center gap-1 disabled:opacity-50 transition-colors"
+                    aria-label="구조물 추가"
                   >
-                    <Plus className="w-3 h-3" />
-                    구조물 추가
+                    <Plus className="w-4 h-4 sm:w-3 sm:h-3" />
+                    <span className="hidden sm:inline">구조물 추가</span>
                   </button>
                   <button
                     onClick={resetToDefault}
                     disabled={isLoading}
-                    className="px-3 py-1.5 rounded-lg bg-white/[0.04] border border-white/[0.1] text-white/40 hover:text-white/60 text-xs disabled:opacity-50"
+                    className="min-h-[44px] min-w-[44px] sm:min-w-0 px-2 sm:px-3 py-2 sm:py-1.5 rounded-lg bg-white/[0.04] border border-white/[0.1] text-white/40 hover:text-white/60 active:bg-white/[0.08] text-xs disabled:opacity-50 transition-colors hidden sm:flex items-center justify-center"
+                    aria-label="초기화"
                   >
                     초기화
                   </button>
-                  <button onClick={onClose} className="p-2 rounded-xl hover:bg-white/[0.06] text-white/40">
+                  <button
+                    onClick={onClose}
+                    className="min-h-[44px] min-w-[44px] p-2 rounded-xl hover:bg-white/[0.06] active:bg-white/[0.1] text-white/40 transition-colors flex items-center justify-center"
+                    aria-label="닫기"
+                  >
                     <X className="w-5 h-5" />
                   </button>
                 </div>
@@ -1187,51 +1193,64 @@ function WeightManagementModal({
                 return (
                   <div key={structure.id} className="rounded-xl bg-white/[0.02] border border-white/[0.06] overflow-hidden">
                     {/* Structure Header */}
-                    <div
-                      className="p-4 flex items-center justify-between cursor-pointer hover:bg-white/[0.02] transition-all"
+                    <button
+                      type="button"
+                      className="w-full p-3 sm:p-4 flex items-center justify-between cursor-pointer hover:bg-white/[0.02] active:bg-white/[0.04] transition-colors text-left"
                       onClick={() => setExpandedStructure(isExpanded ? null : structure.id)}
+                      aria-expanded={isExpanded}
+                      aria-label={`${structure.name} ${isExpanded ? '접기' : '펼치기'}`}
                     >
-                      <div className="flex items-center gap-3">
-                        <motion.div animate={{ rotate: isExpanded ? 0 : -90 }} transition={{ duration: 0.2 }}>
+                      <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+                        <motion.div animate={{ rotate: isExpanded ? 0 : -90 }} transition={{ duration: 0.2 }} className="shrink-0">
                           <ChevronDown className="w-4 h-4 text-white/40" />
                         </motion.div>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <h4 className="text-white/80 font-medium">{structure.name}</h4>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+                            <h4 className="text-white/80 font-medium text-sm sm:text-base">{structure.name}</h4>
                             {structure.isSlotOnly && (
-                              <span className="px-2 py-0.5 rounded bg-amber-500/20 text-[10px] text-amber-400">슬롯 전용</span>
+                              <span className="px-1.5 sm:px-2 py-0.5 rounded bg-amber-500/20 text-[9px] sm:text-[10px] text-amber-400 shrink-0">슬롯 전용</span>
                             )}
-                            <span className={`px-2 py-0.5 rounded text-[10px] ${
+                            <span className={`px-1.5 sm:px-2 py-0.5 rounded text-[9px] sm:text-[10px] shrink-0 ${
                               calc.isOverCapacity || calc.isOverWeight ? 'bg-red-500/20 text-red-400' : 'bg-emerald-500/20 text-emerald-400'
                             }`}>
                               {calc.isOverCapacity || calc.isOverWeight ? '초과' : '적재 완료'}
                             </span>
                           </div>
-                          <p className="text-xs text-white/30">
-                            용량 {structure.capacity}병 | 최대 허용 무게 {structure.maxWeight}kg
+                          <p className="text-[10px] sm:text-xs text-white/30 mt-0.5">
+                            <span className="tabular-nums">{structure.capacity}</span>병 | <span className="tabular-nums">{structure.maxWeight}</span>kg
                           </p>
                         </div>
                       </div>
-                      <div className="flex items-center gap-4">
-                        <div className="text-right">
-                          <p className="text-sm text-white/60">
+                      <div className="flex items-center gap-2 sm:gap-4 shrink-0">
+                        <div className="text-right hidden sm:block">
+                          <p className="text-sm text-white/60 tabular-nums">
                             <span className={calc.isOverCapacity ? 'text-red-400' : ''}>{calc.totalBottles}</span>
                             <span className="text-white/30">/{structure.capacity}병</span>
                           </p>
-                          <p className="text-xs text-white/40">
+                          <p className="text-xs text-white/40 tabular-nums">
                             <span className={calc.isOverWeight ? 'text-red-400' : ''}>{calc.totalWeightWithStructure}</span>
                             <span className="text-white/30">/{structure.maxWeight}kg</span>
                           </p>
                         </div>
-                        <button
+                        {/* Mobile compact stats */}
+                        <div className="text-right sm:hidden">
+                          <p className="text-xs text-white/60 tabular-nums">
+                            <span className={calc.isOverCapacity ? 'text-red-400' : ''}>{calc.totalBottles}</span>
+                            <span className="text-white/30">/{structure.capacity}</span>
+                          </p>
+                        </div>
+                        <div
+                          role="button"
+                          tabIndex={0}
                           onClick={(e) => { e.stopPropagation(); removeStructure(structure.id); }}
-                          className="p-1.5 rounded-lg hover:bg-red-500/20 text-white/30 hover:text-red-400 transition-all"
-                          title="구조물 삭제"
+                          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); removeStructure(structure.id); } }}
+                          className="min-h-[44px] min-w-[44px] p-2 rounded-lg hover:bg-red-500/20 active:bg-red-500/30 text-white/30 hover:text-red-400 transition-colors flex items-center justify-center"
+                          aria-label="구조물 삭제"
                         >
                           <Trash2 className="w-4 h-4" />
-                        </button>
+                        </div>
                       </div>
-                    </div>
+                    </button>
 
                     {/* Expanded Content */}
                     <AnimatePresence initial={false}>
@@ -1282,46 +1301,137 @@ function WeightManagementModal({
 
                             {/* Structure Settings */}
                             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3 rounded-lg bg-white/[0.02]">
-                              <div className="flex items-center justify-between">
-                                <span className="text-sm text-white/50">용량</span>
-                                <div className="flex items-center gap-2">
+                              <div className="flex items-center justify-between gap-2">
+                                <label htmlFor={`capacity-${structure.id}`} className="text-xs sm:text-sm text-white/50 shrink-0">용량</label>
+                                <div className="flex items-center gap-1.5">
                                   <input
+                                    id={`capacity-${structure.id}`}
                                     type="number"
+                                    inputMode="numeric"
                                     value={structure.capacity}
                                     onChange={(e) => updateStructureSettings(structure.id, 'capacity', parseInt(e.target.value) || 0)}
-                                    className="w-20 px-2 py-1 rounded bg-white/[0.04] border border-white/[0.1] text-white/80 text-sm text-right focus:outline-none focus:border-cyan-500/50"
+                                    className="w-20 px-2 py-2 min-h-[44px] rounded-lg bg-white/[0.04] border border-white/[0.1] text-white/80 text-sm text-right focus:outline-none focus:border-cyan-500/50 tabular-nums"
                                   />
-                                  <span className="text-sm text-white/30">병</span>
+                                  <span className="text-xs sm:text-sm text-white/30">병</span>
                                 </div>
                               </div>
-                              <div className="flex items-center justify-between">
-                                <span className="text-sm text-white/50">최대 허용 무게</span>
-                                <div className="flex items-center gap-2">
+                              <div className="flex items-center justify-between gap-2">
+                                <label htmlFor={`maxweight-${structure.id}`} className="text-xs sm:text-sm text-white/50 shrink-0">최대 무게</label>
+                                <div className="flex items-center gap-1.5">
                                   <input
+                                    id={`maxweight-${structure.id}`}
                                     type="number"
+                                    inputMode="decimal"
                                     value={structure.maxWeight}
                                     onChange={(e) => updateStructureSettings(structure.id, 'maxWeight', parseFloat(e.target.value) || 0)}
-                                    className="w-20 px-2 py-1 rounded bg-white/[0.04] border border-white/[0.1] text-white/80 text-sm text-right focus:outline-none focus:border-cyan-500/50"
+                                    className="w-20 px-2 py-2 min-h-[44px] rounded-lg bg-white/[0.04] border border-white/[0.1] text-white/80 text-sm text-right focus:outline-none focus:border-cyan-500/50 tabular-nums"
                                   />
-                                  <span className="text-sm text-white/30">kg</span>
+                                  <span className="text-xs sm:text-sm text-white/30">kg</span>
                                 </div>
                               </div>
-                              <div className="flex items-center justify-between">
-                                <span className="text-sm text-white/50">구조물 자체 무게</span>
-                                <div className="flex items-center gap-2">
+                              <div className="flex items-center justify-between gap-2">
+                                <label htmlFor={`structweight-${structure.id}`} className="text-xs sm:text-sm text-white/50 shrink-0">구조물 무게</label>
+                                <div className="flex items-center gap-1.5">
                                   <input
+                                    id={`structweight-${structure.id}`}
                                     type="number"
+                                    inputMode="decimal"
                                     value={structure.structureWeight}
                                     onChange={(e) => updateStructureWeight(structure.id, parseFloat(e.target.value) || 0)}
-                                    className="w-20 px-2 py-1 rounded bg-white/[0.04] border border-white/[0.1] text-white/80 text-sm text-right focus:outline-none focus:border-cyan-500/50"
+                                    className="w-20 px-2 py-2 min-h-[44px] rounded-lg bg-white/[0.04] border border-white/[0.1] text-white/80 text-sm text-right focus:outline-none focus:border-cyan-500/50 tabular-nums"
                                   />
-                                  <span className="text-sm text-white/30">kg</span>
+                                  <span className="text-xs sm:text-sm text-white/30">kg</span>
                                 </div>
                               </div>
                             </div>
 
-                            {/* Items Table */}
-                            <div className="rounded-lg border border-white/[0.06] overflow-hidden">
+                            {/* Items - Mobile Cards / Desktop Table */}
+                            {/* Mobile Card View */}
+                            <div className="sm:hidden space-y-3">
+                              {structure.items.map((item, itemIndex) => {
+                                const itemTotalWeight = (item.quantity * item.weight).toFixed(1);
+                                const itemKey = item.id || `item_${structure.id}_${itemIndex}`;
+
+                                return (
+                                  <div key={itemKey} className="p-3 rounded-lg bg-white/[0.02] border border-white/[0.06]">
+                                    <div className="flex items-start justify-between gap-2 mb-3">
+                                      <input
+                                        type="text"
+                                        value={item.name}
+                                        onChange={(e) => updateItemField(structure.id, item.id, 'name', e.target.value)}
+                                        placeholder="품목명"
+                                        className="flex-1 px-3 py-2 min-h-[44px] rounded-lg bg-white/[0.04] border border-white/[0.1] text-white/80 text-sm focus:outline-none focus:border-cyan-500/50 placeholder:text-white/30"
+                                      />
+                                      <button
+                                        onClick={() => removeItem(structure.id, item.id)}
+                                        className="min-h-[44px] min-w-[44px] p-2 rounded-lg hover:bg-red-500/20 active:bg-red-500/30 text-white/30 hover:text-red-400 transition-colors flex items-center justify-center"
+                                        aria-label="품목 삭제"
+                                      >
+                                        <Trash2 className="w-4 h-4" />
+                                      </button>
+                                    </div>
+                                    <div className="grid grid-cols-3 gap-2">
+                                      <div>
+                                        <label className="block text-[10px] text-white/40 mb-1">용량</label>
+                                        <div className="flex items-center gap-1">
+                                          <input
+                                            type="number"
+                                            inputMode="numeric"
+                                            value={parseInt(item.volume) || ''}
+                                            onChange={(e) => updateItemField(structure.id, item.id, 'volume', e.target.value ? `${e.target.value}ml` : '')}
+                                            placeholder="750"
+                                            className="w-full px-2 py-2 min-h-[44px] rounded-lg bg-white/[0.04] border border-white/[0.1] text-white/80 text-sm text-center focus:outline-none focus:border-cyan-500/50 placeholder:text-white/30"
+                                          />
+                                          <span className="text-xs text-white/30 shrink-0">ml</span>
+                                        </div>
+                                      </div>
+                                      <div>
+                                        <label className="block text-[10px] text-white/40 mb-1">개당 무게</label>
+                                        <div className="flex items-center gap-1">
+                                          <input
+                                            type="number"
+                                            inputMode="decimal"
+                                            step="0.01"
+                                            value={item.weight}
+                                            onChange={(e) => updateItemField(structure.id, item.id, 'weight', parseFloat(e.target.value) || 0)}
+                                            className="w-full px-2 py-2 min-h-[44px] rounded-lg bg-white/[0.04] border border-white/[0.1] text-white/80 text-sm text-center focus:outline-none focus:border-cyan-500/50"
+                                          />
+                                          <span className="text-xs text-white/30 shrink-0">kg</span>
+                                        </div>
+                                      </div>
+                                      <div>
+                                        <label className="block text-[10px] text-white/40 mb-1">수량</label>
+                                        <input
+                                          type="number"
+                                          inputMode="numeric"
+                                          value={item.quantity}
+                                          onChange={(e) => updateItemQuantity(structure.id, item.id, parseInt(e.target.value) || 0)}
+                                          className="w-full px-2 py-2 min-h-[44px] rounded-lg bg-white/[0.04] border border-white/[0.1] text-white/80 text-sm text-center focus:outline-none focus:border-cyan-500/50"
+                                        />
+                                      </div>
+                                    </div>
+                                    <div className="mt-2 pt-2 border-t border-white/[0.04] text-right">
+                                      <span className="text-xs text-white/40">총 무게: </span>
+                                      <span className="text-sm text-white/70 font-medium">{itemTotalWeight}kg</span>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                              {/* Mobile Summary */}
+                              <div className="p-3 rounded-lg bg-white/[0.02] border border-white/[0.06] space-y-2">
+                                <div className="flex justify-between text-sm">
+                                  <span className="text-white/50">적재물 소계</span>
+                                  <span className="text-white/70 font-medium">{calc.totalBottles}병 / {calc.totalWeight}kg</span>
+                                </div>
+                                <div className="flex justify-between text-sm pt-2 border-t border-white/[0.04]">
+                                  <span className="text-cyan-400">총 무게 (구조물 포함)</span>
+                                  <span className="text-cyan-400 font-medium">{calc.totalWeightWithStructure}kg / {structure.maxWeight}kg</span>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Desktop Table View */}
+                            <div className="hidden sm:block rounded-lg border border-white/[0.06] overflow-hidden">
                               <table className="w-full">
                                 <thead>
                                   <tr className="bg-white/[0.02]">
@@ -1381,11 +1491,12 @@ function WeightManagementModal({
                                             className="w-16 px-2 py-1.5 rounded bg-white/[0.04] border border-white/[0.1] text-white/80 text-sm text-center focus:outline-none focus:border-cyan-500/50"
                                           />
                                         </td>
-                                        <td className="px-3 py-2 text-sm text-white/50 text-right">{itemTotalWeight}kg</td>
+                                        <td className="px-3 py-2 text-sm text-white/50 text-right tabular-nums">{itemTotalWeight}kg</td>
                                         <td className="px-2 py-2">
                                           <button
                                             onClick={() => removeItem(structure.id, item.id)}
                                             className="p-1.5 rounded hover:bg-red-500/20 text-white/30 hover:text-red-400 transition-all"
+                                            aria-label="품목 삭제"
                                           >
                                             <Trash2 className="w-3.5 h-3.5" />
                                           </button>
@@ -1397,14 +1508,14 @@ function WeightManagementModal({
                                 <tfoot>
                                   <tr className="bg-white/[0.02]">
                                     <td colSpan={3} className="px-3 py-2 text-sm text-white/50 font-medium">적재물 소계</td>
-                                    <td className="px-3 py-2 text-sm text-white/70 text-center font-medium">{calc.totalBottles}병</td>
-                                    <td className="px-3 py-2 text-sm text-white/70 text-right font-medium">{calc.totalWeight}kg</td>
+                                    <td className="px-3 py-2 text-sm text-white/70 text-center font-medium tabular-nums">{calc.totalBottles}병</td>
+                                    <td className="px-3 py-2 text-sm text-white/70 text-right font-medium tabular-nums">{calc.totalWeight}kg</td>
                                     <td></td>
                                   </tr>
                                   <tr className="bg-cyan-500/10">
                                     <td colSpan={3} className="px-3 py-2 text-sm text-cyan-400 font-medium">총 무게 (구조물 + 적재물)</td>
                                     <td></td>
-                                    <td className="px-3 py-2 text-sm text-cyan-400 text-right font-medium">
+                                    <td className="px-3 py-2 text-sm text-cyan-400 text-right font-medium tabular-nums">
                                       {calc.totalWeightWithStructure}kg / {structure.maxWeight}kg
                                     </td>
                                     <td></td>
@@ -1416,7 +1527,8 @@ function WeightManagementModal({
                             {/* Add Item Button */}
                             <button
                               onClick={() => addItem(structure.id)}
-                              className="w-full py-3 rounded-xl border-2 border-dashed border-white/[0.08] hover:border-cyan-500/30 bg-white/[0.01] hover:bg-cyan-500/5 text-white/40 hover:text-cyan-400 transition-all flex items-center justify-center gap-2"
+                              className="w-full min-h-[48px] py-3 rounded-xl border-2 border-dashed border-white/[0.08] hover:border-cyan-500/30 active:border-cyan-500/50 bg-white/[0.01] hover:bg-cyan-500/5 active:bg-cyan-500/10 text-white/40 hover:text-cyan-400 transition-colors flex items-center justify-center gap-2"
+                              aria-label="품목 추가"
                             >
                               <Plus className="w-4 h-4" />
                               <span className="text-sm">품목 추가</span>
@@ -1452,10 +1564,10 @@ function WeightManagementModal({
             </div>
 
             {/* Footer */}
-            <div className="px-5 py-4 border-t border-white/[0.06] shrink-0">
+            <div className="px-4 py-3 sm:px-5 sm:py-4 border-t border-white/[0.06] shrink-0">
               <button
                 onClick={onClose}
-                className="w-full px-4 py-3 rounded-xl bg-cyan-500/20 border border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/30 transition-all flex items-center justify-center gap-2"
+                className="w-full min-h-[48px] px-4 py-3 rounded-xl bg-cyan-500/20 border border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/30 active:bg-cyan-500/40 transition-colors flex items-center justify-center gap-2"
               >
                 <Check className="w-4 h-4" />
                 확인
