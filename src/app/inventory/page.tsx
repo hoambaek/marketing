@@ -1350,13 +1350,16 @@ function WeightManagementModal({
                                           />
                                         </td>
                                         <td className="px-2 py-2">
-                                          <input
-                                            type="text"
-                                            value={item.volume}
-                                            onChange={(e) => updateItemField(structure.id, item.id, 'volume', e.target.value)}
-                                            placeholder="750ml"
-                                            className="w-20 px-2 py-1.5 rounded bg-white/[0.04] border border-white/[0.1] text-white/80 text-sm text-center focus:outline-none focus:border-cyan-500/50 placeholder:text-white/30"
-                                          />
+                                          <div className="flex items-center justify-center gap-1">
+                                            <input
+                                              type="number"
+                                              value={parseInt(item.volume) || ''}
+                                              onChange={(e) => updateItemField(structure.id, item.id, 'volume', e.target.value ? `${e.target.value}ml` : '')}
+                                              placeholder="750"
+                                              className="w-16 px-2 py-1.5 rounded bg-white/[0.04] border border-white/[0.1] text-white/80 text-sm text-center focus:outline-none focus:border-cyan-500/50 placeholder:text-white/30"
+                                            />
+                                            <span className="text-xs text-white/30">ml</span>
+                                          </div>
                                         </td>
                                         <td className="px-2 py-2">
                                           <div className="flex items-center justify-center gap-1">
