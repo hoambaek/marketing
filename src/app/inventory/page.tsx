@@ -40,7 +40,6 @@ import {
 import {
   fetchStructuresByYear,
   saveStructuresForYear,
-  Structure as DBStructureApp,
 } from '@/lib/supabase/database';
 
 // ═══════════════════════════════════════════════════════════════════════════
