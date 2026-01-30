@@ -5,7 +5,7 @@ import {
   Task, TaskCategory, TaskStatus,
   IssueItem, IssueType, IssuePriority, IssueImpact, IssueStatus,
   ContentItem, ContentType, ContentStatus,
-  MustDoItem, BudgetItem, ExpenseItem, BudgetCategory,
+  MustDoItem, IncomeItem, ExpenseItem, BudgetCategory,
   ProductType, InventoryStatus, NumberedBottle, InventoryBatch, InventoryTransaction
 } from '@/lib/types';
 
@@ -354,7 +354,7 @@ export const functionDeclarations: FunctionDeclaration[] = [
   },
   {
     name: 'createBudgetItem',
-    description: '새로운 예산 항목을 생성합니다.',
+    description: '새로운 수입 항목을 생성합니다.',
     parameters: {
       type: SchemaType.OBJECT,
       properties: {
@@ -362,23 +362,26 @@ export const functionDeclarations: FunctionDeclaration[] = [
         month: { type: SchemaType.NUMBER, description: '월 (1-12)' },
         category: {
           type: SchemaType.STRING,
-          description: '카테고리: marketing(마케팅), operation(운영), design(디자인), filming(촬영), pr(PR), b2b(B2B), packaging(패키징), event(이벤트), other(기타)'
+          description: '카테고리: marketing(마케팅), operation(운영), design(디자인), filming(촬영), pr(PR), b2b(B2B), packaging(패키징), event(이벤트), sales(판매), other(기타)'
         },
-        budgeted: { type: SchemaType.NUMBER, description: '예산 금액 (원)' },
+        amount: { type: SchemaType.NUMBER, description: '수입 금액 (원)' },
+        date: { type: SchemaType.STRING, description: '수입 날짜 (YYYY-MM-DD 형식)' },
+        source: { type: SchemaType.STRING, description: '수입처' },
         description: { type: SchemaType.STRING, description: '설명' },
       },
-      required: ['year', 'month', 'category', 'budgeted'],
+      required: ['year', 'month', 'category', 'amount'],
     },
   },
   {
     name: 'updateBudgetItem',
-    description: '예산 항목을 수정합니다.',
+    description: '수입 항목을 수정합니다.',
     parameters: {
       type: SchemaType.OBJECT,
       properties: {
-        id: { type: SchemaType.STRING, description: '예산 항목 ID' },
-        budgeted: { type: SchemaType.NUMBER, description: '예산 금액' },
-        spent: { type: SchemaType.NUMBER, description: '지출 금액' },
+        id: { type: SchemaType.STRING, description: '수입 항목 ID' },
+        amount: { type: SchemaType.NUMBER, description: '수입 금액' },
+        date: { type: SchemaType.STRING, description: '수입 날짜 (YYYY-MM-DD 형식)' },
+        source: { type: SchemaType.STRING, description: '수입처' },
         description: { type: SchemaType.STRING, description: '설명' },
       },
       required: ['id'],
@@ -386,11 +389,11 @@ export const functionDeclarations: FunctionDeclaration[] = [
   },
   {
     name: 'deleteBudgetItem',
-    description: '예산 항목을 삭제합니다.',
+    description: '수입 항목을 삭제합니다.',
     parameters: {
       type: SchemaType.OBJECT,
       properties: {
-        id: { type: SchemaType.STRING, description: '삭제할 예산 항목 ID' },
+        id: { type: SchemaType.STRING, description: '삭제할 수입 항목 ID' },
       },
       required: ['id'],
     },
@@ -972,44 +975,48 @@ export async function executeFunction(
       }
 
       case 'createBudgetItem': {
-        const budgetItem = await db.createBudgetItem({
-          year: args.year as number,
-          month: args.month as number,
+        const year = args.year as number;
+        const month = args.month as number;
+        const defaultDate = `${year}-${String(month).padStart(2, '0')}-01`;
+        const incomeItem = await db.createIncomeItem({
+          year,
+          month,
           category: (args.category as BudgetCategory) || 'other',
-          budgeted: args.budgeted as number,
-          spent: 0,
-          description: args.description as string,
+          amount: args.amount as number,
+          date: (args.date as string) || defaultDate,
+          source: args.source as string | undefined,
+          description: args.description as string | undefined,
         });
 
         return {
-          success: !!budgetItem,
-          data: budgetItem,
-          message: budgetItem
-            ? `예산 항목이 생성되었습니다. (${args.category}: ${(args.budgeted as number).toLocaleString()}원)`
-            : '예산 항목 생성에 실패했습니다.',
+          success: !!incomeItem,
+          data: incomeItem,
+          message: incomeItem
+            ? `수입 항목이 생성되었습니다. (${args.category}: ${(args.amount as number).toLocaleString()}원)`
+            : '수입 항목 생성에 실패했습니다.',
         };
       }
 
       case 'updateBudgetItem': {
         const { id: budgetId, ...budgetUpdates } = args;
-        const budgetSuccess = await db.updateBudgetItem(budgetId as string, budgetUpdates as Partial<BudgetItem>);
+        const budgetSuccess = await db.updateIncomeItem(budgetId as string, budgetUpdates as Partial<IncomeItem>);
 
         return {
           success: budgetSuccess,
           message: budgetSuccess
-            ? '예산 항목이 수정되었습니다.'
-            : '예산 항목 수정에 실패했습니다.',
+            ? '수입 항목이 수정되었습니다.'
+            : '수입 항목 수정에 실패했습니다.',
         };
       }
 
       case 'deleteBudgetItem': {
-        const budgetDelSuccess = await db.deleteBudgetItem(args.id as string);
+        const budgetDelSuccess = await db.deleteIncomeItem(args.id as string);
 
         return {
           success: budgetDelSuccess,
           message: budgetDelSuccess
-            ? '예산 항목이 삭제되었습니다.'
-            : '예산 항목 삭제에 실패했습니다.',
+            ? '수입 항목이 삭제되었습니다.'
+            : '수입 항목 삭제에 실패했습니다.',
         };
       }
 

@@ -52,20 +52,27 @@ export type {
   DBCustomProduct,
 } from './inventory';
 
-// Budget
+// Budget (Income & Expense)
 export {
-  fetchBudgetItems,
-  createBudgetItem,
-  updateBudgetItem,
-  deleteBudgetItem,
+  // Income functions
+  fetchIncomeItems,
+  createIncomeItem,
+  updateIncomeItem,
+  deleteIncomeItem,
+  // Expense functions
   fetchExpenseItems,
   createExpenseItem,
   updateExpenseItem,
   deleteExpenseItem,
+  // Legacy aliases
+  fetchBudgetItems,
+  createBudgetItem,
+  updateBudgetItem,
+  deleteBudgetItem,
 } from './budget';
 
 export type {
-  DBBudgetItem,
+  DBIncomeItem,
   DBExpenseItem,
 } from './budget';
 
@@ -116,3 +123,16 @@ export type {
   Structure as DBStructureApp,
   StructureItem as DBStructureItemApp,
 } from './structures';
+
+// Pricing
+export {
+  fetchPricingSettings,
+  upsertPricingSetting,
+  upsertPricingSettings,
+  deletePricingSetting,
+} from './pricing';
+
+export type {
+  DBPricingTierSetting,
+  PricingTierSetting,
+} from './pricing';

@@ -4,9 +4,14 @@ import type { NextRequest } from 'next/server';
 
 const isClerkConfigured = !!process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
 
-// 공개 라우트 정의 (로그인/회원가입 페이지)
+// 공개 라우트 정의 (로그인 페이지만)
 const isPublicRoute = createRouteMatcher([
   '/sign-in(.*)',
+  // sign-up은 허용하지 않음 - 등록된 사용자만 로그인 가능
+]);
+
+// sign-up 라우트 차단용
+const isSignUpRoute = createRouteMatcher([
   '/sign-up(.*)',
 ]);
 
@@ -23,6 +28,11 @@ function defaultMiddleware(request: NextRequest) {
 
 // Clerk 미들웨어 - 모든 라우트 보호 (공개 라우트 및 공개 API 제외)
 const clerkAuthMiddleware = clerkMiddleware(async (auth, req) => {
+  // sign-up 접근 시 sign-in으로 리다이렉트 (회원가입 차단)
+  if (isSignUpRoute(req)) {
+    return NextResponse.redirect(new URL('/sign-in', req.url));
+  }
+
   // 공개 페이지나 공개 API는 보호하지 않음
   if (isPublicRoute(req) || isPublicApiRoute(req)) {
     return;

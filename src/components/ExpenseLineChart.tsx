@@ -32,6 +32,7 @@ const LINE_COLORS: Record<BudgetCategory, string> = {
   b2b: '#f87171',            // Red
   packaging: '#fbbf24',      // Amber
   event: '#2dd4bf',          // Teal
+  sales: '#14b8a6',          // Teal-500
   other: '#94a3b8',          // Slate
 };
 

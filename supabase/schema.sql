@@ -59,6 +59,37 @@ CREATE TABLE IF NOT EXISTS content_items (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Income Items 테이블 (수입 관리)
+CREATE TABLE IF NOT EXISTS income_items (
+  id TEXT PRIMARY KEY,
+  year INTEGER NOT NULL,
+  month INTEGER NOT NULL,
+  category TEXT NOT NULL CHECK (category IN ('marketing', 'operation', 'design', 'filming', 'pr', 'b2b', 'packaging', 'event', 'sales', 'other')),
+  amount NUMERIC NOT NULL DEFAULT 0,
+  description TEXT,
+  income_date DATE NOT NULL,
+  source TEXT,
+  notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Expense Items 테이블 (지출 관리)
+CREATE TABLE IF NOT EXISTS expense_items (
+  id TEXT PRIMARY KEY,
+  year INTEGER NOT NULL,
+  month INTEGER NOT NULL,
+  category TEXT NOT NULL CHECK (category IN ('marketing', 'operation', 'design', 'filming', 'pr', 'b2b', 'packaging', 'event', 'sales', 'other')),
+  amount NUMERIC NOT NULL DEFAULT 0,
+  description TEXT NOT NULL,
+  vendor TEXT,
+  expense_date DATE NOT NULL,
+  receipt_url TEXT,
+  notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- Cost Calculator Settings 테이블
 CREATE TABLE IF NOT EXISTS cost_calculator_settings (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -84,12 +115,30 @@ CREATE TABLE IF NOT EXISTS cost_calculator_settings (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Pricing Settings 테이블 (가격 전략 설정)
+CREATE TABLE IF NOT EXISTS pricing_settings (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  year INTEGER NOT NULL,
+  tier_id TEXT NOT NULL,
+  quantity INTEGER NOT NULL DEFAULT 0,
+  b2b_price NUMERIC NOT NULL DEFAULT 0,
+  consumer_price NUMERIC NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(year, tier_id)
+);
+
 -- 인덱스 생성
 CREATE INDEX IF NOT EXISTS idx_tasks_year_month_week ON tasks(year, month, week);
 CREATE INDEX IF NOT EXISTS idx_must_do_year_month ON must_do_items(year, month);
 CREATE INDEX IF NOT EXISTS idx_kpi_year_month ON kpi_items(year, month);
 CREATE INDEX IF NOT EXISTS idx_content_year_date ON content_items(year, scheduled_date);
 CREATE INDEX IF NOT EXISTS idx_cost_calculator_year ON cost_calculator_settings(year);
+CREATE INDEX IF NOT EXISTS idx_pricing_year ON pricing_settings(year);
+CREATE INDEX IF NOT EXISTS idx_income_items_year ON income_items(year);
+CREATE INDEX IF NOT EXISTS idx_income_items_year_month ON income_items(year, month);
+CREATE INDEX IF NOT EXISTS idx_expense_items_year ON expense_items(year);
+CREATE INDEX IF NOT EXISTS idx_expense_items_year_month ON expense_items(year, month);
 
 -- updated_at 자동 업데이트 함수
 CREATE OR REPLACE FUNCTION update_updated_at_column()
@@ -128,12 +177,36 @@ CREATE TRIGGER update_cost_calculator_settings_updated_at
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();
 
+-- Pricing Settings 테이블 트리거
+DROP TRIGGER IF EXISTS update_pricing_settings_updated_at ON pricing_settings;
+CREATE TRIGGER update_pricing_settings_updated_at
+  BEFORE UPDATE ON pricing_settings
+  FOR EACH ROW
+  EXECUTE FUNCTION update_updated_at_column();
+
+-- Income Items 테이블 트리거
+DROP TRIGGER IF EXISTS update_income_items_updated_at ON income_items;
+CREATE TRIGGER update_income_items_updated_at
+  BEFORE UPDATE ON income_items
+  FOR EACH ROW
+  EXECUTE FUNCTION update_updated_at_column();
+
+-- Expense Items 테이블 트리거
+DROP TRIGGER IF EXISTS update_expense_items_updated_at ON expense_items;
+CREATE TRIGGER update_expense_items_updated_at
+  BEFORE UPDATE ON expense_items
+  FOR EACH ROW
+  EXECUTE FUNCTION update_updated_at_column();
+
 -- Row Level Security (RLS) 활성화
 ALTER TABLE tasks ENABLE ROW LEVEL SECURITY;
 ALTER TABLE must_do_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE kpi_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE content_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE cost_calculator_settings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE pricing_settings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE income_items ENABLE ROW LEVEL SECURITY;
+ALTER TABLE expense_items ENABLE ROW LEVEL SECURITY;
 
 -- 모든 사용자에게 읽기/쓰기 권한 부여 (인증 없이 사용할 경우)
 -- 실제 운영 환경에서는 인증된 사용자만 접근하도록 수정 필요
@@ -142,3 +215,6 @@ CREATE POLICY "Allow all access to must_do_items" ON must_do_items FOR ALL USING
 CREATE POLICY "Allow all access to kpi_items" ON kpi_items FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all access to content_items" ON content_items FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all access to cost_calculator_settings" ON cost_calculator_settings FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all access to pricing_settings" ON pricing_settings FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all access to income_items" ON income_items FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all access to expense_items" ON expense_items FOR ALL USING (true) WITH CHECK (true);

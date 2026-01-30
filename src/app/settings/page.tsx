@@ -240,7 +240,7 @@ export default function SettingsPage() {
     bottles: numberedBottles.length,
     budgetItems: budgetItems.length,
     expenseItems: expenseItems.length,
-    totalBudget: budgetItems.reduce((sum, b) => sum + b.budgeted, 0),
+    totalBudget: budgetItems.reduce((sum, b) => sum + b.amount, 0),
     totalExpense: expenseItems.reduce((sum, e) => sum + e.amount, 0),
   };
 

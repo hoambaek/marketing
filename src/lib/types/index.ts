@@ -80,12 +80,13 @@ export {
   INVENTORY_STATUS_COLORS,
 } from './inventory';
 
-// Budget
+// Budget (수입/지출)
 export {
   type BudgetCategory,
   BUDGET_CATEGORY_LABELS,
   BUDGET_CATEGORY_COLORS,
-  type BudgetItem,
+  type IncomeItem,
+  type BudgetItem, // Legacy alias
   type ExpenseItem,
 } from './budget';
 

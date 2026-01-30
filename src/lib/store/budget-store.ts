@@ -2,7 +2,7 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { BudgetItem, ExpenseItem, BudgetCategory } from '@/lib/types';
+import { IncomeItem, ExpenseItem, BudgetCategory } from '@/lib/types';
 import { isSupabaseConfigured } from '@/lib/supabase/client';
 import * as db from '@/lib/supabase/database';
 import { storeLogger } from '@/lib/logger';
@@ -13,7 +13,7 @@ import { storeLogger } from '@/lib/logger';
 
 interface BudgetState {
   // 데이터
-  budgetItems: BudgetItem[];
+  incomeItems: IncomeItem[];
   expenseItems: ExpenseItem[];
 
   // Supabase 상태
@@ -24,10 +24,10 @@ interface BudgetState {
   // Initialization
   initializeFromSupabase: () => Promise<void>;
 
-  // Budget Actions
-  addBudget: (item: Omit<BudgetItem, 'id'>) => Promise<void>;
-  updateBudget: (id: string, updates: Partial<BudgetItem>) => Promise<void>;
-  deleteBudget: (id: string) => Promise<void>;
+  // Income Actions
+  addIncome: (item: Omit<IncomeItem, 'id'>) => Promise<void>;
+  updateIncome: (id: string, updates: Partial<IncomeItem>) => Promise<void>;
+  deleteIncome: (id: string) => Promise<void>;
 
   // Expense Actions
   addExpense: (item: Omit<ExpenseItem, 'id'>) => Promise<void>;
@@ -35,10 +35,22 @@ interface BudgetState {
   deleteExpense: (id: string) => Promise<void>;
 
   // Computed Helpers
-  getBudgetByYear: (year: number) => BudgetItem[];
-  getBudgetByMonth: (year: number, month: number) => BudgetItem[];
+  getIncomeByYear: (year: number) => IncomeItem[];
+  getIncomeByMonth: (year: number, month: number) => IncomeItem[];
   getExpensesByYear: (year: number) => ExpenseItem[];
   getExpensesByMonth: (year: number, month: number) => ExpenseItem[];
+  getTotalIncome: (year: number) => number;
+  getTotalExpense: (year: number) => number;
+  getIncomeByCategory: (year: number, category: BudgetCategory) => number;
+  getExpenseByCategory: (year: number, category: BudgetCategory) => number;
+
+  // Legacy aliases (하위 호환성)
+  budgetItems: IncomeItem[];
+  addBudget: (item: Omit<IncomeItem, 'id'>) => Promise<void>;
+  updateBudget: (id: string, updates: Partial<IncomeItem>) => Promise<void>;
+  deleteBudget: (id: string) => Promise<void>;
+  getBudgetByYear: (year: number) => IncomeItem[];
+  getBudgetByMonth: (year: number, month: number) => IncomeItem[];
   getTotalBudgeted: (year: number) => number;
   getTotalSpent: (year: number) => number;
   getBudgetByCategory: (year: number, category: BudgetCategory) => number;
@@ -59,8 +71,13 @@ export const useBudgetStore = create<BudgetState>()(
   persist(
     (set, get) => ({
       // 초기 데이터
-      budgetItems: [],
+      incomeItems: [],
       expenseItems: [],
+
+      // Legacy alias
+      get budgetItems() {
+        return get().incomeItems;
+      },
 
       // Supabase 상태
       isLoading: false,
@@ -80,13 +97,13 @@ export const useBudgetStore = create<BudgetState>()(
         set({ isLoading: true });
 
         try {
-          const [budgetItems, expenseItems] = await Promise.all([
-            db.fetchBudgetItems(),
+          const [incomeItems, expenseItems] = await Promise.all([
+            db.fetchIncomeItems(),
             db.fetchExpenseItems(),
           ]);
 
           set({
-            budgetItems: budgetItems || [],
+            incomeItems: incomeItems || [],
             expenseItems: expenseItems || [],
             isLoading: false,
             isInitialized: true,
@@ -99,24 +116,24 @@ export const useBudgetStore = create<BudgetState>()(
       },
 
       // ═══════════════════════════════════════════════════════════════════
-      // Budget Actions
+      // Income Actions
       // ═══════════════════════════════════════════════════════════════════
 
-      addBudget: async (item) => {
-        const newItem: BudgetItem = {
+      addIncome: async (item) => {
+        const newItem: IncomeItem = {
           ...item,
           id: generateId(),
         };
 
         // 낙관적 업데이트
-        set((state) => ({ budgetItems: [...state.budgetItems, newItem] }));
+        set((state) => ({ incomeItems: [...state.incomeItems, newItem] }));
 
         // Supabase에 저장
         if (get().useSupabase) {
-          const created = await db.createBudgetItem(item);
+          const created = await db.createIncomeItem(item);
           if (created) {
             set((state) => ({
-              budgetItems: state.budgetItems.map((i) =>
+              incomeItems: state.incomeItems.map((i) =>
                 i.id === newItem.id ? created : i
               ),
             }));
@@ -124,29 +141,29 @@ export const useBudgetStore = create<BudgetState>()(
         }
       },
 
-      updateBudget: async (id, updates) => {
+      updateIncome: async (id, updates) => {
         // 낙관적 업데이트
         set((state) => ({
-          budgetItems: state.budgetItems.map((item) =>
+          incomeItems: state.incomeItems.map((item) =>
             item.id === id ? { ...item, ...updates } : item
           ),
         }));
 
         // Supabase에 저장
         if (get().useSupabase) {
-          await db.updateBudgetItem(id, updates);
+          await db.updateIncomeItem(id, updates);
         }
       },
 
-      deleteBudget: async (id) => {
+      deleteIncome: async (id) => {
         // 낙관적 업데이트
         set((state) => ({
-          budgetItems: state.budgetItems.filter((item) => item.id !== id),
+          incomeItems: state.incomeItems.filter((item) => item.id !== id),
         }));
 
         // Supabase에서 삭제
         if (get().useSupabase) {
-          await db.deleteBudgetItem(id);
+          await db.deleteIncomeItem(id);
         }
       },
 
@@ -174,22 +191,9 @@ export const useBudgetStore = create<BudgetState>()(
             }));
           }
         }
-
-        // Budget의 spent 업데이트
-        const { budgetItems } = get();
-        const budgetItem = budgetItems.find(
-          (b) => b.year === item.year && b.month === item.month && b.category === item.category
-        );
-        if (budgetItem) {
-          await get().updateBudget(budgetItem.id, {
-            spent: budgetItem.spent + item.amount,
-          });
-        }
       },
 
       updateExpense: async (id, updates) => {
-        const oldExpense = get().expenseItems.find((e) => e.id === id);
-
         // 낙관적 업데이트
         set((state) => ({
           expenseItems: state.expenseItems.map((item) =>
@@ -201,25 +205,9 @@ export const useBudgetStore = create<BudgetState>()(
         if (get().useSupabase) {
           await db.updateExpenseItem(id, updates);
         }
-
-        // Budget의 spent 업데이트 (금액이 변경된 경우)
-        if (oldExpense && updates.amount !== undefined && updates.amount !== oldExpense.amount) {
-          const diff = updates.amount - oldExpense.amount;
-          const { budgetItems } = get();
-          const budgetItem = budgetItems.find(
-            (b) => b.year === oldExpense.year && b.month === oldExpense.month && b.category === oldExpense.category
-          );
-          if (budgetItem) {
-            await get().updateBudget(budgetItem.id, {
-              spent: budgetItem.spent + diff,
-            });
-          }
-        }
       },
 
       deleteExpense: async (id) => {
-        const expense = get().expenseItems.find((e) => e.id === id);
-
         // 낙관적 업데이트
         set((state) => ({
           expenseItems: state.expenseItems.filter((item) => item.id !== id),
@@ -229,31 +217,18 @@ export const useBudgetStore = create<BudgetState>()(
         if (get().useSupabase) {
           await db.deleteExpenseItem(id);
         }
-
-        // Budget의 spent 업데이트
-        if (expense) {
-          const { budgetItems } = get();
-          const budgetItem = budgetItems.find(
-            (b) => b.year === expense.year && b.month === expense.month && b.category === expense.category
-          );
-          if (budgetItem) {
-            await get().updateBudget(budgetItem.id, {
-              spent: Math.max(0, budgetItem.spent - expense.amount),
-            });
-          }
-        }
       },
 
       // ═══════════════════════════════════════════════════════════════════
       // Computed Helpers
       // ═══════════════════════════════════════════════════════════════════
 
-      getBudgetByYear: (year) => {
-        return get().budgetItems.filter((item) => item.year === year);
+      getIncomeByYear: (year) => {
+        return get().incomeItems.filter((item) => item.year === year);
       },
 
-      getBudgetByMonth: (year, month) => {
-        return get().budgetItems.filter((item) => item.year === year && item.month === month);
+      getIncomeByMonth: (year, month) => {
+        return get().incomeItems.filter((item) => item.year === year && item.month === month);
       },
 
       getExpensesByYear: (year) => {
@@ -264,34 +239,48 @@ export const useBudgetStore = create<BudgetState>()(
         return get().expenseItems.filter((item) => item.year === year && item.month === month);
       },
 
-      getTotalBudgeted: (year) => {
-        return get().budgetItems
+      getTotalIncome: (year) => {
+        return get().incomeItems
           .filter((item) => item.year === year)
-          .reduce((sum, item) => sum + item.budgeted, 0);
+          .reduce((sum, item) => sum + item.amount, 0);
       },
 
-      getTotalSpent: (year) => {
+      getTotalExpense: (year) => {
         return get().expenseItems
           .filter((item) => item.year === year)
           .reduce((sum, item) => sum + item.amount, 0);
       },
 
-      getBudgetByCategory: (year, category) => {
-        return get().budgetItems
+      getIncomeByCategory: (year, category) => {
+        return get().incomeItems
           .filter((item) => item.year === year && item.category === category)
-          .reduce((sum, item) => sum + item.budgeted, 0);
+          .reduce((sum, item) => sum + item.amount, 0);
       },
 
-      getSpentByCategory: (year, category) => {
+      getExpenseByCategory: (year, category) => {
         return get().expenseItems
           .filter((item) => item.year === year && item.category === category)
           .reduce((sum, item) => sum + item.amount, 0);
       },
+
+      // ═══════════════════════════════════════════════════════════════════
+      // Legacy Aliases (하위 호환성)
+      // ═══════════════════════════════════════════════════════════════════
+
+      addBudget: async (item) => get().addIncome(item),
+      updateBudget: async (id, updates) => get().updateIncome(id, updates),
+      deleteBudget: async (id) => get().deleteIncome(id),
+      getBudgetByYear: (year) => get().getIncomeByYear(year),
+      getBudgetByMonth: (year, month) => get().getIncomeByMonth(year, month),
+      getTotalBudgeted: (year) => get().getTotalIncome(year),
+      getTotalSpent: (year) => get().getTotalExpense(year),
+      getBudgetByCategory: (year, category) => get().getIncomeByCategory(year, category),
+      getSpentByCategory: (year, category) => get().getExpenseByCategory(year, category),
     }),
     {
       name: 'muse-budget-storage',
       partialize: (state) => ({
-        budgetItems: state.budgetItems,
+        incomeItems: state.incomeItems,
         expenseItems: state.expenseItems,
       }),
     }

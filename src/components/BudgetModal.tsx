@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Pencil, Wallet } from 'lucide-react';
 import {
-  BudgetItem,
+  IncomeItem,
   BudgetCategory,
   BUDGET_CATEGORY_LABELS,
   BUDGET_CATEGORY_COLORS,
@@ -13,12 +13,12 @@ import {
 } from '@/lib/types';
 import { toast } from '@/lib/store/toast-store';
 
-interface BudgetModalProps {
+interface IncomeModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (budget: Omit<BudgetItem, 'id'>) => void | Promise<void>;
+  onSave: (income: Omit<IncomeItem, 'id'>) => void | Promise<void>;
   onDelete?: () => void | Promise<void>;
-  budget?: BudgetItem | null;
+  income?: IncomeItem | null;
   defaultYear?: number;
   defaultMonth?: number;
   defaultCategory?: BudgetCategory;
@@ -26,23 +26,24 @@ interface BudgetModalProps {
 
 const CATEGORY_OPTIONS = Object.keys(BUDGET_CATEGORY_LABELS) as BudgetCategory[];
 
-export default function BudgetModal({
+export default function IncomeModal({
   isOpen,
   onClose,
   onSave,
   onDelete,
-  budget,
+  income,
   defaultYear = 2026,
   defaultMonth = 1,
   defaultCategory = 'marketing',
-}: BudgetModalProps) {
+}: IncomeModalProps) {
   const [formData, setFormData] = useState({
     year: defaultYear,
     month: defaultMonth,
     category: defaultCategory,
-    budgeted: 0,
-    spent: 0,
+    amount: 0,
     description: '',
+    source: '',
+    date: new Date().toISOString().split('T')[0],
   });
 
   const [isEditing, setIsEditing] = useState(false);
@@ -69,49 +70,52 @@ export default function BudgetModal({
     const mobile = window.innerWidth < 640;
     setIsMobile(mobile);
 
-    if (budget) {
+    if (income) {
       setFormData({
-        year: budget.year,
-        month: budget.month,
-        category: budget.category,
-        budgeted: budget.budgeted,
-        spent: budget.spent,
-        description: budget.description || '',
+        year: income.year,
+        month: income.month,
+        category: income.category,
+        amount: income.amount,
+        description: income.description || '',
+        source: income.source || '',
+        date: income.date || new Date().toISOString().split('T')[0],
       });
-      setIsEditing(!mobile || !budget);
+      setIsEditing(!mobile || !income);
     } else {
       setFormData({
         year: defaultYear,
         month: defaultMonth,
         category: defaultCategory,
-        budgeted: 0,
-        spent: 0,
+        amount: 0,
         description: '',
+        source: '',
+        date: new Date().toISOString().split('T')[0],
       });
       setIsEditing(true);
     }
-  }, [budget, defaultYear, defaultMonth, defaultCategory, isOpen]);
+  }, [income, defaultYear, defaultMonth, defaultCategory, isOpen]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (formData.budgeted <= 0) return;
+    if (formData.amount <= 0) return;
 
     await onSave({
       year: formData.year,
       month: formData.month,
       category: formData.category,
-      budgeted: formData.budgeted,
-      spent: formData.spent,
+      amount: formData.amount,
       description: formData.description || undefined,
+      source: formData.source || undefined,
+      date: formData.date,
     });
-    toast.success(budget ? '예산이 수정되었습니다' : '예산이 추가되었습니다');
+    toast.success(income ? '수입이 수정되었습니다' : '수입이 추가되었습니다');
     onClose();
   };
 
   const handleDelete = async () => {
-    if (budget && onDelete && window.confirm('이 예산 항목을 삭제하시겠습니까?')) {
+    if (income && onDelete && window.confirm('이 수입 항목을 삭제하시겠습니까?')) {
       await onDelete();
-      toast.success('예산이 삭제되었습니다');
+      toast.success('수입이 삭제되었습니다');
       onClose();
     }
   };
@@ -134,10 +138,10 @@ export default function BudgetModal({
     setFormData(prev => ({ ...prev, category: e.target.value as BudgetCategory }));
   };
 
-  const handleBudgetedChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     // Remove all non-digit characters and parse
     const value = e.target.value.replace(/[^\d]/g, '');
-    setFormData(prev => ({ ...prev, budgeted: parseInt(value) || 0 }));
+    setFormData(prev => ({ ...prev, amount: parseInt(value) || 0 }));
   };
 
   // Format number with commas for display
@@ -148,6 +152,14 @@ export default function BudgetModal({
 
   const handleDescriptionChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setFormData(prev => ({ ...prev, description: e.target.value }));
+  };
+
+  const handleSourceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData(prev => ({ ...prev, source: e.target.value }));
+  };
+
+  const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData(prev => ({ ...prev, date: e.target.value }));
   };
 
   if (!isOpen) return null;
@@ -177,7 +189,7 @@ export default function BudgetModal({
 
           <div className="flex items-center justify-between p-5 border-b border-border">
             <h2 className="font-display text-xl text-foreground">
-              {budget ? (isEditing ? '예산 수정' : '예산 상세') : '새 예산 추가'}
+              {income ? (isEditing ? '수입 수정' : '수입 상세') : '새 수입 추가'}
             </h2>
             <button
               onClick={handleClose}
@@ -255,18 +267,40 @@ export default function BudgetModal({
 
               <div>
                 <label className="block text-sm font-medium text-foreground mb-1.5">
-                  예산 금액 <span className="text-red-500">*</span>
+                  수입 금액 <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
                   <input
                     type="text"
                     inputMode="numeric"
-                    value={formatNumberWithCommas(formData.budgeted)}
-                    onChange={handleBudgetedChange}
-                    placeholder="예산 금액을 입력하세요"
+                    value={formatNumberWithCommas(formData.amount)}
+                    onChange={handleAmountChange}
+                    placeholder="수입 금액을 입력하세요"
                     className="w-full px-4 py-2.5 pr-8 bg-background border border-border rounded-xl text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all"
                   />
                   <span className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">원</span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1.5">수입 날짜</label>
+                  <input
+                    type="date"
+                    value={formData.date}
+                    onChange={handleDateChange}
+                    className="w-full px-4 py-2.5 bg-background border border-border rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1.5">수입처</label>
+                  <input
+                    type="text"
+                    value={formData.source}
+                    onChange={handleSourceChange}
+                    placeholder="수입처 (선택)"
+                    className="w-full px-4 py-2.5 bg-background border border-border rounded-xl text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all"
+                  />
                 </div>
               </div>
 
@@ -275,14 +309,14 @@ export default function BudgetModal({
                 <textarea
                   value={formData.description}
                   onChange={handleDescriptionChange}
-                  placeholder="예산에 대한 설명"
+                  placeholder="수입에 대한 설명"
                   rows={2}
                   className="w-full px-4 py-2.5 bg-background border border-border rounded-xl text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all resize-none"
                 />
               </div>
 
               <div className="flex gap-3 pt-2">
-                {budget && onDelete && (
+                {income && onDelete && (
                   <button
                     type="button"
                     onClick={handleDelete}
@@ -294,7 +328,7 @@ export default function BudgetModal({
                 <button
                   type="button"
                   onClick={() => {
-                    if (isMobile && budget) {
+                    if (isMobile && income) {
                       setIsEditing(false);
                     } else {
                       handleClose();
@@ -308,7 +342,7 @@ export default function BudgetModal({
                   type="submit"
                   className="flex-1 px-4 py-2.5 bg-accent text-white rounded-xl hover:bg-accent/90 active:bg-accent/80 transition-colors font-medium"
                 >
-                  {budget ? '저장' : '추가'}
+                  {income ? '저장' : '추가'}
                 </button>
               </div>
             </form>
@@ -325,30 +359,35 @@ export default function BudgetModal({
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div className="p-4 bg-muted/30 rounded-xl">
-                  <p className="text-xs text-muted-foreground mb-1">예산</p>
-                  <p className="text-foreground font-medium text-lg">
-                    {formData.budgeted.toLocaleString()}원
-                  </p>
-                </div>
-                <div className="p-4 bg-muted/30 rounded-xl">
-                  <p className="text-xs text-muted-foreground mb-1">지출</p>
-                  <p className="text-foreground font-medium text-lg">
-                    {formData.spent.toLocaleString()}원
-                  </p>
-                </div>
+              <div className="p-4 bg-muted/30 rounded-xl">
+                <p className="text-xs text-muted-foreground mb-1">수입 금액</p>
+                <p className="text-foreground font-medium text-lg">
+                  {formData.amount.toLocaleString()}원
+                </p>
               </div>
 
-              <div className="flex gap-3">
-                <div className="flex-1 p-4 bg-muted/30 rounded-xl">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="p-4 bg-muted/30 rounded-xl">
                   <p className="text-xs text-muted-foreground mb-1">연도</p>
                   <p className="text-foreground font-medium">{formData.year}년</p>
                 </div>
-                <div className="flex-1 p-4 bg-muted/30 rounded-xl">
+                <div className="p-4 bg-muted/30 rounded-xl">
                   <p className="text-xs text-muted-foreground mb-1">월</p>
                   <p className="text-foreground font-medium">{formData.month}월</p>
                 </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="p-4 bg-muted/30 rounded-xl">
+                  <p className="text-xs text-muted-foreground mb-1">날짜</p>
+                  <p className="text-foreground font-medium">{formData.date}</p>
+                </div>
+                {formData.source && (
+                  <div className="p-4 bg-muted/30 rounded-xl">
+                    <p className="text-xs text-muted-foreground mb-1">수입처</p>
+                    <p className="text-foreground font-medium">{formData.source}</p>
+                  </div>
+                )}
               </div>
 
               {formData.description && (
@@ -359,7 +398,7 @@ export default function BudgetModal({
               )}
 
               <div className="flex gap-3 pt-2">
-                {budget && onDelete && (
+                {income && onDelete && (
                   <button
                     type="button"
                     onClick={handleDelete}
