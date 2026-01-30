@@ -510,7 +510,7 @@ export const functionDeclarations: FunctionDeclaration[] = [
       properties: {
         productId: {
           type: SchemaType.STRING,
-          description: '제품 ID 필터: en_lieu_sur_brut, en_lieu_sur_magnum, element_de_surprise, atomes_crochus'
+          description: '제품 ID 필터: en_lieu_sur_brut, en_lieu_sur_magnum, element_de_surprise, atomes_crochus_1y, atomes_crochus_2y'
         },
       },
     },
@@ -523,7 +523,7 @@ export const functionDeclarations: FunctionDeclaration[] = [
       properties: {
         productId: {
           type: SchemaType.STRING,
-          description: '제품 ID: en_lieu_sur_brut, en_lieu_sur_magnum, element_de_surprise, atomes_crochus'
+          description: '제품 ID: en_lieu_sur_brut, en_lieu_sur_magnum, element_de_surprise, atomes_crochus_1y, atomes_crochus_2y'
         },
         available: { type: SchemaType.NUMBER, description: '판매가능 수량' },
         reserved: { type: SchemaType.NUMBER, description: '예약 수량' },
@@ -561,7 +561,7 @@ export const functionDeclarations: FunctionDeclaration[] = [
       properties: {
         productId: {
           type: SchemaType.STRING,
-          description: '제품 ID: first_edition, en_lieu_sur_brut, en_lieu_sur_magnum, element_de_surprise, atomes_crochus'
+          description: '제품 ID: first_edition, en_lieu_sur_brut, en_lieu_sur_magnum, element_de_surprise, atomes_crochus_1y, atomes_crochus_2y'
         },
         bottleNumber: { type: SchemaType.NUMBER, description: '넘버링 병의 경우 병 번호 (1-50)' },
         type: {
@@ -1167,7 +1167,8 @@ export async function executeFunction(
           'en_lieu_sur_brut': '앙 리유 쉬르 브뤼 (750ml)',
           'en_lieu_sur_magnum': '앙 리유 쉬르 매그넘 (1500ml)',
           'element_de_surprise': '엘레멘 드 쉬르프리즈 BDB (750ml)',
-          'atomes_crochus': '아톰 크로슈 (750ml)',
+          'atomes_crochus_1y': '아톰 크로슈 1년 (750ml)',
+          'atomes_crochus_2y': '아톰 크로슈 2년 (750ml)',
         };
 
         const batchSummary = batches.map(b => ({
@@ -1417,10 +1418,11 @@ export const SYSTEM_PROMPT = `당신은 뮤즈드마레(Muse de Marée) 마케�
 
 인벤토리 제품:
 - first_edition: 2025 퍼스트 에디션 (750ml, 넘버링 1-50번)
-- en_lieu_sur_brut: 앙 리유 쉬르 브뤼 (750ml)
-- en_lieu_sur_magnum: 앙 리유 쉬르 매그넘 (1500ml)
-- element_de_surprise: 엘레멘 드 쉬르프리즈 BDB (750ml)
-- atomes_crochus: 아톰 크로슈 (750ml)
+- en_lieu_sur_brut: 앙 리유 쉬르 브뤼 (750ml, 200병)
+- en_lieu_sur_magnum: 앙 리유 쉬르 매그넘 (1500ml, 24병)
+- element_de_surprise: 엘레멘 드 쉬르프리즈 BDB (750ml, 110병)
+- atomes_crochus_1y: 아톰 크로슈 1년 (750ml, 100병)
+- atomes_crochus_2y: 아톰 크로슈 2년 (750ml, 40병, 넘버링)
 
 재고 상태: available(판매가능), reserved(예약), sold(판매완료), gifted(증정), damaged(손상)
 거래 유형: sale(판매), reservation(예약), gift(증정), damage(손상), return(반품), cancel_reservation(예약취소)

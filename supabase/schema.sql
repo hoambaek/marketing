@@ -218,3 +218,28 @@ CREATE POLICY "Allow all access to cost_calculator_settings" ON cost_calculator_
 CREATE POLICY "Allow all access to pricing_settings" ON pricing_settings FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all access to income_items" ON income_items FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all access to expense_items" ON expense_items FOR ALL USING (true) WITH CHECK (true);
+
+-- ═══════════════════════════════════════════════════════════════════════════
+-- Inventory Batches 테이블 (2026년 상품 재고 관리)
+-- ═══════════════════════════════════════════════════════════════════════════
+
+CREATE TABLE IF NOT EXISTS inventory_batches (
+  id TEXT PRIMARY KEY,
+  product_id TEXT NOT NULL UNIQUE,
+  total_quantity INTEGER NOT NULL DEFAULT 0,
+  available INTEGER NOT NULL DEFAULT 0,
+  reserved INTEGER NOT NULL DEFAULT 0,
+  sold INTEGER NOT NULL DEFAULT 0,
+  gifted INTEGER NOT NULL DEFAULT 0,
+  damaged INTEGER NOT NULL DEFAULT 0,
+  last_updated TIMESTAMPTZ DEFAULT NOW(),
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Inventory Batches RLS
+ALTER TABLE inventory_batches ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Allow all access to inventory_batches" ON inventory_batches;
+CREATE POLICY "Allow all access to inventory_batches" ON inventory_batches FOR ALL USING (true) WITH CHECK (true);
+
+-- Inventory Batches 인덱스
+CREATE INDEX IF NOT EXISTS idx_inventory_batches_product_id ON inventory_batches(product_id);

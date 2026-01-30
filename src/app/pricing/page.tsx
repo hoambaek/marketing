@@ -31,6 +31,19 @@ import Link from 'next/link';
 import { fetchCostCalculatorSettingsByYear, fetchPricingSettings, upsertPricingSettings } from '@/lib/supabase/database';
 import { isSupabaseConfigured } from '@/lib/supabase/client';
 import { toast } from '@/lib/store/toast-store';
+import { useInventoryStore } from '@/lib/store/inventory-store';
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Pricing Tier ID → Inventory Product ID 매핑
+// ═══════════════════════════════════════════════════════════════════════════
+
+const TIER_TO_PRODUCT_ID: Record<string, string> = {
+  'entry': 'en_lieu_sur_brut',
+  'bdb': 'element_de_surprise',
+  'atome-1y': 'atomes_crochus_1y',
+  'atome-2y': 'atomes_crochus_2y',
+  'magnum': 'en_lieu_sur_magnum',
+};
 
 // ═══════════════════════════════════════════════════════════════════════════
 // 데이터 (pricing-report.md 기반)
@@ -39,6 +52,7 @@ import { toast } from '@/lib/store/toast-store';
 interface PricingTier {
   id: string;
   tier: 'ENTRY' | 'MID' | 'HIGH' | 'ULTRA' | 'MAGNUM';
+  year: number;
   nameKo: string;
   nameEn: string;
   subtitle: string;
@@ -60,9 +74,11 @@ interface EditableTierValues {
 }
 
 const PRICING_TIERS: PricingTier[] = [
+  // 2026 Products
   {
     id: 'entry',
     tier: 'ENTRY',
+    year: 2026,
     nameKo: '앙 리유 쉬르 브뤼',
     nameEn: 'En Lieu Sûr',
     subtitle: '바다의 시간으로 가는 첫 번째 문',
@@ -77,6 +93,7 @@ const PRICING_TIERS: PricingTier[] = [
   {
     id: 'bdb',
     tier: 'MID',
+    year: 2026,
     nameKo: '엘레멘 드 쉬르프리즈 BDB',
     nameEn: 'Élément de Surprise',
     subtitle: '100% 샤르도네, 놀라움의 요소',
@@ -91,6 +108,7 @@ const PRICING_TIERS: PricingTier[] = [
   {
     id: 'atome-1y',
     tier: 'HIGH',
+    year: 2026,
     nameKo: '아톰 크로슈 (1년)',
     nameEn: 'Atomes Crochus',
     subtitle: '기가 통하는 이들을 위한',
@@ -105,6 +123,7 @@ const PRICING_TIERS: PricingTier[] = [
   {
     id: 'atome-2y',
     tier: 'ULTRA',
+    year: 2026,
     nameKo: '아톰 크로슈 (2년)',
     nameEn: 'Atomes Crochus 2Y',
     subtitle: '두 배의 시간, 두 배의 깊이',
@@ -121,6 +140,7 @@ const PRICING_TIERS: PricingTier[] = [
   {
     id: 'magnum',
     tier: 'MAGNUM',
+    year: 2026,
     nameKo: '앙 리유 쉬르 매그넘',
     nameEn: 'En Lieu Sûr Magnum',
     subtitle: '세상에 24병만 존재',
@@ -136,36 +156,37 @@ const PRICING_TIERS: PricingTier[] = [
   },
 ];
 
+// 통일된 골드 계열 색상 (Deep Sea 테마)
 const TIER_COLORS: Record<string, { bg: string; text: string; border: string; gradient: string }> = {
   ENTRY: {
-    bg: 'bg-emerald-500/10',
-    text: 'text-emerald-400',
-    border: 'border-emerald-500/20',
-    gradient: 'from-emerald-500/20 to-emerald-500/5',
+    bg: 'bg-[#b7916e]/10',
+    text: 'text-[#d4c4a8]',
+    border: 'border-[#b7916e]/20',
+    gradient: 'from-[#b7916e]/20 to-[#b7916e]/5',
   },
   MID: {
-    bg: 'bg-sky-500/10',
-    text: 'text-sky-400',
-    border: 'border-sky-500/20',
-    gradient: 'from-sky-500/20 to-sky-500/5',
+    bg: 'bg-[#b7916e]/10',
+    text: 'text-[#d4c4a8]',
+    border: 'border-[#b7916e]/20',
+    gradient: 'from-[#b7916e]/20 to-[#b7916e]/5',
   },
   HIGH: {
-    bg: 'bg-amber-500/10',
-    text: 'text-amber-400',
-    border: 'border-amber-500/20',
-    gradient: 'from-amber-500/20 to-amber-500/5',
+    bg: 'bg-[#b7916e]/10',
+    text: 'text-[#d4c4a8]',
+    border: 'border-[#b7916e]/20',
+    gradient: 'from-[#b7916e]/20 to-[#b7916e]/5',
   },
   ULTRA: {
-    bg: 'bg-purple-500/10',
-    text: 'text-purple-400',
-    border: 'border-purple-500/20',
-    gradient: 'from-purple-500/20 to-purple-500/5',
+    bg: 'bg-[#b7916e]/10',
+    text: 'text-[#d4c4a8]',
+    border: 'border-[#b7916e]/20',
+    gradient: 'from-[#b7916e]/20 to-[#b7916e]/5',
   },
   MAGNUM: {
-    bg: 'bg-rose-500/10',
-    text: 'text-rose-400',
-    border: 'border-rose-500/20',
-    gradient: 'from-rose-500/20 to-rose-500/5',
+    bg: 'bg-[#b7916e]/10',
+    text: 'text-[#d4c4a8]',
+    border: 'border-[#b7916e]/20',
+    gradient: 'from-[#b7916e]/20 to-[#b7916e]/5',
   },
 };
 
@@ -199,36 +220,26 @@ function StatCard({
   label,
   value,
   subValue,
-  color = 'gold',
 }: {
   icon: React.ComponentType<{ className?: string }>;
   label: string;
   value: string;
   subValue?: string;
-  color?: 'gold' | 'emerald' | 'cyan' | 'purple' | 'rose';
 }) {
-  const colorClasses = {
-    gold: 'bg-[#b7916e]/10 border-[#b7916e]/20 text-[#d4c4a8]',
-    emerald: 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400',
-    cyan: 'bg-cyan-500/10 border-cyan-500/20 text-cyan-400',
-    purple: 'bg-purple-500/10 border-purple-500/20 text-purple-400',
-    rose: 'bg-rose-500/10 border-rose-500/20 text-rose-400',
-  };
-
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className={`relative rounded-2xl overflow-hidden border ${colorClasses[color]}`}
+      className="relative rounded-2xl overflow-hidden border bg-white/[0.03] border-white/[0.06]"
     >
       <div className="absolute inset-0 bg-gradient-to-br from-white/[0.02] to-transparent" />
       <div className="relative p-4 sm:p-5">
         <div className="flex items-center gap-2 mb-3">
-          <Icon className="w-4 h-4 opacity-60" />
+          <Icon className="w-4 h-4 text-[#b7916e]/60" />
           <span className="text-xs text-white/50 uppercase tracking-wider">{label}</span>
         </div>
         <p
-          className="text-2xl sm:text-3xl font-semibold tracking-tight"
+          className="text-2xl sm:text-3xl font-semibold tracking-tight text-[#d4c4a8]"
           style={{ fontFamily: "var(--font-pretendard), 'Pretendard', -apple-system, sans-serif" }}
         >
           {value}
@@ -248,6 +259,8 @@ function ProductCard({
   actualCostPerBottle,
   editableValues,
   onEditableChange,
+  actualSoldQuantity,
+  actualTotalQuantity,
 }: {
   tier: PricingTier;
   adjustedQuantity: number;
@@ -257,15 +270,20 @@ function ProductCard({
   actualCostPerBottle: number;
   editableValues: EditableTierValues;
   onEditableChange: (id: string, field: keyof EditableTierValues, value: number) => void;
+  actualSoldQuantity?: number;
+  actualTotalQuantity?: number;
 }) {
   const colors = TIER_COLORS[tier.tier];
-  const maxQuantity = editableValues.quantity;
+  const maxQuantity = actualTotalQuantity ?? editableValues.quantity;
+  const soldQuantity = actualSoldQuantity ?? 0;
   const b2bPrice = editableValues.b2bPrice;
   const consumerPrice = editableValues.consumerPrice;
-  const revenue = adjustedQuantity * b2bPrice;
-  const cost = adjustedQuantity * actualCostPerBottle;
+  // 실제 판매 수량 기반으로 매출/이익 계산
+  const revenue = soldQuantity * b2bPrice;
+  const cost = soldQuantity * actualCostPerBottle;
   const profit = revenue - cost;
   const margin = revenue > 0 ? (profit / revenue) * 100 : 0;
+  const soldPercent = maxQuantity > 0 ? (soldQuantity / maxQuantity) * 100 : 0;
 
   const handleInputChange = (field: keyof EditableTierValues, value: string) => {
     const numValue = parseInt(value.replace(/[^\d]/g, '')) || 0;
@@ -379,35 +397,37 @@ function ProductCard({
                 </div>
               </div>
 
-              {/* Quantity Slider */}
+              {/* 실제 판매 현황 (inventory 연동) */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs text-white/50">판매 수량</span>
-                  <span className={`text-sm font-medium ${colors.text}`}>{adjustedQuantity}병 / {maxQuantity}병</span>
+                  <span className="text-xs text-white/50">판매 현황</span>
+                  <span className={`text-sm font-medium ${colors.text}`}>{soldQuantity}병 / {maxQuantity}병</span>
                 </div>
-                <input
-                  type="range"
-                  min={0}
-                  max={maxQuantity}
-                  value={Math.min(adjustedQuantity, maxQuantity)}
-                  onChange={(e) => onQuantityChange(tier.id, parseInt(e.target.value))}
-                  className="w-full h-2 bg-white/[0.06] rounded-full appearance-none cursor-pointer
-                    [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4
-                    [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-[#b7916e] [&::-webkit-slider-thumb]:cursor-pointer
-                    [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-white/20
-                    [&::-webkit-slider-thumb]:shadow-lg [&::-webkit-slider-thumb]:shadow-black/30"
-                />
+                {/* Progress Bar */}
+                <div className="h-2 bg-white/[0.06] rounded-full overflow-hidden">
+                  <div
+                    className="h-full rounded-full"
+                    style={{
+                      width: `${Math.min(soldPercent, 100)}%`,
+                      background: 'linear-gradient(to right, #b7916e, #d4c4a8)',
+                    }}
+                  />
+                </div>
+                <div className="flex items-center justify-between text-[10px]">
+                  <span className="text-white/40">판매율</span>
+                  <span className="text-white/60">{soldPercent.toFixed(1)}%</span>
+                </div>
               </div>
 
               {/* Calculations */}
               <div className="grid grid-cols-2 gap-3">
                 <div className="p-3 bg-white/[0.03] rounded-xl">
                   <p className="text-[10px] text-white/40 mb-1">예상 매출</p>
-                  <p className="text-base font-medium text-cyan-400">₩{formatCompact(revenue)}</p>
+                  <p className="text-base font-medium text-[#d4c4a8]">₩{formatCompact(revenue)}</p>
                 </div>
                 <div className="p-3 bg-white/[0.03] rounded-xl">
                   <p className="text-[10px] text-white/40 mb-1">예상 이익</p>
-                  <p className={`text-base font-medium ${profit >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                  <p className={`text-base font-medium ${profit >= 0 ? 'text-[#d4c4a8]' : 'text-white/50'}`}>
                     ₩{formatCompact(profit)}
                     <span className="text-xs ml-1 opacity-70">({margin.toFixed(1)}%)</span>
                   </p>
@@ -430,6 +450,181 @@ function ProductCard({
               <div className="flex items-center gap-2 text-xs text-white/40">
                 <Building2 className="w-3.5 h-3.5" />
                 <span>{tier.targetChannel.join(' · ')}</span>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
+  );
+}
+
+// 년도별 Stats 컴포넌트
+function YearStats({
+  totalRevenue,
+  totalProfit,
+  profitMargin,
+  soldQuantity,
+  totalQuantity,
+  totalCost,
+  targetAchievement,
+}: {
+  totalRevenue: number;
+  totalProfit: number;
+  profitMargin: number;
+  soldQuantity: number;
+  totalQuantity: number;
+  totalCost: number;
+  targetAchievement: number;
+}) {
+  return (
+    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-4">
+      <StatCard
+        icon={DollarSign}
+        label="예상 매출"
+        value={`₩${formatCompact(totalRevenue)}`}
+        subValue={`목표 달성 ${targetAchievement.toFixed(0)}%`}
+      />
+      <StatCard
+        icon={TrendingUp}
+        label="예상 이익"
+        value={`₩${formatCompact(totalProfit)}`}
+        subValue={`마진 ${profitMargin.toFixed(1)}%`}
+      />
+      <StatCard
+        icon={Package}
+        label="판매 수량"
+        value={`${soldQuantity}병`}
+        subValue={`${totalQuantity}병 중 ${totalQuantity > 0 ? ((soldQuantity / totalQuantity) * 100).toFixed(0) : 0}%`}
+      />
+      <StatCard
+        icon={Calculator}
+        label="총 원가"
+        value={`₩${formatCompact(totalCost)}`}
+      />
+    </div>
+  );
+}
+
+// 년도별 섹션 컴포넌트
+function YearSection({
+  year,
+  tiers,
+  isExpanded,
+  onToggle,
+  expandedCard,
+  setExpandedCard,
+  quantities,
+  editableValues,
+  onQuantityChange,
+  onEditableChange,
+  getCostPerBottle,
+  getActualSoldQuantity,
+  getActualTotalQuantity,
+  yearStats,
+}: {
+  year: number;
+  tiers: PricingTier[];
+  isExpanded: boolean;
+  onToggle: () => void;
+  expandedCard: string | null;
+  setExpandedCard: (id: string | null) => void;
+  quantities: Record<string, number>;
+  editableValues: Record<string, EditableTierValues>;
+  onQuantityChange: (id: string, quantity: number) => void;
+  onEditableChange: (id: string, field: keyof EditableTierValues, value: number) => void;
+  getCostPerBottle: (id: string, defaultCost: number) => number;
+  getActualSoldQuantity: (id: string) => number;
+  getActualTotalQuantity: (id: string) => number;
+  yearStats: {
+    totalRevenue: number;
+    totalProfit: number;
+    profitMargin: number;
+    soldQuantity: number;
+    totalQuantity: number;
+    totalCost: number;
+    targetAchievement: number;
+  };
+}) {
+  const yearLabel = year === 2025 ? '2025 First Edition' : `${year} Collection`;
+
+  return (
+    <motion.div
+      layout
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="rounded-2xl overflow-hidden border border-white/[0.06] bg-white/[0.02]"
+    >
+      {/* Year Header */}
+      <button
+        onClick={onToggle}
+        className="w-full p-4 sm:p-5 flex items-center justify-between hover:bg-white/[0.02] transition-colors"
+      >
+        <div className="flex items-center gap-3">
+          <div className="p-2 rounded-xl bg-[#b7916e]/10 border border-[#b7916e]/20">
+            <Wine className="w-5 h-5 text-[#b7916e]" />
+          </div>
+          <div className="text-left">
+            <h2 className="text-lg font-medium text-[#d4c4a8]">{yearLabel}</h2>
+            <p className="text-xs text-white/40">{tiers.length}개 제품 · ₩{formatCompact(yearStats.totalRevenue)}</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-4">
+          <div className="text-right hidden sm:block">
+            <p className="text-sm font-medium text-white/70">
+              {yearStats.soldQuantity}병 판매
+            </p>
+            <p className="text-xs text-white/40">
+              {yearStats.totalQuantity}병 중
+            </p>
+          </div>
+          {isExpanded ? (
+            <ChevronUp className="w-5 h-5 text-white/40" />
+          ) : (
+            <ChevronDown className="w-5 h-5 text-white/40" />
+          )}
+        </div>
+      </button>
+
+      {/* Expanded Content */}
+      <AnimatePresence>
+        {isExpanded && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.3 }}
+            className="overflow-hidden"
+          >
+            <div className="px-4 sm:px-5 pb-4 sm:pb-5 space-y-4">
+              {/* Year Stats */}
+              <YearStats
+                totalRevenue={yearStats.totalRevenue}
+                totalProfit={yearStats.totalProfit}
+                profitMargin={yearStats.profitMargin}
+                soldQuantity={yearStats.soldQuantity}
+                totalQuantity={yearStats.totalQuantity}
+                totalCost={yearStats.totalCost}
+                targetAchievement={yearStats.targetAchievement}
+              />
+
+              {/* Product Cards */}
+              <div className="space-y-3">
+                {tiers.map((tier) => (
+                  <ProductCard
+                    key={tier.id}
+                    tier={tier}
+                    adjustedQuantity={quantities[tier.id] || 0}
+                    onQuantityChange={onQuantityChange}
+                    isExpanded={expandedCard === tier.id}
+                    onToggle={() => setExpandedCard(expandedCard === tier.id ? null : tier.id)}
+                    actualCostPerBottle={getCostPerBottle(tier.id, tier.costPerBottle)}
+                    editableValues={editableValues[tier.id] || { quantity: tier.quantity, b2bPrice: tier.b2bPrice, consumerPrice: tier.consumerPrice }}
+                    onEditableChange={onEditableChange}
+                    actualSoldQuantity={getActualSoldQuantity(tier.id)}
+                    actualTotalQuantity={getActualTotalQuantity(tier.id)}
+                  />
+                ))}
               </div>
             </div>
           </motion.div>
@@ -662,8 +857,16 @@ const PRODUCT_NAME_MAP: Record<string, string> = {
   '앙 리유 쉬르 매그넘': 'magnum',
 };
 
+// 년도별로 PRICING_TIERS 그룹화
+const YEARS = [...new Set(PRICING_TIERS.map((tier) => tier.year))].sort((a, b) => a - b);
+const TIERS_BY_YEAR = YEARS.reduce((acc, year) => {
+  acc[year] = PRICING_TIERS.filter((tier) => tier.year === year);
+  return acc;
+}, {} as Record<number, PricingTier[]>);
+
 export default function PricingPage() {
-  const [expandedCard, setExpandedCard] = useState<string | null>('entry');
+  const [expandedCard, setExpandedCard] = useState<string | null>('first-edition');
+  const [expandedYears, setExpandedYears] = useState<number[]>([2025, 2026]);
   const [isReportOpen, setIsReportOpen] = useState(false);
   const [quantities, setQuantities] = useState<Record<string, number>>(() =>
     PRICING_TIERS.reduce((acc, tier) => ({ ...acc, [tier.id]: tier.quantity }), {})
@@ -691,6 +894,34 @@ export default function PricingPage() {
   const [exchangeRate, setExchangeRate] = useState(1500);
   const [isCostLoading, setIsCostLoading] = useState(true);
   const [costSyncStatus, setCostSyncStatus] = useState<'loading' | 'synced' | 'offline'>('loading');
+
+  // Inventory 연동 (실제 판매 수량 조회)
+  const { initializeInventory, getProductSummary, isInitialized } = useInventoryStore();
+  const [mounted, setMounted] = useState(false);
+
+  // 클라이언트 마운트 및 inventory 초기화
+  useEffect(() => {
+    setMounted(true);
+    initializeInventory();
+  }, [initializeInventory]);
+
+  // Pricing Tier ID로 실제 판매 수량 조회
+  const getActualSoldQuantity = useCallback((tierId: string): number => {
+    if (!mounted || !isInitialized) return 0;
+    const productId = TIER_TO_PRODUCT_ID[tierId];
+    if (!productId) return 0;
+    const summary = getProductSummary(productId);
+    return summary.sold;
+  }, [mounted, isInitialized, getProductSummary]);
+
+  // Pricing Tier ID로 실제 총 재고 수량 조회
+  const getActualTotalQuantity = useCallback((tierId: string): number => {
+    if (!mounted || !isInitialized) return 0;
+    const productId = TIER_TO_PRODUCT_ID[tierId];
+    if (!productId) return 0;
+    const summary = getProductSummary(productId);
+    return summary.total;
+  }, [mounted, isInitialized, getProductSummary]);
 
   // Cost calculator 상수
   const DEPRECIATION_YEARS = 4;
@@ -775,7 +1006,7 @@ export default function PricingPage() {
     loadCostData();
   }, []);
 
-  // 저장된 가격 설정 불러오기
+  // 저장된 가격 설정 불러오기 (DB에 없으면 초기값 자동 저장)
   useEffect(() => {
     const loadPricingSettings = async () => {
       if (!isSupabaseConfigured()) {
@@ -784,7 +1015,31 @@ export default function PricingPage() {
       }
 
       try {
-        const settings = await fetchPricingSettings(2026);
+        let settings = await fetchPricingSettings(2026);
+
+        // DB에 설정이 없으면 초기값을 자동으로 저장
+        if (!settings || settings.length === 0) {
+          console.log('No pricing settings found in DB, saving initial values...');
+
+          // PRICING_TIERS에서 초기값 생성
+          const initialValues: Record<string, EditableTierValues> = {};
+          PRICING_TIERS.forEach((tier) => {
+            initialValues[tier.id] = {
+              quantity: tier.quantity,
+              b2bPrice: tier.b2bPrice,
+              consumerPrice: tier.consumerPrice,
+            };
+          });
+
+          // DB에 저장
+          const saved = await upsertPricingSettings(2026, initialValues);
+          if (saved) {
+            console.log('Initial pricing settings saved to DB');
+            // 저장 후 다시 불러오기
+            settings = await fetchPricingSettings(2026);
+          }
+        }
+
         if (settings && settings.length > 0) {
           const loadedValues: Record<string, EditableTierValues> = {};
           const loadedQuantities: Record<string, number> = {};
@@ -798,8 +1053,8 @@ export default function PricingPage() {
             loadedQuantities[setting.tierId] = setting.quantity;
           });
 
-          // 기존 기본값과 병합 (저장되지 않은 티어는 기본값 유지)
-          setEditableValues((prev) => ({ ...prev, ...loadedValues }));
+          // DB 값으로 editableValues 설정 (하드코딩 값 대신 DB 값 사용)
+          setEditableValues(loadedValues);
           setQuantities((prev) => {
             const merged = { ...prev };
             Object.keys(loadedQuantities).forEach((id) => {
@@ -870,27 +1125,83 @@ export default function PricingPage() {
     }
   }, [editableValues]);
 
+  // 년도별 calculations
+  const calculationsByYear = useMemo(() => {
+    const result: Record<number, {
+      totalRevenue: number;
+      totalCost: number;
+      totalProfit: number;
+      profitMargin: number;
+      soldQuantity: number;
+      totalQuantity: number;
+      targetAchievement: number;
+    }> = {};
+
+    YEARS.forEach((year) => {
+      let totalRevenue = 0;
+      let totalCost = 0;
+      let totalSoldQuantity = 0;
+      let totalMaxQuantity = 0;
+
+      const yearTiers = TIERS_BY_YEAR[year] || [];
+      // 년도별 목표 매출 (2025: 3천만, 2026: 1억)
+      const yearTargetRevenue = year === 2025 ? 30000000 : 100000000;
+
+      yearTiers.forEach((tier) => {
+        const soldQty = getActualSoldQuantity(tier.id);
+        const totalQty = getActualTotalQuantity(tier.id);
+        const cost = getCostPerBottle(tier.id, tier.costPerBottle);
+        const tierValues = editableValues[tier.id];
+        const b2bPrice = tierValues?.b2bPrice || tier.b2bPrice;
+        const maxQty = totalQty > 0 ? totalQty : (tierValues?.quantity || tier.quantity);
+        totalRevenue += soldQty * b2bPrice;
+        totalCost += soldQty * cost;
+        totalSoldQuantity += soldQty;
+        totalMaxQuantity += maxQty;
+      });
+
+      const totalProfit = totalRevenue - totalCost;
+      const profitMargin = totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0;
+      const targetAchievement = (totalRevenue / yearTargetRevenue) * 100;
+
+      result[year] = {
+        totalRevenue,
+        totalCost,
+        totalProfit,
+        profitMargin,
+        soldQuantity: totalSoldQuantity,
+        totalQuantity: totalMaxQuantity,
+        targetAchievement,
+      };
+    });
+
+    return result;
+  }, [getActualSoldQuantity, getActualTotalQuantity, getCostPerBottle, editableValues]);
+
+  // 전체 합계 calculations (기존 로직 유지)
   const calculations = useMemo(() => {
     let totalRevenue = 0;
     let totalCost = 0;
-    let totalQuantity = 0;
+    let totalSoldQuantity = 0;
     let totalMaxQuantity = 0;
 
     PRICING_TIERS.forEach((tier) => {
-      const qty = quantities[tier.id] || 0;
+      // 실제 판매 수량 사용 (inventory 연동)
+      const soldQty = getActualSoldQuantity(tier.id);
+      const totalQty = getActualTotalQuantity(tier.id);
       const cost = getCostPerBottle(tier.id, tier.costPerBottle);
       const tierValues = editableValues[tier.id];
       const b2bPrice = tierValues?.b2bPrice || tier.b2bPrice;
-      const maxQty = tierValues?.quantity || tier.quantity;
-      totalRevenue += qty * b2bPrice;
-      totalCost += qty * cost;
-      totalQuantity += qty;
+      const maxQty = totalQty > 0 ? totalQty : (tierValues?.quantity || tier.quantity);
+      totalRevenue += soldQty * b2bPrice;
+      totalCost += soldQty * cost;
+      totalSoldQuantity += soldQty;
       totalMaxQuantity += maxQty;
     });
 
     const totalProfit = totalRevenue - totalCost;
     const profitMargin = totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0;
-    const sellRate = totalMaxQuantity > 0 ? (totalQuantity / totalMaxQuantity) * 100 : 0;
+    const sellRate = totalMaxQuantity > 0 ? (totalSoldQuantity / totalMaxQuantity) * 100 : 0;
     const targetRevenue = 100000000; // 1억
     const targetAchievement = (totalRevenue / targetRevenue) * 100;
 
@@ -899,12 +1210,19 @@ export default function PricingPage() {
       totalCost,
       totalProfit,
       profitMargin,
-      totalQuantity,
+      totalQuantity: totalSoldQuantity,
       totalMaxQuantity,
       sellRate,
       targetAchievement,
     };
-  }, [quantities, getCostPerBottle, editableValues]);
+  }, [getActualSoldQuantity, getActualTotalQuantity, getCostPerBottle, editableValues]);
+
+  // 년도 섹션 토글
+  const toggleYear = useCallback((year: number) => {
+    setExpandedYears((prev) =>
+      prev.includes(year) ? prev.filter((y) => y !== year) : [...prev, year]
+    );
+  }, []);
 
   const resetQuantities = () => {
     setQuantities(PRICING_TIERS.reduce((acc, tier) => ({ ...acc, [tier.id]: tier.quantity }), {}));
@@ -1051,36 +1369,36 @@ export default function PricingPage() {
         </div>
       </section>
 
-      {/* Stats Cards */}
+      {/* Stats Cards - 전체 현황 */}
       <section className="px-4 sm:px-6 lg:px-8 mb-6 sm:mb-8">
         <div className="max-w-6xl mx-auto">
+          <div className="flex items-center gap-2 mb-3">
+            <BarChart3 className="w-4 h-4 text-[#b7916e]" />
+            <h2 className="text-sm font-medium text-white/60">전체 현황</h2>
+          </div>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
             <StatCard
               icon={DollarSign}
               label="예상 매출"
               value={`₩${formatCompact(calculations.totalRevenue)}`}
               subValue={`목표 달성 ${calculations.targetAchievement.toFixed(0)}%`}
-              color={calculations.targetAchievement >= 100 ? 'emerald' : 'cyan'}
             />
             <StatCard
               icon={TrendingUp}
               label="예상 이익"
               value={`₩${formatCompact(calculations.totalProfit)}`}
               subValue={`마진 ${calculations.profitMargin.toFixed(1)}%`}
-              color="emerald"
             />
             <StatCard
               icon={Package}
               label="판매 수량"
               value={`${calculations.totalQuantity}병`}
               subValue={`${calculations.totalMaxQuantity}병 중 ${calculations.sellRate.toFixed(0)}%`}
-              color="purple"
             />
             <StatCard
               icon={Calculator}
               label="총 원가"
               value={`₩${formatCompact(calculations.totalCost)}`}
-              color="rose"
             />
           </div>
         </div>
@@ -1108,17 +1426,12 @@ export default function PricingPage() {
                 initial={{ width: 0 }}
                 animate={{ width: `${Math.min(calculations.targetAchievement, 100)}%` }}
                 transition={{ duration: 1, ease: [0.25, 0.46, 0.45, 0.94] }}
-                className={`h-full rounded-full ${
-                  calculations.targetAchievement >= 100
-                    ? 'bg-gradient-to-r from-emerald-500 to-emerald-400'
-                    : calculations.targetAchievement >= 80
-                    ? 'bg-gradient-to-r from-amber-500 to-amber-400'
-                    : 'bg-gradient-to-r from-[#b7916e] to-[#d4c4a8]'
-                }`}
+                className="h-full rounded-full"
+                style={{ background: 'linear-gradient(to right, #b7916e, #d4c4a8)' }}
               />
             </div>
             {calculations.targetAchievement >= 100 && (
-              <p className="text-xs text-emerald-400 mt-2 flex items-center gap-1">
+              <p className="text-xs text-[#d4c4a8] mt-2 flex items-center gap-1">
                 <Sparkles className="w-3 h-3" />
                 목표 달성! 초과 매출 ₩{formatCompact(calculations.totalRevenue - 100000000)}
               </p>
@@ -1127,93 +1440,97 @@ export default function PricingPage() {
         </div>
       </section>
 
-      {/* Product Cards */}
+      {/* Year Sections */}
       <section className="px-4 sm:px-6 lg:px-8">
         <div className="max-w-6xl mx-auto">
           <div className="flex items-center gap-2 mb-4">
             <Wine className="w-5 h-5 text-[#b7916e]" />
-            <h2 className="text-lg font-medium text-white/90">제품별 판매 설정</h2>
+            <h2 className="text-lg font-medium text-white/90">년도별 판매 설정</h2>
           </div>
-          <div className="space-y-3">
-            {PRICING_TIERS.map((tier) => (
-              <ProductCard
-                key={tier.id}
-                tier={tier}
-                adjustedQuantity={quantities[tier.id] || 0}
+          <div className="space-y-4">
+            {YEARS.map((year) => (
+              <YearSection
+                key={year}
+                year={year}
+                tiers={TIERS_BY_YEAR[year] || []}
+                isExpanded={expandedYears.includes(year)}
+                onToggle={() => toggleYear(year)}
+                expandedCard={expandedCard}
+                setExpandedCard={setExpandedCard}
+                quantities={quantities}
+                editableValues={editableValues}
                 onQuantityChange={handleQuantityChange}
-                isExpanded={expandedCard === tier.id}
-                onToggle={() => setExpandedCard(expandedCard === tier.id ? null : tier.id)}
-                actualCostPerBottle={getCostPerBottle(tier.id, tier.costPerBottle)}
-                editableValues={editableValues[tier.id] || { quantity: tier.quantity, b2bPrice: tier.b2bPrice, consumerPrice: tier.consumerPrice }}
                 onEditableChange={handleEditableChange}
+                getCostPerBottle={getCostPerBottle}
+                getActualSoldQuantity={getActualSoldQuantity}
+                getActualTotalQuantity={getActualTotalQuantity}
+                yearStats={calculationsByYear[year] || {
+                  totalRevenue: 0,
+                  totalProfit: 0,
+                  profitMargin: 0,
+                  soldQuantity: 0,
+                  totalQuantity: 0,
+                  totalCost: 0,
+                  targetAchievement: 0,
+                }}
               />
             ))}
           </div>
         </div>
       </section>
 
-      {/* Revenue Breakdown */}
+      {/* Revenue Breakdown - 년도별 */}
       <section className="px-4 sm:px-6 lg:px-8 mt-8">
-        <div className="max-w-6xl mx-auto">
-          <div className="p-5 sm:p-6 bg-gradient-to-br from-[#b7916e]/10 to-transparent border border-[#b7916e]/20 rounded-2xl">
-            <h3 className="text-lg font-medium text-white/90 mb-4 flex items-center gap-2">
-              <BarChart3 className="w-5 h-5 text-[#b7916e]" />
-              티어별 매출 구성
-            </h3>
-            <div className="space-y-3">
-              {PRICING_TIERS.map((tier) => {
-                const qty = quantities[tier.id] || 0;
-                const tierValues = editableValues[tier.id];
-                const b2bPrice = tierValues?.b2bPrice || tier.b2bPrice;
-                const revenue = qty * b2bPrice;
-                const percentage =
-                  calculations.totalRevenue > 0 ? (revenue / calculations.totalRevenue) * 100 : 0;
-                const colors = TIER_COLORS[tier.tier];
+        <div className="max-w-6xl mx-auto space-y-4">
+          {YEARS.map((year) => {
+            const yearTiers = TIERS_BY_YEAR[year] || [];
+            const yearStats = calculationsByYear[year];
 
-                return (
-                  <div key={tier.id} className="space-y-1.5">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-white/70">{tier.nameKo}</span>
-                      <span className="text-white/50">
-                        ₩{formatCompact(revenue)} ({percentage.toFixed(1)}%)
-                      </span>
-                    </div>
-                    <div className="h-2 bg-white/[0.06] rounded-full overflow-hidden">
-                      <motion.div
-                        initial={{ width: 0 }}
-                        animate={{ width: `${percentage}%` }}
-                        transition={{ duration: 0.8 }}
-                        className={`h-full rounded-full bg-gradient-to-r ${colors.gradient.replace('to-', 'to-').replace('/5', '/60')}`}
-                        style={{
-                          background: `linear-gradient(to right, ${
-                            tier.tier === 'ENTRY'
-                              ? '#10b981'
-                              : tier.tier === 'MID'
-                              ? '#0ea5e9'
-                              : tier.tier === 'HIGH'
-                              ? '#f59e0b'
-                              : tier.tier === 'ULTRA'
-                              ? '#a855f7'
-                              : '#f43f5e'
-                          }, ${
-                            tier.tier === 'ENTRY'
-                              ? '#34d399'
-                              : tier.tier === 'MID'
-                              ? '#38bdf8'
-                              : tier.tier === 'HIGH'
-                              ? '#fbbf24'
-                              : tier.tier === 'ULTRA'
-                              ? '#c084fc'
-                              : '#fb7185'
-                          })`,
-                        }}
-                      />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
+            return (
+              <div
+                key={year}
+                className="p-5 sm:p-6 bg-gradient-to-br from-white/[0.03] to-transparent border border-white/[0.06] rounded-2xl"
+              >
+                <h3 className="text-lg font-medium text-white/90 mb-4 flex items-center gap-2">
+                  <BarChart3 className="w-5 h-5 text-[#b7916e]" />
+                  {year === 2025 ? '2025 First Edition' : `${year} Collection`} 매출 구성
+                </h3>
+                <div className="space-y-3">
+                  {yearTiers.map((tier) => {
+                    // 실제 판매 수량 사용 (inventory 연동)
+                    const soldQty = getActualSoldQuantity(tier.id);
+                    const tierValues = editableValues[tier.id];
+                    const b2bPrice = tierValues?.b2bPrice || tier.b2bPrice;
+                    const revenue = soldQty * b2bPrice;
+                    const percentage =
+                      yearStats?.totalRevenue > 0 ? (revenue / yearStats.totalRevenue) * 100 : 0;
+
+                    return (
+                      <div key={tier.id} className="space-y-1.5">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-white/70">{tier.nameKo}</span>
+                          <span className="text-white/50">
+                            {soldQty}병 · ₩{formatCompact(revenue)} ({percentage.toFixed(1)}%)
+                          </span>
+                        </div>
+                        <div className="h-2 bg-white/[0.06] rounded-full overflow-hidden">
+                          <motion.div
+                            initial={{ width: 0 }}
+                            animate={{ width: `${percentage}%` }}
+                            transition={{ duration: 0.8 }}
+                            className="h-full rounded-full"
+                            style={{
+                              background: 'linear-gradient(to right, #b7916e, #d4c4a8)',
+                            }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
         </div>
       </section>
 

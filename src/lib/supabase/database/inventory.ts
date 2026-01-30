@@ -30,6 +30,7 @@ export interface DBNumberedBottle {
 export interface DBInventoryBatch {
   id: string;
   product_id: string;
+  total_quantity: number;
   available: number;
   reserved: number;
   sold: number;
@@ -276,6 +277,68 @@ export async function deleteCustomProduct(id: string): Promise<boolean> {
   return true;
 }
 
+export async function updateCustomProduct(
+  id: string,
+  updates: Partial<Omit<DBCustomProduct, 'id' | 'created_at' | 'updated_at'>>
+): Promise<DBCustomProduct | null> {
+  if (!isSupabaseConfigured()) return null;
+
+  const { data, error } = await supabase!
+    .from('custom_products')
+    .update(updates)
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) {
+    dbLogger.error('Error updating custom product:', error);
+    return null;
+  }
+
+  return data as DBCustomProduct;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Inventory Transaction 수정/삭제 함수
+// ═══════════════════════════════════════════════════════════════════════════
+
+export async function updateInventoryTransaction(
+  id: string,
+  updates: Partial<Omit<DBInventoryTransaction, 'id' | 'created_at'>>
+): Promise<DBInventoryTransaction | null> {
+  if (!isSupabaseConfigured()) return null;
+
+  const { data, error } = await supabase!
+    .from('inventory_transactions')
+    .update(updates)
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) {
+    dbLogger.error('Error updating inventory transaction:', error);
+    return null;
+  }
+
+  return data as DBInventoryTransaction;
+}
+
+export async function deleteInventoryTransaction(id: string): Promise<boolean> {
+  if (!isSupabaseConfigured()) return false;
+
+  const { error } = await supabase!
+    .from('inventory_transactions')
+    .delete()
+    .eq('id', id);
+
+  if (error) {
+    dbLogger.error('Error deleting inventory transaction:', error);
+    return false;
+  }
+
+  return true;
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 // 재고 데이터 매핑 헬퍼
 // ═══════════════════════════════════════════════════════════════════════════
@@ -302,6 +365,7 @@ export function mapDbBatchToBatch(dbBatch: DBInventoryBatch): InventoryBatch {
   return {
     id: dbBatch.id,
     productId: dbBatch.product_id as ProductType,
+    totalQuantity: dbBatch.total_quantity,
     available: dbBatch.available,
     reserved: dbBatch.reserved,
     sold: dbBatch.sold,

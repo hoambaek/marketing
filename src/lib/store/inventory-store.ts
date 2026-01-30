@@ -45,6 +45,7 @@ interface InventoryState {
 
   // Custom Product Actions
   addProduct: (product: Omit<CustomProduct, 'id'>) => Promise<void>;
+  updateProduct: (productId: string, updates: Partial<Omit<CustomProduct, 'id'>>) => Promise<void>;
   removeProduct: (productId: string) => Promise<void>;
   getAllProducts: () => (CustomProduct & { isCustom: boolean; isNumbered: boolean })[];
 
@@ -89,6 +90,11 @@ interface InventoryState {
   getTransactionsByProduct: (productId: ProductType | string) => InventoryTransaction[];
   getRecentTransactions: (limit?: number) => InventoryTransaction[];
   getFilteredTransactions: (year?: number, month?: number, limit?: number) => InventoryTransaction[];
+  updateTransaction: (
+    transactionId: string,
+    updates: Partial<Omit<InventoryTransaction, 'id' | 'createdAt'>>
+  ) => Promise<void>;
+  deleteTransaction: (transactionId: string) => Promise<void>;
 
   // Refresh from Supabase
   refreshFromSupabase: () => Promise<void>;
@@ -121,6 +127,7 @@ const createInitialBatches = (): InventoryBatch[] => {
   return PRODUCTS.filter((p) => !p.isNumbered).map((product) => ({
     id: `batch-${product.id}`,
     productId: product.id,
+    totalQuantity: product.totalQuantity,
     available: product.totalQuantity,
     reserved: 0,
     sold: 0,
@@ -172,9 +179,48 @@ export const useInventoryStore = create<InventoryState>()((set, get) => ({
             db.fetchCustomProducts(),
           ]);
 
+          // DB에서 로드한 배치 매핑
+          let loadedBatches = batches?.map(db.mapDbBatchToBatch) || [];
+
+          // PRODUCTS에 정의된 제품 중 배치가 없는 것 찾기
+          const existingProductIds = new Set(loadedBatches.map(b => b.productId));
+          const missingProducts = PRODUCTS.filter(p => !p.isNumbered && !existingProductIds.has(p.id));
+
+          // 누락된 배치 생성 및 DB에 저장
+          if (missingProducts.length > 0) {
+            const newBatches: InventoryBatch[] = missingProducts.map(product => ({
+              id: `batch-${product.id}`,
+              productId: product.id,
+              totalQuantity: product.totalQuantity,
+              available: product.totalQuantity,
+              reserved: 0,
+              sold: 0,
+              gifted: 0,
+              damaged: 0,
+              lastUpdated: new Date().toISOString(),
+            }));
+
+            // DB에 새 배치 저장
+            for (const batch of newBatches) {
+              await db.createInventoryBatch({
+                id: batch.id,
+                product_id: batch.productId,
+                total_quantity: batch.totalQuantity,
+                available: batch.available,
+                reserved: batch.reserved,
+                sold: batch.sold,
+                gifted: batch.gifted,
+                damaged: batch.damaged,
+              });
+            }
+
+            loadedBatches = [...loadedBatches, ...newBatches];
+            storeLogger.info(`Created ${newBatches.length} missing batches:`, missingProducts.map(p => p.id));
+          }
+
           set({
             numberedBottles: bottles?.map(db.mapDbBottleToBottle) || createInitialNumberedBottles(),
-            inventoryBatches: batches?.map(db.mapDbBatchToBatch) || createInitialBatches(),
+            inventoryBatches: loadedBatches.length > 0 ? loadedBatches : createInitialBatches(),
             transactions: transactions?.map(db.mapDbTransactionToTransaction) || [],
             customProducts: customProducts?.map(db.mapDbCustomProductToProduct) || [],
             isInitialized: true,
@@ -212,9 +258,47 @@ export const useInventoryStore = create<InventoryState>()((set, get) => ({
             db.fetchCustomProducts(),
           ]);
 
+          // DB에서 로드한 배치 매핑
+          let loadedBatches = batches?.map(db.mapDbBatchToBatch) || [];
+
+          // PRODUCTS에 정의된 제품 중 배치가 없는 것 찾기
+          const existingProductIds = new Set(loadedBatches.map(b => b.productId));
+          const missingProducts = PRODUCTS.filter(p => !p.isNumbered && !existingProductIds.has(p.id));
+
+          // 누락된 배치 생성 및 DB에 저장
+          if (missingProducts.length > 0) {
+            const newBatches: InventoryBatch[] = missingProducts.map(product => ({
+              id: `batch-${product.id}`,
+              productId: product.id,
+              totalQuantity: product.totalQuantity,
+              available: product.totalQuantity,
+              reserved: 0,
+              sold: 0,
+              gifted: 0,
+              damaged: 0,
+              lastUpdated: new Date().toISOString(),
+            }));
+
+            // DB에 새 배치 저장
+            for (const batch of newBatches) {
+              await db.createInventoryBatch({
+                id: batch.id,
+                product_id: batch.productId,
+                total_quantity: batch.totalQuantity,
+                available: batch.available,
+                reserved: batch.reserved,
+                sold: batch.sold,
+                gifted: batch.gifted,
+                damaged: batch.damaged,
+              });
+            }
+
+            loadedBatches = [...loadedBatches, ...newBatches];
+          }
+
           set({
             numberedBottles: bottles?.map(db.mapDbBottleToBottle) || [],
-            inventoryBatches: batches?.map(db.mapDbBatchToBatch) || [],
+            inventoryBatches: loadedBatches,
             transactions: transactions?.map(db.mapDbTransactionToTransaction) || [],
             customProducts: customProducts?.map(db.mapDbCustomProductToProduct) || [],
             isLoading: false,
@@ -779,6 +863,7 @@ export const useInventoryStore = create<InventoryState>()((set, get) => ({
             {
               id: `batch-${id}`,
               productId: id as ProductType,
+              totalQuantity: product.totalQuantity,
               available: product.totalQuantity,
               reserved: 0,
               sold: 0,
@@ -804,6 +889,7 @@ export const useInventoryStore = create<InventoryState>()((set, get) => ({
           await db.createInventoryBatch({
             id: `batch-${id}`,
             product_id: id,
+            total_quantity: product.totalQuantity,
             available: product.totalQuantity,
             reserved: 0,
             sold: 0,
@@ -825,25 +911,98 @@ export const useInventoryStore = create<InventoryState>()((set, get) => ({
         }
       },
 
+      updateProduct: async (productId, updates) => {
+        const state = get();
+        const customProduct = state.customProducts.find((p) => p.id === productId);
+        const baseProduct = PRODUCTS.find((p) => p.id === productId);
+
+        // 커스텀 상품이나 기본 상품 둘 다 없으면 return
+        if (!customProduct && !baseProduct) return;
+
+        const isCustom = !!customProduct;
+
+        // 배치에서 현재 총수량 가져오기 (DB에 저장된 totalQuantity 사용)
+        const batch = state.inventoryBatches.find((b) => b.productId === productId);
+        const oldTotalQuantity = batch?.totalQuantity ?? (customProduct?.totalQuantity ?? baseProduct?.totalQuantity ?? 0);
+        const newTotalQuantity = updates.totalQuantity ?? oldTotalQuantity;
+        const quantityDiff = newTotalQuantity - oldTotalQuantity;
+
+        // 커스텀 상품인 경우 로컬 상태 업데이트
+        if (isCustom) {
+          set((state) => ({
+            customProducts: state.customProducts.map((p) =>
+              p.id === productId ? { ...p, ...updates } : p
+            ),
+          }));
+        }
+
+        // 총수량이 변경되면 배치 재고의 totalQuantity와 available 조정
+        if (quantityDiff !== 0 && batch) {
+          const newAvailable = Math.max(0, batch.available + quantityDiff);
+          set((state) => ({
+            inventoryBatches: state.inventoryBatches.map((b) =>
+              b.productId === productId
+                ? { ...b, totalQuantity: newTotalQuantity, available: newAvailable, lastUpdated: new Date().toISOString() }
+                : b
+            ),
+          }));
+
+          // 기본 상품과 커스텀 상품 모두 배치의 total_quantity를 DB에 저장
+          if (get().useSupabase) {
+            await db.updateInventoryBatch(productId, {
+              total_quantity: newTotalQuantity,
+              available: newAvailable,
+            });
+          }
+        }
+
+        // 커스텀 상품인 경우 Supabase에 상품 정보도 저장
+        if (isCustom && get().useSupabase) {
+          await db.updateCustomProduct(productId, {
+            name: updates.name,
+            name_ko: updates.nameKo,
+            year: updates.year,
+            size: updates.size,
+            total_quantity: updates.totalQuantity,
+            description: updates.description,
+          });
+        }
+      },
+
       getAllProducts: () => {
         const state = get();
-        const baseProducts = PRODUCTS.map((p) => ({
-          id: p.id,
-          name: p.name,
-          nameKo: p.nameKo,
-          year: p.year,
-          size: p.size,
-          totalQuantity: p.totalQuantity,
-          description: p.description,
-          isCustom: false,
-          isNumbered: p.isNumbered,
-        }));
 
-        const custom = state.customProducts.map((p) => ({
-          ...p,
-          isCustom: true,
-          isNumbered: false,
-        }));
+        // 기본 상품: 배치의 totalQuantity 사용 (DB에 저장된 값)
+        const baseProducts = PRODUCTS.map((p) => {
+          const batch = state.inventoryBatches.find((b) => b.productId === p.id);
+          // 배치가 있으면 배치의 totalQuantity 사용, 없으면 기본값 사용
+          const totalQuantity = batch?.totalQuantity ?? p.totalQuantity;
+
+          return {
+            id: p.id,
+            name: p.name,
+            nameKo: p.nameKo,
+            year: p.year,
+            size: p.size,
+            totalQuantity,
+            description: p.description,
+            isCustom: false,
+            isNumbered: p.isNumbered,
+          };
+        });
+
+        // 커스텀 상품도 배치의 totalQuantity 사용
+        const custom = state.customProducts.map((p) => {
+          const batch = state.inventoryBatches.find((b) => b.productId === p.id);
+          const totalQuantity = batch?.totalQuantity ?? p.totalQuantity;
+
+          return {
+            ...p,
+            totalQuantity,
+            isCustom: true,
+            isNumbered: false,
+          };
+        });
 
         return [...baseProducts, ...custom];
       },
@@ -882,20 +1041,23 @@ export const useInventoryStore = create<InventoryState>()((set, get) => ({
         } else {
           // Batch products (including custom products)
           const batch = state.inventoryBatches.find((b) => b.productId === productId);
-          const totalQuantity = product?.totalQuantity || customProduct?.totalQuantity || 0;
 
           if (!batch) {
-            return { total: totalQuantity, available: 0, reserved: 0, sold: 0, gifted: 0, damaged: 0, soldPercent: 0 };
+            const fallbackTotal = product?.totalQuantity || customProduct?.totalQuantity || 0;
+            return { total: fallbackTotal, available: 0, reserved: 0, sold: 0, gifted: 0, damaged: 0, soldPercent: 0 };
           }
 
+          // 배치의 totalQuantity 사용 (DB에 저장된 값)
+          const total = batch.totalQuantity;
+
           return {
-            total: totalQuantity,
+            total,
             available: batch.available,
             reserved: batch.reserved,
             sold: batch.sold,
             gifted: batch.gifted,
             damaged: batch.damaged,
-            soldPercent: totalQuantity > 0 ? Math.round((batch.sold / totalQuantity) * 100) : 0,
+            soldPercent: total > 0 ? Math.round((batch.sold / total) * 100) : 0,
           };
         }
       },
@@ -964,5 +1126,93 @@ export const useInventoryStore = create<InventoryState>()((set, get) => ({
         return filtered
           .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
           .slice(0, limit);
+      },
+
+      updateTransaction: async (transactionId, updates) => {
+        // 로컬 상태 업데이트
+        set((state) => ({
+          transactions: state.transactions.map((tx) =>
+            tx.id === transactionId ? { ...tx, ...updates } : tx
+          ),
+        }));
+
+        // Supabase에 저장
+        if (get().useSupabase) {
+          await db.updateInventoryTransaction(transactionId, {
+            product_id: updates.productId,
+            bottle_number: updates.bottleNumber ?? null,
+            type: updates.type,
+            quantity: updates.quantity,
+            customer_name: updates.customerName ?? null,
+            price: updates.price ?? null,
+            notes: updates.notes ?? null,
+          });
+        }
+      },
+
+      deleteTransaction: async (transactionId) => {
+        const state = get();
+        const transaction = state.transactions.find((tx) => tx.id === transactionId);
+        if (!transaction) return;
+
+        const { productId, type, quantity } = transaction;
+        const batch = state.inventoryBatches.find((b) => b.productId === productId);
+
+        // 거래 유형에 따라 재고 복원
+        if (batch) {
+          let batchUpdates: { available?: number; reserved?: number; sold?: number; gifted?: number; damaged?: number } = {};
+
+          switch (type) {
+            case 'sale':
+              // 판매 취소: sold -> available
+              batchUpdates = { sold: batch.sold - quantity, available: batch.available + quantity };
+              break;
+            case 'reservation':
+              // 예약 취소: reserved -> available
+              batchUpdates = { reserved: batch.reserved - quantity, available: batch.available + quantity };
+              break;
+            case 'gift':
+              // 증정 취소: gifted -> available
+              batchUpdates = { gifted: batch.gifted - quantity, available: batch.available + quantity };
+              break;
+            case 'damage':
+              // 손상 취소: damaged -> available
+              batchUpdates = { damaged: batch.damaged - quantity, available: batch.available + quantity };
+              break;
+            case 'cancel_reservation':
+              // 예약취소 취소: available -> reserved (원래 예약 상태로 복원)
+              batchUpdates = { available: batch.available - quantity, reserved: batch.reserved + quantity };
+              break;
+            case 'return':
+              // 반품 취소: available -> sold (원래 판매 상태로 복원)
+              batchUpdates = { available: batch.available - quantity, sold: batch.sold + quantity };
+              break;
+          }
+
+          // 로컬 상태 업데이트 (재고 복원 + 거래 삭제)
+          set((state) => ({
+            inventoryBatches: state.inventoryBatches.map((b) =>
+              b.productId === productId
+                ? { ...b, ...batchUpdates, lastUpdated: new Date().toISOString() }
+                : b
+            ),
+            transactions: state.transactions.filter((tx) => tx.id !== transactionId),
+          }));
+
+          // Supabase에 저장
+          if (get().useSupabase) {
+            await db.updateInventoryBatch(productId as string, batchUpdates);
+            await db.deleteInventoryTransaction(transactionId);
+          }
+        } else {
+          // 배치가 없는 경우 (numbered bottles 등) - 거래만 삭제
+          set((state) => ({
+            transactions: state.transactions.filter((tx) => tx.id !== transactionId),
+          }));
+
+          if (get().useSupabase) {
+            await db.deleteInventoryTransaction(transactionId);
+          }
+        }
       },
 }));

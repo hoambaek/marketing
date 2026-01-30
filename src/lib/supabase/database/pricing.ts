@@ -87,32 +87,66 @@ export async function upsertPricingSetting(setting: Omit<PricingTierSetting, 'id
   return mapDbToPricingSetting(data);
 }
 
-// 여러 개 한 번에 저장
+// 여러 개 한 번에 저장 (기존 레코드 확인 후 insert 또는 update)
 export async function upsertPricingSettings(
   year: number,
   settings: Record<string, { quantity: number; b2bPrice: number; consumerPrice: number }>
 ): Promise<boolean> {
   if (!isSupabaseConfigured()) return false;
 
-  const records = Object.entries(settings).map(([tierId, values]) => ({
-    year,
-    tier_id: tierId,
-    quantity: values.quantity,
-    b2b_price: values.b2bPrice,
-    consumer_price: values.consumerPrice,
-    updated_at: new Date().toISOString(),
-  }));
+  try {
+    // 기존 레코드 조회
+    const { data: existingRecords } = await supabase!
+      .from('pricing_settings')
+      .select('id, tier_id')
+      .eq('year', year);
 
-  const { error } = await supabase!
-    .from('pricing_settings')
-    .upsert(records, { onConflict: 'year,tier_id' });
+    const existingMap = new Map(existingRecords?.map(r => [r.tier_id, r.id]) || []);
 
-  if (error) {
-    dbLogger.error('Error upserting pricing settings:', error);
+    // 각 설정에 대해 insert 또는 update
+    for (const [tierId, values] of Object.entries(settings)) {
+      const existingId = existingMap.get(tierId);
+
+      if (existingId) {
+        // UPDATE
+        const { error } = await supabase!
+          .from('pricing_settings')
+          .update({
+            quantity: values.quantity,
+            b2b_price: values.b2bPrice,
+            consumer_price: values.consumerPrice,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', existingId);
+
+        if (error) {
+          dbLogger.error(`Error updating pricing setting ${tierId}:`, error.message);
+          return false;
+        }
+      } else {
+        // INSERT
+        const { error } = await supabase!
+          .from('pricing_settings')
+          .insert({
+            year,
+            tier_id: tierId,
+            quantity: values.quantity,
+            b2b_price: values.b2bPrice,
+            consumer_price: values.consumerPrice,
+          });
+
+        if (error) {
+          dbLogger.error(`Error inserting pricing setting ${tierId}:`, error.message);
+          return false;
+        }
+      }
+    }
+
+    return true;
+  } catch (error) {
+    dbLogger.error('Error in upsertPricingSettings:', error);
     return false;
   }
-
-  return true;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

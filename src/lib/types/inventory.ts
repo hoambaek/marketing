@@ -3,7 +3,7 @@
  */
 
 // 상품 타입
-export type ProductType = 'first_edition' | 'en_lieu_sur_brut' | 'en_lieu_sur_magnum' | 'element_de_surprise' | 'atomes_crochus';
+export type ProductType = 'first_edition' | 'en_lieu_sur_brut' | 'en_lieu_sur_magnum' | 'element_de_surprise' | 'atomes_crochus_1y' | 'atomes_crochus_2y';
 
 // 상품 사이즈
 export type BottleSize = '750ml' | '1500ml';
@@ -41,6 +41,7 @@ export interface NumberedBottle {
 export interface InventoryBatch {
   id: string;
   productId: ProductType;
+  totalQuantity: number;
   available: number;
   reserved: number;
   sold: number;
@@ -80,7 +81,7 @@ export const PRODUCTS: Product[] = [
     nameKo: '앙 리유 쉬르 브뤼',
     year: 2026,
     size: '750ml',
-    totalQuantity: 210,
+    totalQuantity: 200,
     isNumbered: false,
     description: '2026 레귤러 브뤼',
   },
@@ -100,19 +101,29 @@ export const PRODUCTS: Product[] = [
     nameKo: '엘레멘 드 쉬르프리즈 BDB',
     year: 2026,
     size: '750ml',
-    totalQuantity: 120,
+    totalQuantity: 110,
     isNumbered: false,
     description: '블랑 드 블랑',
   },
   {
-    id: 'atomes_crochus',
-    name: 'Atomes Crochus Extra Brut',
-    nameKo: '아톰 크로슈 엑스트라 브뤼',
+    id: 'atomes_crochus_1y',
+    name: 'Atomes Crochus (1Y)',
+    nameKo: '아톰 크로슈 (1년)',
     year: 2026,
     size: '750ml',
-    totalQuantity: 144,
+    totalQuantity: 100,
     isNumbered: false,
-    description: '엑스트라 브뤼',
+    description: '1년 해저숙성',
+  },
+  {
+    id: 'atomes_crochus_2y',
+    name: 'Atomes Crochus (2Y)',
+    nameKo: '아톰 크로슈 (2년)',
+    year: 2026,
+    size: '750ml',
+    totalQuantity: 40,
+    isNumbered: false,
+    description: '2년 해저숙성 한정판',
   },
 ];
 

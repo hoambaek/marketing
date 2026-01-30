@@ -737,10 +737,7 @@ export default function BudgetPage() {
                           </div>
                         </div>
                         <div className="text-right">
-                          <p
-                            className="text-base sm:text-lg font-medium text-white/90"
-                            style={{ fontFamily: "var(--font-cormorant), 'Playfair Display', Georgia, serif" }}
-                          >
+                          <p className="text-base sm:text-lg font-semibold text-white/90 tabular-nums tracking-tight">
                             {formatCurrency(expense.amount)}
                           </p>
                         </div>

@@ -36,11 +36,27 @@ import {
   Trash2,
   Anchor,
   Loader2,
+  Pencil,
 } from 'lucide-react';
 import {
   fetchStructuresByYear,
   saveStructuresForYear,
+  fetchPricingSettings,
 } from '@/lib/supabase/database';
+import type { PricingTierSetting } from '@/lib/supabase/database';
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 상품 ID → 가격 티어 ID 매핑
+// ═══════════════════════════════════════════════════════════════════════════
+
+const PRODUCT_TO_PRICING_TIER: Record<string, string> = {
+  'first_edition': 'first-edition',
+  'en_lieu_sur_brut': 'entry',
+  'en_lieu_sur_magnum': 'magnum',
+  'element_de_surprise': 'bdb',
+  'atomes_crochus_1y': 'atome-1y',
+  'atomes_crochus_2y': 'atome-2y',
+};
 
 // ═══════════════════════════════════════════════════════════════════════════
 // 애니메이션 변형
@@ -92,11 +108,17 @@ const PRODUCT_COLORS: Record<string, { bg: string; text: string; accent: string;
     accent: 'from-emerald-500 to-emerald-400',
     glow: 'rgba(16, 185, 129, 0.15)',
   },
-  atomes_crochus: {
+  atomes_crochus_1y: {
     bg: 'bg-rose-500/10',
     text: 'text-rose-400',
     accent: 'from-rose-500 to-rose-400',
     glow: 'rgba(244, 63, 94, 0.15)',
+  },
+  atomes_crochus_2y: {
+    bg: 'bg-purple-500/10',
+    text: 'text-purple-400',
+    accent: 'from-purple-500 to-purple-400',
+    glow: 'rgba(168, 85, 247, 0.15)',
   },
   // Default colors for custom products
   default: {
@@ -123,6 +145,7 @@ function BottleStatusModal({
   currentStatus,
   currentBottle,
   onSave,
+  defaultPrice,
 }: {
   isOpen: boolean;
   onClose: () => void;
@@ -130,6 +153,7 @@ function BottleStatusModal({
   currentStatus: InventoryStatus;
   currentBottle?: NumberedBottle | null;
   onSave: (status: InventoryStatus, details?: { reservedFor?: string; soldTo?: string; giftedTo?: string; price?: number; notes?: string }) => void;
+  defaultPrice?: number;
 }) {
   const [status, setStatus] = useState<InventoryStatus>(currentStatus);
   const [customerName, setCustomerName] = useState('');
@@ -142,14 +166,16 @@ function BottleStatusModal({
     if (currentBottle) {
       const existingName = currentBottle.reservedFor || currentBottle.soldTo || currentBottle.giftedTo || '';
       setCustomerName(existingName);
-      setPrice(currentBottle.price ? String(currentBottle.price) : '');
+      // 기존 가격이 있으면 사용, 없으면 기본 판매가 사용
+      setPrice(currentBottle.price ? String(currentBottle.price) : (defaultPrice ? String(defaultPrice) : ''));
       setNotes(currentBottle.notes || '');
     } else {
       setCustomerName('');
-      setPrice('');
+      // 기본 판매가가 있으면 자동으로 입력
+      setPrice(defaultPrice ? String(defaultPrice) : '');
       setNotes('');
     }
-  }, [currentStatus, currentBottle, isOpen]);
+  }, [currentStatus, currentBottle, isOpen, defaultPrice]);
 
   const handleSave = () => {
     onSave(status, {
@@ -318,11 +344,13 @@ function BatchAdjustModal({
   onClose,
   product,
   onAction,
+  defaultPrice,
 }: {
   isOpen: boolean;
   onClose: () => void;
   product: Product | null;
   onAction: (action: 'sell' | 'reserve' | 'gift' | 'damage' | 'confirm' | 'cancel', quantity: number, details?: { customerName?: string; price?: number; notes?: string }) => void;
+  defaultPrice?: number;
 }) {
   const [action, setAction] = useState<'sell' | 'reserve' | 'gift' | 'damage' | 'confirm' | 'cancel'>('sell');
   const [quantity, setQuantity] = useState('1');
@@ -331,12 +359,22 @@ function BatchAdjustModal({
   const [notes, setNotes] = useState('');
 
   useEffect(() => {
-    setAction('sell');
-    setQuantity('1');
-    setCustomerName('');
-    setPrice('');
-    setNotes('');
-  }, [product, isOpen]);
+    if (isOpen) {
+      setAction('sell');
+      setQuantity('1');
+      setCustomerName('');
+      // 기본 판매가가 있으면 자동으로 입력
+      setPrice(defaultPrice ? formatNumberWithCommas(String(defaultPrice)) : '');
+      setNotes('');
+    }
+  }, [product, isOpen]); // defaultPrice는 의존성에서 제외 (isOpen 시점에만 초기화)
+
+  // defaultPrice가 나중에 로드되었을 때 가격이 비어있으면 채워주기
+  useEffect(() => {
+    if (isOpen && defaultPrice && !price) {
+      setPrice(formatNumberWithCommas(String(defaultPrice)));
+    }
+  }, [defaultPrice, isOpen, price]);
 
   const handleQuantityChange = (value: string) => {
     setQuantity(formatNumberWithCommas(value));
@@ -698,6 +736,320 @@ function AddProductModal({
                   추가
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      </motion.div>
+    </AnimatePresence>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 상품 수정 모달
+// ═══════════════════════════════════════════════════════════════════════════
+
+function EditProductModal({
+  isOpen,
+  onClose,
+  product,
+  onSave,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  product: { id: string; name: string; nameKo: string; year: number; size: string; totalQuantity: number; description?: string } | null;
+  onSave: (productId: string, updates: { totalQuantity: number }) => void;
+}) {
+  const [quantity, setQuantity] = useState('');
+
+  useEffect(() => {
+    if (isOpen && product) {
+      setQuantity(product.totalQuantity.toLocaleString());
+    }
+  }, [isOpen, product]);
+
+  const handleQuantityChange = (value: string) => {
+    setQuantity(formatNumberWithCommas(value));
+  };
+
+  const handleSubmit = () => {
+    if (!product || !quantity) return;
+
+    onSave(product.id, {
+      totalQuantity: parseNumberFromCommas(quantity),
+    });
+    toast.success('총수량이 수정되었습니다');
+    onClose();
+  };
+
+  if (!isOpen || !product) return null;
+
+  return (
+    <AnimatePresence>
+      <motion.div
+        key="edit-product-modal-backdrop"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        onClick={onClose}
+        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50"
+      />
+      <motion.div
+        key="edit-product-modal-content"
+        initial={{ opacity: 0, scale: 0.95, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: 20 }}
+        className="fixed inset-x-4 top-1/2 -translate-y-1/2 z-50 mx-auto max-w-md"
+      >
+        <div className="relative rounded-2xl overflow-hidden">
+          <div className="absolute inset-0 bg-[#0d1525]" />
+          <div className="absolute inset-0 bg-gradient-to-br from-white/[0.06] to-white/[0.02]" />
+          <div className="absolute inset-0 border border-white/[0.1] rounded-2xl" />
+
+          <div className="relative p-5 sm:p-6">
+            {/* Header */}
+            <div className="flex items-center justify-between mb-5">
+              <div>
+                <h3 className="text-lg font-medium text-white/90">총수량 수정</h3>
+                <p className="text-xs text-white/40">{product.nameKo}</p>
+              </div>
+              <button onClick={onClose} className="p-2 text-white/40 hover:text-white/60">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs text-white/40 uppercase tracking-wider mb-2">총 수량</label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={quantity}
+                  onChange={(e) => handleQuantityChange(e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl bg-white/[0.04] border border-white/[0.1] text-white/90 placeholder:text-white/30 focus:outline-none focus:border-[#b7916e]/50"
+                />
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="flex gap-3 pt-5">
+              <button
+                onClick={onClose}
+                className="flex-1 px-4 py-3 rounded-xl bg-white/[0.04] border border-white/[0.1] text-white/60 hover:bg-white/[0.08]"
+              >
+                취소
+              </button>
+              <button
+                onClick={handleSubmit}
+                disabled={!quantity}
+                className="flex-1 px-4 py-3 rounded-xl bg-[#b7916e]/20 border border-[#b7916e]/30 text-[#d4c4a8] hover:bg-[#b7916e]/30 flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                <Check className="w-4 h-4" />
+                저장
+              </button>
+            </div>
+          </div>
+        </div>
+      </motion.div>
+    </AnimatePresence>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 트랜잭션 수정 모달
+// ═══════════════════════════════════════════════════════════════════════════
+
+interface EditTransactionModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  transaction: {
+    id: string;
+    productId: string;
+    type: string;
+    quantity: number;
+    customerName?: string;
+    price?: number;
+    notes?: string;
+  } | null;
+  onSave: (transactionId: string, updates: { type?: string; quantity: number; customerName?: string; price?: number; notes?: string }) => void;
+  onDelete: (transactionId: string) => void;
+}
+
+function EditTransactionModal({ isOpen, onClose, transaction, onSave, onDelete }: EditTransactionModalProps) {
+  const [type, setType] = useState('');
+  const [quantity, setQuantity] = useState('');
+  const [customerName, setCustomerName] = useState('');
+  const [price, setPrice] = useState('');
+  const [notes, setNotes] = useState('');
+
+  useEffect(() => {
+    if (isOpen && transaction) {
+      setType(transaction.type);
+      setQuantity(String(transaction.quantity));
+      setCustomerName(transaction.customerName || '');
+      setPrice(transaction.price ? transaction.price.toLocaleString() : '');
+      setNotes(transaction.notes || '');
+    }
+  }, [isOpen, transaction]);
+
+  const handlePriceChange = (value: string) => {
+    setPrice(formatNumberWithCommas(value));
+  };
+
+  const handleSave = () => {
+    if (!transaction || !quantity) return;
+
+    onSave(transaction.id, {
+      type: type !== transaction.type ? type : undefined,
+      quantity: parseInt(quantity),
+      customerName: customerName || undefined,
+      price: price ? parseNumberFromCommas(price) : undefined,
+      notes: notes || undefined,
+    });
+    toast.success('거래 내역이 수정되었습니다');
+    onClose();
+  };
+
+  const handleDelete = () => {
+    if (!transaction) return;
+    if (window.confirm('이 거래 내역을 삭제하시겠습니까?')) {
+      onDelete(transaction.id);
+      toast.success('거래 내역이 삭제되었습니다');
+      onClose();
+    }
+  };
+
+  if (!isOpen || !transaction) return null;
+
+  const typeLabels: Record<string, string> = {
+    sale: '판매',
+    reservation: '예약',
+    gift: '증정',
+    damage: '손상처리',
+    return: '반품',
+    cancel_reservation: '예약취소',
+  };
+
+  return (
+    <AnimatePresence>
+      <motion.div
+        key="edit-tx-modal-backdrop"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        onClick={onClose}
+        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50"
+      />
+      <motion.div
+        key="edit-tx-modal-content"
+        initial={{ opacity: 0, scale: 0.95, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: 20 }}
+        className="fixed inset-x-4 top-1/2 -translate-y-1/2 z-50 mx-auto max-w-md"
+      >
+        <div className="relative rounded-2xl overflow-hidden max-h-[85vh] flex flex-col">
+          <div className="absolute inset-0 bg-[#0d1525]" />
+          <div className="absolute inset-0 bg-gradient-to-br from-white/[0.06] to-white/[0.02]" />
+          <div className="absolute inset-0 border border-white/[0.1] rounded-2xl" />
+
+          <div className="relative p-5 sm:p-6 flex flex-col max-h-[85vh]">
+            {/* Header */}
+            <div className="flex items-center justify-between mb-5 shrink-0">
+              <div>
+                <h3 className="text-lg font-medium text-white/90">거래 내역 수정</h3>
+                <p className="text-xs text-white/40">{typeLabels[transaction.type] || transaction.type}</p>
+              </div>
+              <button onClick={onClose} className="p-2 text-white/40 hover:text-white/60">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="space-y-4 overflow-y-auto flex-1">
+              <div>
+                <label className="block text-xs text-white/40 uppercase tracking-wider mb-2">작업 유형</label>
+                <select
+                  value={type}
+                  onChange={(e) => setType(e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl bg-white/[0.04] border border-white/[0.1] text-white/90 focus:outline-none focus:border-[#b7916e]/50"
+                >
+                  <option value="sale">판매</option>
+                  <option value="reservation">예약</option>
+                  <option value="gift">증정</option>
+                  <option value="damage">손상처리</option>
+                  <option value="return">반품</option>
+                  <option value="cancel_reservation">예약취소</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs text-white/40 uppercase tracking-wider mb-2">수량</label>
+                <input
+                  type="number"
+                  value={quantity}
+                  onChange={(e) => setQuantity(e.target.value)}
+                  min="1"
+                  className="w-full px-4 py-3 rounded-xl bg-white/[0.04] border border-white/[0.1] text-white/90 focus:outline-none focus:border-[#b7916e]/50"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs text-white/40 uppercase tracking-wider mb-2">고객명</label>
+                <input
+                  type="text"
+                  value={customerName}
+                  onChange={(e) => setCustomerName(e.target.value)}
+                  placeholder="고객명 입력"
+                  className="w-full px-4 py-3 rounded-xl bg-white/[0.04] border border-white/[0.1] text-white/90 placeholder:text-white/30 focus:outline-none focus:border-[#b7916e]/50"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs text-white/40 uppercase tracking-wider mb-2">금액 (원)</label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={price}
+                  onChange={(e) => handlePriceChange(e.target.value)}
+                  placeholder="0"
+                  className="w-full px-4 py-3 rounded-xl bg-white/[0.04] border border-white/[0.1] text-white/90 placeholder:text-white/30 focus:outline-none focus:border-[#b7916e]/50"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs text-white/40 uppercase tracking-wider mb-2">메모</label>
+                <textarea
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  rows={2}
+                  placeholder="메모 입력"
+                  className="w-full px-4 py-3 rounded-xl bg-white/[0.04] border border-white/[0.1] text-white/90 placeholder:text-white/30 focus:outline-none focus:border-[#b7916e]/50 resize-none"
+                />
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="flex gap-3 pt-5 shrink-0">
+              <button
+                onClick={handleDelete}
+                className="px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500/20"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+              <button
+                onClick={onClose}
+                className="flex-1 px-4 py-3 rounded-xl bg-white/[0.04] border border-white/[0.1] text-white/60 hover:bg-white/[0.08]"
+              >
+                취소
+              </button>
+              <button
+                onClick={handleSave}
+                disabled={!quantity}
+                className="flex-1 px-4 py-3 rounded-xl bg-[#b7916e]/20 border border-[#b7916e]/30 text-[#d4c4a8] hover:bg-[#b7916e]/30 flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                <Check className="w-4 h-4" />
+                저장
+              </button>
             </div>
           </div>
         </div>
@@ -1596,10 +1948,11 @@ interface ProductCardProps {
     isCustom?: boolean;
   };
   onManage: () => void;
+  onEditQuantity?: () => void;
   mounted: boolean;
 }
 
-function ProductCard({ product, onManage, mounted }: ProductCardProps) {
+function ProductCard({ product, onManage, onEditQuantity, mounted }: ProductCardProps) {
   const { getProductSummary } = useInventoryStore();
   const summary = mounted ? getProductSummary(product.id) : { available: 0, reserved: 0, sold: 0, gifted: 0, damaged: 0, soldPercent: 0 };
   const colors = getProductColors(product.id);
@@ -1627,7 +1980,21 @@ function ProductCard({ product, onManage, mounted }: ProductCardProps) {
           </div>
           <div className="text-right shrink-0 ml-3">
             <p className="text-xs text-white/30 whitespace-nowrap">총 수량</p>
-            <p className="text-lg text-white/70">{product.totalQuantity}</p>
+            <div className="flex items-center gap-1.5">
+              <p className="text-lg text-white/70">{product.totalQuantity}</p>
+              {!product.isNumbered && onEditQuantity && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onEditQuantity();
+                  }}
+                  className="p-1 rounded-md text-white/30 hover:text-white/60 hover:bg-white/[0.06] transition-all"
+                  title="총수량 수정"
+                >
+                  <Pencil className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -1712,9 +2079,11 @@ function ProductCard({ product, onManage, mounted }: ProductCardProps) {
 function FirstEditionGrid({
   isExpanded,
   onToggle,
+  defaultPrice,
 }: {
   isExpanded: boolean;
   onToggle: () => void;
+  defaultPrice?: number;
 }) {
   const { numberedBottles, updateBottleStatus, getProductSummary } = useInventoryStore();
   const [selectedBottle, setSelectedBottle] = useState<NumberedBottle | null>(null);
@@ -1811,6 +2180,7 @@ function FirstEditionGrid({
           currentStatus={selectedBottle.status}
           currentBottle={selectedBottle}
           onSave={handleSaveStatus}
+          defaultPrice={defaultPrice}
         />
       )}
     </div>
@@ -1822,31 +2192,52 @@ function FirstEditionGrid({
 // ═══════════════════════════════════════════════════════════════════════════
 
 export default function InventoryPage() {
-  const { initializeInventory, refreshFromSupabase, getTotalInventoryValue, getRecentTransactions, getFilteredTransactions, isLoading, sellFromBatch, reserveFromBatch, confirmReservation, cancelReservation, reportDamage, giftFromBatch, addProduct, getAllProducts } = useInventoryStore();
+  const { initializeInventory, refreshFromSupabase, getTotalInventoryValue, getRecentTransactions, getFilteredTransactions, isLoading, sellFromBatch, reserveFromBatch, confirmReservation, cancelReservation, reportDamage, giftFromBatch, addProduct, updateProduct, getAllProducts, updateTransaction, deleteTransaction } = useInventoryStore();
   const [isFirstEditionExpanded, setIsFirstEditionExpanded] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [mounted, setMounted] = useState(false);
   const [addProductYear, setAddProductYear] = useState<number | null>(null);
   const [weightModalYear, setWeightModalYear] = useState<number | null>(null);
 
+  // 가격 설정 상태 (pricing 페이지의 판매가 자동 입력용)
+  const [pricingSettings, setPricingSettings] = useState<PricingTierSetting[]>([]);
+
+  // 상품 총수량 수정 모달 상태
+  const [editingProduct, setEditingProduct] = useState<{ id: string; name: string; nameKo: string; year: number; size: string; totalQuantity: number } | null>(null);
+
+  // 트랜잭션 수정 모달 상태
+  const [editingTransaction, setEditingTransaction] = useState<{
+    id: string;
+    productId: string;
+    type: string;
+    quantity: number;
+    customerName?: string;
+    price?: number;
+    notes?: string;
+  } | null>(null);
+
   // Year section expanded state - all collapsed by default
   const [expandedYears, setExpandedYears] = useState<number[]>([]);
 
-  // Custom years state (years added by user)
-  const [customYears, setCustomYears] = useState<number[]>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('inventory_custom_years');
-      return saved ? JSON.parse(saved) : [];
-    }
-    return [];
-  });
+  // Custom years state (years added by user) - 서버/클라이언트 hydration 일치를 위해 빈 배열로 초기화
+  const [customYears, setCustomYears] = useState<number[]>([]);
+  const [customYearsLoaded, setCustomYearsLoaded] = useState(false);
 
-  // Save customYears to localStorage when changed
+  // localStorage에서 customYears 로드 (클라이언트에서만)
   useEffect(() => {
-    if (typeof window !== 'undefined') {
+    const saved = localStorage.getItem('inventory_custom_years');
+    if (saved) {
+      setCustomYears(JSON.parse(saved));
+    }
+    setCustomYearsLoaded(true);
+  }, []);
+
+  // Save customYears to localStorage when changed (로드 완료 후에만 저장)
+  useEffect(() => {
+    if (customYearsLoaded) {
       localStorage.setItem('inventory_custom_years', JSON.stringify(customYears));
     }
-  }, [customYears]);
+  }, [customYears, customYearsLoaded]);
 
   // Transaction filter state
   const [txFilterYear, setTxFilterYear] = useState<number | undefined>(undefined);
@@ -1886,6 +2277,14 @@ export default function InventoryPage() {
   useEffect(() => {
     setMounted(true);
     initializeInventory();
+    // 가격 설정 로드
+    const loadPricing = async () => {
+      const settings = await fetchPricingSettings(2026);
+      if (settings) {
+        setPricingSettings(settings);
+      }
+    };
+    loadPricing();
   }, [initializeInventory]);
 
   // Refresh from Supabase on focus (when returning to the tab)
@@ -1898,6 +2297,14 @@ export default function InventoryPage() {
   }, [refreshFromSupabase]);
 
   const totalValue = mounted ? getTotalInventoryValue() : { totalBottles: 0, available: 0, reserved: 0, sold: 0 };
+
+  // 상품 ID로 B2B 판매가 조회 (pricing 페이지 DB 설정에서 가져옴)
+  const getDefaultPriceForProduct = useCallback((productId: string): number | undefined => {
+    const tierId = PRODUCT_TO_PRICING_TIER[productId];
+    if (!tierId) return undefined;
+    const pricingSetting = pricingSettings.find(p => p.tierId === tierId);
+    return pricingSetting?.b2bPrice;
+  }, [pricingSettings]);
 
   // Use filtered transactions if filter is set, otherwise show recent
   // Get more transactions for pagination (up to 100)
@@ -1979,6 +2386,21 @@ export default function InventoryPage() {
 
   const handleAddProduct = (product: { name: string; nameKo: string; year: number; size: string; totalQuantity: number; description?: string }) => {
     addProduct(product);
+  };
+
+  // 상품 총수량 수정 핸들러
+  const handleEditProductQuantity = (productId: string, updates: { totalQuantity: number }) => {
+    updateProduct(productId, updates);
+  };
+
+  // 트랜잭션 수정 핸들러
+  const handleUpdateTransaction = (transactionId: string, updates: { type?: string; quantity: number; customerName?: string; price?: number; notes?: string }) => {
+    updateTransaction(transactionId, updates as Parameters<typeof updateTransaction>[1]);
+  };
+
+  // 트랜잭션 삭제 핸들러
+  const handleDeleteTransaction = (transactionId: string) => {
+    deleteTransaction(transactionId);
   };
 
   return (
@@ -2216,6 +2638,7 @@ export default function InventoryPage() {
                     <FirstEditionGrid
                       isExpanded={true}
                       onToggle={() => {}}
+                      defaultPrice={getDefaultPriceForProduct('first_edition')}
                     />
                   </motion.div>
                 )}
@@ -2323,6 +2746,7 @@ export default function InventoryPage() {
                                 key={product.id}
                                 product={product}
                                 onManage={() => setSelectedProduct(product as unknown as Product)}
+                                onEditQuantity={() => setEditingProduct(product)}
                                 mounted={mounted}
                               />
                             ))}
@@ -2439,7 +2863,7 @@ export default function InventoryPage() {
                         const productName = productInfo?.name || tx.productId;
 
                         return (
-                          <div key={tx.id} className="px-4 sm:px-6 py-4 flex items-center justify-between">
+                          <div key={tx.id} className="group px-4 sm:px-6 py-4 flex items-center justify-between hover:bg-white/[0.02] transition-colors">
                             <div className="flex items-center gap-3 sm:gap-4">
                               <div className="text-xs text-white/30 w-16 sm:w-20 shrink-0">
                                 {new Date(tx.createdAt).toLocaleDateString('ko-KR', {
@@ -2463,15 +2887,32 @@ export default function InventoryPage() {
                                 </p>
                               </div>
                             </div>
-                            <div className="text-right shrink-0">
-                              <p className="text-white/60 text-sm">
-                                {tx.quantity > 1 ? `${tx.quantity}병` : '1병'}
-                              </p>
-                              {tx.price && (
-                                <p className="text-xs text-white/30">
-                                  {tx.price.toLocaleString()}원
+                            <div className="flex items-center gap-3">
+                              <div className="text-right shrink-0">
+                                <p className="text-white/60 text-sm">
+                                  {tx.quantity > 1 ? `${tx.quantity}병` : '1병'}
                                 </p>
-                              )}
+                                {tx.price && (
+                                  <p className="text-xs text-white/30">
+                                    {tx.price.toLocaleString()}원
+                                  </p>
+                                )}
+                              </div>
+                              <button
+                                onClick={() => setEditingTransaction({
+                                  id: tx.id,
+                                  productId: tx.productId,
+                                  type: tx.type,
+                                  quantity: tx.quantity,
+                                  customerName: tx.customerName,
+                                  price: tx.price,
+                                  notes: tx.notes,
+                                })}
+                                className="p-1.5 rounded-lg text-white/30 hover:text-white/60 hover:bg-white/[0.06] opacity-0 group-hover:opacity-100 transition-all"
+                                title="수정"
+                              >
+                                <Pencil className="w-3.5 h-3.5" />
+                              </button>
                             </div>
                           </div>
                         );
@@ -2520,6 +2961,7 @@ export default function InventoryPage() {
         onClose={() => setSelectedProduct(null)}
         product={selectedProduct}
         onAction={handleBatchAction}
+        defaultPrice={selectedProduct ? getDefaultPriceForProduct(selectedProduct.id) : undefined}
       />
 
       {/* Add Product Modal */}
@@ -2535,6 +2977,23 @@ export default function InventoryPage() {
         isOpen={weightModalYear !== null}
         onClose={() => setWeightModalYear(null)}
         year={weightModalYear || 2025}
+      />
+
+      {/* Edit Product Modal */}
+      <EditProductModal
+        isOpen={editingProduct !== null}
+        onClose={() => setEditingProduct(null)}
+        product={editingProduct}
+        onSave={handleEditProductQuantity}
+      />
+
+      {/* Edit Transaction Modal */}
+      <EditTransactionModal
+        isOpen={editingTransaction !== null}
+        onClose={() => setEditingTransaction(null)}
+        transaction={editingTransaction}
+        onSave={handleUpdateTransaction}
+        onDelete={handleDeleteTransaction}
       />
     </div>
   );
