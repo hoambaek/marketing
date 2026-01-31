@@ -3,6 +3,7 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import dynamic from 'next/dynamic';
+import { useShallow } from 'zustand/react/shallow';
 import { useBudgetStore } from '@/lib/store/budget-store';
 import { toast } from '@/lib/store/toast-store';
 import { Footer } from '@/components/layout/Footer';
@@ -99,6 +100,7 @@ const formatCompact = (amount: number) => {
 // ═══════════════════════════════════════════════════════════════════════════
 
 export default function BudgetPage() {
+  // 성능 최적화: useShallow로 필요한 상태만 선택적 구독
   const {
     incomeItems,
     expenseItems,
@@ -115,7 +117,25 @@ export default function BudgetPage() {
     getExpensesByYear,
     getTotalIncome,
     getTotalExpense,
-  } = useBudgetStore();
+  } = useBudgetStore(
+    useShallow((state) => ({
+      incomeItems: state.incomeItems,
+      expenseItems: state.expenseItems,
+      isLoading: state.isLoading,
+      isInitialized: state.isInitialized,
+      initializeFromSupabase: state.initializeFromSupabase,
+      addIncome: state.addIncome,
+      updateIncome: state.updateIncome,
+      deleteIncome: state.deleteIncome,
+      addExpense: state.addExpense,
+      updateExpense: state.updateExpense,
+      deleteExpense: state.deleteExpense,
+      getIncomeByYear: state.getIncomeByYear,
+      getExpensesByYear: state.getExpensesByYear,
+      getTotalIncome: state.getTotalIncome,
+      getTotalExpense: state.getTotalExpense,
+    }))
+  );
 
   const [selectedYear, setSelectedYear] = useState(2026);
   const [selectedMonth, setSelectedMonth] = useState<number | null>(null);

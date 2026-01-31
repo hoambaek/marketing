@@ -81,6 +81,52 @@ const allowedMimeTypes = [
   'application/x-hwp',
 ];
 
+// Magic Bytes 정의 (파일 시그니처)
+const MAGIC_BYTES: Record<string, number[][]> = {
+  'image/jpeg': [[0xFF, 0xD8, 0xFF]],
+  'image/png': [[0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]],
+  'image/gif': [[0x47, 0x49, 0x46, 0x38, 0x37, 0x61], [0x47, 0x49, 0x46, 0x38, 0x39, 0x61]], // GIF87a, GIF89a
+  'image/webp': [[0x52, 0x49, 0x46, 0x46]], // RIFF (WEBP는 RIFF 컨테이너)
+  'application/pdf': [[0x25, 0x50, 0x44, 0x46]], // %PDF
+  // Office 2007+ 포맷 (ZIP 기반)
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': [[0x50, 0x4B, 0x03, 0x04]],
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': [[0x50, 0x4B, 0x03, 0x04]],
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation': [[0x50, 0x4B, 0x03, 0x04]],
+  // Office 97-2003 포맷 (OLE)
+  'application/msword': [[0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1]],
+  'application/vnd.ms-excel': [[0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1]],
+  'application/vnd.ms-powerpoint': [[0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1]],
+  // HWP
+  'application/haansoft-hwp': [[0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1]],
+  'application/x-hwp': [[0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1]],
+};
+
+// Magic Bytes 검증 함수
+function validateMagicBytes(buffer: Buffer, mimeType: string): boolean {
+  const signatures = MAGIC_BYTES[mimeType];
+
+  // 검증 대상이 아닌 타입은 통과 (text/plain, text/csv, image/svg+xml 등)
+  if (!signatures) {
+    return true;
+  }
+
+  // 최소 시그니처 길이보다 파일이 작으면 실패
+  const minLength = Math.max(...signatures.map(s => s.length));
+  if (buffer.length < minLength) {
+    return false;
+  }
+
+  // 시그니처 중 하나라도 일치하면 통과
+  return signatures.some(signature => {
+    for (let i = 0; i < signature.length; i++) {
+      if (buffer[i] !== signature[i]) {
+        return false;
+      }
+    }
+    return true;
+  });
+}
+
 // GET: Presigned URL 발급 (큰 파일 직접 업로드용)
 export async function GET(request: NextRequest) {
   try {
@@ -227,6 +273,18 @@ export async function POST(request: NextRequest) {
     // 파일 내용 읽기
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
+
+    // Magic Bytes 검증 (파일 내용 기반 MIME 타입 확인)
+    if (!validateMagicBytes(buffer, file.type)) {
+      apiLogger.warn('Magic bytes validation failed', {
+        claimedType: file.type,
+        fileName: file.name,
+      });
+      return NextResponse.json(
+        { error: '파일 내용이 확장자와 일치하지 않습니다. 올바른 파일을 업로드해주세요.' },
+        { status: 400 }
+      );
+    }
 
     // 고유 파일명 생성
     const timestamp = Date.now();

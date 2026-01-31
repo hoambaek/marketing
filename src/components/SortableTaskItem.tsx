@@ -1,8 +1,8 @@
 'use client';
 
+import { memo, useCallback } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { motion } from 'framer-motion';
 import { CheckCircle2, Clock, Circle, GripVertical, Pencil, Trash2, FileText, Calendar } from 'lucide-react';
 import { Task, CATEGORY_LABELS, TaskCategory, TaskStatus } from '@/lib/types';
 import { formatDateKorean, formatDDay, getDDayColorClass } from '@/lib/utils/date';
@@ -14,7 +14,8 @@ interface SortableTaskItemProps {
   onDelete: (taskId: string) => void | Promise<void>;
 }
 
-export default function SortableTaskItem({
+// 성능 최적화: React.memo로 불필요한 리렌더링 방지
+const SortableTaskItem = memo(function SortableTaskItem({
   task,
   onStatusToggle,
   onEdit,
@@ -160,4 +161,6 @@ export default function SortableTaskItem({
       </div>
     </div>
   );
-}
+});
+
+export default SortableTaskItem;
