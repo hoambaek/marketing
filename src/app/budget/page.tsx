@@ -35,7 +35,7 @@ import {
 import Link from 'next/link';
 
 // 동적 임포트 - 모달과 차트는 필요할 때만 로드
-const IncomeModal = dynamic(() => import('@/components/BudgetModal'), {
+const IncomeModal = dynamic(() => import('@/components/IncomeModal'), {
   loading: () => <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center">
     <div className="w-12 h-12 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
   </div>,
