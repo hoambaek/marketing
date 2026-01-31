@@ -1,6 +1,7 @@
 'use client';
 
 import { Component, ReactNode } from 'react';
+import { logger } from '@/lib/logger';
 
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -28,14 +29,9 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    // 프로덕션에서는 에러 로깅 서비스로 전송 (Sentry, LogRocket 등)
-    if (process.env.NODE_ENV === 'production') {
-      // TODO: 에러 로깅 서비스 연동
-      // logErrorToService(error, errorInfo);
-    } else {
-      console.error('Error caught by ErrorBoundary:', error);
-      console.error('Component stack:', errorInfo.componentStack);
-    }
+    // logger가 환경에 따라 적절히 처리 (프로덕션에서는 외부 서비스로 전송 가능)
+    logger.error('Error caught by ErrorBoundary:', error);
+    logger.error('Component stack:', errorInfo.componentStack);
   }
 
   handleRetry = () => {

@@ -11,7 +11,7 @@ import {
 } from '@/lib/types';
 import { isSupabaseConfigured } from '@/lib/supabase/client';
 import * as db from '@/lib/supabase/database';
-import { storeLogger } from '@/lib/logger';
+import { handleStoreError } from '@/lib/utils/error-handler';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // 인벤토리 스토어 인터페이스
@@ -215,7 +215,6 @@ export const useInventoryStore = create<InventoryState>()((set, get) => ({
             }
 
             loadedBatches = [...loadedBatches, ...newBatches];
-            storeLogger.info(`Created ${newBatches.length} missing batches:`, missingProducts.map(p => p.id));
           }
 
           set({
@@ -228,7 +227,7 @@ export const useInventoryStore = create<InventoryState>()((set, get) => ({
             useSupabase: true,
           });
         } catch (error) {
-          storeLogger.error('Failed to load inventory from Supabase:', error);
+          handleStoreError(error, 'InventoryStore.initializeInventory');
           // 실패 시 로컬 데이터 사용
           set({
             numberedBottles: createInitialNumberedBottles(),
@@ -304,7 +303,7 @@ export const useInventoryStore = create<InventoryState>()((set, get) => ({
             isLoading: false,
           });
         } catch (error) {
-          storeLogger.error('Failed to refresh from Supabase:', error);
+          handleStoreError(error, 'InventoryStore.refreshFromSupabase');
           set({ isLoading: false });
         }
       },
@@ -317,6 +316,9 @@ export const useInventoryStore = create<InventoryState>()((set, get) => ({
         const bottle = get().numberedBottles.find((b) => b.id === bottleId);
         if (!bottle) return;
 
+        // 원본 저장 (롤백용)
+        const originalBottle = { ...bottle };
+
         const updatedBottle = {
           ...bottle,
           status,
@@ -328,7 +330,7 @@ export const useInventoryStore = create<InventoryState>()((set, get) => ({
           ...(status === 'sold' && { soldDate: new Date().toISOString() }),
         };
 
-        // 로컬 상태 업데이트
+        // 낙관적 업데이트
         set((state) => ({
           numberedBottles: state.numberedBottles.map((b) =>
             b.id === bottleId ? updatedBottle : b
@@ -337,60 +339,70 @@ export const useInventoryStore = create<InventoryState>()((set, get) => ({
 
         // Supabase에 저장
         if (get().useSupabase) {
-          // giftedTo는 DB의 sold_to 필드에 저장 (gifted 상태일 때)
-          const soldToValue = status === 'gifted'
-            ? (details?.giftedTo || null)
-            : (details?.soldTo || null);
+          try {
+            // giftedTo는 DB의 sold_to 필드에 저장 (gifted 상태일 때)
+            const soldToValue = status === 'gifted'
+              ? (details?.giftedTo || null)
+              : (details?.soldTo || null);
 
-          await db.updateNumberedBottle(bottleId, {
-            status,
-            reserved_for: details?.reservedFor || null,
-            sold_to: soldToValue,
-            price: details?.price || null,
-            notes: details?.notes || null,
-            sold_date: status === 'sold' ? new Date().toISOString() : null,
-          });
+            await db.updateNumberedBottle(bottleId, {
+              status,
+              reserved_for: details?.reservedFor || null,
+              sold_to: soldToValue,
+              price: details?.price || null,
+              notes: details?.notes || null,
+              sold_date: status === 'sold' ? new Date().toISOString() : null,
+            });
 
-          // 트랜잭션 기록
-          const transactionType =
-            status === 'sold' ? 'sale'
-              : status === 'reserved' ? 'reservation'
-              : status === 'gifted' ? 'gift'
-              : status === 'damaged' ? 'damage'
-              : 'return';
+            // 트랜잭션 기록
+            const transactionType =
+              status === 'sold' ? 'sale'
+                : status === 'reserved' ? 'reservation'
+                : status === 'gifted' ? 'gift'
+                : status === 'damaged' ? 'damage'
+                : 'return';
 
-          // 고객명: sold → soldTo, reserved → reservedFor, gifted → giftedTo
-          const customerName = details?.soldTo || details?.reservedFor || details?.giftedTo || null;
+            // 고객명: sold → soldTo, reserved → reservedFor, gifted → giftedTo
+            const customerName = details?.soldTo || details?.reservedFor || details?.giftedTo || null;
 
-          const txId = generateId();
-          await db.createInventoryTransaction({
-            id: txId,
-            product_id: 'first_edition',
-            bottle_number: bottle.bottleNumber,
-            type: transactionType,
-            quantity: 1,
-            customer_name: customerName,
-            price: details?.price || null,
-            notes: details?.notes || null,
-          });
+            const txId = generateId();
+            await db.createInventoryTransaction({
+              id: txId,
+              product_id: 'first_edition',
+              bottle_number: bottle.bottleNumber,
+              type: transactionType,
+              quantity: 1,
+              customer_name: customerName,
+              price: details?.price || null,
+              notes: details?.notes || null,
+            });
 
-          // 로컬 트랜잭션 추가
-          set((state) => ({
-            transactions: [
-              ...state.transactions,
-              {
-                id: txId,
-                productId: 'first_edition',
-                bottleNumber: bottle.bottleNumber,
-                type: transactionType,
-                quantity: 1,
-                customerName: customerName || undefined,
-                price: details?.price,
-                notes: details?.notes,
-                createdAt: new Date().toISOString(),
-              },
-            ],
-          }));
+            // 로컬 트랜잭션 추가
+            set((state) => ({
+              transactions: [
+                ...state.transactions,
+                {
+                  id: txId,
+                  productId: 'first_edition',
+                  bottleNumber: bottle.bottleNumber,
+                  type: transactionType,
+                  quantity: 1,
+                  customerName: customerName || undefined,
+                  price: details?.price,
+                  notes: details?.notes,
+                  createdAt: new Date().toISOString(),
+                },
+              ],
+            }));
+          } catch (error) {
+            // 롤백
+            set((state) => ({
+              numberedBottles: state.numberedBottles.map((b) =>
+                b.id === bottleId ? originalBottle : b
+              ),
+            }));
+            handleStoreError(error, 'InventoryStore.updateBottleStatus');
+          }
         } else {
           // 로컬만 - 트랜잭션 추가
           const transactionType =
@@ -430,7 +442,10 @@ export const useInventoryStore = create<InventoryState>()((set, get) => ({
       // ═══════════════════════════════════════════════════════════════════
 
       updateBatchInventory: async (productId, changes) => {
-        // 로컬 상태 업데이트
+        // 원본 저장 (롤백용)
+        const original = get().inventoryBatches.find((b) => b.productId === productId);
+
+        // 낙관적 업데이트
         set((state) => ({
           inventoryBatches: state.inventoryBatches.map((batch) =>
             batch.productId === productId
@@ -445,7 +460,19 @@ export const useInventoryStore = create<InventoryState>()((set, get) => ({
 
         // Supabase에 저장
         if (get().useSupabase) {
-          await db.updateInventoryBatch(productId as string, changes);
+          try {
+            await db.updateInventoryBatch(productId as string, changes);
+          } catch (error) {
+            // 롤백
+            if (original) {
+              set((state) => ({
+                inventoryBatches: state.inventoryBatches.map((batch) =>
+                  batch.productId === productId ? original : batch
+                ),
+              }));
+            }
+            handleStoreError(error, 'InventoryStore.updateBatchInventory');
+          }
         }
       },
 
@@ -453,7 +480,10 @@ export const useInventoryStore = create<InventoryState>()((set, get) => ({
         const batch = get().inventoryBatches.find((b) => b.productId === productId);
         if (!batch || batch.available < quantity) return;
 
-        // 로컬 상태 업데이트
+        // 원본 저장 (롤백용)
+        const originalBatch = { ...batch };
+
+        // 낙관적 업데이트
         set((state) => ({
           inventoryBatches: state.inventoryBatches.map((b) =>
             b.productId === productId
@@ -469,37 +499,47 @@ export const useInventoryStore = create<InventoryState>()((set, get) => ({
 
         // Supabase에 저장
         if (get().useSupabase) {
-          await db.updateInventoryBatch(productId as string, {
-            available: batch.available - quantity,
-            sold: batch.sold + quantity,
-          });
+          try {
+            await db.updateInventoryBatch(productId as string, {
+              available: batch.available - quantity,
+              sold: batch.sold + quantity,
+            });
 
-          const txId = generateId();
-          await db.createInventoryTransaction({
-            id: txId,
-            product_id: productId as string,
-            bottle_number: null,
-            type: 'sale',
-            quantity,
-            customer_name: customerName || null,
-            price: price || null,
-            notes: null,
-          });
+            const txId = generateId();
+            await db.createInventoryTransaction({
+              id: txId,
+              product_id: productId as string,
+              bottle_number: null,
+              type: 'sale',
+              quantity,
+              customer_name: customerName || null,
+              price: price || null,
+              notes: null,
+            });
 
-          set((state) => ({
-            transactions: [
-              ...state.transactions,
-              {
-                id: txId,
-                productId: productId as ProductType,
-                type: 'sale',
-                quantity,
-                customerName,
-                price,
-                createdAt: new Date().toISOString(),
-              },
-            ],
-          }));
+            set((state) => ({
+              transactions: [
+                ...state.transactions,
+                {
+                  id: txId,
+                  productId: productId as ProductType,
+                  type: 'sale',
+                  quantity,
+                  customerName,
+                  price,
+                  createdAt: new Date().toISOString(),
+                },
+              ],
+            }));
+          } catch (error) {
+            // 롤백
+            set((state) => ({
+              inventoryBatches: state.inventoryBatches.map((b) =>
+                b.productId === productId ? originalBatch : b
+              ),
+            }));
+            handleStoreError(error, 'InventoryStore.sellFromBatch');
+          }
         } else {
           set((state) => ({
             transactions: [
@@ -522,6 +562,10 @@ export const useInventoryStore = create<InventoryState>()((set, get) => ({
         const batch = get().inventoryBatches.find((b) => b.productId === productId);
         if (!batch || batch.available < quantity) return;
 
+        // 원본 저장 (롤백용)
+        const originalBatch = { ...batch };
+
+        // 낙관적 업데이트
         set((state) => ({
           inventoryBatches: state.inventoryBatches.map((b) =>
             b.productId === productId
@@ -536,36 +580,46 @@ export const useInventoryStore = create<InventoryState>()((set, get) => ({
         }));
 
         if (get().useSupabase) {
-          await db.updateInventoryBatch(productId as string, {
-            available: batch.available - quantity,
-            reserved: batch.reserved + quantity,
-          });
+          try {
+            await db.updateInventoryBatch(productId as string, {
+              available: batch.available - quantity,
+              reserved: batch.reserved + quantity,
+            });
 
-          const txId = generateId();
-          await db.createInventoryTransaction({
-            id: txId,
-            product_id: productId as string,
-            bottle_number: null,
-            type: 'reservation',
-            quantity,
-            customer_name: customerName,
-            price: null,
-            notes: null,
-          });
+            const txId = generateId();
+            await db.createInventoryTransaction({
+              id: txId,
+              product_id: productId as string,
+              bottle_number: null,
+              type: 'reservation',
+              quantity,
+              customer_name: customerName,
+              price: null,
+              notes: null,
+            });
 
-          set((state) => ({
-            transactions: [
-              ...state.transactions,
-              {
-                id: txId,
-                productId: productId as ProductType,
-                type: 'reservation',
-                quantity,
-                customerName,
-                createdAt: new Date().toISOString(),
-              },
-            ],
-          }));
+            set((state) => ({
+              transactions: [
+                ...state.transactions,
+                {
+                  id: txId,
+                  productId: productId as ProductType,
+                  type: 'reservation',
+                  quantity,
+                  customerName,
+                  createdAt: new Date().toISOString(),
+                },
+              ],
+            }));
+          } catch (error) {
+            // 롤백
+            set((state) => ({
+              inventoryBatches: state.inventoryBatches.map((b) =>
+                b.productId === productId ? originalBatch : b
+              ),
+            }));
+            handleStoreError(error, 'InventoryStore.reserveFromBatch');
+          }
         } else {
           set((state) => ({
             transactions: [
@@ -587,6 +641,10 @@ export const useInventoryStore = create<InventoryState>()((set, get) => ({
         const batch = get().inventoryBatches.find((b) => b.productId === productId);
         if (!batch || batch.reserved < quantity) return;
 
+        // 원본 저장 (롤백용)
+        const originalBatch = { ...batch };
+
+        // 낙관적 업데이트
         set((state) => ({
           inventoryBatches: state.inventoryBatches.map((b) =>
             b.productId === productId
@@ -601,38 +659,48 @@ export const useInventoryStore = create<InventoryState>()((set, get) => ({
         }));
 
         if (get().useSupabase) {
-          await db.updateInventoryBatch(productId as string, {
-            reserved: batch.reserved - quantity,
-            sold: batch.sold + quantity,
-          });
+          try {
+            await db.updateInventoryBatch(productId as string, {
+              reserved: batch.reserved - quantity,
+              sold: batch.sold + quantity,
+            });
 
-          const txId = generateId();
-          await db.createInventoryTransaction({
-            id: txId,
-            product_id: productId as string,
-            bottle_number: null,
-            type: 'sale',
-            quantity,
-            customer_name: customerName || null,
-            price: price || null,
-            notes: '예약 확정',
-          });
+            const txId = generateId();
+            await db.createInventoryTransaction({
+              id: txId,
+              product_id: productId as string,
+              bottle_number: null,
+              type: 'sale',
+              quantity,
+              customer_name: customerName || null,
+              price: price || null,
+              notes: '예약 확정',
+            });
 
-          set((state) => ({
-            transactions: [
-              ...state.transactions,
-              {
-                id: txId,
-                productId: productId as ProductType,
-                type: 'sale',
-                quantity,
-                customerName,
-                price,
-                notes: '예약 확정',
-                createdAt: new Date().toISOString(),
-              },
-            ],
-          }));
+            set((state) => ({
+              transactions: [
+                ...state.transactions,
+                {
+                  id: txId,
+                  productId: productId as ProductType,
+                  type: 'sale',
+                  quantity,
+                  customerName,
+                  price,
+                  notes: '예약 확정',
+                  createdAt: new Date().toISOString(),
+                },
+              ],
+            }));
+          } catch (error) {
+            // 롤백
+            set((state) => ({
+              inventoryBatches: state.inventoryBatches.map((b) =>
+                b.productId === productId ? originalBatch : b
+              ),
+            }));
+            handleStoreError(error, 'InventoryStore.confirmReservation');
+          }
         } else {
           set((state) => ({
             transactions: [
@@ -656,6 +724,10 @@ export const useInventoryStore = create<InventoryState>()((set, get) => ({
         const batch = get().inventoryBatches.find((b) => b.productId === productId);
         if (!batch || batch.reserved < quantity) return;
 
+        // 원본 저장 (롤백용)
+        const originalBatch = { ...batch };
+
+        // 낙관적 업데이트
         set((state) => ({
           inventoryBatches: state.inventoryBatches.map((b) =>
             b.productId === productId
@@ -670,35 +742,45 @@ export const useInventoryStore = create<InventoryState>()((set, get) => ({
         }));
 
         if (get().useSupabase) {
-          await db.updateInventoryBatch(productId as string, {
-            reserved: batch.reserved - quantity,
-            available: batch.available + quantity,
-          });
+          try {
+            await db.updateInventoryBatch(productId as string, {
+              reserved: batch.reserved - quantity,
+              available: batch.available + quantity,
+            });
 
-          const txId = generateId();
-          await db.createInventoryTransaction({
-            id: txId,
-            product_id: productId as string,
-            bottle_number: null,
-            type: 'cancel_reservation',
-            quantity,
-            customer_name: null,
-            price: null,
-            notes: null,
-          });
+            const txId = generateId();
+            await db.createInventoryTransaction({
+              id: txId,
+              product_id: productId as string,
+              bottle_number: null,
+              type: 'cancel_reservation',
+              quantity,
+              customer_name: null,
+              price: null,
+              notes: null,
+            });
 
-          set((state) => ({
-            transactions: [
-              ...state.transactions,
-              {
-                id: txId,
-                productId: productId as ProductType,
-                type: 'cancel_reservation',
-                quantity,
-                createdAt: new Date().toISOString(),
-              },
-            ],
-          }));
+            set((state) => ({
+              transactions: [
+                ...state.transactions,
+                {
+                  id: txId,
+                  productId: productId as ProductType,
+                  type: 'cancel_reservation',
+                  quantity,
+                  createdAt: new Date().toISOString(),
+                },
+              ],
+            }));
+          } catch (error) {
+            // 롤백
+            set((state) => ({
+              inventoryBatches: state.inventoryBatches.map((b) =>
+                b.productId === productId ? originalBatch : b
+              ),
+            }));
+            handleStoreError(error, 'InventoryStore.cancelReservation');
+          }
         } else {
           set((state) => ({
             transactions: [
@@ -719,6 +801,10 @@ export const useInventoryStore = create<InventoryState>()((set, get) => ({
         const batch = get().inventoryBatches.find((b) => b.productId === productId);
         if (!batch || batch.available < quantity) return;
 
+        // 원본 저장 (롤백용)
+        const originalBatch = { ...batch };
+
+        // 낙관적 업데이트
         set((state) => ({
           inventoryBatches: state.inventoryBatches.map((b) =>
             b.productId === productId
@@ -733,36 +819,46 @@ export const useInventoryStore = create<InventoryState>()((set, get) => ({
         }));
 
         if (get().useSupabase) {
-          await db.updateInventoryBatch(productId as string, {
-            available: batch.available - quantity,
-            damaged: batch.damaged + quantity,
-          });
+          try {
+            await db.updateInventoryBatch(productId as string, {
+              available: batch.available - quantity,
+              damaged: batch.damaged + quantity,
+            });
 
-          const txId = generateId();
-          await db.createInventoryTransaction({
-            id: txId,
-            product_id: productId as string,
-            bottle_number: null,
-            type: 'damage',
-            quantity,
-            customer_name: null,
-            price: null,
-            notes: notes || null,
-          });
+            const txId = generateId();
+            await db.createInventoryTransaction({
+              id: txId,
+              product_id: productId as string,
+              bottle_number: null,
+              type: 'damage',
+              quantity,
+              customer_name: null,
+              price: null,
+              notes: notes || null,
+            });
 
-          set((state) => ({
-            transactions: [
-              ...state.transactions,
-              {
-                id: txId,
-                productId: productId as ProductType,
-                type: 'damage',
-                quantity,
-                notes,
-                createdAt: new Date().toISOString(),
-              },
-            ],
-          }));
+            set((state) => ({
+              transactions: [
+                ...state.transactions,
+                {
+                  id: txId,
+                  productId: productId as ProductType,
+                  type: 'damage',
+                  quantity,
+                  notes,
+                  createdAt: new Date().toISOString(),
+                },
+              ],
+            }));
+          } catch (error) {
+            // 롤백
+            set((state) => ({
+              inventoryBatches: state.inventoryBatches.map((b) =>
+                b.productId === productId ? originalBatch : b
+              ),
+            }));
+            handleStoreError(error, 'InventoryStore.reportDamage');
+          }
         } else {
           set((state) => ({
             transactions: [
@@ -784,6 +880,10 @@ export const useInventoryStore = create<InventoryState>()((set, get) => ({
         const batch = get().inventoryBatches.find((b) => b.productId === productId);
         if (!batch || batch.available < quantity) return;
 
+        // 원본 저장 (롤백용)
+        const originalBatch = { ...batch };
+
+        // 낙관적 업데이트
         set((state) => ({
           inventoryBatches: state.inventoryBatches.map((b) =>
             b.productId === productId
@@ -798,37 +898,47 @@ export const useInventoryStore = create<InventoryState>()((set, get) => ({
         }));
 
         if (get().useSupabase) {
-          await db.updateInventoryBatch(productId as string, {
-            available: batch.available - quantity,
-            gifted: batch.gifted + quantity,
-          });
+          try {
+            await db.updateInventoryBatch(productId as string, {
+              available: batch.available - quantity,
+              gifted: batch.gifted + quantity,
+            });
 
-          const txId = generateId();
-          await db.createInventoryTransaction({
-            id: txId,
-            product_id: productId as string,
-            bottle_number: null,
-            type: 'gift',
-            quantity,
-            customer_name: recipientName,
-            price: null,
-            notes: notes || null,
-          });
+            const txId = generateId();
+            await db.createInventoryTransaction({
+              id: txId,
+              product_id: productId as string,
+              bottle_number: null,
+              type: 'gift',
+              quantity,
+              customer_name: recipientName,
+              price: null,
+              notes: notes || null,
+            });
 
-          set((state) => ({
-            transactions: [
-              ...state.transactions,
-              {
-                id: txId,
-                productId: productId as ProductType,
-                type: 'gift',
-                quantity,
-                customerName: recipientName,
-                notes,
-                createdAt: new Date().toISOString(),
-              },
-            ],
-          }));
+            set((state) => ({
+              transactions: [
+                ...state.transactions,
+                {
+                  id: txId,
+                  productId: productId as ProductType,
+                  type: 'gift',
+                  quantity,
+                  customerName: recipientName,
+                  notes,
+                  createdAt: new Date().toISOString(),
+                },
+              ],
+            }));
+          } catch (error) {
+            // 롤백
+            set((state) => ({
+              inventoryBatches: state.inventoryBatches.map((b) =>
+                b.productId === productId ? originalBatch : b
+              ),
+            }));
+            handleStoreError(error, 'InventoryStore.giftFromBatch');
+          }
         } else {
           set((state) => ({
             transactions: [
@@ -855,7 +965,7 @@ export const useInventoryStore = create<InventoryState>()((set, get) => ({
         const id = `custom-${generateId()}`;
         const newProduct: CustomProduct = { ...product, id };
 
-        // 로컬 상태 업데이트
+        // 낙관적 업데이트
         set((state) => ({
           customProducts: [...state.customProducts, newProduct],
           inventoryBatches: [
@@ -876,44 +986,67 @@ export const useInventoryStore = create<InventoryState>()((set, get) => ({
 
         // Supabase에 저장
         if (get().useSupabase) {
-          await db.createCustomProduct({
-            id,
-            name: product.name,
-            name_ko: product.nameKo,
-            year: product.year,
-            size: product.size,
-            total_quantity: product.totalQuantity,
-            description: product.description || null,
-          });
+          try {
+            await db.createCustomProduct({
+              id,
+              name: product.name,
+              name_ko: product.nameKo,
+              year: product.year,
+              size: product.size,
+              total_quantity: product.totalQuantity,
+              description: product.description || null,
+            });
 
-          await db.createInventoryBatch({
-            id: `batch-${id}`,
-            product_id: id,
-            total_quantity: product.totalQuantity,
-            available: product.totalQuantity,
-            reserved: 0,
-            sold: 0,
-            gifted: 0,
-            damaged: 0,
-          });
+            await db.createInventoryBatch({
+              id: `batch-${id}`,
+              product_id: id,
+              total_quantity: product.totalQuantity,
+              available: product.totalQuantity,
+              reserved: 0,
+              sold: 0,
+              gifted: 0,
+              damaged: 0,
+            });
+          } catch (error) {
+            // 롤백
+            set((state) => ({
+              customProducts: state.customProducts.filter((p) => p.id !== id),
+              inventoryBatches: state.inventoryBatches.filter((b) => b.productId !== id),
+            }));
+            handleStoreError(error, 'InventoryStore.addProduct');
+          }
         }
       },
 
       removeProduct: async (productId) => {
+        // 원본 저장 (롤백용)
+        const originalProduct = get().customProducts.find((p) => p.id === productId);
+        const originalBatch = get().inventoryBatches.find((b) => b.productId === productId);
+
+        // 낙관적 업데이트
         set((state) => ({
           customProducts: state.customProducts.filter((p) => p.id !== productId),
           inventoryBatches: state.inventoryBatches.filter((b) => b.productId !== productId),
         }));
 
         if (get().useSupabase) {
-          await db.deleteCustomProduct(productId);
-          await db.deleteInventoryBatch(productId);
+          try {
+            await db.deleteCustomProduct(productId);
+            await db.deleteInventoryBatch(productId);
+          } catch (error) {
+            // 롤백
+            set((state) => ({
+              customProducts: originalProduct ? [...state.customProducts, originalProduct] : state.customProducts,
+              inventoryBatches: originalBatch ? [...state.inventoryBatches, originalBatch] : state.inventoryBatches,
+            }));
+            handleStoreError(error, 'InventoryStore.removeProduct');
+          }
         }
       },
 
       updateProduct: async (productId, updates) => {
-        const state = get();
-        const customProduct = state.customProducts.find((p) => p.id === productId);
+        const currentState = get();
+        const customProduct = currentState.customProducts.find((p) => p.id === productId);
         const baseProduct = PRODUCTS.find((p) => p.id === productId);
 
         // 커스텀 상품이나 기본 상품 둘 다 없으면 return
@@ -921,8 +1054,13 @@ export const useInventoryStore = create<InventoryState>()((set, get) => ({
 
         const isCustom = !!customProduct;
 
+        // 원본 저장 (롤백용)
+        const originalCustomProduct = customProduct ? { ...customProduct } : null;
+        const originalBatch = currentState.inventoryBatches.find((b) => b.productId === productId);
+        const originalBatchCopy = originalBatch ? { ...originalBatch } : null;
+
         // 배치에서 현재 총수량 가져오기 (DB에 저장된 totalQuantity 사용)
-        const batch = state.inventoryBatches.find((b) => b.productId === productId);
+        const batch = currentState.inventoryBatches.find((b) => b.productId === productId);
         const oldTotalQuantity = batch?.totalQuantity ?? (customProduct?.totalQuantity ?? baseProduct?.totalQuantity ?? 0);
         const newTotalQuantity = updates.totalQuantity ?? oldTotalQuantity;
         const quantityDiff = newTotalQuantity - oldTotalQuantity;
@@ -949,23 +1087,55 @@ export const useInventoryStore = create<InventoryState>()((set, get) => ({
 
           // 기본 상품과 커스텀 상품 모두 배치의 total_quantity를 DB에 저장
           if (get().useSupabase) {
-            await db.updateInventoryBatch(productId, {
-              total_quantity: newTotalQuantity,
-              available: newAvailable,
-            });
+            try {
+              await db.updateInventoryBatch(productId, {
+                total_quantity: newTotalQuantity,
+                available: newAvailable,
+              });
+            } catch (error) {
+              // 롤백
+              if (originalBatchCopy) {
+                set((state) => ({
+                  inventoryBatches: state.inventoryBatches.map((b) =>
+                    b.productId === productId ? originalBatchCopy : b
+                  ),
+                }));
+              }
+              handleStoreError(error, 'InventoryStore.updateProduct.batch');
+              return;
+            }
           }
         }
 
         // 커스텀 상품인 경우 Supabase에 상품 정보도 저장
         if (isCustom && get().useSupabase) {
-          await db.updateCustomProduct(productId, {
-            name: updates.name,
-            name_ko: updates.nameKo,
-            year: updates.year,
-            size: updates.size,
-            total_quantity: updates.totalQuantity,
-            description: updates.description,
-          });
+          try {
+            await db.updateCustomProduct(productId, {
+              name: updates.name,
+              name_ko: updates.nameKo,
+              year: updates.year,
+              size: updates.size,
+              total_quantity: updates.totalQuantity,
+              description: updates.description,
+            });
+          } catch (error) {
+            // 롤백
+            if (originalCustomProduct) {
+              set((state) => ({
+                customProducts: state.customProducts.map((p) =>
+                  p.id === productId ? originalCustomProduct : p
+                ),
+              }));
+            }
+            if (originalBatchCopy) {
+              set((state) => ({
+                inventoryBatches: state.inventoryBatches.map((b) =>
+                  b.productId === productId ? originalBatchCopy : b
+                ),
+              }));
+            }
+            handleStoreError(error, 'InventoryStore.updateProduct.custom');
+          }
         }
       },
 
@@ -1129,7 +1299,10 @@ export const useInventoryStore = create<InventoryState>()((set, get) => ({
       },
 
       updateTransaction: async (transactionId, updates) => {
-        // 로컬 상태 업데이트
+        // 원본 저장 (롤백용)
+        const original = get().transactions.find((tx) => tx.id === transactionId);
+
+        // 낙관적 업데이트
         set((state) => ({
           transactions: state.transactions.map((tx) =>
             tx.id === transactionId ? { ...tx, ...updates } : tx
@@ -1138,25 +1311,40 @@ export const useInventoryStore = create<InventoryState>()((set, get) => ({
 
         // Supabase에 저장
         if (get().useSupabase) {
-          await db.updateInventoryTransaction(transactionId, {
-            product_id: updates.productId,
-            bottle_number: updates.bottleNumber ?? null,
-            type: updates.type,
-            quantity: updates.quantity,
-            customer_name: updates.customerName ?? null,
-            price: updates.price ?? null,
-            notes: updates.notes ?? null,
-          });
+          try {
+            await db.updateInventoryTransaction(transactionId, {
+              product_id: updates.productId,
+              bottle_number: updates.bottleNumber ?? null,
+              type: updates.type,
+              quantity: updates.quantity,
+              customer_name: updates.customerName ?? null,
+              price: updates.price ?? null,
+              notes: updates.notes ?? null,
+            });
+          } catch (error) {
+            // 롤백
+            if (original) {
+              set((state) => ({
+                transactions: state.transactions.map((tx) =>
+                  tx.id === transactionId ? original : tx
+                ),
+              }));
+            }
+            handleStoreError(error, 'InventoryStore.updateTransaction');
+          }
         }
       },
 
       deleteTransaction: async (transactionId) => {
-        const state = get();
-        const transaction = state.transactions.find((tx) => tx.id === transactionId);
+        const currentState = get();
+        const transaction = currentState.transactions.find((tx) => tx.id === transactionId);
         if (!transaction) return;
 
         const { productId, type, quantity } = transaction;
-        const batch = state.inventoryBatches.find((b) => b.productId === productId);
+        const batch = currentState.inventoryBatches.find((b) => b.productId === productId);
+
+        // 원본 저장 (롤백용)
+        const originalBatch = batch ? { ...batch } : null;
 
         // 거래 유형에 따라 재고 복원
         if (batch) {
@@ -1189,7 +1377,7 @@ export const useInventoryStore = create<InventoryState>()((set, get) => ({
               break;
           }
 
-          // 로컬 상태 업데이트 (재고 복원 + 거래 삭제)
+          // 낙관적 업데이트 (재고 복원 + 거래 삭제)
           set((state) => ({
             inventoryBatches: state.inventoryBatches.map((b) =>
               b.productId === productId
@@ -1201,8 +1389,21 @@ export const useInventoryStore = create<InventoryState>()((set, get) => ({
 
           // Supabase에 저장
           if (get().useSupabase) {
-            await db.updateInventoryBatch(productId as string, batchUpdates);
-            await db.deleteInventoryTransaction(transactionId);
+            try {
+              await db.updateInventoryBatch(productId as string, batchUpdates);
+              await db.deleteInventoryTransaction(transactionId);
+            } catch (error) {
+              // 롤백
+              set((state) => ({
+                inventoryBatches: originalBatch
+                  ? state.inventoryBatches.map((b) =>
+                      b.productId === productId ? originalBatch : b
+                    )
+                  : state.inventoryBatches,
+                transactions: [...state.transactions, transaction],
+              }));
+              handleStoreError(error, 'InventoryStore.deleteTransaction');
+            }
           }
         } else {
           // 배치가 없는 경우 (numbered bottles 등) - 거래만 삭제
@@ -1211,7 +1412,15 @@ export const useInventoryStore = create<InventoryState>()((set, get) => ({
           }));
 
           if (get().useSupabase) {
-            await db.deleteInventoryTransaction(transactionId);
+            try {
+              await db.deleteInventoryTransaction(transactionId);
+            } catch (error) {
+              // 롤백
+              set((state) => ({
+                transactions: [...state.transactions, transaction],
+              }));
+              handleStoreError(error, 'InventoryStore.deleteTransaction');
+            }
           }
         }
       },

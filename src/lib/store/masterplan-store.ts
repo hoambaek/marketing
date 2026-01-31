@@ -1,6 +1,7 @@
 'use client';
 
 import { create } from 'zustand';
+import { handleStoreError } from '@/lib/utils/error-handler';
 import { storeLogger } from '@/lib/logger';
 import { persist } from 'zustand/middleware';
 import { Task, MustDoItem, KPIItem, ContentItem, TaskStatus } from '@/lib/types';
@@ -114,7 +115,7 @@ export const useMasterPlanStore = create<MasterPlanState>()(
 
           // 데이터가 없으면 초기 데이터로 시드
           if (!tasks || tasks.length === 0) {
-            storeLogger.log('No data in Supabase, seeding initial data...');
+            storeLogger.log('masterplan-store: No data in Supabase, seeding initial data...');
             await db.seedInitialData(
               INITIAL_TASKS,
               INITIAL_MUST_DO,
@@ -151,7 +152,7 @@ export const useMasterPlanStore = create<MasterPlanState>()(
             });
           }
         } catch (error) {
-          storeLogger.error('Failed to initialize from Supabase:', error);
+          handleStoreError(error, 'masterplan-store:initializeFromSupabase');
           // Supabase 실패 시 로컬 데이터 유지
           set({ isLoading: false, isInitialized: true, useSupabase: false });
         }
@@ -169,24 +170,33 @@ export const useMasterPlanStore = create<MasterPlanState>()(
           updatedAt: new Date().toISOString(),
         };
 
+        const previousTasks = get().tasks;
+
         // 먼저 로컬 상태 업데이트 (낙관적 업데이트)
         set((state) => ({ tasks: [...state.tasks, newTask] }));
 
         // Supabase에 저장
         if (get().useSupabase) {
-          const created = await db.createTask(task);
-          if (created) {
-            // Supabase에서 생성된 ID로 업데이트
-            set((state) => ({
-              tasks: state.tasks.map((t) =>
-                t.id === newTask.id ? created : t
-              ),
-            }));
+          try {
+            const created = await db.createTask(task);
+            if (created) {
+              // Supabase에서 생성된 ID로 업데이트
+              set((state) => ({
+                tasks: state.tasks.map((t) =>
+                  t.id === newTask.id ? created : t
+                ),
+              }));
+            }
+          } catch (error) {
+            set({ tasks: previousTasks });
+            handleStoreError(error, 'masterplan-store:addTask');
           }
         }
       },
 
       updateTask: async (id, updates) => {
+        const previousTasks = get().tasks;
+
         // 먼저 로컬 상태 업데이트
         set((state) => ({
           tasks: state.tasks.map((task) =>
@@ -198,11 +208,18 @@ export const useMasterPlanStore = create<MasterPlanState>()(
 
         // Supabase에 저장
         if (get().useSupabase) {
-          await db.updateTask(id, updates);
+          try {
+            await db.updateTask(id, updates);
+          } catch (error) {
+            set({ tasks: previousTasks });
+            handleStoreError(error, 'masterplan-store:updateTask');
+          }
         }
       },
 
       deleteTask: async (id) => {
+        const previousTasks = get().tasks;
+
         // 먼저 로컬 상태 업데이트
         set((state) => ({
           tasks: state.tasks.filter((task) => task.id !== id),
@@ -210,11 +227,18 @@ export const useMasterPlanStore = create<MasterPlanState>()(
 
         // Supabase에서 삭제
         if (get().useSupabase) {
-          await db.deleteTask(id);
+          try {
+            await db.deleteTask(id);
+          } catch (error) {
+            set({ tasks: previousTasks });
+            handleStoreError(error, 'masterplan-store:deleteTask');
+          }
         }
       },
 
       updateTaskStatus: async (id, status) => {
+        const previousTasks = get().tasks;
+
         // 먼저 로컬 상태 업데이트
         set((state) => ({
           tasks: state.tasks.map((task) =>
@@ -226,7 +250,12 @@ export const useMasterPlanStore = create<MasterPlanState>()(
 
         // Supabase에 저장
         if (get().useSupabase) {
-          await db.updateTaskStatus(id, status);
+          try {
+            await db.updateTaskStatus(id, status);
+          } catch (error) {
+            set({ tasks: previousTasks });
+            handleStoreError(error, 'masterplan-store:updateTaskStatus');
+          }
         }
       },
 
@@ -258,6 +287,7 @@ export const useMasterPlanStore = create<MasterPlanState>()(
         if (!item) return;
 
         const newDone = !item.done;
+        const previousMustDoItems = get().mustDoItems;
 
         // 먼저 로컬 상태 업데이트
         set((state) => ({
@@ -268,7 +298,12 @@ export const useMasterPlanStore = create<MasterPlanState>()(
 
         // Supabase에 저장
         if (get().useSupabase) {
-          await db.toggleMustDo(id, newDone);
+          try {
+            await db.toggleMustDo(id, newDone);
+          } catch (error) {
+            set({ mustDoItems: previousMustDoItems });
+            handleStoreError(error, 'masterplan-store:toggleMustDo');
+          }
         }
       },
 
@@ -278,23 +313,32 @@ export const useMasterPlanStore = create<MasterPlanState>()(
           id: generateId(),
         };
 
+        const previousMustDoItems = get().mustDoItems;
+
         // 먼저 로컬 상태 업데이트
         set((state) => ({ mustDoItems: [...state.mustDoItems, newItem] }));
 
         // Supabase에 저장
         if (get().useSupabase) {
-          const created = await db.createMustDoItem(item);
-          if (created) {
-            set((state) => ({
-              mustDoItems: state.mustDoItems.map((i) =>
-                i.id === newItem.id ? created : i
-              ),
-            }));
+          try {
+            const created = await db.createMustDoItem(item);
+            if (created) {
+              set((state) => ({
+                mustDoItems: state.mustDoItems.map((i) =>
+                  i.id === newItem.id ? created : i
+                ),
+              }));
+            }
+          } catch (error) {
+            set({ mustDoItems: previousMustDoItems });
+            handleStoreError(error, 'masterplan-store:addMustDo');
           }
         }
       },
 
       updateMustDo: async (id, updates) => {
+        const previousMustDoItems = get().mustDoItems;
+
         // 먼저 로컬 상태 업데이트
         set((state) => ({
           mustDoItems: state.mustDoItems.map((item) =>
@@ -304,11 +348,18 @@ export const useMasterPlanStore = create<MasterPlanState>()(
 
         // Supabase에 저장
         if (get().useSupabase) {
-          await db.updateMustDoItem(id, updates);
+          try {
+            await db.updateMustDoItem(id, updates);
+          } catch (error) {
+            set({ mustDoItems: previousMustDoItems });
+            handleStoreError(error, 'masterplan-store:updateMustDo');
+          }
         }
       },
 
       deleteMustDo: async (id) => {
+        const previousMustDoItems = get().mustDoItems;
+
         // 먼저 로컬 상태 업데이트
         set((state) => ({
           mustDoItems: state.mustDoItems.filter((item) => item.id !== id),
@@ -316,7 +367,12 @@ export const useMasterPlanStore = create<MasterPlanState>()(
 
         // Supabase에서 삭제
         if (get().useSupabase) {
-          await db.deleteMustDoItem(id);
+          try {
+            await db.deleteMustDoItem(id);
+          } catch (error) {
+            set({ mustDoItems: previousMustDoItems });
+            handleStoreError(error, 'masterplan-store:deleteMustDo');
+          }
         }
       },
 
@@ -325,6 +381,8 @@ export const useMasterPlanStore = create<MasterPlanState>()(
       // ═══════════════════════════════════════════════════════════════════
 
       updateKPI: async (id, current) => {
+        const previousKpiItems = get().kpiItems;
+
         // 먼저 로컬 상태 업데이트
         set((state) => ({
           kpiItems: state.kpiItems.map((kpi) =>
@@ -334,7 +392,12 @@ export const useMasterPlanStore = create<MasterPlanState>()(
 
         // Supabase에 저장
         if (get().useSupabase) {
-          await db.updateKPI(id, current);
+          try {
+            await db.updateKPI(id, current);
+          } catch (error) {
+            set({ kpiItems: previousKpiItems });
+            handleStoreError(error, 'masterplan-store:updateKPI');
+          }
         }
       },
 
@@ -348,23 +411,32 @@ export const useMasterPlanStore = create<MasterPlanState>()(
           id: generateId(),
         };
 
+        const previousContentItems = get().contentItems;
+
         // 먼저 로컬 상태 업데이트
         set((state) => ({ contentItems: [...state.contentItems, newItem] }));
 
         // Supabase에 저장
         if (get().useSupabase) {
-          const created = await db.createContentItem(item);
-          if (created) {
-            set((state) => ({
-              contentItems: state.contentItems.map((i) =>
-                i.id === newItem.id ? created : i
-              ),
-            }));
+          try {
+            const created = await db.createContentItem(item);
+            if (created) {
+              set((state) => ({
+                contentItems: state.contentItems.map((i) =>
+                  i.id === newItem.id ? created : i
+                ),
+              }));
+            }
+          } catch (error) {
+            set({ contentItems: previousContentItems });
+            handleStoreError(error, 'masterplan-store:addContent');
           }
         }
       },
 
       updateContent: async (id, updates) => {
+        const previousContentItems = get().contentItems;
+
         // 먼저 로컬 상태 업데이트
         set((state) => ({
           contentItems: state.contentItems.map((item) =>
@@ -374,11 +446,18 @@ export const useMasterPlanStore = create<MasterPlanState>()(
 
         // Supabase에 저장
         if (get().useSupabase) {
-          await db.updateContentItem(id, updates);
+          try {
+            await db.updateContentItem(id, updates);
+          } catch (error) {
+            set({ contentItems: previousContentItems });
+            handleStoreError(error, 'masterplan-store:updateContent');
+          }
         }
       },
 
       deleteContent: async (id) => {
+        const previousContentItems = get().contentItems;
+
         // 먼저 로컬 상태 업데이트
         set((state) => ({
           contentItems: state.contentItems.filter((item) => item.id !== id),
@@ -386,7 +465,12 @@ export const useMasterPlanStore = create<MasterPlanState>()(
 
         // Supabase에서 삭제
         if (get().useSupabase) {
-          await db.deleteContentItem(id);
+          try {
+            await db.deleteContentItem(id);
+          } catch (error) {
+            set({ contentItems: previousContentItems });
+            handleStoreError(error, 'masterplan-store:deleteContent');
+          }
         }
       },
 

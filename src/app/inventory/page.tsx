@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useInventoryStore } from '@/lib/store/inventory-store';
 import { toast } from '@/lib/store/toast-store';
+import { logger } from '@/lib/logger';
 import { Footer } from '@/components/layout/Footer';
 import {
   PRODUCTS,
@@ -1190,7 +1191,7 @@ function WeightManagementModal({
         }
       }
     } catch (error) {
-      console.error('Error loading structures from Supabase:', error);
+      logger.error('Error loading structures from Supabase:', error);
       // 에러 시 localStorage 확인
       const localData = localStorage.getItem(storageKey);
       if (localData) {
@@ -1227,11 +1228,11 @@ function WeightManagementModal({
       const success = await saveStructuresForYear(year, dataToSave);
       if (!success) {
         // Supabase 저장 실패 시 localStorage에 백업
-        console.warn('Supabase save failed, falling back to localStorage');
+        logger.warn('Supabase save failed, falling back to localStorage');
         localStorage.setItem(storageKey, JSON.stringify(dataToSave));
       }
     } catch (error) {
-      console.error('Error saving structures to Supabase:', error);
+      logger.error('Error saving structures to Supabase:', error);
       // 에러 시에도 localStorage에 백업
       localStorage.setItem(storageKey, JSON.stringify(dataToSave));
     } finally {

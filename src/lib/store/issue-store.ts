@@ -5,7 +5,7 @@ import { persist } from 'zustand/middleware';
 import { IssueItem, IssueStatus } from '@/lib/types';
 import { isSupabaseConfigured } from '@/lib/supabase/client';
 import * as db from '@/lib/supabase/database';
-import { storeLogger } from '@/lib/logger';
+import { handleStoreError } from '@/lib/utils/error-handler';
 
 // Initial sample data
 const INITIAL_ISSUES: IssueItem[] = [
@@ -190,7 +190,7 @@ export const useIssueStore = create<IssueState>()(
             });
           }
         } catch (error) {
-          storeLogger.error('Failed to initialize issues from Supabase:', error);
+          handleStoreError(error, 'IssueStore.initializeFromSupabase');
           set({ isLoading: false, isInitialized: true, useSupabase: false });
         }
       },
@@ -203,19 +203,33 @@ export const useIssueStore = create<IssueState>()(
           updatedAt: new Date().toISOString(),
         };
 
+        // 낙관적 업데이트
         set((state) => ({ issues: [...state.issues, newIssue] }));
 
+        // Supabase에 저장
         if (get().useSupabase) {
-          const created = await db.createIssueItem(issue);
-          if (created) {
+          try {
+            const created = await db.createIssueItem(issue);
+            if (created) {
+              set((state) => ({
+                issues: state.issues.map((i) => (i.id === newIssue.id ? created : i)),
+              }));
+            }
+          } catch (error) {
+            // 롤백
             set((state) => ({
-              issues: state.issues.map((i) => (i.id === newIssue.id ? created : i)),
+              issues: state.issues.filter((i) => i.id !== newIssue.id),
             }));
+            handleStoreError(error, 'IssueStore.addIssue');
           }
         }
       },
 
       updateIssue: async (id, updates) => {
+        // 원본 저장 (롤백용)
+        const original = get().issues.find((issue) => issue.id === id);
+
+        // 낙관적 업데이트
         set((state) => ({
           issues: state.issues.map((issue) =>
             issue.id === id
@@ -224,22 +238,52 @@ export const useIssueStore = create<IssueState>()(
           ),
         }));
 
+        // Supabase에 저장
         if (get().useSupabase) {
-          await db.updateIssueItem(id, updates);
+          try {
+            await db.updateIssueItem(id, updates);
+          } catch (error) {
+            // 롤백
+            if (original) {
+              set((state) => ({
+                issues: state.issues.map((issue) =>
+                  issue.id === id ? original : issue
+                ),
+              }));
+            }
+            handleStoreError(error, 'IssueStore.updateIssue');
+          }
         }
       },
 
       deleteIssue: async (id) => {
+        // 원본 저장 (롤백용)
+        const original = get().issues.find((issue) => issue.id === id);
+
+        // 낙관적 업데이트
         set((state) => ({
           issues: state.issues.filter((issue) => issue.id !== id),
         }));
 
+        // Supabase에서 삭제
         if (get().useSupabase) {
-          await db.deleteIssueItem(id);
+          try {
+            await db.deleteIssueItem(id);
+          } catch (error) {
+            // 롤백
+            if (original) {
+              set((state) => ({ issues: [...state.issues, original] }));
+            }
+            handleStoreError(error, 'IssueStore.deleteIssue');
+          }
         }
       },
 
       updateIssueStatus: async (id, status) => {
+        // 원본 저장 (롤백용)
+        const original = get().issues.find((issue) => issue.id === id);
+
+        // 낙관적 업데이트
         set((state) => ({
           issues: state.issues.map((issue) =>
             issue.id === id
@@ -248,8 +292,21 @@ export const useIssueStore = create<IssueState>()(
           ),
         }));
 
+        // Supabase에 저장
         if (get().useSupabase) {
-          await db.updateIssueItem(id, { status });
+          try {
+            await db.updateIssueItem(id, { status });
+          } catch (error) {
+            // 롤백
+            if (original) {
+              set((state) => ({
+                issues: state.issues.map((issue) =>
+                  issue.id === id ? original : issue
+                ),
+              }));
+            }
+            handleStoreError(error, 'IssueStore.updateIssueStatus');
+          }
         }
       },
 

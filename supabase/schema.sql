@@ -273,11 +273,12 @@ CREATE TABLE IF NOT EXISTS inventory_batches (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Inventory Batches RLS (인증된 사용자만)
+-- Inventory Batches RLS (Clerk 인증 사용으로 anon 포함)
 ALTER TABLE inventory_batches ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Allow all access to inventory_batches" ON inventory_batches;
-CREATE POLICY "Authenticated users can access inventory_batches" ON inventory_batches
-  FOR ALL TO authenticated
+DROP POLICY IF EXISTS "Authenticated users can access inventory_batches" ON inventory_batches;
+CREATE POLICY "Allow all access to inventory_batches" ON inventory_batches
+  FOR ALL TO anon, authenticated
   USING (true) WITH CHECK (true);
 
 -- Inventory Batches 인덱스

@@ -146,6 +146,37 @@ export async function createInventoryBatch(
 ): Promise<DBInventoryBatch | null> {
   if (!isSupabaseConfigured()) return null;
 
+  // 먼저 존재 여부 확인
+  const { data: existing } = await supabase!
+    .from('inventory_batches')
+    .select('id')
+    .eq('product_id', batch.product_id)
+    .single();
+
+  // 이미 존재하면 업데이트
+  if (existing) {
+    const { data, error } = await supabase!
+      .from('inventory_batches')
+      .update({
+        total_quantity: batch.total_quantity,
+        available: batch.available,
+        reserved: batch.reserved,
+        sold: batch.sold,
+        gifted: batch.gifted,
+        damaged: batch.damaged,
+      })
+      .eq('product_id', batch.product_id)
+      .select()
+      .single();
+
+    if (error) {
+      dbLogger.error('Error updating inventory batch:', error.message);
+      return null;
+    }
+    return data as DBInventoryBatch;
+  }
+
+  // 존재하지 않으면 생성
   const { data, error } = await supabase!
     .from('inventory_batches')
     .insert(batch)
@@ -153,7 +184,7 @@ export async function createInventoryBatch(
     .single();
 
   if (error) {
-    dbLogger.error('Error creating inventory batch:', error);
+    dbLogger.error('Error creating inventory batch:', error.message);
     return null;
   }
 

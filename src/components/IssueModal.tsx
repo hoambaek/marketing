@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Pencil, AlertTriangle, AlertCircle, HelpCircle, Calendar, User, Tag, Link2, ChevronDown, Paperclip, ExternalLink, FileText, Youtube } from 'lucide-react';
+import { Pencil, AlertTriangle, AlertCircle, HelpCircle, Calendar, User, Tag, Link2, ChevronDown, Paperclip, ExternalLink, FileText, Youtube, X } from 'lucide-react';
 import {
   IssueItem,
   IssueType,
@@ -25,6 +25,8 @@ import {
   CONTENT_TYPES,
 } from '@/lib/types';
 import { toast } from '@/lib/store/toast-store';
+import { BaseModal } from '@/components/ui';
+import { useIsMobile } from '@/hooks/useIsMobile';
 import FileUpload from './FileUpload';
 
 interface IssueModalProps {
@@ -35,8 +37,8 @@ interface IssueModalProps {
   issue?: IssueItem | null;
   defaultYear?: number;
   defaultMonth?: number;
-  tasks?: Task[]; // 월별플랜 업무 목록
-  contentItems?: ContentItem[]; // 캘린더 컨텐츠 목록
+  tasks?: Task[];
+  contentItems?: ContentItem[];
   initialMode?: 'view' | 'edit';
 }
 
@@ -66,6 +68,8 @@ export default function IssueModal({
   contentItems = [],
   initialMode = 'edit',
 }: IssueModalProps) {
+  const isMobile = useIsMobile();
+
   const [formData, setFormData] = useState({
     year: defaultYear,
     month: defaultMonth,
@@ -85,30 +89,11 @@ export default function IssueModal({
   });
 
   const [isEditing, setIsEditing] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
   const [showTaskSelector, setShowTaskSelector] = useState(false);
   const [relatedItemTab, setRelatedItemTab] = useState<RelatedItemTab>('tasks');
 
   useEffect(() => {
-    setIsMobile(window.innerWidth < 640);
-  }, []);
-
-  useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
-    }
-    return () => {
-      document.body.style.overflow = '';
-    };
-  }, [isOpen]);
-
-  useEffect(() => {
     if (!isOpen) return;
-
-    const mobile = window.innerWidth < 640;
-    setIsMobile(mobile);
 
     if (issue) {
       setFormData({
@@ -128,7 +113,7 @@ export default function IssueModal({
         relatedTaskTitle: issue.relatedTaskTitle || '',
         attachments: issue.attachments || [],
       });
-      setIsEditing(initialMode === 'edit' || (!mobile && !issue));
+      setIsEditing(initialMode === 'edit' || (!isMobile && !issue));
     } else {
       setFormData({
         year: defaultYear,
@@ -149,7 +134,7 @@ export default function IssueModal({
       });
       setIsEditing(true);
     }
-  }, [issue, defaultYear, defaultMonth, isOpen, initialMode]);
+  }, [issue, defaultYear, defaultMonth, isOpen, initialMode, isMobile]);
 
   // 선택한 월에 해당하는 업무만 필터링
   const filteredTasks = tasks.filter((t) => t.month === formData.month);
@@ -177,7 +162,7 @@ export default function IssueModal({
       relatedTaskId: content.id,
       relatedTaskTitle: `[캘린더] ${content.title}`,
       title: prev.title || `[${content.title}] 관련 이슈`,
-      category: 'marketing' as TaskCategory, // 컨텐츠는 기본적으로 마케팅 카테고리
+      category: 'marketing' as TaskCategory,
     }));
     setShowTaskSelector(false);
   };
@@ -229,7 +214,7 @@ export default function IssueModal({
     onClose();
   };
 
-  // Individual change handlers to prevent re-render issues
+  // Individual change handlers
   const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData(prev => ({ ...prev, title: e.target.value }));
   };
@@ -284,594 +269,563 @@ export default function IssueModal({
     setFormData(prev => ({ ...prev, attachments }));
   };
 
-  if (!isOpen) return null;
-
   const typeColors = ISSUE_TYPE_COLORS[formData.type];
   const priorityColors = ISSUE_PRIORITY_COLORS[formData.priority];
   const statusColors = ISSUE_STATUS_COLORS[formData.status];
 
+  const modalTitle = issue ? (isEditing ? '이슈 수정' : '이슈 상세') : '새 이슈 추가';
+
   return (
-    <AnimatePresence>
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md"
-        onClick={handleClose}
-      >
-        <motion.div
-          initial={{ opacity: 0, y: 20, scale: 0.95 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          exit={{ opacity: 0, y: 20, scale: 0.95 }}
-          transition={{ duration: 0.2 }}
-          className="bg-[#0a0f1a] border border-white/[0.08] rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto"
-          onClick={(e) => e.stopPropagation()}
-        >
-          {/* Drag Handle for Mobile */}
-          <div className="sm:hidden flex justify-center pt-3 pb-1">
-            <div className="w-10 h-1 bg-muted-foreground/30 rounded-full" />
-          </div>
-
-          {/* Header */}
-          <div className="flex items-center justify-between p-5 border-b border-border">
-            <h2 className="font-display text-xl text-foreground">
-              {issue ? (isEditing ? '이슈 수정' : '이슈 상세') : '새 이슈 추가'}
-            </h2>
-            <button
-              onClick={handleClose}
-              className="p-2 rounded-lg hover:bg-muted active:bg-muted/50 transition-colors"
-            >
-              <X className="w-5 h-5 text-muted-foreground" />
-            </button>
-          </div>
-
-          {/* Content - Inline JSX to prevent re-render issues */}
-          {isEditing ? (
-            /* Edit Mode */
-            <form onSubmit={handleSubmit} className="p-5 space-y-4">
-              {/* Related Task Selector */}
-              {!issue && (filteredTasks.length > 0 || filteredContentItems.length > 0) && (
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-1.5">
-                    <div className="flex items-center gap-2">
-                      <Link2 className="w-4 h-4 text-blue-400" />
-                      연관 업무 선택
-                    </div>
-                  </label>
-                  {formData.relatedTaskId ? (
-                    <div className="flex items-center gap-2 p-3 bg-blue-500/10 border border-blue-500/30 rounded-xl">
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-foreground truncate">{formData.relatedTaskTitle}</p>
-                        <p className="text-xs text-blue-400">연관 업무가 선택되었습니다</p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={clearTaskSelection}
-                        className="p-1.5 rounded-lg hover:bg-white/10 transition-colors"
-                      >
-                        <X className="w-4 h-4 text-muted-foreground" />
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="relative">
-                      <button
-                        type="button"
-                        onClick={() => setShowTaskSelector(!showTaskSelector)}
-                        className="w-full px-4 py-2.5 bg-background border border-border rounded-xl text-left text-muted-foreground hover:border-accent/50 transition-all flex items-center justify-between"
-                      >
-                        <span>연관 업무 선택...</span>
-                        <ChevronDown className={`w-4 h-4 transition-transform ${showTaskSelector ? 'rotate-180' : ''}`} />
-                      </button>
-
-                      <AnimatePresence>
-                        {showTaskSelector && (
-                          <motion.div
-                            initial={{ opacity: 0, y: -10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -10 }}
-                            className="absolute z-10 w-full mt-2 bg-[#1a1f2e] border border-white/10 rounded-xl shadow-2xl overflow-hidden"
-                          >
-                            {/* Tabs */}
-                            <div className="flex border-b border-white/10">
-                              <button
-                                type="button"
-                                onClick={() => setRelatedItemTab('tasks')}
-                                className={`flex-1 px-4 py-2.5 text-sm font-medium transition-colors ${
-                                  relatedItemTab === 'tasks'
-                                    ? 'text-[#b7916e] bg-[#b7916e]/10 border-b-2 border-[#b7916e]'
-                                    : 'text-white/50 hover:text-white/70'
-                                }`}
-                              >
-                                월별플랜 ({filteredTasks.length})
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => setRelatedItemTab('content')}
-                                className={`flex-1 px-4 py-2.5 text-sm font-medium transition-colors ${
-                                  relatedItemTab === 'content'
-                                    ? 'text-[#b7916e] bg-[#b7916e]/10 border-b-2 border-[#b7916e]'
-                                    : 'text-white/50 hover:text-white/70'
-                                }`}
-                              >
-                                캘린더 ({filteredContentItems.length})
-                              </button>
-                            </div>
-
-                            {/* Task List */}
-                            <div className="max-h-48 overflow-y-auto">
-                              {relatedItemTab === 'tasks' ? (
-                                filteredTasks.length > 0 ? (
-                                  filteredTasks.map((task) => (
-                                    <button
-                                      key={task.id}
-                                      type="button"
-                                      onClick={() => handleTaskSelect(task)}
-                                      className="w-full px-4 py-3 text-left hover:bg-white/10 active:bg-white/15 transition-colors border-b border-white/5 last:border-0"
-                                    >
-                                      <p className="text-sm font-medium text-white/90 truncate">{task.title}</p>
-                                      <p className="text-xs text-white/50 mt-0.5">
-                                        {CATEGORY_LABELS[task.category]} · {task.week}주차
-                                      </p>
-                                    </button>
-                                  ))
-                                ) : (
-                                  <div className="px-4 py-3 text-sm text-white/40">
-                                    이 달에 등록된 업무가 없습니다
-                                  </div>
-                                )
-                              ) : (
-                                filteredContentItems.length > 0 ? (
-                                  filteredContentItems.map((content) => (
-                                    <button
-                                      key={content.id}
-                                      type="button"
-                                      onClick={() => handleContentSelect(content)}
-                                      className="w-full px-4 py-3 text-left hover:bg-white/10 active:bg-white/15 transition-colors border-b border-white/5 last:border-0"
-                                    >
-                                      <p className="text-sm font-medium text-white/90 truncate">{content.title}</p>
-                                      <p className="text-xs text-white/50 mt-0.5">
-                                        {CONTENT_TYPES[content.type]} · {new Date(content.date).getDate()}일
-                                      </p>
-                                    </button>
-                                  ))
-                                ) : (
-                                  <div className="px-4 py-3 text-sm text-white/40">
-                                    이 달에 등록된 컨텐츠가 없습니다
-                                  </div>
-                                )
-                              )}
-                            </div>
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
-                    </div>
-                  )}
-                  <p className="text-xs text-muted-foreground mt-1.5">
-                    선택하면 제목과 카테고리가 자동으로 채워집니다
-                  </p>
+    <BaseModal
+      isOpen={isOpen}
+      onClose={handleClose}
+      title={modalTitle}
+      maxWidth="lg"
+    >
+      {isEditing ? (
+        /* Edit Mode */
+        <form onSubmit={handleSubmit} className="p-5 space-y-4">
+          {/* Related Task Selector */}
+          {!issue && (filteredTasks.length > 0 || filteredContentItems.length > 0) && (
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-1.5">
+                <div className="flex items-center gap-2">
+                  <Link2 className="w-4 h-4 text-blue-400" />
+                  연관 업무 선택
                 </div>
-              )}
-
-              {/* Type & Priority Row */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-1.5">
-                    유형 <span className="text-red-500">*</span>
-                  </label>
-                  <div className="relative">
-                    <select
-                      value={formData.type}
-                      onChange={handleTypeChange}
-                      className="w-full px-4 py-2.5 pr-10 bg-background border border-border rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all appearance-none cursor-pointer"
-                    >
-                      {TYPE_OPTIONS.map((t) => (
-                        <option key={t} value={t}>{ISSUE_TYPE_LABELS[t]}</option>
-                      ))}
-                    </select>
-                    <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
-                      <svg className="w-4 h-4 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                      </svg>
-                    </div>
+              </label>
+              {formData.relatedTaskId ? (
+                <div className="flex items-center gap-2 p-3 bg-blue-500/10 border border-blue-500/30 rounded-xl">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-foreground truncate">{formData.relatedTaskTitle}</p>
+                    <p className="text-xs text-blue-400">연관 업무가 선택되었습니다</p>
                   </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-1.5">
-                    우선순위 <span className="text-red-500">*</span>
-                  </label>
-                  <div className="relative">
-                    <select
-                      value={formData.priority}
-                      onChange={handlePriorityChange}
-                      className="w-full px-4 py-2.5 pr-10 bg-background border border-border rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all appearance-none cursor-pointer"
-                    >
-                      {PRIORITY_OPTIONS.map((p) => (
-                        <option key={p} value={p}>{ISSUE_PRIORITY_LABELS[p]}</option>
-                      ))}
-                    </select>
-                    <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
-                      <svg className="w-4 h-4 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                      </svg>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Title */}
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-1.5">
-                  제목 <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={formData.title}
-                  onChange={handleTitleChange}
-                  placeholder="이슈/리스크 제목을 입력하세요"
-                  className="w-full px-4 py-2.5 bg-background border border-border rounded-xl text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all"
-                  autoFocus={!isMobile}
-                />
-              </div>
-
-              {/* Description */}
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-1.5">상세 설명</label>
-                <textarea
-                  value={formData.description}
-                  onChange={handleDescriptionChange}
-                  placeholder="상세 설명을 입력하세요"
-                  rows={3}
-                  className="w-full px-4 py-2.5 bg-background border border-border rounded-xl text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all resize-none"
-                />
-              </div>
-
-              {/* Status & Impact Row */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-1.5">상태</label>
-                  <div className="relative">
-                    <select
-                      value={formData.status}
-                      onChange={handleStatusChange}
-                      className="w-full px-4 py-2.5 pr-10 bg-background border border-border rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all appearance-none cursor-pointer"
-                    >
-                      {STATUS_OPTIONS.map((s) => (
-                        <option key={s} value={s}>{ISSUE_STATUS_LABELS[s]}</option>
-                      ))}
-                    </select>
-                    <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
-                      <svg className="w-4 h-4 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                      </svg>
-                    </div>
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-1.5">영향도</label>
-                  <div className="relative">
-                    <select
-                      value={formData.impact}
-                      onChange={handleImpactChange}
-                      className="w-full px-4 py-2.5 pr-10 bg-background border border-border rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all appearance-none cursor-pointer"
-                    >
-                      {IMPACT_OPTIONS.map((i) => (
-                        <option key={i} value={i}>{ISSUE_IMPACT_LABELS[i]}</option>
-                      ))}
-                    </select>
-                    <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
-                      <svg className="w-4 h-4 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                      </svg>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Category & Month Row */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-1.5">카테고리</label>
-                  <div className="relative">
-                    <select
-                      value={formData.category}
-                      onChange={handleCategoryChange}
-                      className="w-full px-4 py-2.5 pr-10 bg-background border border-border rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all appearance-none cursor-pointer"
-                    >
-                      {CATEGORY_OPTIONS.map((c) => (
-                        <option key={c} value={c}>{CATEGORY_LABELS[c]}</option>
-                      ))}
-                    </select>
-                    <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
-                      <svg className="w-4 h-4 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                      </svg>
-                    </div>
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-1.5">발생 월</label>
-                  <div className="relative">
-                    <select
-                      value={formData.month}
-                      onChange={handleMonthChange}
-                      className="w-full px-4 py-2.5 pr-10 bg-background border border-border rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all appearance-none cursor-pointer"
-                    >
-                      {MONTHS_INFO.map((m) => (
-                        <option key={m.id} value={m.id}>{m.name}</option>
-                      ))}
-                    </select>
-                    <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
-                      <svg className="w-4 h-4 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                      </svg>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Owner & Due Date Row */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-1.5">담당자</label>
-                  <input
-                    type="text"
-                    value={formData.owner}
-                    onChange={handleOwnerChange}
-                    placeholder="담당자명"
-                    className="w-full px-4 py-2.5 bg-background border border-border rounded-xl text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-1.5">해결 기한</label>
-                  <input
-                    type="date"
-                    value={formData.dueDate}
-                    onChange={handleDueDateChange}
-                    className="w-full px-4 py-2.5 bg-background border border-border rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all"
-                  />
-                </div>
-              </div>
-
-              {/* Resolution */}
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-1.5">해결 방안</label>
-                <textarea
-                  value={formData.resolution}
-                  onChange={handleResolutionChange}
-                  placeholder="해결 방안을 입력하세요"
-                  rows={2}
-                  className="w-full px-4 py-2.5 bg-background border border-border rounded-xl text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all resize-none"
-                />
-              </div>
-
-              {/* Attachments */}
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-1.5">
-                  <span className="flex items-center gap-2">
-                    <Paperclip className="w-4 h-4 text-muted-foreground" />
-                    첨부파일
-                  </span>
-                </label>
-                <FileUpload
-                  attachments={formData.attachments}
-                  onChange={handleAttachmentsChange}
-                  maxFiles={10}
-                />
-              </div>
-
-              {/* Buttons */}
-              <div className="flex gap-3 pt-2">
-                {issue && onDelete && (
                   <button
                     type="button"
-                    onClick={handleDelete}
-                    className="px-4 py-2.5 border border-red-500/30 text-red-500 rounded-xl hover:bg-red-500/10 active:bg-red-500/20 transition-colors"
+                    onClick={clearTaskSelection}
+                    className="p-1.5 rounded-lg hover:bg-white/10 transition-colors"
                   >
-                    삭제
+                    <X className="w-4 h-4 text-muted-foreground" />
                   </button>
-                )}
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (isMobile && issue) {
-                      setIsEditing(false);
-                    } else {
-                      handleClose();
-                    }
-                  }}
-                  className="flex-1 px-4 py-2.5 border border-border rounded-xl text-muted-foreground hover:bg-muted active:bg-muted/50 transition-colors"
-                >
-                  취소
-                </button>
-                <button
-                  type="submit"
-                  className="flex-1 px-4 py-2.5 bg-accent text-white rounded-xl hover:bg-accent/90 active:bg-accent/80 transition-colors font-medium"
-                >
-                  {issue ? '저장' : '추가'}
-                </button>
-              </div>
-            </form>
-          ) : (
-            /* View Mode */
-            <div className="p-5 space-y-4">
-              {/* Type & Priority Row */}
-              <div className="flex items-center gap-3">
-                <div className={`p-3 rounded-xl ${typeColors.bg} ${typeColors.border} border`}>
-                  {TYPE_ICONS[formData.type]}
                 </div>
-                <div className="flex-1">
-                  <p className="text-xs text-muted-foreground">유형</p>
-                  <p className={`font-medium ${typeColors.text}`}>{ISSUE_TYPE_LABELS[formData.type]}</p>
-                </div>
-                <div>
-                  <span className={`px-3 py-1 rounded-lg text-sm font-medium ${priorityColors.bg} ${priorityColors.text} ${priorityColors.border} border`}>
-                    {ISSUE_PRIORITY_LABELS[formData.priority]}
-                  </span>
-                </div>
-              </div>
+              ) : (
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setShowTaskSelector(!showTaskSelector)}
+                    className="w-full px-4 py-2.5 bg-background border border-border rounded-xl text-left text-muted-foreground hover:border-accent/50 transition-all flex items-center justify-between"
+                  >
+                    <span>연관 업무 선택...</span>
+                    <ChevronDown className={`w-4 h-4 transition-transform ${showTaskSelector ? 'rotate-180' : ''}`} />
+                  </button>
 
-              {/* Related Task */}
-              {formData.relatedTaskTitle && (
-                <div className="p-4 bg-blue-500/10 border border-blue-500/30 rounded-xl">
-                  <div className="flex items-center gap-2 mb-1">
-                    <Link2 className="w-3.5 h-3.5 text-blue-400" />
-                    <p className="text-xs text-blue-400">연관 업무</p>
-                  </div>
-                  <p className="text-foreground font-medium">{formData.relatedTaskTitle}</p>
-                </div>
-              )}
-
-              {/* Title */}
-              <div className="p-4 bg-muted/30 rounded-xl">
-                <p className="text-xs text-muted-foreground mb-1">제목</p>
-                <p className="text-foreground font-medium text-lg">{formData.title || '(제목 없음)'}</p>
-              </div>
-
-              {/* Description */}
-              {formData.description && (
-                <div className="p-4 bg-muted/30 rounded-xl">
-                  <p className="text-xs text-muted-foreground mb-1">상세 설명</p>
-                  <p className="text-foreground/80 text-sm whitespace-pre-wrap">{formData.description}</p>
-                </div>
-              )}
-
-              {/* Status & Category */}
-              <div className="flex gap-3">
-                <div className="flex-1 p-4 bg-muted/30 rounded-xl">
-                  <p className="text-xs text-muted-foreground mb-1">상태</p>
-                  <span className={`inline-block px-3 py-1 rounded-lg text-sm font-medium ${statusColors.bg} ${statusColors.text}`}>
-                    {ISSUE_STATUS_LABELS[formData.status]}
-                  </span>
-                </div>
-                <div className="flex-1 p-4 bg-muted/30 rounded-xl">
-                  <div className="flex items-center gap-2 mb-1">
-                    <Tag className="w-3.5 h-3.5 text-muted-foreground" />
-                    <p className="text-xs text-muted-foreground">카테고리</p>
-                  </div>
-                  <p className="text-foreground font-medium">{CATEGORY_LABELS[formData.category]}</p>
-                </div>
-              </div>
-
-              {/* Owner & Due Date */}
-              <div className="flex gap-3">
-                {formData.owner && (
-                  <div className="flex-1 p-4 bg-muted/30 rounded-xl">
-                    <div className="flex items-center gap-2 mb-1">
-                      <User className="w-3.5 h-3.5 text-muted-foreground" />
-                      <p className="text-xs text-muted-foreground">담당자</p>
-                    </div>
-                    <p className="text-foreground font-medium">{formData.owner}</p>
-                  </div>
-                )}
-                {formData.dueDate && (
-                  <div className="flex-1 p-4 bg-muted/30 rounded-xl">
-                    <div className="flex items-center gap-2 mb-1">
-                      <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
-                      <p className="text-xs text-muted-foreground">해결 기한</p>
-                    </div>
-                    <p className="text-foreground font-medium">
-                      {new Date(formData.dueDate).toLocaleDateString('ko-KR')}
-                    </p>
-                  </div>
-                )}
-              </div>
-
-              {/* Resolution */}
-              {formData.resolution && (
-                <div className="p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-xl">
-                  <p className="text-xs text-emerald-400 mb-1">해결 방안</p>
-                  <p className="text-foreground/80 text-sm whitespace-pre-wrap">{formData.resolution}</p>
-                </div>
-              )}
-
-              {/* Attachments View */}
-              {formData.attachments && formData.attachments.length > 0 && (
-                <div className="p-4 bg-muted/30 rounded-xl">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Paperclip className="w-3.5 h-3.5 text-muted-foreground" />
-                    <p className="text-xs text-muted-foreground">첨부파일 ({formData.attachments.length})</p>
-                  </div>
-                  <div className="space-y-2">
-                    {formData.attachments.map((attachment) => (
-                      <a
-                        key={attachment.id}
-                        href={attachment.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors group"
+                  <AnimatePresence>
+                    {showTaskSelector && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        className="absolute z-10 w-full mt-2 bg-[#1a1f2e] border border-white/10 rounded-xl shadow-2xl overflow-hidden"
                       >
-                        {/* Thumbnail or Icon */}
-                        <div className="relative w-10 h-10 flex-shrink-0 rounded-lg overflow-hidden bg-muted">
-                          {attachment.type === 'image' ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img
-                              src={attachment.url}
-                              alt={attachment.name}
-                              className="w-full h-full object-cover"
-                            />
-                          ) : attachment.type === 'youtube' && attachment.thumbnailUrl ? (
-                            <>
-                              {/* eslint-disable-next-line @next/next/no-img-element */}
-                              <img
-                                src={attachment.thumbnailUrl}
-                                alt={attachment.name}
-                                className="w-full h-full object-cover"
-                              />
-                              <div className="absolute inset-0 flex items-center justify-center bg-black/30">
-                                <Youtube className="w-4 h-4 text-red-500" />
+                        {/* Tabs */}
+                        <div className="flex border-b border-white/10">
+                          <button
+                            type="button"
+                            onClick={() => setRelatedItemTab('tasks')}
+                            className={`flex-1 px-4 py-2.5 text-sm font-medium transition-colors ${
+                              relatedItemTab === 'tasks'
+                                ? 'text-[#b7916e] bg-[#b7916e]/10 border-b-2 border-[#b7916e]'
+                                : 'text-white/50 hover:text-white/70'
+                            }`}
+                          >
+                            월별플랜 ({filteredTasks.length})
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setRelatedItemTab('content')}
+                            className={`flex-1 px-4 py-2.5 text-sm font-medium transition-colors ${
+                              relatedItemTab === 'content'
+                                ? 'text-[#b7916e] bg-[#b7916e]/10 border-b-2 border-[#b7916e]'
+                                : 'text-white/50 hover:text-white/70'
+                            }`}
+                          >
+                            캘린더 ({filteredContentItems.length})
+                          </button>
+                        </div>
+
+                        {/* Task List */}
+                        <div className="max-h-48 overflow-y-auto">
+                          {relatedItemTab === 'tasks' ? (
+                            filteredTasks.length > 0 ? (
+                              filteredTasks.map((task) => (
+                                <button
+                                  key={task.id}
+                                  type="button"
+                                  onClick={() => handleTaskSelect(task)}
+                                  className="w-full px-4 py-3 text-left hover:bg-white/10 active:bg-white/15 transition-colors border-b border-white/5 last:border-0"
+                                >
+                                  <p className="text-sm font-medium text-white/90 truncate">{task.title}</p>
+                                  <p className="text-xs text-white/50 mt-0.5">
+                                    {CATEGORY_LABELS[task.category]} · {task.week}주차
+                                  </p>
+                                </button>
+                              ))
+                            ) : (
+                              <div className="px-4 py-3 text-sm text-white/40">
+                                이 달에 등록된 업무가 없습니다
                               </div>
-                            </>
+                            )
                           ) : (
-                            <div className="w-full h-full flex items-center justify-center">
-                              <FileText className="w-5 h-5 text-muted-foreground" />
-                            </div>
+                            filteredContentItems.length > 0 ? (
+                              filteredContentItems.map((content) => (
+                                <button
+                                  key={content.id}
+                                  type="button"
+                                  onClick={() => handleContentSelect(content)}
+                                  className="w-full px-4 py-3 text-left hover:bg-white/10 active:bg-white/15 transition-colors border-b border-white/5 last:border-0"
+                                >
+                                  <p className="text-sm font-medium text-white/90 truncate">{content.title}</p>
+                                  <p className="text-xs text-white/50 mt-0.5">
+                                    {CONTENT_TYPES[content.type]} · {new Date(content.date).getDate()}일
+                                  </p>
+                                </button>
+                              ))
+                            ) : (
+                              <div className="px-4 py-3 text-sm text-white/40">
+                                이 달에 등록된 컨텐츠가 없습니다
+                              </div>
+                            )
                           )}
                         </div>
-                        {/* File Info */}
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm text-foreground truncate">{attachment.name}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {attachment.type === 'youtube' ? '유튜브 영상' : attachment.type === 'image' ? '이미지' : '문서'}
-                          </p>
-                        </div>
-                        <ExternalLink className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-                      </a>
-                    ))}
-                  </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
               )}
+              <p className="text-xs text-muted-foreground mt-1.5">
+                선택하면 제목과 카테고리가 자동으로 채워집니다
+              </p>
+            </div>
+          )}
 
-              {/* Buttons */}
-              <div className="flex gap-3 pt-2">
-                {issue && onDelete && (
-                  <button
-                    type="button"
-                    onClick={handleDelete}
-                    className="px-4 py-2.5 border border-red-500/30 text-red-500 rounded-xl hover:bg-red-500/10 active:bg-red-500/20 transition-colors"
+          {/* Type & Priority Row */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-1.5">
+                유형 <span className="text-red-500">*</span>
+              </label>
+              <div className="relative">
+                <select
+                  value={formData.type}
+                  onChange={handleTypeChange}
+                  className="w-full px-4 py-2.5 pr-10 bg-background border border-border rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all appearance-none cursor-pointer"
+                >
+                  {TYPE_OPTIONS.map((t) => (
+                    <option key={t} value={t}>{ISSUE_TYPE_LABELS[t]}</option>
+                  ))}
+                </select>
+                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                  <svg className="w-4 h-4 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </div>
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-1.5">
+                우선순위 <span className="text-red-500">*</span>
+              </label>
+              <div className="relative">
+                <select
+                  value={formData.priority}
+                  onChange={handlePriorityChange}
+                  className="w-full px-4 py-2.5 pr-10 bg-background border border-border rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all appearance-none cursor-pointer"
+                >
+                  {PRIORITY_OPTIONS.map((p) => (
+                    <option key={p} value={p}>{ISSUE_PRIORITY_LABELS[p]}</option>
+                  ))}
+                </select>
+                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                  <svg className="w-4 h-4 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Title */}
+          <div>
+            <label className="block text-sm font-medium text-foreground mb-1.5">
+              제목 <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              value={formData.title}
+              onChange={handleTitleChange}
+              placeholder="이슈/리스크 제목을 입력하세요"
+              className="w-full px-4 py-2.5 bg-background border border-border rounded-xl text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all"
+              autoFocus={!isMobile}
+            />
+          </div>
+
+          {/* Description */}
+          <div>
+            <label className="block text-sm font-medium text-foreground mb-1.5">상세 설명</label>
+            <textarea
+              value={formData.description}
+              onChange={handleDescriptionChange}
+              placeholder="상세 설명을 입력하세요"
+              rows={3}
+              className="w-full px-4 py-2.5 bg-background border border-border rounded-xl text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all resize-none"
+            />
+          </div>
+
+          {/* Status & Impact Row */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-1.5">상태</label>
+              <div className="relative">
+                <select
+                  value={formData.status}
+                  onChange={handleStatusChange}
+                  className="w-full px-4 py-2.5 pr-10 bg-background border border-border rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all appearance-none cursor-pointer"
+                >
+                  {STATUS_OPTIONS.map((s) => (
+                    <option key={s} value={s}>{ISSUE_STATUS_LABELS[s]}</option>
+                  ))}
+                </select>
+                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                  <svg className="w-4 h-4 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </div>
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-1.5">영향도</label>
+              <div className="relative">
+                <select
+                  value={formData.impact}
+                  onChange={handleImpactChange}
+                  className="w-full px-4 py-2.5 pr-10 bg-background border border-border rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all appearance-none cursor-pointer"
+                >
+                  {IMPACT_OPTIONS.map((i) => (
+                    <option key={i} value={i}>{ISSUE_IMPACT_LABELS[i]}</option>
+                  ))}
+                </select>
+                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                  <svg className="w-4 h-4 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Category & Month Row */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-1.5">카테고리</label>
+              <div className="relative">
+                <select
+                  value={formData.category}
+                  onChange={handleCategoryChange}
+                  className="w-full px-4 py-2.5 pr-10 bg-background border border-border rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all appearance-none cursor-pointer"
+                >
+                  {CATEGORY_OPTIONS.map((c) => (
+                    <option key={c} value={c}>{CATEGORY_LABELS[c]}</option>
+                  ))}
+                </select>
+                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                  <svg className="w-4 h-4 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </div>
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-1.5">발생 월</label>
+              <div className="relative">
+                <select
+                  value={formData.month}
+                  onChange={handleMonthChange}
+                  className="w-full px-4 py-2.5 pr-10 bg-background border border-border rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all appearance-none cursor-pointer"
+                >
+                  {MONTHS_INFO.map((m) => (
+                    <option key={m.id} value={m.id}>{m.name}</option>
+                  ))}
+                </select>
+                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                  <svg className="w-4 h-4 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Owner & Due Date Row */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-1.5">담당자</label>
+              <input
+                type="text"
+                value={formData.owner}
+                onChange={handleOwnerChange}
+                placeholder="담당자명"
+                className="w-full px-4 py-2.5 bg-background border border-border rounded-xl text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-1.5">해결 기한</label>
+              <input
+                type="date"
+                value={formData.dueDate}
+                onChange={handleDueDateChange}
+                className="w-full px-4 py-2.5 bg-background border border-border rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all"
+              />
+            </div>
+          </div>
+
+          {/* Resolution */}
+          <div>
+            <label className="block text-sm font-medium text-foreground mb-1.5">해결 방안</label>
+            <textarea
+              value={formData.resolution}
+              onChange={handleResolutionChange}
+              placeholder="해결 방안을 입력하세요"
+              rows={2}
+              className="w-full px-4 py-2.5 bg-background border border-border rounded-xl text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all resize-none"
+            />
+          </div>
+
+          {/* Attachments */}
+          <div>
+            <label className="block text-sm font-medium text-foreground mb-1.5">
+              <span className="flex items-center gap-2">
+                <Paperclip className="w-4 h-4 text-muted-foreground" />
+                첨부파일
+              </span>
+            </label>
+            <FileUpload
+              attachments={formData.attachments}
+              onChange={handleAttachmentsChange}
+              maxFiles={10}
+            />
+          </div>
+
+          {/* Buttons */}
+          <div className="flex gap-3 pt-2">
+            {issue && onDelete && (
+              <button
+                type="button"
+                onClick={handleDelete}
+                className="px-4 py-2.5 border border-red-500/30 text-red-500 rounded-xl hover:bg-red-500/10 active:bg-red-500/20 transition-colors"
+              >
+                삭제
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => {
+                if (isMobile && issue) {
+                  setIsEditing(false);
+                } else {
+                  handleClose();
+                }
+              }}
+              className="flex-1 px-4 py-2.5 border border-border rounded-xl text-muted-foreground hover:bg-muted active:bg-muted/50 transition-colors"
+            >
+              취소
+            </button>
+            <button
+              type="submit"
+              className="flex-1 px-4 py-2.5 bg-accent text-white rounded-xl hover:bg-accent/90 active:bg-accent/80 transition-colors font-medium"
+            >
+              {issue ? '저장' : '추가'}
+            </button>
+          </div>
+        </form>
+      ) : (
+        /* View Mode */
+        <div className="p-5 space-y-4">
+          {/* Type & Priority Row */}
+          <div className="flex items-center gap-3">
+            <div className={`p-3 rounded-xl ${typeColors.bg} ${typeColors.border} border`}>
+              {TYPE_ICONS[formData.type]}
+            </div>
+            <div className="flex-1">
+              <p className="text-xs text-muted-foreground">유형</p>
+              <p className={`font-medium ${typeColors.text}`}>{ISSUE_TYPE_LABELS[formData.type]}</p>
+            </div>
+            <div>
+              <span className={`px-3 py-1 rounded-lg text-sm font-medium ${priorityColors.bg} ${priorityColors.text} ${priorityColors.border} border`}>
+                {ISSUE_PRIORITY_LABELS[formData.priority]}
+              </span>
+            </div>
+          </div>
+
+          {/* Related Task */}
+          {formData.relatedTaskTitle && (
+            <div className="p-4 bg-blue-500/10 border border-blue-500/30 rounded-xl">
+              <div className="flex items-center gap-2 mb-1">
+                <Link2 className="w-3.5 h-3.5 text-blue-400" />
+                <p className="text-xs text-blue-400">연관 업무</p>
+              </div>
+              <p className="text-foreground font-medium">{formData.relatedTaskTitle}</p>
+            </div>
+          )}
+
+          {/* Title */}
+          <div className="p-4 bg-muted/30 rounded-xl">
+            <p className="text-xs text-muted-foreground mb-1">제목</p>
+            <p className="text-foreground font-medium text-lg">{formData.title || '(제목 없음)'}</p>
+          </div>
+
+          {/* Description */}
+          {formData.description && (
+            <div className="p-4 bg-muted/30 rounded-xl">
+              <p className="text-xs text-muted-foreground mb-1">상세 설명</p>
+              <p className="text-foreground/80 text-sm whitespace-pre-wrap">{formData.description}</p>
+            </div>
+          )}
+
+          {/* Status & Category */}
+          <div className="flex gap-3">
+            <div className="flex-1 p-4 bg-muted/30 rounded-xl">
+              <p className="text-xs text-muted-foreground mb-1">상태</p>
+              <span className={`inline-block px-3 py-1 rounded-lg text-sm font-medium ${statusColors.bg} ${statusColors.text}`}>
+                {ISSUE_STATUS_LABELS[formData.status]}
+              </span>
+            </div>
+            <div className="flex-1 p-4 bg-muted/30 rounded-xl">
+              <div className="flex items-center gap-2 mb-1">
+                <Tag className="w-3.5 h-3.5 text-muted-foreground" />
+                <p className="text-xs text-muted-foreground">카테고리</p>
+              </div>
+              <p className="text-foreground font-medium">{CATEGORY_LABELS[formData.category]}</p>
+            </div>
+          </div>
+
+          {/* Owner & Due Date */}
+          <div className="flex gap-3">
+            {formData.owner && (
+              <div className="flex-1 p-4 bg-muted/30 rounded-xl">
+                <div className="flex items-center gap-2 mb-1">
+                  <User className="w-3.5 h-3.5 text-muted-foreground" />
+                  <p className="text-xs text-muted-foreground">담당자</p>
+                </div>
+                <p className="text-foreground font-medium">{formData.owner}</p>
+              </div>
+            )}
+            {formData.dueDate && (
+              <div className="flex-1 p-4 bg-muted/30 rounded-xl">
+                <div className="flex items-center gap-2 mb-1">
+                  <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
+                  <p className="text-xs text-muted-foreground">해결 기한</p>
+                </div>
+                <p className="text-foreground font-medium">
+                  {new Date(formData.dueDate).toLocaleDateString('ko-KR')}
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* Resolution */}
+          {formData.resolution && (
+            <div className="p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-xl">
+              <p className="text-xs text-emerald-400 mb-1">해결 방안</p>
+              <p className="text-foreground/80 text-sm whitespace-pre-wrap">{formData.resolution}</p>
+            </div>
+          )}
+
+          {/* Attachments View */}
+          {formData.attachments && formData.attachments.length > 0 && (
+            <div className="p-4 bg-muted/30 rounded-xl">
+              <div className="flex items-center gap-2 mb-3">
+                <Paperclip className="w-3.5 h-3.5 text-muted-foreground" />
+                <p className="text-xs text-muted-foreground">첨부파일 ({formData.attachments.length})</p>
+              </div>
+              <div className="space-y-2">
+                {formData.attachments.map((attachment) => (
+                  <a
+                    key={attachment.id}
+                    href={attachment.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors group"
                   >
-                    삭제
-                  </button>
-                )}
-                <button
-                  type="button"
-                  onClick={handleClose}
-                  className="flex-1 px-4 py-2.5 border border-border rounded-xl text-muted-foreground hover:bg-muted active:bg-muted/50 transition-colors"
-                >
-                  닫기
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setIsEditing(true)}
-                  className="flex-1 px-4 py-2.5 bg-accent text-white rounded-xl hover:bg-accent/90 active:bg-accent/80 transition-colors font-medium flex items-center justify-center gap-2"
-                >
-                  <Pencil className="w-4 h-4" />
-                  수정
-                </button>
+                    {/* Thumbnail or Icon */}
+                    <div className="relative w-10 h-10 flex-shrink-0 rounded-lg overflow-hidden bg-muted">
+                      {attachment.type === 'image' ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={attachment.url}
+                          alt={attachment.name}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : attachment.type === 'youtube' && attachment.thumbnailUrl ? (
+                        <>
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={attachment.thumbnailUrl}
+                            alt={attachment.name}
+                            className="w-full h-full object-cover"
+                          />
+                          <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                            <Youtube className="w-4 h-4 text-red-500" />
+                          </div>
+                        </>
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <FileText className="w-5 h-5 text-muted-foreground" />
+                        </div>
+                      )}
+                    </div>
+                    {/* File Info */}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm text-foreground truncate">{attachment.name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {attachment.type === 'youtube' ? '유튜브 영상' : attachment.type === 'image' ? '이미지' : '문서'}
+                      </p>
+                    </div>
+                    <ExternalLink className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </a>
+                ))}
               </div>
             </div>
           )}
-        </motion.div>
-      </motion.div>
-    </AnimatePresence>
+
+          {/* Buttons */}
+          <div className="flex gap-3 pt-2">
+            {issue && onDelete && (
+              <button
+                type="button"
+                onClick={handleDelete}
+                className="px-4 py-2.5 border border-red-500/30 text-red-500 rounded-xl hover:bg-red-500/10 active:bg-red-500/20 transition-colors"
+              >
+                삭제
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={handleClose}
+              className="flex-1 px-4 py-2.5 border border-border rounded-xl text-muted-foreground hover:bg-muted active:bg-muted/50 transition-colors"
+            >
+              닫기
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsEditing(true)}
+              className="flex-1 px-4 py-2.5 bg-accent text-white rounded-xl hover:bg-accent/90 active:bg-accent/80 transition-colors font-medium flex items-center justify-center gap-2"
+            >
+              <Pencil className="w-4 h-4" />
+              수정
+            </button>
+          </div>
+        </div>
+      )}
+    </BaseModal>
   );
 }

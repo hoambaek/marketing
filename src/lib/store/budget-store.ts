@@ -5,7 +5,7 @@ import { persist } from 'zustand/middleware';
 import { IncomeItem, ExpenseItem, BudgetCategory } from '@/lib/types';
 import { isSupabaseConfigured } from '@/lib/supabase/client';
 import * as db from '@/lib/supabase/database';
-import { storeLogger } from '@/lib/logger';
+import { handleStoreError } from '@/lib/utils/error-handler';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // 스토어 인터페이스
@@ -110,7 +110,7 @@ export const useBudgetStore = create<BudgetState>()(
             useSupabase: true,
           });
         } catch (error) {
-          storeLogger.error('Failed to initialize budget from Supabase:', error);
+          handleStoreError(error, 'BudgetStore.initializeFromSupabase');
           set({ isLoading: false, isInitialized: true, useSupabase: false });
         }
       },
@@ -130,18 +130,29 @@ export const useBudgetStore = create<BudgetState>()(
 
         // Supabase에 저장
         if (get().useSupabase) {
-          const created = await db.createIncomeItem(item);
-          if (created) {
+          try {
+            const created = await db.createIncomeItem(item);
+            if (created) {
+              set((state) => ({
+                incomeItems: state.incomeItems.map((i) =>
+                  i.id === newItem.id ? created : i
+                ),
+              }));
+            }
+          } catch (error) {
+            // 롤백
             set((state) => ({
-              incomeItems: state.incomeItems.map((i) =>
-                i.id === newItem.id ? created : i
-              ),
+              incomeItems: state.incomeItems.filter((i) => i.id !== newItem.id),
             }));
+            handleStoreError(error, 'BudgetStore.addIncome');
           }
         }
       },
 
       updateIncome: async (id, updates) => {
+        // 원본 저장 (롤백용)
+        const original = get().incomeItems.find((item) => item.id === id);
+
         // 낙관적 업데이트
         set((state) => ({
           incomeItems: state.incomeItems.map((item) =>
@@ -151,11 +162,26 @@ export const useBudgetStore = create<BudgetState>()(
 
         // Supabase에 저장
         if (get().useSupabase) {
-          await db.updateIncomeItem(id, updates);
+          try {
+            await db.updateIncomeItem(id, updates);
+          } catch (error) {
+            // 롤백
+            if (original) {
+              set((state) => ({
+                incomeItems: state.incomeItems.map((item) =>
+                  item.id === id ? original : item
+                ),
+              }));
+            }
+            handleStoreError(error, 'BudgetStore.updateIncome');
+          }
         }
       },
 
       deleteIncome: async (id) => {
+        // 원본 저장 (롤백용)
+        const original = get().incomeItems.find((item) => item.id === id);
+
         // 낙관적 업데이트
         set((state) => ({
           incomeItems: state.incomeItems.filter((item) => item.id !== id),
@@ -163,7 +189,15 @@ export const useBudgetStore = create<BudgetState>()(
 
         // Supabase에서 삭제
         if (get().useSupabase) {
-          await db.deleteIncomeItem(id);
+          try {
+            await db.deleteIncomeItem(id);
+          } catch (error) {
+            // 롤백
+            if (original) {
+              set((state) => ({ incomeItems: [...state.incomeItems, original] }));
+            }
+            handleStoreError(error, 'BudgetStore.deleteIncome');
+          }
         }
       },
 
@@ -182,18 +216,29 @@ export const useBudgetStore = create<BudgetState>()(
 
         // Supabase에 저장
         if (get().useSupabase) {
-          const created = await db.createExpenseItem(item);
-          if (created) {
+          try {
+            const created = await db.createExpenseItem(item);
+            if (created) {
+              set((state) => ({
+                expenseItems: state.expenseItems.map((i) =>
+                  i.id === newItem.id ? created : i
+                ),
+              }));
+            }
+          } catch (error) {
+            // 롤백
             set((state) => ({
-              expenseItems: state.expenseItems.map((i) =>
-                i.id === newItem.id ? created : i
-              ),
+              expenseItems: state.expenseItems.filter((i) => i.id !== newItem.id),
             }));
+            handleStoreError(error, 'BudgetStore.addExpense');
           }
         }
       },
 
       updateExpense: async (id, updates) => {
+        // 원본 저장 (롤백용)
+        const original = get().expenseItems.find((item) => item.id === id);
+
         // 낙관적 업데이트
         set((state) => ({
           expenseItems: state.expenseItems.map((item) =>
@@ -203,11 +248,26 @@ export const useBudgetStore = create<BudgetState>()(
 
         // Supabase에 저장
         if (get().useSupabase) {
-          await db.updateExpenseItem(id, updates);
+          try {
+            await db.updateExpenseItem(id, updates);
+          } catch (error) {
+            // 롤백
+            if (original) {
+              set((state) => ({
+                expenseItems: state.expenseItems.map((item) =>
+                  item.id === id ? original : item
+                ),
+              }));
+            }
+            handleStoreError(error, 'BudgetStore.updateExpense');
+          }
         }
       },
 
       deleteExpense: async (id) => {
+        // 원본 저장 (롤백용)
+        const original = get().expenseItems.find((item) => item.id === id);
+
         // 낙관적 업데이트
         set((state) => ({
           expenseItems: state.expenseItems.filter((item) => item.id !== id),
@@ -215,7 +275,15 @@ export const useBudgetStore = create<BudgetState>()(
 
         // Supabase에서 삭제
         if (get().useSupabase) {
-          await db.deleteExpenseItem(id);
+          try {
+            await db.deleteExpenseItem(id);
+          } catch (error) {
+            // 롤백
+            if (original) {
+              set((state) => ({ expenseItems: [...state.expenseItems, original] }));
+            }
+            handleStoreError(error, 'BudgetStore.deleteExpense');
+          }
         }
       },
 

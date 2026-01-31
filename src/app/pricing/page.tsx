@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { logger } from '@/lib/logger';
 import {
   ArrowLeft,
   Wallet,
@@ -996,7 +997,7 @@ export default function PricingPage() {
           setCostSyncStatus('offline');
         }
       } catch (error) {
-        console.error('Failed to load cost data:', error);
+        logger.error('Failed to load cost data:', error);
         setCostSyncStatus('offline');
       } finally {
         setIsCostLoading(false);
@@ -1019,7 +1020,7 @@ export default function PricingPage() {
 
         // DB에 설정이 없으면 초기값을 자동으로 저장
         if (!settings || settings.length === 0) {
-          console.log('No pricing settings found in DB, saving initial values...');
+          logger.log('No pricing settings found in DB, saving initial values...');
 
           // PRICING_TIERS에서 초기값 생성
           const initialValues: Record<string, EditableTierValues> = {};
@@ -1034,7 +1035,7 @@ export default function PricingPage() {
           // DB에 저장
           const saved = await upsertPricingSettings(2026, initialValues);
           if (saved) {
-            console.log('Initial pricing settings saved to DB');
+            logger.log('Initial pricing settings saved to DB');
             // 저장 후 다시 불러오기
             settings = await fetchPricingSettings(2026);
           }
@@ -1064,7 +1065,7 @@ export default function PricingPage() {
           });
         }
       } catch (error) {
-        console.error('Failed to load pricing settings:', error);
+        logger.error('Failed to load pricing settings:', error);
       } finally {
         setIsPricingLoaded(true);
       }
@@ -1119,7 +1120,7 @@ export default function PricingPage() {
         toast.error('저장에 실패했습니다');
       }
     } catch (error) {
-      console.error('Save error:', error);
+      logger.error('Save error:', error);
       setSaveStatus('error');
       toast.error('저장 중 오류가 발생했습니다');
     }
