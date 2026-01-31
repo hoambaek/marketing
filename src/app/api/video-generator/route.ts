@@ -1,5 +1,6 @@
 import { GoogleGenAI } from '@google/genai';
 import { NextRequest, NextResponse } from 'next/server';
+import { auth } from '@clerk/nextjs/server';
 import { apiLogger } from '@/lib/logger';
 
 // Initialize Google Gen AI client
@@ -14,6 +15,15 @@ const getAIClient = () => {
 // Start video generation
 export async function POST(request: NextRequest) {
   try {
+    // 인증 확인
+    const { userId } = await auth();
+    if (!userId) {
+      return NextResponse.json(
+        { error: '인증이 필요합니다. 로그인 후 다시 시도해주세요.' },
+        { status: 401 }
+      );
+    }
+
     const formData = await request.formData();
     const prompt = formData.get('prompt') as string;
     const image = formData.get('image') as File | null;
@@ -86,6 +96,15 @@ export async function POST(request: NextRequest) {
 // Poll operation status using REST API directly
 export async function GET(request: NextRequest) {
   try {
+    // 인증 확인
+    const { userId } = await auth();
+    if (!userId) {
+      return NextResponse.json(
+        { error: '인증이 필요합니다.' },
+        { status: 401 }
+      );
+    }
+
     const { searchParams } = new URL(request.url);
     const operationName = searchParams.get('operation');
 

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { auth } from '@clerk/nextjs/server';
 import { WANDO_COORDINATES } from '@/lib/types';
 import { apiLogger } from '@/lib/logger';
 
@@ -8,6 +9,15 @@ const MARINE_API_URL = 'https://marine-api.open-meteo.com/v1/marine';
 const WEATHER_API_URL = 'https://api.open-meteo.com/v1/forecast';
 
 export async function GET(request: Request) {
+  // 인증 확인 (Defense in Depth)
+  const { userId } = await auth();
+  if (!userId) {
+    return NextResponse.json(
+      { error: '인증이 필요합니다.' },
+      { status: 401 }
+    );
+  }
+
   const { searchParams } = new URL(request.url);
   const startDate = searchParams.get('start_date');
   const endDate = searchParams.get('end_date');

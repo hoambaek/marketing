@@ -23,6 +23,13 @@ const isPublicApiRoute = createRouteMatcher([
 
 // Clerk가 설정되지 않은 경우 기본 미들웨어
 function defaultMiddleware(request: NextRequest) {
+  // 프로덕션에서는 인증 서비스 없이 접근 차단
+  if (process.env.NODE_ENV === 'production') {
+    console.error('SECURITY: Clerk not configured in production environment');
+    return new NextResponse('Authentication service unavailable', { status: 503 });
+  }
+  // 개발 환경에서만 인증 없이 통과 허용
+  console.warn('WARNING: Running without authentication (development mode only)');
   return NextResponse.next();
 }
 

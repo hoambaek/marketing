@@ -5,32 +5,33 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { functionDeclarations, executeFunction, SYSTEM_PROMPT } from '@/lib/ai/functions';
 
-// 허용된 함수 목록 (안전한 읽기 전용 함수만)
+// 허용된 함수 목록 (안전한 읽기 전용 함수만) - camelCase로 통일
 const ALLOWED_FUNCTIONS = [
-  'get_tasks',
-  'get_tasks_by_month',
-  'get_task',
-  'get_kpi_items',
-  'get_content_items',
-  'get_must_do_items',
-  'get_issues',
-  'get_budget_items',
-  'get_inventory_summary',
-  'get_month_summary',
-  'search_tasks',
+  'getTasks',
+  'getTasksByMonth',
+  'getTask',
+  'getKpiItems',
+  'getContentItems',
+  'getMustDoItems',
+  'getIssues',
+  'getBudgetItems',
+  'getInventorySummary',
+  'getMonthSummary',
+  'searchTasks',
 ];
 
-// 쓰기 권한이 필요한 함수들
+// 쓰기 권한이 필요한 함수들 - camelCase로 통일
 const WRITE_FUNCTIONS = [
-  'create_task',
-  'update_task',
-  'delete_task',
-  'create_issue',
-  'update_issue',
-  'resolve_issue',
-  'create_budget_item',
-  'update_budget_item',
-  'delete_budget_item',
+  'createTask',
+  'createMultipleTasks',
+  'updateTask',
+  'deleteTask',
+  'createIssue',
+  'updateIssue',
+  'resolveIssue',
+  'createBudgetItem',
+  'updateBudgetItem',
+  'deleteBudgetItem',
 ];
 
 export async function POST(request: NextRequest) {

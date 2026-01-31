@@ -208,16 +208,53 @@ ALTER TABLE pricing_settings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE income_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE expense_items ENABLE ROW LEVEL SECURITY;
 
--- 모든 사용자에게 읽기/쓰기 권한 부여 (인증 없이 사용할 경우)
--- 실제 운영 환경에서는 인증된 사용자만 접근하도록 수정 필요
-CREATE POLICY "Allow all access to tasks" ON tasks FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow all access to must_do_items" ON must_do_items FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow all access to kpi_items" ON kpi_items FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow all access to content_items" ON content_items FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow all access to cost_calculator_settings" ON cost_calculator_settings FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow all access to pricing_settings" ON pricing_settings FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow all access to income_items" ON income_items FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow all access to expense_items" ON expense_items FOR ALL USING (true) WITH CHECK (true);
+-- ═══════════════════════════════════════════════════════════════════════════
+-- RLS 정책: 인증된 사용자만 접근 허용 (Supabase Best Practices)
+-- 참고: https://supabase.com/docs/guides/database/postgres/row-level-security
+-- ═══════════════════════════════════════════════════════════════════════════
+
+-- 기존 정책 삭제 (마이그레이션 시 필요)
+DROP POLICY IF EXISTS "Allow all access to tasks" ON tasks;
+DROP POLICY IF EXISTS "Allow all access to must_do_items" ON must_do_items;
+DROP POLICY IF EXISTS "Allow all access to kpi_items" ON kpi_items;
+DROP POLICY IF EXISTS "Allow all access to content_items" ON content_items;
+DROP POLICY IF EXISTS "Allow all access to cost_calculator_settings" ON cost_calculator_settings;
+DROP POLICY IF EXISTS "Allow all access to pricing_settings" ON pricing_settings;
+DROP POLICY IF EXISTS "Allow all access to income_items" ON income_items;
+DROP POLICY IF EXISTS "Allow all access to expense_items" ON expense_items;
+
+-- 인증된 사용자만 접근 가능한 정책 생성
+CREATE POLICY "Authenticated users can access tasks" ON tasks
+  FOR ALL TO authenticated
+  USING (true) WITH CHECK (true);
+
+CREATE POLICY "Authenticated users can access must_do_items" ON must_do_items
+  FOR ALL TO authenticated
+  USING (true) WITH CHECK (true);
+
+CREATE POLICY "Authenticated users can access kpi_items" ON kpi_items
+  FOR ALL TO authenticated
+  USING (true) WITH CHECK (true);
+
+CREATE POLICY "Authenticated users can access content_items" ON content_items
+  FOR ALL TO authenticated
+  USING (true) WITH CHECK (true);
+
+CREATE POLICY "Authenticated users can access cost_calculator_settings" ON cost_calculator_settings
+  FOR ALL TO authenticated
+  USING (true) WITH CHECK (true);
+
+CREATE POLICY "Authenticated users can access pricing_settings" ON pricing_settings
+  FOR ALL TO authenticated
+  USING (true) WITH CHECK (true);
+
+CREATE POLICY "Authenticated users can access income_items" ON income_items
+  FOR ALL TO authenticated
+  USING (true) WITH CHECK (true);
+
+CREATE POLICY "Authenticated users can access expense_items" ON expense_items
+  FOR ALL TO authenticated
+  USING (true) WITH CHECK (true);
 
 -- ═══════════════════════════════════════════════════════════════════════════
 -- Inventory Batches 테이블 (2026년 상품 재고 관리)
@@ -236,10 +273,12 @@ CREATE TABLE IF NOT EXISTS inventory_batches (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Inventory Batches RLS
+-- Inventory Batches RLS (인증된 사용자만)
 ALTER TABLE inventory_batches ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Allow all access to inventory_batches" ON inventory_batches;
-CREATE POLICY "Allow all access to inventory_batches" ON inventory_batches FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Authenticated users can access inventory_batches" ON inventory_batches
+  FOR ALL TO authenticated
+  USING (true) WITH CHECK (true);
 
 -- Inventory Batches 인덱스
 CREATE INDEX IF NOT EXISTS idx_inventory_batches_product_id ON inventory_batches(product_id);
