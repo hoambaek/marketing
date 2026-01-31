@@ -645,24 +645,26 @@ export default function CostCalculatorPage() {
     // Cost per bottle
     const costPerBottle = sellableBottles > 0 ? totalCost / sellableBottles : 0;
 
-    // Selling cost without packaging (marketing + SGA to be distributed by ratio)
+    // Selling cost without packaging (marketing + SGA)
     const sellingCostWithoutPackaging = marketingCost + sgaCost;
+
+    // 공유 비용 (수입비용 + 가공원가 + 마케팅/판관비)을 총 판매가능 병수로 균등 배분
+    const sharedCosts = importCost + processingCost + sellingCostWithoutPackaging;
+    const sharedCostPerBottle = sellableBottles > 0 ? sharedCosts / sellableBottles : 0;
 
     // Cost breakdown by type
     const typeBreakdown = champagneTypes.map((type) => {
       if (type.bottles === 0) return { ...type, totalCost: 0, costPerBottleKrw: 0, costPerBottleEur: 0 };
 
-      const typeRatio = type.bottles / totalBottles;
-      // Convert EUR to KRW for this type's champagne cost
-      const typeChampagneCostKrw = type.bottles * type.costPerBottle * exchangeRate;
-      // Use product's own packaging cost + proportional share of other costs
-      const typePackagingCost = type.packagingCost || 0;
-      const typeTotalCost =
-        typeChampagneCostKrw +
-        typePackagingCost +
-        (importCost + processingCost + sellingCostWithoutPackaging) * typeRatio;
       const typeSellableBottles = Math.floor(type.bottles * (1 - LOSS_RATE));
-      const typeCostPerBottleKrw = typeSellableBottles > 0 ? typeTotalCost / typeSellableBottles : 0;
+      const typePackagingCost = type.packagingCost || 0;
+
+      // 병당 원가 = EUR원가(KRW) + 패키지비/병수 + 균등배분된 공유비용
+      const packagingPerBottle = typeSellableBottles > 0 ? typePackagingCost / typeSellableBottles : 0;
+      const typeCostPerBottleKrw = (type.costPerBottle * exchangeRate) + packagingPerBottle + sharedCostPerBottle;
+
+      // 총 원가 = 병당 원가 × 판매가능 병수
+      const typeTotalCost = typeCostPerBottleKrw * typeSellableBottles;
 
       return {
         ...type,
