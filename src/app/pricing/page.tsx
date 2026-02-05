@@ -972,7 +972,10 @@ export default function PricingPage() {
                                 (settings.aiMonitoringCost || 0) + lossCost + (settings.certificationCost || 0);
           const sellingCostWithoutPackaging = (settings.marketingCost || 0) + (settings.sgaCost || 0);
 
-          // 각 제품별 최종 원가 계산
+          // 공유 비용 (수입비용 + 가공원가 + 마케팅/판관비)
+          const sharedCosts = importCost + processingCost + sellingCostWithoutPackaging;
+
+          // 각 제품별 최종 원가 계산 - 금액 비중 기반 배분 방식 (엑셀 방식)
           const costs: Record<string, number> = {};
           champagneTypes.forEach((type) => {
             if (type.bottles === 0) return;
@@ -980,13 +983,24 @@ export default function PricingPage() {
             const tierId = PRODUCT_NAME_MAP[type.name];
             if (!tierId) return;
 
-            const typeRatio = type.bottles / totalBottles;
-            const typeChampagneCostKrw = type.bottles * (type.costPerBottle || 0) * rate;
+            // 제품별 제품원가 (KRW)
+            const typeProductCostKrw = type.bottles * (type.costPerBottle || 0) * rate;
+
+            // 금액 비중 = 제품별 소계(₩) / 인보이스 총액(₩)
+            const amountRatio = champagneTotalCostKrw > 0 ? typeProductCostKrw / champagneTotalCostKrw : 0;
+
+            // 부대비용 배분 = 총 부대비용(공유비용) × 금액 비중
+            const allocatedSharedCost = sharedCosts * amountRatio;
+
+            // 병당 부대비용 = 부대비용 배분 / 병수
+            const sharedCostPerBottle = type.bottles > 0 ? allocatedSharedCost / type.bottles : 0;
+
+            // 병당 패키지비
             const typePackagingCost = type.packagingCost || 0;
-            const typeTotalCost = typeChampagneCostKrw + typePackagingCost +
-                                  (importCost + processingCost + sellingCostWithoutPackaging) * typeRatio;
-            const typeSellableBottles = Math.floor(type.bottles * (1 - LOSS_RATE));
-            const typeCostPerBottleKrw = typeSellableBottles > 0 ? typeTotalCost / typeSellableBottles : 0;
+            const packagingPerBottle = type.bottles > 0 ? typePackagingCost / type.bottles : 0;
+
+            // 병당 총 원가 = 제품원가(₩/병) + 병당 부대비용 + 병당 패키지비
+            const typeCostPerBottleKrw = ((type.costPerBottle || 0) * rate) + sharedCostPerBottle + packagingPerBottle;
 
             costs[tierId] = typeCostPerBottleKrw;
           });
