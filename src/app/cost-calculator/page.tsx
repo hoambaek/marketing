@@ -648,29 +648,42 @@ export default function CostCalculatorPage() {
     // Selling cost without packaging (marketing + SGA)
     const sellingCostWithoutPackaging = marketingCost + sgaCost;
 
-    // 공유 비용 (수입비용 + 가공원가 + 마케팅/판관비)을 총 판매가능 병수로 균등 배분
+    // 공유 비용 (수입비용 + 가공원가 + 마케팅/판관비) - 금액 비중에 따라 배분
     const sharedCosts = importCost + processingCost + sellingCostWithoutPackaging;
-    const sharedCostPerBottle = sellableBottles > 0 ? sharedCosts / sellableBottles : 0;
 
-    // Cost breakdown by type
+    // Cost breakdown by type - 금액 비중 기반 배분 방식 (엑셀 방식)
     const typeBreakdown = champagneTypes.map((type) => {
-      if (type.bottles === 0) return { ...type, totalCost: 0, costPerBottleKrw: 0, costPerBottleEur: 0 };
+      if (type.bottles === 0) return { ...type, totalCost: 0, costPerBottleKrw: 0, costPerBottleEur: 0, amountRatio: 0 };
 
-      const typeSellableBottles = Math.floor(type.bottles * (1 - LOSS_RATE));
       const typePackagingCost = type.packagingCost || 0;
 
-      // 병당 원가 = EUR원가(KRW) + 패키지비/병수 + 균등배분된 공유비용
-      const packagingPerBottle = typeSellableBottles > 0 ? typePackagingCost / typeSellableBottles : 0;
-      const typeCostPerBottleKrw = (type.costPerBottle * exchangeRate) + packagingPerBottle + sharedCostPerBottle;
+      // 제품별 제품원가 (KRW)
+      const typeProductCostKrw = type.bottles * type.costPerBottle * exchangeRate;
 
-      // 총 원가 = 병당 원가 × 판매가능 병수
-      const typeTotalCost = typeCostPerBottleKrw * typeSellableBottles;
+      // 금액 비중 = 제품별 소계(₩) / 인보이스 총액(₩)
+      const amountRatio = champagneTotalCost > 0 ? typeProductCostKrw / champagneTotalCost : 0;
+
+      // 부대비용 배분 = 총 부대비용(공유비용) × 금액 비중
+      const allocatedSharedCost = sharedCosts * amountRatio;
+
+      // 병당 부대비용 = 부대비용 배분 / 병수
+      const sharedCostPerBottle = type.bottles > 0 ? allocatedSharedCost / type.bottles : 0;
+
+      // 병당 패키지비
+      const packagingPerBottle = type.bottles > 0 ? typePackagingCost / type.bottles : 0;
+
+      // 병당 총 원가 = 제품원가(₩/병) + 병당 부대비용 + 병당 패키지비
+      const typeCostPerBottleKrw = (type.costPerBottle * exchangeRate) + sharedCostPerBottle + packagingPerBottle;
+
+      // 총 원가 = 병당 원가 × 병수
+      const typeTotalCost = typeCostPerBottleKrw * type.bottles;
 
       return {
         ...type,
         totalCost: typeTotalCost,
         costPerBottleKrw: typeCostPerBottleKrw,
         costPerBottleEur: type.costPerBottle, // Original EUR price
+        amountRatio, // 금액 비중 추가
       };
     });
 
@@ -1162,7 +1175,7 @@ export default function CostCalculatorPage() {
                           <div>
                             <p className="text-sm sm:text-base font-medium text-white/90">{type.name}</p>
                             <p className="text-[10px] sm:text-xs text-white/40">
-                              {formatNumber(type.bottles)}병 · 원가 €{formatEuro(type.costPerBottleEur)}/병
+                              {formatNumber(type.bottles)}병 · 원가 €{formatEuro(type.costPerBottleEur)}/병 · 비중 {(type.amountRatio * 100).toFixed(1)}%
                             </p>
                           </div>
                         </div>
