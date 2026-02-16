@@ -127,6 +127,72 @@ export async function upsertOceanDataDaily(
   return mapDbOceanDataToOceanData(data);
 }
 
+export async function bulkUpsertOceanDataDaily(
+  records: Omit<OceanDataDaily, 'id' | 'createdAt' | 'updatedAt'>[]
+): Promise<number> {
+  if (!isSupabaseConfigured() || records.length === 0) return 0;
+
+  const dbRecords = records.map((r) => ({
+    date: r.date,
+    sea_temperature_avg: r.seaTemperatureAvg,
+    sea_temperature_min: r.seaTemperatureMin,
+    sea_temperature_max: r.seaTemperatureMax,
+    current_velocity_avg: r.currentVelocityAvg,
+    current_direction_dominant: r.currentDirectionDominant,
+    wave_height_avg: r.waveHeightAvg,
+    wave_height_max: r.waveHeightMax,
+    surface_pressure_avg: r.surfacePressureAvg,
+    air_temperature_avg: r.airTemperatureAvg,
+    humidity_avg: r.humidityAvg,
+    salinity: r.salinity,
+    depth: r.depth,
+  }));
+
+  // Supabase upsert는 배열을 지원 (최대 1000건씩 처리)
+  let totalUpserted = 0;
+  const BATCH_SIZE = 500;
+
+  for (let i = 0; i < dbRecords.length; i += BATCH_SIZE) {
+    const batch = dbRecords.slice(i, i + BATCH_SIZE);
+    const { data, error } = await supabase!
+      .from('ocean_data_daily')
+      .upsert(batch, {
+        onConflict: 'date',
+        ignoreDuplicates: false,
+      })
+      .select('id');
+
+    if (error) {
+      dbLogger.error('Error bulk upserting ocean data:', error.message);
+      continue;
+    }
+
+    totalUpserted += data?.length ?? batch.length;
+  }
+
+  return totalUpserted;
+}
+
+export async function fetchExistingDates(
+  startDate: string,
+  endDate: string
+): Promise<Set<string>> {
+  if (!isSupabaseConfigured()) return new Set();
+
+  const { data, error } = await supabase!
+    .from('ocean_data_daily')
+    .select('date')
+    .gte('date', startDate)
+    .lte('date', endDate);
+
+  if (error) {
+    dbLogger.error('Error fetching existing dates:', error);
+    return new Set();
+  }
+
+  return new Set(data?.map((d: { date: string }) => d.date) || []);
+}
+
 export async function updateOceanDataSalinity(
   date: string,
   salinity: number

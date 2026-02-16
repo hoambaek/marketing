@@ -105,6 +105,10 @@ When Clerk env vars are missing, middleware passes through (useful for local dev
 
 **All new features must integrate with Supabase.** No localStorage-only storage.
 
+**필수: DB 관련 작업 시 항상 `supabase-postgres-best-practices` 스킬을 사용할 것.**
+- 스키마 설계, 쿼리 작성, 인덱스, RLS 정책, 마이그레이션 등 모든 DB 작업에 적용
+- 작업 시작 전 `/supabase-postgres-best-practices` 스킬을 호출하여 베스트 프랙티스 확인
+
 ### Implementation Checklist:
 1. Create/update table schema in `supabase/schema.sql`
 2. Add CRUD functions to `src/lib/supabase/database.ts`

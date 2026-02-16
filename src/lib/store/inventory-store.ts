@@ -7,6 +7,7 @@ import {
   InventoryBatch,
   InventoryTransaction,
   InventoryStatus,
+  BottleUnit,
   PRODUCTS,
 } from '@/lib/types';
 import { isSupabaseConfigured } from '@/lib/supabase/client';
@@ -34,6 +35,7 @@ interface InventoryState {
   inventoryBatches: InventoryBatch[];
   transactions: InventoryTransaction[];
   customProducts: CustomProduct[];
+  bottleUnits: BottleUnit[];
 
   // 상태
   isInitialized: boolean;
@@ -49,11 +51,19 @@ interface InventoryState {
   removeProduct: (productId: string) => Promise<void>;
   getAllProducts: () => (CustomProduct & { isCustom: boolean; isNumbered: boolean })[];
 
+  // NFC + 숙성 데이터 Actions
+  generateNfcCode: (bottleId: string, isNumbered: boolean, details?: {
+    productId?: string; status?: 'sold' | 'gifted'; customerName?: string; soldDate?: string; price?: number; notes?: string;
+  }) => Promise<string | null>;
+  updateBatchAgingData: (productId: string, data: {
+    immersionDate?: string | null; retrievalDate?: string | null; agingDepth?: number;
+  }) => Promise<void>;
+
   // Numbered Bottle Actions (2025 First Edition)
   updateBottleStatus: (
     bottleId: string,
     status: InventoryStatus,
-    details?: { reservedFor?: string; soldTo?: string; giftedTo?: string; price?: number; notes?: string }
+    details?: { reservedFor?: string; soldTo?: string; giftedTo?: string; price?: number; notes?: string; soldDate?: string }
   ) => Promise<void>;
   getBottlesByStatus: (status: InventoryStatus) => NumberedBottle[];
 
@@ -62,12 +72,12 @@ interface InventoryState {
     productId: ProductType | string,
     changes: { available?: number; reserved?: number; sold?: number; gifted?: number; damaged?: number }
   ) => Promise<void>;
-  sellFromBatch: (productId: ProductType | string, quantity: number, customerName?: string, price?: number) => Promise<void>;
+  sellFromBatch: (productId: ProductType | string, quantity: number, customerName?: string, price?: number, soldDate?: string) => Promise<void>;
   reserveFromBatch: (productId: ProductType | string, quantity: number, customerName: string) => Promise<void>;
   confirmReservation: (productId: ProductType | string, quantity: number, customerName?: string, price?: number) => Promise<void>;
   cancelReservation: (productId: ProductType | string, quantity: number) => Promise<void>;
   reportDamage: (productId: ProductType | string, quantity: number, notes?: string) => Promise<void>;
-  giftFromBatch: (productId: ProductType | string, quantity: number, recipientName: string, notes?: string) => Promise<void>;
+  giftFromBatch: (productId: ProductType | string, quantity: number, recipientName: string, notes?: string, soldDate?: string) => Promise<void>;
 
   // Computed
   getProductSummary: (productId: string) => {
@@ -147,6 +157,7 @@ export const useInventoryStore = create<InventoryState>()((set, get) => ({
       inventoryBatches: [],
       transactions: [],
       customProducts: [],
+      bottleUnits: [],
       isInitialized: false,
       isLoading: false,
       useSupabase: isSupabaseConfigured(),
@@ -327,7 +338,8 @@ export const useInventoryStore = create<InventoryState>()((set, get) => ({
           ...(details?.giftedTo && { giftedTo: details.giftedTo }),
           ...(details?.price && { price: details.price }),
           ...(details?.notes && { notes: details.notes }),
-          ...(status === 'sold' && { soldDate: new Date().toISOString() }),
+          ...(status === 'sold' && { soldDate: details?.soldDate || new Date().toISOString() }),
+          ...((status === 'sold' || status === 'gifted') && details?.soldDate && { soldDate: details.soldDate }),
         };
 
         // 낙관적 업데이트
@@ -351,7 +363,7 @@ export const useInventoryStore = create<InventoryState>()((set, get) => ({
               sold_to: soldToValue,
               price: details?.price || null,
               notes: details?.notes || null,
-              sold_date: status === 'sold' ? new Date().toISOString() : null,
+              sold_date: (status === 'sold' || status === 'gifted') ? (details?.soldDate || new Date().toISOString()) : null,
             });
 
             // 트랜잭션 기록
@@ -435,6 +447,91 @@ export const useInventoryStore = create<InventoryState>()((set, get) => ({
 
       getBottlesByStatus: (status) => {
         return get().numberedBottles.filter((b) => b.status === status);
+      },
+
+      // ═══════════════════════════════════════════════════════════════════
+      // NFC + 숙성 데이터 Actions
+      // ═══════════════════════════════════════════════════════════════════
+
+      generateNfcCode: async (bottleId, isNumbered, details) => {
+        const nfcCode = await db.generateUniqueNfcCode();
+        if (!nfcCode) return null;
+
+        if (isNumbered) {
+          // 넘버링 병 NFC 등록
+          if (get().useSupabase) {
+            await db.updateNumberedBottleNfc(bottleId, nfcCode);
+          }
+          set((state) => ({
+            numberedBottles: state.numberedBottles.map((b) =>
+              b.id === bottleId ? { ...b, nfcCode, nfcRegisteredAt: new Date().toISOString() } : b
+            ),
+          }));
+        } else if (details?.productId) {
+          // 배치 제품 → bottle_unit 생성
+          const unitId = `unit-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+          const unit = {
+            id: unitId,
+            product_id: details.productId,
+            nfc_code: nfcCode,
+            serial_number: null,
+            status: (details.status || 'sold') as 'sold' | 'gifted',
+            customer_name: details.customerName || null,
+            sold_date: details.soldDate || new Date().toISOString().split('T')[0],
+            price: details.price || null,
+            notes: details.notes || null,
+          };
+
+          if (get().useSupabase) {
+            await db.createBottleUnit(unit);
+          }
+
+          set((state) => ({
+            bottleUnits: [...state.bottleUnits, {
+              id: unitId,
+              productId: details.productId!,
+              nfcCode,
+              status: unit.status,
+              customerName: details.customerName,
+              soldDate: unit.sold_date,
+              price: details.price,
+              notes: details.notes,
+              nfcRegisteredAt: new Date().toISOString(),
+              createdAt: new Date().toISOString(),
+            }],
+          }));
+        }
+
+        return nfcCode;
+      },
+
+      updateBatchAgingData: async (productId, data) => {
+        // 낙관적 업데이트
+        set((state) => ({
+          inventoryBatches: state.inventoryBatches.map((b) =>
+            b.productId === productId
+              ? {
+                  ...b,
+                  ...(data.immersionDate !== undefined && { immersionDate: data.immersionDate || undefined }),
+                  ...(data.retrievalDate !== undefined && { retrievalDate: data.retrievalDate || undefined }),
+                  ...(data.agingDepth !== undefined && { agingDepth: data.agingDepth }),
+                }
+              : b
+          ),
+        }));
+
+        if (get().useSupabase) {
+          try {
+            await db.updateBatchAgingDates(
+              productId,
+              data.immersionDate || null,
+              data.retrievalDate || null,
+              data.agingDepth
+            );
+          } catch (error) {
+            handleStoreError(error, 'InventoryStore.updateBatchAgingData');
+          }
+        }
       },
 
       // ═══════════════════════════════════════════════════════════════════

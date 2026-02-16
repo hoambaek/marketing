@@ -38,6 +38,7 @@ import {
   Anchor,
   Loader2,
   Pencil,
+  Eye,
 } from 'lucide-react';
 import {
   fetchStructuresByYear,
@@ -153,13 +154,14 @@ function BottleStatusModal({
   bottleNumber: number;
   currentStatus: InventoryStatus;
   currentBottle?: NumberedBottle | null;
-  onSave: (status: InventoryStatus, details?: { reservedFor?: string; soldTo?: string; giftedTo?: string; price?: number; notes?: string }) => void;
+  onSave: (status: InventoryStatus, details?: { reservedFor?: string; soldTo?: string; giftedTo?: string; price?: number; notes?: string; soldDate?: string }) => void;
   defaultPrice?: number;
 }) {
   const [status, setStatus] = useState<InventoryStatus>(currentStatus);
   const [customerName, setCustomerName] = useState('');
   const [price, setPrice] = useState('');
   const [notes, setNotes] = useState('');
+  const [soldDate, setSoldDate] = useState(new Date().toISOString().split('T')[0]);
 
   useEffect(() => {
     setStatus(currentStatus);
@@ -176,6 +178,7 @@ function BottleStatusModal({
       setPrice(defaultPrice ? String(defaultPrice) : '');
       setNotes('');
     }
+    setSoldDate(new Date().toISOString().split('T')[0]);
   }, [currentStatus, currentBottle, isOpen, defaultPrice]);
 
   const handleSave = () => {
@@ -185,6 +188,7 @@ function BottleStatusModal({
       giftedTo: status === 'gifted' ? customerName : undefined,
       price: price ? parseInt(price) : undefined,
       notes: notes || undefined,
+      soldDate: (status === 'sold' || status === 'gifted') ? soldDate : undefined,
     });
     toast.success('병 상태가 변경되었습니다');
     onClose();
@@ -285,6 +289,21 @@ function BottleStatusModal({
                 </div>
               )}
 
+              {/* 판매/증정일 */}
+              {(status === 'sold' || status === 'gifted') && (
+                <div>
+                  <label className="block text-xs text-white/40 uppercase tracking-wider mb-2">
+                    {status === 'sold' ? '판매일' : '증정일'}
+                  </label>
+                  <input
+                    type="date"
+                    value={soldDate}
+                    onChange={(e) => setSoldDate(e.target.value)}
+                    className="w-full px-4 py-3 rounded-xl bg-white/[0.04] border border-white/[0.1] text-white/90 focus:outline-none focus:border-[#b7916e]/50 [color-scheme:dark]"
+                  />
+                </div>
+              )}
+
               {/* Notes */}
               <div>
                 <label className="block text-xs text-white/40 uppercase tracking-wider mb-2">메모</label>
@@ -350,7 +369,7 @@ function BatchAdjustModal({
   isOpen: boolean;
   onClose: () => void;
   product: Product | null;
-  onAction: (action: 'sell' | 'reserve' | 'gift' | 'damage' | 'confirm' | 'cancel', quantity: number, details?: { customerName?: string; price?: number; notes?: string }) => void;
+  onAction: (action: 'sell' | 'reserve' | 'gift' | 'damage' | 'confirm' | 'cancel', quantity: number, details?: { customerName?: string; price?: number; notes?: string; soldDate?: string }) => void;
   defaultPrice?: number;
 }) {
   const [action, setAction] = useState<'sell' | 'reserve' | 'gift' | 'damage' | 'confirm' | 'cancel'>('sell');
@@ -358,6 +377,7 @@ function BatchAdjustModal({
   const [customerName, setCustomerName] = useState('');
   const [price, setPrice] = useState('');
   const [notes, setNotes] = useState('');
+  const [soldDate, setSoldDate] = useState(new Date().toISOString().split('T')[0]);
 
   useEffect(() => {
     if (isOpen) {
@@ -367,6 +387,7 @@ function BatchAdjustModal({
       // 기본 판매가가 있으면 자동으로 입력
       setPrice(defaultPrice ? formatNumberWithCommas(String(defaultPrice)) : '');
       setNotes('');
+      setSoldDate(new Date().toISOString().split('T')[0]);
     }
   }, [product, isOpen]); // defaultPrice는 의존성에서 제외 (isOpen 시점에만 초기화)
 
@@ -391,6 +412,7 @@ function BatchAdjustModal({
       customerName: customerName || undefined,
       price: price ? parseNumberFromCommas(price) : undefined,
       notes: notes || undefined,
+      soldDate: (action === 'sell' || action === 'gift' || action === 'confirm') ? soldDate : undefined,
     });
     const actionLabels: Record<string, string> = {
       sell: '판매 처리되었습니다',
@@ -537,6 +559,21 @@ function BatchAdjustModal({
                 </div>
               )}
 
+              {/* 판매/증정일 */}
+              {(action === 'sell' || action === 'gift' || action === 'confirm') && (
+                <div>
+                  <label className="block text-xs text-white/40 uppercase tracking-wider mb-2">
+                    {action === 'gift' ? '증정일' : '판매일'}
+                  </label>
+                  <input
+                    type="date"
+                    value={soldDate}
+                    onChange={(e) => setSoldDate(e.target.value)}
+                    className="w-full px-4 py-3 rounded-xl bg-white/[0.04] border border-white/[0.1] text-white/90 focus:outline-none focus:border-[#b7916e]/50 [color-scheme:dark]"
+                  />
+                </div>
+              )}
+
               {/* Actions */}
               <div className="flex gap-3 pt-2 shrink-0">
                 <button
@@ -553,6 +590,179 @@ function BatchAdjustModal({
                   확인
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      </motion.div>
+    </AnimatePresence>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// NFC 쓰기 모달
+// ═══════════════════════════════════════════════════════════════════════════
+
+function NfcWriteModal({
+  isOpen,
+  onClose,
+  nfcCode,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  nfcCode: string;
+}) {
+  const [writeStatus, setWriteStatus] = useState<'idle' | 'writing' | 'success' | 'error'>('idle');
+  const [errorMessage, setErrorMessage] = useState('');
+  const nfcSupported = typeof window !== 'undefined' && 'NDEFReader' in window;
+  const bottleUrl = `https://musedemaree.com/b/${nfcCode}`;
+
+  useEffect(() => {
+    if (isOpen) {
+      setWriteStatus('idle');
+      setErrorMessage('');
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (writeStatus === 'success') {
+      const timer = setTimeout(() => onClose(), 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [writeStatus, onClose]);
+
+  const handleWrite = async () => {
+    setWriteStatus('writing');
+    try {
+      const { writeNfcTag } = await import('@/lib/utils/nfc-writer');
+      const result = await writeNfcTag(nfcCode);
+      if (result.success) {
+        setWriteStatus('success');
+      } else {
+        setWriteStatus('error');
+        setErrorMessage(result.error || 'NFC 쓰기 실패');
+      }
+    } catch {
+      setWriteStatus('error');
+      setErrorMessage('NFC 쓰기 중 오류가 발생했습니다');
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <AnimatePresence>
+      <motion.div
+        key="nfc-modal-backdrop"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        onClick={onClose}
+        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50"
+      />
+      <motion.div
+        key="nfc-modal-content"
+        initial={{ opacity: 0, scale: 0.95, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: 20 }}
+        className="fixed inset-x-4 top-1/2 -translate-y-1/2 z-50 mx-auto max-w-md"
+      >
+        <div className="relative rounded-2xl overflow-hidden">
+          <div className="absolute inset-0 bg-[#0d1525]" />
+          <div className="absolute inset-0 bg-gradient-to-br from-white/[0.06] to-white/[0.02]" />
+          <div className="absolute inset-0 border border-white/[0.1] rounded-2xl" />
+
+          <div className="relative">
+            {/* Header */}
+            <div className="px-5 py-3 sm:px-6 sm:py-4 bg-cyan-500/10 border-b border-white/[0.06]">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 sm:gap-3">
+                  <div className="p-2 sm:p-2.5 rounded-xl bg-[#0a0f1a]/50 text-cyan-400">
+                    <Sparkles className="w-4 h-4 sm:w-5 sm:h-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-medium text-cyan-400 text-sm sm:text-base">NFC 태그 등록</h3>
+                    <p className="text-[10px] sm:text-xs text-white/30">고객 조회용 NFC 태그에 기록</p>
+                  </div>
+                </div>
+                <button onClick={onClose} className="p-2 rounded-xl hover:bg-white/[0.06] text-white/40">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Body */}
+            <div className="p-4 sm:p-6 space-y-4">
+              {/* NFC 코드 표시 */}
+              <div className="text-center">
+                <p className="text-xs text-white/40 mb-1">NFC 코드</p>
+                <p className="text-2xl font-mono font-bold text-cyan-400 tracking-wider">{nfcCode}</p>
+                <p className="text-xs text-white/30 mt-1 break-all">{bottleUrl}</p>
+              </div>
+
+              {writeStatus === 'idle' && (
+                <>
+                  {nfcSupported ? (
+                    <button
+                      onClick={handleWrite}
+                      className="w-full px-4 py-3 rounded-xl bg-cyan-500/20 border border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/30 flex items-center justify-center gap-2 font-medium"
+                    >
+                      <Sparkles className="w-4 h-4" />
+                      NFC 태그에 쓰기
+                    </button>
+                  ) : (
+                    <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400/80 text-xs">
+                      이 기기에서는 NFC 쓰기를 지원하지 않습니다. Android Chrome에서 사용하거나, 위 NFC 코드를 수동으로 프로그래밍하세요.
+                    </div>
+                  )}
+                </>
+              )}
+
+              {writeStatus === 'writing' && (
+                <div className="text-center py-4">
+                  <motion.div
+                    animate={{ scale: [1, 1.2, 1] }}
+                    transition={{ repeat: Infinity, duration: 1.5 }}
+                    className="inline-block"
+                  >
+                    <Loader2 className="w-8 h-8 text-cyan-400 animate-spin mx-auto" />
+                  </motion.div>
+                  <p className="text-white/60 text-sm mt-3">NFC 태그를 기기 뒷면에 가까이 대주세요...</p>
+                </div>
+              )}
+
+              {writeStatus === 'success' && (
+                <div className="text-center py-4">
+                  <div className="w-12 h-12 rounded-full bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center mx-auto">
+                    <Check className="w-6 h-6 text-emerald-400" />
+                  </div>
+                  <p className="text-emerald-400 text-sm mt-3 font-medium">NFC 태그 기록 완료!</p>
+                </div>
+              )}
+
+              {writeStatus === 'error' && (
+                <div className="space-y-3">
+                  <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400/80 text-xs">
+                    {errorMessage}
+                  </div>
+                  <button
+                    onClick={handleWrite}
+                    className="w-full px-4 py-3 rounded-xl bg-cyan-500/20 border border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/30 flex items-center justify-center gap-2 text-sm"
+                  >
+                    <RefreshCw className="w-4 h-4" />
+                    다시 시도
+                  </button>
+                </div>
+              )}
+
+              {/* 닫기 버튼 */}
+              {(writeStatus === 'idle' || writeStatus === 'error') && (
+                <button
+                  onClick={onClose}
+                  className="w-full px-4 py-2.5 rounded-xl bg-white/[0.04] border border-white/[0.1] text-white/60 hover:bg-white/[0.08] text-sm"
+                >
+                  닫기
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -1954,7 +2164,16 @@ interface ProductCardProps {
 }
 
 function ProductCard({ product, onManage, onEditQuantity, mounted }: ProductCardProps) {
-  const { getProductSummary } = useInventoryStore();
+  const { getProductSummary, inventoryBatches, updateBatchAgingData } = useInventoryStore();
+  const [editingAging, setEditingAging] = useState(false);
+  const batch = inventoryBatches.find(b => b.productId === product.id);
+  const [immersionDate, setImmersionDate] = useState(batch?.immersionDate || '');
+  const [retrievalDate, setRetrievalDate] = useState(batch?.retrievalDate || '');
+
+  useEffect(() => {
+    setImmersionDate(batch?.immersionDate || '');
+    setRetrievalDate(batch?.retrievalDate || '');
+  }, [batch?.immersionDate, batch?.retrievalDate]);
   const summary = mounted ? getProductSummary(product.id) : { available: 0, reserved: 0, sold: 0, gifted: 0, damaged: 0, soldPercent: 0 };
   const colors = getProductColors(product.id);
 
@@ -2004,19 +2223,19 @@ function ProductCard({ product, onManage, onEditQuantity, mounted }: ProductCard
       <div className="relative p-4 sm:p-5">
         {/* Stats Grid - 2x2 on mobile, 4 cols on desktop */}
         <div className="grid grid-cols-4 gap-1.5 sm:gap-3 mb-3 sm:mb-4">
-          <div className="text-center p-2 sm:p-3 rounded-lg sm:rounded-xl bg-white/[0.02]">
-            <p className="text-[10px] sm:text-xs text-white/30 mb-0.5 sm:mb-1">판매가능</p>
+          <div className="text-center p-2 sm:p-3 rounded-lg sm:rounded-xl bg-white/[0.02] flex flex-col items-center justify-center">
+            <p className="text-[10px] sm:text-xs text-white/30 mb-0.5 sm:mb-1">보유</p>
             <p className="text-base sm:text-xl text-emerald-400 font-medium">{summary.available}</p>
           </div>
-          <div className="text-center p-2 sm:p-3 rounded-lg sm:rounded-xl bg-white/[0.02]">
+          <div className="text-center p-2 sm:p-3 rounded-lg sm:rounded-xl bg-white/[0.02] flex flex-col items-center justify-center">
             <p className="text-[10px] sm:text-xs text-white/30 mb-0.5 sm:mb-1">예약</p>
             <p className="text-base sm:text-xl text-amber-400 font-medium">{summary.reserved}</p>
           </div>
-          <div className="text-center p-2 sm:p-3 rounded-lg sm:rounded-xl bg-white/[0.02]">
+          <div className="text-center p-2 sm:p-3 rounded-lg sm:rounded-xl bg-white/[0.02] flex flex-col items-center justify-center">
             <p className="text-[10px] sm:text-xs text-white/30 mb-0.5 sm:mb-1">판매</p>
             <p className="text-base sm:text-xl text-blue-400 font-medium">{summary.sold}</p>
           </div>
-          <div className="text-center p-2 sm:p-3 rounded-lg sm:rounded-xl bg-white/[0.02]">
+          <div className="text-center p-2 sm:p-3 rounded-lg sm:rounded-xl bg-white/[0.02] flex flex-col items-center justify-center">
             <p className="text-[10px] sm:text-xs text-white/30 mb-0.5 sm:mb-1">증정</p>
             <p className="text-base sm:text-xl text-pink-400 font-medium">{summary.gifted}</p>
           </div>
@@ -2060,14 +2279,107 @@ function ProductCard({ product, onManage, onEditQuantity, mounted }: ProductCard
           )}
         </div>
 
-        {/* Action Button */}
-        <button
-          onClick={onManage}
-          className="w-full px-4 py-3 rounded-xl bg-white/[0.04] border border-white/[0.1] text-white/60 hover:bg-white/[0.08] hover:text-white/80 transition-all flex items-center justify-center gap-2"
-        >
-          <Package className="w-4 h-4" />
-          재고 관리
-        </button>
+        {/* 숙성 기간 (배치 제품만) */}
+        {!product.isNumbered && (
+          <div className="mb-4">
+            {!editingAging ? (
+              <button
+                onClick={(e) => { e.stopPropagation(); setEditingAging(true); }}
+                className="w-full p-2.5 rounded-xl bg-cyan-500/5 border border-cyan-500/10 hover:bg-cyan-500/10 transition-all text-left"
+              >
+                {batch?.immersionDate ? (
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Anchor className="w-3.5 h-3.5 text-cyan-400/60" />
+                      <span className="text-xs text-cyan-400/70">
+                        {batch.immersionDate} ~ {batch.retrievalDate || '숙성 중'}
+                      </span>
+                    </div>
+                    {batch.retrievalDate ? (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400">완료</span>
+                    ) : (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-400">숙성 중</span>
+                    )}
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 text-white/30">
+                    <Anchor className="w-3.5 h-3.5" />
+                    <span className="text-xs">숙성 기간 설정</span>
+                  </div>
+                )}
+              </button>
+            ) : (
+              <div className="p-3 rounded-xl bg-cyan-500/5 border border-cyan-500/10 space-y-2" onClick={(e) => e.stopPropagation()}>
+                <div className="flex items-center gap-2 mb-1">
+                  <Anchor className="w-3.5 h-3.5 text-cyan-400/60" />
+                  <span className="text-xs text-cyan-400/70">숙성 기간</span>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-[10px] text-white/30 block mb-1">입수일</label>
+                    <input
+                      type="date"
+                      value={immersionDate}
+                      onChange={(e) => setImmersionDate(e.target.value)}
+                      className="w-full px-2 py-1.5 rounded-lg bg-white/[0.04] border border-white/[0.1] text-xs text-white/80 focus:outline-none focus:border-cyan-500/30 [color-scheme:dark]"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-white/30 block mb-1">인양일</label>
+                    <input
+                      type="date"
+                      value={retrievalDate}
+                      onChange={(e) => setRetrievalDate(e.target.value)}
+                      className="w-full px-2 py-1.5 rounded-lg bg-white/[0.04] border border-white/[0.1] text-xs text-white/80 focus:outline-none focus:border-cyan-500/30 [color-scheme:dark]"
+                    />
+                  </div>
+                </div>
+                <div className="flex gap-2 pt-1">
+                  <button
+                    onClick={() => setEditingAging(false)}
+                    className="flex-1 px-2 py-1.5 rounded-lg bg-white/[0.04] border border-white/[0.1] text-xs text-white/40 hover:bg-white/[0.08]"
+                  >
+                    취소
+                  </button>
+                  <button
+                    onClick={() => {
+                      updateBatchAgingData(product.id, {
+                        immersionDate: immersionDate || null,
+                        retrievalDate: retrievalDate || null,
+                      });
+                      setEditingAging(false);
+                      toast.success('숙성 기간이 저장되었습니다');
+                    }}
+                    className="flex-1 px-2 py-1.5 rounded-lg bg-cyan-500/20 border border-cyan-500/30 text-xs text-cyan-400 hover:bg-cyan-500/30"
+                  >
+                    저장
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Action Buttons */}
+        <div className="flex gap-2">
+          <button
+            onClick={onManage}
+            className="flex-1 px-4 py-3 rounded-xl bg-white/[0.04] border border-white/[0.1] text-white/60 hover:bg-white/[0.08] hover:text-white/80 transition-all flex items-center justify-center gap-2"
+          >
+            <Package className="w-4 h-4" />
+            재고 관리
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              window.open(`/b/preview/${product.id}`, '_blank');
+            }}
+            className="px-3 py-3 rounded-xl bg-cyan-500/5 border border-cyan-500/15 text-cyan-400/60 hover:bg-cyan-500/10 hover:text-cyan-400 transition-all flex items-center justify-center"
+            title="NFC 페이지 미리보기"
+          >
+            <Eye className="w-4 h-4" />
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -2086,8 +2398,10 @@ function FirstEditionGrid({
   onToggle: () => void;
   defaultPrice?: number;
 }) {
-  const { numberedBottles, updateBottleStatus, getProductSummary } = useInventoryStore();
+  const { numberedBottles, updateBottleStatus, getProductSummary, generateNfcCode } = useInventoryStore();
   const [selectedBottle, setSelectedBottle] = useState<NumberedBottle | null>(null);
+  const [nfcModalOpen, setNfcModalOpen] = useState(false);
+  const [nfcCodeState, setNfcCodeState] = useState('');
   const summary = getProductSummary('first_edition');
 
   const handleBottleClick = (bottleNumber: number) => {
@@ -2097,9 +2411,23 @@ function FirstEditionGrid({
     }
   };
 
-  const handleSaveStatus = (status: InventoryStatus, details?: { reservedFor?: string; soldTo?: string; price?: number; notes?: string }) => {
+  const handleSaveStatus = async (status: InventoryStatus, details?: { reservedFor?: string; soldTo?: string; giftedTo?: string; price?: number; notes?: string; soldDate?: string }) => {
     if (!selectedBottle) return;
-    updateBottleStatus(selectedBottle.id, status, details);
+    await updateBottleStatus(selectedBottle.id, status, details);
+
+    // 판매/증정 시 NFC 코드 생성
+    if (status === 'sold' || status === 'gifted') {
+      try {
+        const code = await generateNfcCode(selectedBottle.id, true);
+        if (code) {
+          setNfcCodeState(code);
+          setNfcModalOpen(true);
+        }
+      } catch {
+        // NFC 실패 무시
+      }
+    }
+
     setSelectedBottle(null);
   };
 
@@ -2126,7 +2454,7 @@ function FirstEditionGrid({
         {/* Stats Row */}
         <div className="flex flex-wrap items-center gap-4 mb-4">
           <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-500/10">
-            <span className="text-xs text-white/40">판매가능</span>
+            <span className="text-xs text-white/40">보유</span>
             <span className="text-sm text-emerald-400 font-medium">{summary.available}</span>
           </div>
           <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-amber-500/10">
@@ -2184,6 +2512,13 @@ function FirstEditionGrid({
           defaultPrice={defaultPrice}
         />
       )}
+
+      {/* NFC Write Modal */}
+      <NfcWriteModal
+        isOpen={nfcModalOpen}
+        onClose={() => setNfcModalOpen(false)}
+        nfcCode={nfcCodeState}
+      />
     </div>
   );
 }
@@ -2193,12 +2528,16 @@ function FirstEditionGrid({
 // ═══════════════════════════════════════════════════════════════════════════
 
 export default function InventoryPage() {
-  const { initializeInventory, refreshFromSupabase, getTotalInventoryValue, getRecentTransactions, getFilteredTransactions, isLoading, sellFromBatch, reserveFromBatch, confirmReservation, cancelReservation, reportDamage, giftFromBatch, addProduct, updateProduct, getAllProducts, updateTransaction, deleteTransaction } = useInventoryStore();
+  const { initializeInventory, refreshFromSupabase, getTotalInventoryValue, getRecentTransactions, getFilteredTransactions, isLoading, sellFromBatch, reserveFromBatch, confirmReservation, cancelReservation, reportDamage, giftFromBatch, addProduct, updateProduct, getAllProducts, updateTransaction, deleteTransaction, generateNfcCode, updateBatchAgingData, inventoryBatches } = useInventoryStore();
   const [isFirstEditionExpanded, setIsFirstEditionExpanded] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [mounted, setMounted] = useState(false);
   const [addProductYear, setAddProductYear] = useState<number | null>(null);
   const [weightModalYear, setWeightModalYear] = useState<number | null>(null);
+
+  // NFC 모달 상태
+  const [nfcModalOpen, setNfcModalOpen] = useState(false);
+  const [nfcCode, setNfcCode] = useState('');
 
   // 가격 설정 상태 (pricing 페이지의 판매가 자동 입력용)
   const [pricingSettings, setPricingSettings] = useState<PricingTierSetting[]>([]);
@@ -2356,32 +2695,52 @@ export default function InventoryPage() {
   // Add default years if they don't have products yet (2026 + customYears)
   const displayYears = [...new Set([...availableYears, 2026, ...customYears])].sort((a, b) => a - b);
 
-  const handleBatchAction = (
+  const handleBatchAction = async (
     action: 'sell' | 'reserve' | 'gift' | 'damage' | 'confirm' | 'cancel',
     quantity: number,
-    details?: { customerName?: string; price?: number; notes?: string }
+    details?: { customerName?: string; price?: number; notes?: string; soldDate?: string }
   ) => {
     if (!selectedProduct) return;
 
     switch (action) {
       case 'sell':
-        sellFromBatch(selectedProduct.id, quantity, details?.customerName, details?.price);
+        await sellFromBatch(selectedProduct.id, quantity, details?.customerName, details?.price, details?.soldDate);
         break;
       case 'reserve':
         reserveFromBatch(selectedProduct.id, quantity, details?.customerName || '');
-        break;
+        return; // NFC 불필요
       case 'gift':
-        giftFromBatch(selectedProduct.id, quantity, details?.customerName || '', details?.notes);
+        await giftFromBatch(selectedProduct.id, quantity, details?.customerName || '', details?.notes, details?.soldDate);
         break;
       case 'damage':
         reportDamage(selectedProduct.id, quantity, details?.notes);
-        break;
+        return; // NFC 불필요
       case 'confirm':
-        confirmReservation(selectedProduct.id, quantity, details?.customerName, details?.price);
+        await confirmReservation(selectedProduct.id, quantity, details?.customerName, details?.price);
         break;
       case 'cancel':
         cancelReservation(selectedProduct.id, quantity);
-        break;
+        return; // NFC 불필요
+    }
+
+    // sell, gift, confirm 완료 후 NFC 코드 생성 및 모달 오픈
+    if (action === 'sell' || action === 'gift' || action === 'confirm') {
+      try {
+        const code = await generateNfcCode('', false, {
+          productId: selectedProduct.id,
+          status: action === 'gift' ? 'gifted' : 'sold',
+          customerName: details?.customerName,
+          soldDate: details?.soldDate,
+          price: details?.price,
+          notes: details?.notes,
+        });
+        if (code) {
+          setNfcCode(code);
+          setNfcModalOpen(true);
+        }
+      } catch {
+        // NFC 코드 생성 실패는 무시 (거래 자체는 완료)
+      }
     }
   };
 
@@ -2995,6 +3354,13 @@ export default function InventoryPage() {
         transaction={editingTransaction}
         onSave={handleUpdateTransaction}
         onDelete={handleDeleteTransaction}
+      />
+
+      {/* NFC Write Modal */}
+      <NfcWriteModal
+        isOpen={nfcModalOpen}
+        onClose={() => setNfcModalOpen(false)}
+        nfcCode={nfcCode}
       />
     </div>
   );

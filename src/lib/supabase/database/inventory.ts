@@ -6,7 +6,7 @@
 import { supabase, isSupabaseConfigured } from '../client';
 import { dbLogger } from '@/lib/logger';
 import {
-  ProductType, InventoryStatus, NumberedBottle, InventoryBatch, InventoryTransaction,
+  ProductType, InventoryStatus, NumberedBottle, InventoryBatch, InventoryTransaction, BottleUnit,
 } from '@/lib/types';
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -23,6 +23,8 @@ export interface DBNumberedBottle {
   sold_date: string | null;
   price: number | null;
   notes: string | null;
+  nfc_code: string | null;
+  nfc_registered_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -37,6 +39,23 @@ export interface DBInventoryBatch {
   gifted: number;
   damaged: number;
   last_updated: string;
+  created_at: string;
+  immersion_date: string | null;
+  retrieval_date: string | null;
+  aging_depth: number | null;
+}
+
+export interface DBBottleUnit {
+  id: string;
+  product_id: string;
+  nfc_code: string;
+  serial_number: number | null;
+  status: 'sold' | 'gifted';
+  customer_name: string | null;
+  sold_date: string | null;
+  price: number | null;
+  notes: string | null;
+  nfc_registered_at: string | null;
   created_at: string;
 }
 
@@ -142,7 +161,11 @@ export async function updateInventoryBatch(
 }
 
 export async function createInventoryBatch(
-  batch: Omit<DBInventoryBatch, 'created_at' | 'last_updated'>
+  batch: Omit<DBInventoryBatch, 'created_at' | 'last_updated' | 'immersion_date' | 'retrieval_date' | 'aging_depth'> & {
+    immersion_date?: string | null;
+    retrieval_date?: string | null;
+    aging_depth?: number | null;
+  }
 ): Promise<DBInventoryBatch | null> {
   if (!isSupabaseConfigured()) return null;
 
@@ -389,6 +412,8 @@ export function mapDbBottleToBottle(dbBottle: DBNumberedBottle): NumberedBottle 
     soldDate: dbBottle.sold_date || undefined,
     price: dbBottle.price || undefined,
     notes: dbBottle.notes || undefined,
+    nfcCode: dbBottle.nfc_code || undefined,
+    nfcRegisteredAt: dbBottle.nfc_registered_at || undefined,
   };
 }
 
@@ -403,6 +428,25 @@ export function mapDbBatchToBatch(dbBatch: DBInventoryBatch): InventoryBatch {
     gifted: dbBatch.gifted,
     damaged: dbBatch.damaged,
     lastUpdated: dbBatch.last_updated,
+    immersionDate: dbBatch.immersion_date || undefined,
+    retrievalDate: dbBatch.retrieval_date || undefined,
+    agingDepth: dbBatch.aging_depth || undefined,
+  };
+}
+
+export function mapDbBottleUnitToBottleUnit(dbUnit: DBBottleUnit): BottleUnit {
+  return {
+    id: dbUnit.id,
+    productId: dbUnit.product_id,
+    nfcCode: dbUnit.nfc_code,
+    serialNumber: dbUnit.serial_number || undefined,
+    status: dbUnit.status,
+    customerName: dbUnit.customer_name || undefined,
+    soldDate: dbUnit.sold_date || undefined,
+    price: dbUnit.price || undefined,
+    notes: dbUnit.notes || undefined,
+    nfcRegisteredAt: dbUnit.nfc_registered_at || undefined,
+    createdAt: dbUnit.created_at,
   };
 }
 
@@ -430,4 +474,130 @@ export function mapDbCustomProductToProduct(dbProduct: DBCustomProduct) {
     totalQuantity: dbProduct.total_quantity,
     description: dbProduct.description || undefined,
   };
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// NFC 코드 생성 + Bottle Unit CRUD
+// ═══════════════════════════════════════════════════════════════════════════
+
+const NFC_CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+
+function generateRandomNfcCode(): string {
+  let code = '';
+  for (let i = 0; i < 8; i++) {
+    code += NFC_CODE_CHARS[Math.floor(Math.random() * NFC_CODE_CHARS.length)];
+  }
+  return code;
+}
+
+export async function generateUniqueNfcCode(): Promise<string | null> {
+  if (!isSupabaseConfigured()) return generateRandomNfcCode();
+
+  for (let attempt = 0; attempt < 10; attempt++) {
+    const code = generateRandomNfcCode();
+
+    // numbered_bottles와 bottle_units 양쪽에서 중복 확인
+    const [{ data: nb }, { data: bu }] = await Promise.all([
+      supabase!.from('numbered_bottles').select('id').eq('nfc_code', code).maybeSingle(),
+      supabase!.from('bottle_units').select('id').eq('nfc_code', code).maybeSingle(),
+    ]);
+
+    if (!nb && !bu) return code;
+  }
+
+  dbLogger.error('NFC 코드 생성 실패: 10회 시도 후 유니크 코드 확보 불가');
+  return null;
+}
+
+export async function createBottleUnit(
+  unit: Omit<DBBottleUnit, 'nfc_registered_at' | 'created_at'>
+): Promise<DBBottleUnit | null> {
+  if (!isSupabaseConfigured()) return null;
+
+  const { data, error } = await supabase!
+    .from('bottle_units')
+    .insert(unit)
+    .select()
+    .single();
+
+  if (error) {
+    dbLogger.error('Error creating bottle unit:', error);
+    return null;
+  }
+
+  return data as DBBottleUnit;
+}
+
+export async function fetchBottleByNfcCode(
+  code: string
+): Promise<{ type: 'numbered' | 'unit'; data: DBNumberedBottle | DBBottleUnit } | null> {
+  if (!isSupabaseConfigured()) return null;
+
+  // numbered_bottles에서 먼저 조회
+  const { data: nb } = await supabase!
+    .from('numbered_bottles')
+    .select('*')
+    .eq('nfc_code', code)
+    .maybeSingle();
+
+  if (nb) return { type: 'numbered', data: nb as DBNumberedBottle };
+
+  // bottle_units에서 조회
+  const { data: bu } = await supabase!
+    .from('bottle_units')
+    .select('*')
+    .eq('nfc_code', code)
+    .maybeSingle();
+
+  if (bu) return { type: 'unit', data: bu as DBBottleUnit };
+
+  return null;
+}
+
+export async function updateBatchAgingDates(
+  productId: string,
+  immersionDate: string | null,
+  retrievalDate: string | null,
+  agingDepth?: number
+): Promise<boolean> {
+  if (!isSupabaseConfigured()) return false;
+
+  const updates: Record<string, unknown> = {
+    immersion_date: immersionDate,
+    retrieval_date: retrievalDate,
+  };
+  if (agingDepth !== undefined) {
+    updates.aging_depth = agingDepth;
+  }
+
+  const { error } = await supabase!
+    .from('inventory_batches')
+    .update(updates)
+    .eq('product_id', productId);
+
+  if (error) {
+    dbLogger.error('Error updating batch aging dates:', error.message, error.code, error.details, error.hint);
+    return false;
+  }
+
+  return true;
+}
+
+export async function updateNumberedBottleNfc(
+  bottleId: string,
+  nfcCode: string
+): Promise<boolean> {
+  if (!isSupabaseConfigured()) return false;
+
+  const { error } = await supabase!
+    .from('numbered_bottles')
+    .update({ nfc_code: nfcCode, nfc_registered_at: new Date().toISOString() })
+    .eq('id', bottleId);
+
+  if (error) {
+    dbLogger.error('Error updating numbered bottle NFC:', error);
+    return false;
+  }
+
+  return true;
 }

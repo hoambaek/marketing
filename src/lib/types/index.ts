@@ -75,6 +75,7 @@ export {
   type NumberedBottle,
   type InventoryBatch,
   type InventoryTransaction,
+  type BottleUnit,
   PRODUCTS,
   INVENTORY_STATUS_LABELS,
   INVENTORY_STATUS_COLORS,

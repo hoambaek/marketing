@@ -35,6 +35,8 @@ export interface NumberedBottle {
   soldDate?: string;
   price?: number;
   notes?: string;
+  nfcCode?: string;
+  nfcRegisteredAt?: string;
 }
 
 // 일반 재고 (2026 제품 - 수량 추적)
@@ -48,6 +50,24 @@ export interface InventoryBatch {
   gifted: number;
   damaged: number;
   lastUpdated: string;
+  immersionDate?: string;
+  retrievalDate?: string;
+  agingDepth?: number;
+}
+
+// 배치 제품 개별 병 (NFC 추적용)
+export interface BottleUnit {
+  id: string;
+  productId: string;
+  nfcCode: string;
+  serialNumber?: number;
+  status: 'sold' | 'gifted';
+  customerName?: string;
+  soldDate?: string;
+  price?: number;
+  notes?: string;
+  nfcRegisteredAt?: string;
+  createdAt?: string;
 }
 
 // 재고 거래 기록

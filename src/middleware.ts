@@ -7,6 +7,7 @@ const isClerkConfigured = !!process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
 // 공개 라우트 정의 (로그인 페이지만)
 const isPublicRoute = createRouteMatcher([
   '/sign-in(.*)',
+  '/b/(.*)',         // NFC 병 조회 공개 페이지
   // sign-up은 허용하지 않음 - 등록된 사용자만 로그인 가능
 ]);
 
@@ -19,6 +20,7 @@ const isSignUpRoute = createRouteMatcher([
 const isPublicApiRoute = createRouteMatcher([
   '/api/health(.*)',       // 헬스체크
   '/api/public/(.*)',      // 명시적 공개 API
+  '/api/cron/(.*)',        // Cron 엔드포인트 (CRON_SECRET으로 자체 인증)
 ]);
 
 // Clerk가 설정되지 않은 경우 기본 미들웨어

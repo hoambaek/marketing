@@ -46,6 +46,13 @@ export {
   mapDbBatchToBatch,
   mapDbTransactionToTransaction,
   mapDbCustomProductToProduct,
+  // NFC + 숙성 데이터
+  generateUniqueNfcCode,
+  createBottleUnit,
+  fetchBottleByNfcCode,
+  updateBatchAgingDates,
+  updateNumberedBottleNfc,
+  mapDbBottleUnitToBottleUnit,
 } from './inventory';
 
 export type {
@@ -53,6 +60,7 @@ export type {
   DBInventoryBatch,
   DBInventoryTransaction,
   DBCustomProduct,
+  DBBottleUnit,
 } from './inventory';
 
 // Budget (Income & Expense)
@@ -92,6 +100,8 @@ export {
   fetchOceanDataDaily,
   fetchOceanDataByDate,
   upsertOceanDataDaily,
+  bulkUpsertOceanDataDaily,
+  fetchExistingDates,
   updateOceanDataSalinity,
   deleteOceanDataDaily,
   fetchSalinityRecords,
