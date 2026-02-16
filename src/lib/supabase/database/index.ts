@@ -149,3 +149,23 @@ export type {
   DBPricingTierSetting,
   PricingTierSetting,
 } from './pricing';
+
+// UAPS (Undersea Aging Predictive System)
+export {
+  fetchAgingProducts,
+  fetchAgingProductById,
+  createAgingProduct,
+  updateAgingProduct,
+  deleteAgingProduct,
+  fetchAgingPredictions,
+  createAgingPrediction,
+  fetchWineTerrestrialData,
+  fetchWineTerrestrialDataCount,
+  bulkInsertWineTerrestrialData,
+  fetchTerrestrialModels,
+  fetchTerrestrialModelByTypeStage,
+  upsertTerrestrialModel,
+  fetchFlavorDictionary,
+  fetchUAPSConfig,
+  updateUAPSConfigValue,
+} from './uaps';

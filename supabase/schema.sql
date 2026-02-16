@@ -540,3 +540,208 @@ VALUES
   ('batch-element_de_surprise', 'element_de_surprise', 120, 0, 0, 0, 0),
   ('batch-atomes_crochus', 'atomes_crochus', 144, 0, 0, 0, 0)
 ON CONFLICT (id) DO NOTHING;
+
+-- ═══════════════════════════════════════════════════════════════════════════
+-- 8. UAPS (Undersea Aging Predictive System)
+-- ═══════════════════════════════════════════════════════════════════════════
+
+-- 지상 숙성 기초 데이터 (AI 학습용, 100K건 목표)
+CREATE TABLE IF NOT EXISTS wine_terrestrial_data (
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  wine_name TEXT NOT NULL,
+  producer TEXT,
+  vintage INTEGER,
+  wine_type TEXT NOT NULL CHECK (wine_type IN ('blanc_de_blancs', 'blanc_de_noirs', 'rose', 'blend', 'vintage')),
+  ph NUMERIC,
+  dosage NUMERIC,
+  alcohol NUMERIC,
+  acidity NUMERIC,
+  reduction_potential TEXT CHECK (reduction_potential IN ('low', 'medium', 'high')),
+  citrus_score NUMERIC,
+  green_apple_score NUMERIC,
+  brioche_score NUMERIC,
+  yeast_score NUMERIC,
+  honey_score NUMERIC,
+  nutty_score NUMERIC,
+  toast_score NUMERIC,
+  oxidation_score NUMERIC,
+  aging_years NUMERIC,
+  aging_stage TEXT CHECK (aging_stage IN ('youthful', 'developing', 'mature', 'aged')),
+  drinking_window_start INTEGER,
+  drinking_window_end INTEGER,
+  data_source TEXT NOT NULL CHECK (data_source IN ('vivino', 'cellartracker', 'decanter', 'internal_tasting', 'manual_entry', 'csv_import', 'huggingface')),
+  review_text TEXT,
+  rating NUMERIC,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- AI 학습 결과 저장
+CREATE TABLE IF NOT EXISTS terrestrial_model (
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  wine_type TEXT NOT NULL,
+  aging_stage TEXT NOT NULL,
+  sample_count INTEGER NOT NULL DEFAULT 0,
+  flavor_profile_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+  physicochemical_stats_json JSONB DEFAULT '{}'::jsonb,
+  transition_curves_json JSONB DEFAULT '{}'::jsonb,
+  cluster_centroids_json JSONB DEFAULT '{}'::jsonb,
+  drinking_window_stats_json JSONB DEFAULT '{}'::jsonb,
+  confidence_score NUMERIC DEFAULT 0,
+  computed_at TIMESTAMPTZ DEFAULT NOW(),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(wine_type, aging_stage)
+);
+
+-- 숙성 제품 등록
+CREATE TABLE IF NOT EXISTS aging_products (
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  product_name TEXT NOT NULL,
+  wine_type TEXT NOT NULL CHECK (wine_type IN ('blanc_de_blancs', 'blanc_de_noirs', 'rose', 'blend', 'vintage')),
+  vintage INTEGER,
+  producer TEXT DEFAULT 'Muse de Marée',
+  ph NUMERIC,
+  dosage NUMERIC,
+  alcohol NUMERIC,
+  acidity NUMERIC,
+  reduction_potential TEXT CHECK (reduction_potential IN ('low', 'medium', 'high')) DEFAULT 'low',
+  reduction_checks JSONB,
+  immersion_date DATE,
+  planned_duration_months INTEGER,
+  aging_depth INTEGER DEFAULT 30,
+  status TEXT NOT NULL DEFAULT 'planned' CHECK (status IN ('planned', 'immersed', 'harvested')),
+  notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- AI 예측 결과
+CREATE TABLE IF NOT EXISTS aging_predictions (
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  product_id TEXT REFERENCES aging_products(id) ON DELETE CASCADE,
+  wine_type TEXT NOT NULL,
+  input_ph NUMERIC,
+  input_dosage NUMERIC,
+  input_reduction_potential TEXT,
+  undersea_duration_months INTEGER NOT NULL,
+  aging_depth INTEGER DEFAULT 30,
+  immersion_date DATE,
+  predicted_citrus NUMERIC,
+  predicted_brioche NUMERIC,
+  predicted_honey NUMERIC,
+  predicted_nutty NUMERIC,
+  predicted_toast NUMERIC,
+  predicted_oxidation NUMERIC,
+  texture_maturity_score NUMERIC,
+  aroma_freshness_score NUMERIC,
+  off_flavor_risk_score NUMERIC,
+  overall_quality_score NUMERIC,
+  optimal_harvest_start_months INTEGER,
+  optimal_harvest_end_months INTEGER,
+  harvest_recommendation TEXT,
+  ai_insight_text TEXT,
+  ai_risk_warning TEXT,
+  tci_applied NUMERIC DEFAULT 0.3,
+  fri_applied NUMERIC DEFAULT 0.5,
+  bri_applied NUMERIC DEFAULT 1.2,
+  prediction_confidence NUMERIC DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 풍미 용어 매핑
+CREATE TABLE IF NOT EXISTS flavor_dictionary (
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  expert_term TEXT NOT NULL UNIQUE,
+  consumer_keywords TEXT[] DEFAULT '{}',
+  associated_stage TEXT CHECK (associated_stage IN ('youthful', 'developing', 'mature', 'aged')),
+  flavor_category TEXT NOT NULL CHECK (flavor_category IN ('fruit', 'floral', 'yeast', 'nutty', 'spice', 'mineral', 'oxidative', 'off_flavor')),
+  tci_weight NUMERIC DEFAULT 1.0,
+  fri_weight NUMERIC DEFAULT 1.0,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 시스템 설정
+CREATE TABLE IF NOT EXISTS uaps_config (
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  config_key TEXT NOT NULL UNIQUE,
+  config_value TEXT NOT NULL,
+  description TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- UAPS 인덱스
+CREATE INDEX IF NOT EXISTS idx_wine_terrestrial_wine_type ON wine_terrestrial_data(wine_type);
+CREATE INDEX IF NOT EXISTS idx_wine_terrestrial_aging_years ON wine_terrestrial_data(aging_years);
+CREATE INDEX IF NOT EXISTS idx_wine_terrestrial_aging_stage ON wine_terrestrial_data(aging_stage);
+CREATE INDEX IF NOT EXISTS idx_wine_terrestrial_data_source ON wine_terrestrial_data(data_source);
+CREATE INDEX IF NOT EXISTS idx_wine_terrestrial_type_stage ON wine_terrestrial_data(wine_type, aging_stage);
+CREATE INDEX IF NOT EXISTS idx_terrestrial_model_type_stage ON terrestrial_model(wine_type, aging_stage);
+CREATE INDEX IF NOT EXISTS idx_aging_products_wine_type ON aging_products(wine_type);
+CREATE INDEX IF NOT EXISTS idx_aging_products_status ON aging_products(status);
+CREATE INDEX IF NOT EXISTS idx_aging_products_immersion ON aging_products(immersion_date);
+CREATE INDEX IF NOT EXISTS idx_aging_predictions_product ON aging_predictions(product_id);
+CREATE INDEX IF NOT EXISTS idx_aging_predictions_created ON aging_predictions(created_at DESC);
+
+-- UAPS 트리거
+DROP TRIGGER IF EXISTS update_wine_terrestrial_data_updated_at ON wine_terrestrial_data;
+CREATE TRIGGER update_wine_terrestrial_data_updated_at
+  BEFORE UPDATE ON wine_terrestrial_data FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_terrestrial_model_updated_at ON terrestrial_model;
+CREATE TRIGGER update_terrestrial_model_updated_at
+  BEFORE UPDATE ON terrestrial_model FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_aging_products_updated_at ON aging_products;
+CREATE TRIGGER update_aging_products_updated_at
+  BEFORE UPDATE ON aging_products FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_uaps_config_updated_at ON uaps_config;
+CREATE TRIGGER update_uaps_config_updated_at
+  BEFORE UPDATE ON uaps_config FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- UAPS RLS
+ALTER TABLE wine_terrestrial_data ENABLE ROW LEVEL SECURITY;
+ALTER TABLE terrestrial_model ENABLE ROW LEVEL SECURITY;
+ALTER TABLE aging_products ENABLE ROW LEVEL SECURITY;
+ALTER TABLE aging_predictions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE flavor_dictionary ENABLE ROW LEVEL SECURITY;
+ALTER TABLE uaps_config ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Allow access to wine_terrestrial_data" ON wine_terrestrial_data
+  FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "Allow access to terrestrial_model" ON terrestrial_model
+  FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "Allow access to aging_products" ON aging_products
+  FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "Allow access to aging_predictions" ON aging_predictions
+  FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "Allow access to flavor_dictionary" ON flavor_dictionary
+  FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "Allow access to uaps_config" ON uaps_config
+  FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
+
+-- UAPS 기본 설정 데이터
+INSERT INTO uaps_config (id, config_key, config_value, description) VALUES
+  ('uaps-cfg-tci', 'tci_coefficient', '0.3', 'TCI: 문헌 기반 가설 (95% CI: 0.06-0.54, 실험 검증 필요)'),
+  ('uaps-cfg-fri', 'fri_coefficient', '0.56', 'FRI: 아레니우스 방정식 기반 (Ea=47kJ/mol, 4°C/12°C, PMC11202423)'),
+  ('uaps-cfg-bri', 'bri_coefficient', '1.6', 'BRI: 헨리의 법칙 기반 (수심 30m CO2 압력 구배 + 용해도 보정)'),
+  ('uaps-cfg-stage-youthful', 'stage_threshold_youthful', '3', '숙성 단계: youthful 임계값 (년)'),
+  ('uaps-cfg-stage-developing', 'stage_threshold_developing', '7', '숙성 단계: developing 임계값 (년)'),
+  ('uaps-cfg-stage-mature', 'stage_threshold_mature', '15', '숙성 단계: mature 임계값 (년)'),
+  ('uaps-cfg-risk-off-flavor', 'risk_threshold_off_flavor', '70', 'Off-flavor 리스크 임계값'),
+  ('uaps-cfg-quality-optimal', 'quality_threshold_optimal', '80', '최적 품질 임계값')
+ON CONFLICT (config_key) DO NOTHING;
+
+-- 풍미 사전 기본 데이터
+INSERT INTO flavor_dictionary (id, expert_term, consumer_keywords, associated_stage, flavor_category, tci_weight, fri_weight) VALUES
+  ('fd-citrus', 'Citrus', ARRAY['레몬', '라임', '자몽', '시트러스', '유자', 'lemon', 'lime', 'grapefruit'], 'youthful', 'fruit', 0.8, 1.3),
+  ('fd-green-apple', 'Green Apple', ARRAY['청사과', '풋사과', '배', 'green apple', 'pear'], 'youthful', 'fruit', 0.9, 1.2),
+  ('fd-brioche', 'Brioche', ARRAY['브리오슈', '빵', '크루아상', '이스트', 'bread', 'croissant'], 'developing', 'yeast', 1.4, 0.9),
+  ('fd-yeast', 'Yeast Autolysis', ARRAY['효모', '자가분해', '비스킷', 'biscuit', 'dough'], 'developing', 'yeast', 1.3, 0.8),
+  ('fd-honey', 'Honey', ARRAY['꿀', '밀랍', '아카시아', 'honey', 'beeswax', 'acacia'], 'mature', 'fruit', 1.2, 0.7),
+  ('fd-nutty', 'Nutty', ARRAY['견과류', '아몬드', '헤이즐넛', '호두', 'almond', 'hazelnut', 'walnut'], 'mature', 'nutty', 1.5, 0.6),
+  ('fd-toast', 'Toast', ARRAY['토스트', '구운빵', '커피', '카라멜', 'toast', 'coffee', 'caramel'], 'mature', 'nutty', 1.4, 0.5),
+  ('fd-oxidation', 'Oxidation', ARRAY['산화', '셰리', '마데이라', '호두껍질', 'sherry', 'madeira'], 'aged', 'oxidative', 1.0, 0.3)
+ON CONFLICT (expert_term) DO NOTHING;

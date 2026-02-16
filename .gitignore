@@ -42,3 +42,19 @@ public/sw.js
 public/sw.js.map
 public/workbox-*.js
 public/workbox-*.js.map
+
+# UAPS 분석 문서 및 데이터
+docs/uaps/
+docs/UAPS_*.md
+docs/UNDERSEA_AGING_PREDICTIVE_METHODOLOGY.md
+docs/UAPS_데이터_수집_시스템_구축_방안.md
+docs/UAPS_추가_데이터_수집_실행_플랜.md
+docs/aging.docx
+~$*
+data/
+
+# MCP 설정
+.mcp.json
+
+# Supabase
+supabase/.temp/
