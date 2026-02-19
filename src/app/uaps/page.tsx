@@ -367,7 +367,7 @@ export default function UAPSPage() {
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-12 space-y-6">
 
         {/* 통계 카드 */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-3 gap-2 sm:gap-4">
           {[
             { label: '등록 제품', value: agingProducts.length, unit: '개', icon: Wine, color: '#22d3ee' },
             { label: '예측 실행', value: predictions.length, unit: '회', icon: Brain, color: '#B76E79' },
@@ -381,23 +381,22 @@ export default function UAPSPage() {
               className="relative group"
             >
               <div className="absolute inset-0 bg-gradient-to-br from-white/[0.08] to-transparent rounded-2xl blur-xl group-hover:from-white/[0.12] transition-all" />
-              <div className="relative bg-[#0d1421]/80 backdrop-blur-xl border border-white/[0.06] rounded-2xl p-4 hover:border-white/[0.12] transition-all">
+              <div className="relative bg-[#0d1421]/80 backdrop-blur-xl border border-white/[0.06] rounded-2xl p-2.5 sm:p-4 hover:border-white/[0.12] transition-all">
                 <div
                   className="absolute top-0 left-1/2 -translate-x-1/2 w-1/2 h-px"
                   style={{ background: `linear-gradient(90deg, transparent, ${stat.color}40, transparent)` }}
                 />
-                <div className="flex items-start justify-between mb-3">
-                  <div className="p-2 rounded-xl" style={{ backgroundColor: `${stat.color}15` }}>
-                    <stat.icon className="w-4 h-4" style={{ color: stat.color }} />
+                {/* 모바일: 아이콘+숫자 수직 컴팩트, 데스크톱: 기존 레이아웃 */}
+                <div className="flex flex-col items-center sm:items-start">
+                  <div className="p-1.5 sm:p-2 rounded-lg sm:rounded-xl mb-1.5 sm:mb-3" style={{ backgroundColor: `${stat.color}15` }}>
+                    <stat.icon className="w-3.5 h-3.5 sm:w-4 sm:h-4" style={{ color: stat.color }} />
                   </div>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-xs text-white/40 uppercase tracking-wider">{stat.label}</p>
-                  <div className="flex items-baseline gap-1.5">
-                    <span className="text-2xl font-light tracking-tight" style={{ color: stat.color }}>
+                  <p className="text-[9px] sm:text-xs text-white/40 uppercase tracking-wider mb-0.5 sm:mb-1">{stat.label}</p>
+                  <div className="flex items-baseline gap-0.5 sm:gap-1.5">
+                    <span className="text-lg sm:text-2xl font-light tracking-tight" style={{ color: stat.color }}>
                       {stat.value}
                     </span>
-                    <span className="text-sm text-white/30">{stat.unit}</span>
+                    <span className="text-[10px] sm:text-sm text-white/30">{stat.unit}</span>
                   </div>
                 </div>
               </div>
