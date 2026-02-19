@@ -48,7 +48,7 @@ curl -X POST https://plan.musedemaree.com/api/external/db \
 
 ---
 
-## 사용 가능한 함수 (43개)
+## 사용 가능한 함수 (34개)
 
 ### 태스크 (월별 플랜)
 
@@ -60,15 +60,6 @@ curl -X POST https://plan.musedemaree.com/api/external/db \
 | `updateTask` | 태스크 수정 | id |
 | `deleteTask` | 태스크 삭제 | id |
 
-### 이슈/리스크
-
-| 함수 | 설명 | 필수 파라미터 |
-|------|------|---------------|
-| `getIssues` | 이슈 조회 | - |
-| `createIssue` | 이슈 생성 | title, year, month, type, priority, impact, category |
-| `updateIssue` | 이슈 수정 | id |
-| `deleteIssue` | 이슈 삭제 | id |
-
 ### 컨텐츠 캘린더
 
 | 함수 | 설명 | 필수 파라미터 |
@@ -78,16 +69,6 @@ curl -X POST https://plan.musedemaree.com/api/external/db \
 | `createMultipleContents` | 다중 컨텐츠 생성 | contents[] |
 | `updateContent` | 컨텐츠 수정 | id |
 | `deleteContent` | 컨텐츠 삭제 | id |
-
-### 필수 체크 (Must-Do)
-
-| 함수 | 설명 | 필수 파라미터 |
-|------|------|---------------|
-| `getMustDoItems` | 항목 조회 | - |
-| `createMustDoItem` | 항목 생성 | title, year, month, category |
-| `toggleMustDo` | 완료 토글 | id, done |
-| `updateMustDoItem` | 항목 수정 | id |
-| `deleteMustDoItem` | 항목 삭제 | id |
 
 ### 예산 (수입)
 
@@ -140,23 +121,11 @@ curl -X POST https://plan.musedemaree.com/api/external/db \
 
 ## 코드값 참조
 
-### 태스크/이슈 카테고리
+### 태스크 카테고리
 `operation`(운영), `marketing`(마케팅), `design`(디자인), `filming`(촬영), `pr`(PR), `b2b`(B2B)
 
 ### 태스크 상태
 `pending`(대기), `in_progress`(진행중), `done`(완료)
-
-### 이슈 유형
-`issue`(이슈), `risk`(리스크), `decision`(의사결정)
-
-### 이슈 우선순위
-`low`, `medium`, `high`, `critical`
-
-### 이슈 영향도
-`low`, `medium`, `high`
-
-### 이슈 상태
-`open`, `in_progress`, `resolved`, `closed`
 
 ### 컨텐츠 유형
 `instagram`, `youtube`, `blog`, `newsletter`, `press`
@@ -191,12 +160,10 @@ curl -X POST https://plan.musedemaree.com/api/external/db \
 |--------|--------|--------|
 | "이번 달 태스크 보여줘" | `getTasks` | `{"year": 2026, "month": 2}` |
 | "2월 3주차에 마케팅 태스크 추가해줘" | `createTask` | `{"title": "...", "year": 2026, "month": 2, "week": 3, "category": "marketing"}` |
-| "긴급 이슈 있어?" | `getIssues` | `{"status": "open"}` |
 | "인스타 일정 알려줘" | `getContents` | `{"type": "instagram"}` |
 | "이번 달 지출 내역" | `getExpenseItems` | `{"year": 2026, "month": 2}` |
 | "마케팅 예산 얼마야?" | `getBudgetItems` | `{"year": 2026, "category": "marketing"}` |
 | "넘버링 병 몇 개 남았어?" | `getNumberedBottles` | `{"status": "available"}` |
-| "체크리스트 현황" | `getMustDoItems` | `{"year": 2026, "month": 2}` |
 | "재고 현황 보여줘" | `getInventoryBatches` | `{}` |
 
 ---

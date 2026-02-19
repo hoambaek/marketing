@@ -3,10 +3,9 @@ import * as db from '@/lib/supabase/database';
 import { aiLogger } from '@/lib/logger';
 import {
   Task, TaskCategory, TaskStatus,
-  IssueItem, IssueType, IssuePriority, IssueImpact, IssueStatus,
   ContentItem, ContentType, ContentStatus,
-  MustDoItem, IncomeItem, ExpenseItem, BudgetCategory,
-  ProductType, InventoryStatus, NumberedBottle, InventoryBatch, InventoryTransaction
+  IncomeItem, ExpenseItem, BudgetCategory,
+  InventoryStatus, NumberedBottle, InventoryBatch, InventoryTransaction
 } from '@/lib/types';
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -114,71 +113,6 @@ export const functionDeclarations: FunctionDeclaration[] = [
   },
 
   // ─────────────────────────────────────────────────────────────────────────
-  // Issue Functions
-  // ─────────────────────────────────────────────────────────────────────────
-  {
-    name: 'getIssues',
-    description: '이슈/리스크/의사결정 목록을 조회합니다.',
-    parameters: {
-      type: SchemaType.OBJECT,
-      properties: {
-        year: { type: SchemaType.NUMBER, description: '연도' },
-        month: { type: SchemaType.NUMBER, description: '월' },
-        status: { type: SchemaType.STRING, description: '상태: open, in_progress, resolved, closed' },
-        type: { type: SchemaType.STRING, description: '유형: issue(이슈), risk(리스크), decision(의사결정)' },
-      },
-    },
-  },
-  {
-    name: 'createIssue',
-    description: '새로운 이슈/리스크/의사결정을 생성합니다.',
-    parameters: {
-      type: SchemaType.OBJECT,
-      properties: {
-        title: { type: SchemaType.STRING, description: '제목' },
-        description: { type: SchemaType.STRING, description: '상세 설명' },
-        year: { type: SchemaType.NUMBER, description: '연도' },
-        month: { type: SchemaType.NUMBER, description: '월' },
-        type: { type: SchemaType.STRING, description: '유형: issue, risk, decision' },
-        priority: { type: SchemaType.STRING, description: '우선순위: low, medium, high, critical' },
-        impact: { type: SchemaType.STRING, description: '영향도: low, medium, high' },
-        status: { type: SchemaType.STRING, description: '상태: open, in_progress, resolved, closed' },
-        category: { type: SchemaType.STRING, description: '카테고리' },
-        owner: { type: SchemaType.STRING, description: '담당자' },
-        dueDate: { type: SchemaType.STRING, description: '마감일' },
-      },
-      required: ['title', 'year', 'month', 'type', 'priority', 'impact', 'category'],
-    },
-  },
-  {
-    name: 'updateIssue',
-    description: '이슈를 수정합니다.',
-    parameters: {
-      type: SchemaType.OBJECT,
-      properties: {
-        id: { type: SchemaType.STRING, description: '이슈 ID' },
-        title: { type: SchemaType.STRING, description: '제목' },
-        description: { type: SchemaType.STRING, description: '설명' },
-        status: { type: SchemaType.STRING, description: '상태' },
-        priority: { type: SchemaType.STRING, description: '우선순위' },
-        resolution: { type: SchemaType.STRING, description: '해결 방안' },
-      },
-      required: ['id'],
-    },
-  },
-  {
-    name: 'deleteIssue',
-    description: '이슈를 삭제합니다.',
-    parameters: {
-      type: SchemaType.OBJECT,
-      properties: {
-        id: { type: SchemaType.STRING, description: '삭제할 이슈 ID' },
-      },
-      required: ['id'],
-    },
-  },
-
-  // ─────────────────────────────────────────────────────────────────────────
   // Content Functions
   // ─────────────────────────────────────────────────────────────────────────
   {
@@ -257,78 +191,6 @@ export const functionDeclarations: FunctionDeclaration[] = [
       type: SchemaType.OBJECT,
       properties: {
         id: { type: SchemaType.STRING, description: '삭제할 컨텐츠 ID' },
-      },
-      required: ['id'],
-    },
-  },
-
-  // ─────────────────────────────────────────────────────────────────────────
-  // Must-Do (필수 체크) Functions
-  // ─────────────────────────────────────────────────────────────────────────
-  {
-    name: 'getMustDoItems',
-    description: '필수 체크리스트 항목을 조회합니다. 연도나 월로 필터링할 수 있습니다.',
-    parameters: {
-      type: SchemaType.OBJECT,
-      properties: {
-        year: { type: SchemaType.NUMBER, description: '연도 (예: 2026)' },
-        month: { type: SchemaType.NUMBER, description: '월 (1-12)' },
-      },
-    },
-  },
-  {
-    name: 'createMustDoItem',
-    description: '새로운 필수 체크리스트 항목을 생성합니다.',
-    parameters: {
-      type: SchemaType.OBJECT,
-      properties: {
-        title: { type: SchemaType.STRING, description: '항목 제목' },
-        year: { type: SchemaType.NUMBER, description: '연도 (예: 2026)' },
-        month: { type: SchemaType.NUMBER, description: '월 (1-12)' },
-        category: {
-          type: SchemaType.STRING,
-          description: '카테고리: operation(운영), marketing(마케팅), design(디자인), filming(촬영), pr(PR), b2b(B2B)'
-        },
-        done: { type: SchemaType.BOOLEAN, description: '완료 여부 (기본값: false)' },
-      },
-      required: ['title', 'year', 'month', 'category'],
-    },
-  },
-  {
-    name: 'toggleMustDo',
-    description: '필수 체크리스트 항목의 완료 상태를 변경합니다.',
-    parameters: {
-      type: SchemaType.OBJECT,
-      properties: {
-        id: { type: SchemaType.STRING, description: '항목 ID' },
-        done: { type: SchemaType.BOOLEAN, description: '완료 여부' },
-      },
-      required: ['id', 'done'],
-    },
-  },
-  {
-    name: 'updateMustDoItem',
-    description: '필수 체크리스트 항목을 수정합니다.',
-    parameters: {
-      type: SchemaType.OBJECT,
-      properties: {
-        id: { type: SchemaType.STRING, description: '항목 ID' },
-        title: { type: SchemaType.STRING, description: '제목' },
-        year: { type: SchemaType.NUMBER, description: '연도' },
-        month: { type: SchemaType.NUMBER, description: '월' },
-        category: { type: SchemaType.STRING, description: '카테고리' },
-        done: { type: SchemaType.BOOLEAN, description: '완료 여부' },
-      },
-      required: ['id'],
-    },
-  },
-  {
-    name: 'deleteMustDoItem',
-    description: '필수 체크리스트 항목을 삭제합니다.',
-    parameters: {
-      type: SchemaType.OBJECT,
-      properties: {
-        id: { type: SchemaType.STRING, description: '삭제할 항목 ID' },
       },
       required: ['id'],
     },
@@ -724,77 +586,6 @@ export async function executeFunction(
       }
 
       // ─────────────────────────────────────────────────────────────────────
-      // Issue Handlers
-      // ─────────────────────────────────────────────────────────────────────
-      case 'getIssues': {
-        const issues = await db.fetchIssueItems(args.year as number);
-        let filtered = issues || [];
-
-        if (args.month) {
-          filtered = filtered.filter(i => i.month === args.month);
-        }
-        if (args.status) {
-          filtered = filtered.filter(i => i.status === args.status);
-        }
-        if (args.type) {
-          filtered = filtered.filter(i => i.type === args.type);
-        }
-
-        return {
-          success: true,
-          data: filtered,
-          message: `${filtered.length}개의 이슈를 찾았습니다.`,
-        };
-      }
-
-      case 'createIssue': {
-        const issue = await db.createIssueItem({
-          title: args.title as string,
-          description: args.description as string,
-          year: args.year as number,
-          month: args.month as number,
-          type: (args.type as IssueType) || 'issue',
-          priority: (args.priority as IssuePriority) || 'medium',
-          impact: (args.impact as IssueImpact) || 'medium',
-          status: (args.status as IssueStatus) || 'open',
-          category: (args.category as TaskCategory) || 'operation',
-          owner: args.owner as string,
-          dueDate: args.dueDate as string,
-        });
-
-        return {
-          success: !!issue,
-          data: issue,
-          message: issue
-            ? `이슈 "${args.title}"가 생성되었습니다.`
-            : '이슈 생성에 실패했습니다.',
-        };
-      }
-
-      case 'updateIssue': {
-        const { id: issueId, ...issueUpdates } = args;
-        const issueSuccess = await db.updateIssueItem(issueId as string, issueUpdates as Partial<IssueItem>);
-
-        return {
-          success: issueSuccess,
-          message: issueSuccess
-            ? '이슈가 수정되었습니다.'
-            : '이슈 수정에 실패했습니다.',
-        };
-      }
-
-      case 'deleteIssue': {
-        const issueDelSuccess = await db.deleteIssueItem(args.id as string);
-
-        return {
-          success: issueDelSuccess,
-          message: issueDelSuccess
-            ? '이슈가 삭제되었습니다.'
-            : '이슈 삭제에 실패했습니다.',
-        };
-      }
-
-      // ─────────────────────────────────────────────────────────────────────
       // Content Handlers
       // ─────────────────────────────────────────────────────────────────────
       case 'getContents': {
@@ -880,76 +671,6 @@ export async function executeFunction(
           message: contentDelSuccess
             ? '컨텐츠가 삭제되었습니다.'
             : '컨텐츠 삭제에 실패했습니다.',
-        };
-      }
-
-      // ─────────────────────────────────────────────────────────────────────
-      // Must-Do Handlers
-      // ─────────────────────────────────────────────────────────────────────
-      case 'getMustDoItems': {
-        const mustDoItems = await db.fetchMustDoItems(args.year as number);
-        let filtered = mustDoItems || [];
-
-        if (args.month) {
-          filtered = filtered.filter(m => m.month === args.month);
-        }
-
-        return {
-          success: true,
-          data: filtered,
-          message: `${filtered.length}개의 필수 체크 항목을 찾았습니다.`,
-        };
-      }
-
-      case 'createMustDoItem': {
-        const mustDoItem = await db.createMustDoItem({
-          title: args.title as string,
-          year: args.year as number,
-          month: args.month as number,
-          category: (args.category as TaskCategory) || 'operation',
-          done: (args.done as boolean) || false,
-        });
-
-        return {
-          success: !!mustDoItem,
-          data: mustDoItem,
-          message: mustDoItem
-            ? `필수 체크 항목 "${args.title}"가 생성되었습니다.`
-            : '필수 체크 항목 생성에 실패했습니다.',
-        };
-      }
-
-      case 'toggleMustDo': {
-        const toggleSuccess = await db.toggleMustDo(args.id as string, args.done as boolean);
-
-        return {
-          success: toggleSuccess,
-          message: toggleSuccess
-            ? `필수 체크 항목이 ${args.done ? '완료' : '미완료'}로 변경되었습니다.`
-            : '필수 체크 항목 상태 변경에 실패했습니다.',
-        };
-      }
-
-      case 'updateMustDoItem': {
-        const { id: mustDoId, ...mustDoUpdates } = args;
-        const mustDoSuccess = await db.updateMustDoItem(mustDoId as string, mustDoUpdates as Partial<MustDoItem>);
-
-        return {
-          success: mustDoSuccess,
-          message: mustDoSuccess
-            ? '필수 체크 항목이 수정되었습니다.'
-            : '필수 체크 항목 수정에 실패했습니다.',
-        };
-      }
-
-      case 'deleteMustDoItem': {
-        const mustDoDelSuccess = await db.deleteMustDoItem(args.id as string);
-
-        return {
-          success: mustDoDelSuccess,
-          message: mustDoDelSuccess
-            ? '필수 체크 항목이 삭제되었습니다.'
-            : '필수 체크 항목 삭제에 실패했습니다.',
         };
       }
 
@@ -1363,32 +1084,24 @@ export const SYSTEM_PROMPT = `당신은 뮤즈드마레(Muse de Marée) 마케�
    → getTasks, createTask, updateTask, deleteTask
    - "이번 주 할일", "1월 업무", "마케팅 태스크" 등의 질문에 대응
 
-3. 이슈관리 (/issues) - 이슈, 리스크, 의사결정, 위험요소, 문제점, 결정사항
-   → getIssues, createIssue, updateIssue, deleteIssue
-   - "긴급 이슈", "리스크 현황", "결정해야 할 사항" 등의 질문에 대응
-
-4. 캘린더 (/calendar) - 캘린더, 컨텐츠 캘린더, 컨텐츠 일정, SNS 일정, 포스팅 일정
+3. 캘린더 (/calendar) - 캘린더, 컨텐츠 캘린더, 컨텐츠 일정, SNS 일정, 포스팅 일정
    → getContents, createContent, updateContent, deleteContent
    - "인스타그램 일정", "이번 달 컨텐츠", "유튜브 업로드" 등의 질문에 대응
 
-5. KPI (/kpi) - KPI, 목표, 성과지표, 팔로워, 구독자, 성과
+4. KPI (/kpi) - KPI, 목표, 성과지표, 팔로워, 구독자, 성과
    → 현재 조회 기능만 제공 (향후 확장 가능)
 
-6. 재고관리 (/inventory) - 재고, 인벤토리, 병, 넘버링, 판매현황, 재고현황
+5. 재고관리 (/inventory) - 재고, 인벤토리, 병, 넘버링, 판매현황, 재고현황
    → getNumberedBottles, updateNumberedBottle (2025 퍼스트 에디션)
    → getInventoryBatches, updateInventoryBatch (2026 제품)
    → getInventoryTransactions, createInventoryTransaction (거래 내역)
    → getCustomProducts, createCustomProduct, deleteCustomProduct (커스텀 제품)
    - "넘버링 병 현황", "몇 병 남았어", "판매 기록", "예약 현황" 등의 질문에 대응
 
-7. 예산관리 (/budget) - 예산, 지출, 비용, 경비, 돈, 예산현황, 지출내역
+6. 예산관리 (/budget) - 예산, 지출, 비용, 경비, 돈, 예산현황, 지출내역
    → getBudgetItems, createBudgetItem, updateBudgetItem, deleteBudgetItem (예산)
    → getExpenseItems, createExpenseItem, updateExpenseItem, deleteExpenseItem (지출)
    - "이번 달 예산", "마케팅 비용", "지출 내역", "남은 예산" 등의 질문에 대응
-
-8. 필수 체크 (월별플랜 페이지 내) - 필수 체크, Must-Do, 체크리스트, 꼭 해야할 것
-   → getMustDoItems, createMustDoItem, toggleMustDo, updateMustDoItem, deleteMustDoItem
-   - "필수 체크 목록", "꼭 해야 할 일", "체크리스트 현황" 등의 질문에 대응
 
 ═══════════════════════════════════════════════════════════════════════════
 데이터 구조
@@ -1402,12 +1115,6 @@ export const SYSTEM_PROMPT = `당신은 뮤즈드마레(Muse de Marée) 마케�
 태스크:
 - 카테고리: operation(운영), marketing(마케팅), design(디자인), filming(촬영), pr(PR), b2b(B2B)
 - 상태: pending(대기), in_progress(진행중), done(완료)
-
-이슈:
-- 유형: issue(이슈), risk(리스크), decision(의사결정)
-- 우선순위: low(낮음), medium(보통), high(높음), critical(긴급)
-- 영향도: low(낮음), medium(보통), high(높음)
-- 상태: open(미해결), in_progress(처리중), resolved(해결됨), closed(종료)
 
 컨텐츠:
 - 유형: instagram(인스타그램), youtube(유튜브), blog(블로그), newsletter(뉴스레터), press(보도자료)
@@ -1447,8 +1154,6 @@ export const SYSTEM_PROMPT = `당신은 뮤즈드마레(Muse de Marée) 마케�
 
 용어 해석 예시:
 - "이번 달 할일" → 현재 월의 태스크 조회 (getTasks)
-- "긴급한 거 뭐 있어?" → critical 우선순위 이슈 조회 (getIssues)
 - "인스타 일정" → instagram 타입 컨텐츠 조회 (getContents)
 - "예산 얼마 남았어?" → 예산 및 지출 현황 조회 (getBudgetItems, getExpenseItems)
-- "넘버링 몇 번까지 팔렸어?" → 판매완료 상태 넘버링 병 조회 (getNumberedBottles)
-- "체크리스트 현황" → Must-Do 항목 조회 (getMustDoItems)`;
+- "넘버링 몇 번까지 팔렸어?" → 판매완료 상태 넘버링 병 조회 (getNumberedBottles)`;
