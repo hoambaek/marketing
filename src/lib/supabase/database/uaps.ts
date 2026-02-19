@@ -54,12 +54,12 @@ interface DBAgingPrediction {
   undersea_duration_months: number;
   aging_depth: number;
   immersion_date: string | null;
-  predicted_citrus: number | null;
-  predicted_brioche: number | null;
-  predicted_honey: number | null;
-  predicted_nutty: number | null;
-  predicted_toast: number | null;
-  predicted_oxidation: number | null;
+  predicted_fruity: number | null;
+  predicted_floral_mineral: number | null;
+  predicted_yeasty_autolytic: number | null;
+  predicted_acidity_freshness: number | null;
+  predicted_body_texture: number | null;
+  predicted_finish_complexity: number | null;
   texture_maturity_score: number | null;
   aroma_freshness_score: number | null;
   off_flavor_risk_score: number | null;
@@ -69,6 +69,8 @@ interface DBAgingPrediction {
   harvest_recommendation: string | null;
   ai_insight_text: string | null;
   ai_risk_warning: string | null;
+  expert_profile_json: Record<string, number> | null;
+  expert_sources: string[] | null;
   tci_applied: number;
   fri_applied: number;
   bri_applied: number;
@@ -87,14 +89,12 @@ interface DBWineTerrestrialData {
   alcohol: number | null;
   acidity: number | null;
   reduction_potential: string | null;
-  citrus_score: number | null;
-  green_apple_score: number | null;
-  brioche_score: number | null;
-  yeast_score: number | null;
-  honey_score: number | null;
-  nutty_score: number | null;
-  toast_score: number | null;
-  oxidation_score: number | null;
+  fruity_score: number | null;
+  floral_mineral_score: number | null;
+  yeasty_autolytic_score: number | null;
+  acidity_freshness_score: number | null;
+  body_texture_score: number | null;
+  finish_complexity_score: number | null;
   aging_years: number | null;
   aging_stage: string | null;
   drinking_window_start: number | null;
@@ -314,12 +314,12 @@ export async function createAgingPrediction(
       undersea_duration_months: prediction.underseaDurationMonths,
       aging_depth: prediction.agingDepth,
       immersion_date: prediction.immersionDate,
-      predicted_citrus: prediction.predictedCitrus,
-      predicted_brioche: prediction.predictedBrioche,
-      predicted_honey: prediction.predictedHoney,
-      predicted_nutty: prediction.predictedNutty,
-      predicted_toast: prediction.predictedToast,
-      predicted_oxidation: prediction.predictedOxidation,
+      predicted_fruity: prediction.predictedFruity,
+      predicted_floral_mineral: prediction.predictedFloralMineral,
+      predicted_yeasty_autolytic: prediction.predictedYeastyAutolytic,
+      predicted_acidity_freshness: prediction.predictedAcidityFreshness,
+      predicted_body_texture: prediction.predictedBodyTexture,
+      predicted_finish_complexity: prediction.predictedFinishComplexity,
       texture_maturity_score: prediction.textureMaturityScore,
       aroma_freshness_score: prediction.aromaFreshnessScore,
       off_flavor_risk_score: prediction.offFlavorRiskScore,
@@ -329,6 +329,8 @@ export async function createAgingPrediction(
       harvest_recommendation: prediction.harvestRecommendation,
       ai_insight_text: prediction.aiInsightText,
       ai_risk_warning: prediction.aiRiskWarning,
+      expert_profile_json: prediction.expertProfileJson,
+      expert_sources: prediction.expertSources,
       tci_applied: prediction.tciApplied,
       fri_applied: prediction.friApplied,
       bri_applied: prediction.briApplied,
@@ -417,14 +419,12 @@ export async function bulkInsertWineTerrestrialData(
     alcohol: r.alcohol,
     acidity: r.acidity,
     reduction_potential: r.reductionPotential,
-    citrus_score: r.citrusScore,
-    green_apple_score: r.greenAppleScore,
-    brioche_score: r.briocheScore,
-    yeast_score: r.yeastScore,
-    honey_score: r.honeyScore,
-    nutty_score: r.nuttyScore,
-    toast_score: r.toastScore,
-    oxidation_score: r.oxidationScore,
+    fruity_score: r.fruityScore,
+    floral_mineral_score: r.floralMineralScore,
+    yeasty_autolytic_score: r.yeastyAutolyticScore,
+    acidity_freshness_score: r.acidityFreshnessScore,
+    body_texture_score: r.bodyTextureScore,
+    finish_complexity_score: r.finishComplexityScore,
     aging_years: r.agingYears,
     aging_stage: r.agingStage,
     drinking_window_start: r.drinkingWindowStart,
@@ -626,12 +626,12 @@ function mapDbAgingPrediction(db: DBAgingPrediction): AgingPrediction {
     underseaDurationMonths: db.undersea_duration_months,
     agingDepth: db.aging_depth,
     immersionDate: db.immersion_date,
-    predictedCitrus: db.predicted_citrus,
-    predictedBrioche: db.predicted_brioche,
-    predictedHoney: db.predicted_honey,
-    predictedNutty: db.predicted_nutty,
-    predictedToast: db.predicted_toast,
-    predictedOxidation: db.predicted_oxidation,
+    predictedFruity: db.predicted_fruity,
+    predictedFloralMineral: db.predicted_floral_mineral,
+    predictedYeastyAutolytic: db.predicted_yeasty_autolytic,
+    predictedAcidityFreshness: db.predicted_acidity_freshness,
+    predictedBodyTexture: db.predicted_body_texture,
+    predictedFinishComplexity: db.predicted_finish_complexity,
     textureMaturityScore: db.texture_maturity_score,
     aromaFreshnessScore: db.aroma_freshness_score,
     offFlavorRiskScore: db.off_flavor_risk_score,
@@ -641,6 +641,8 @@ function mapDbAgingPrediction(db: DBAgingPrediction): AgingPrediction {
     harvestRecommendation: db.harvest_recommendation,
     aiInsightText: db.ai_insight_text,
     aiRiskWarning: db.ai_risk_warning,
+    expertProfileJson: db.expert_profile_json,
+    expertSources: db.expert_sources,
     tciApplied: db.tci_applied,
     friApplied: db.fri_applied,
     briApplied: db.bri_applied,
@@ -661,14 +663,12 @@ function mapDbWineTerrestrialData(db: DBWineTerrestrialData): WineTerrestrialDat
     alcohol: db.alcohol,
     acidity: db.acidity,
     reductionPotential: db.reduction_potential as WineTerrestrialData['reductionPotential'],
-    citrusScore: db.citrus_score,
-    greenAppleScore: db.green_apple_score,
-    briocheScore: db.brioche_score,
-    yeastScore: db.yeast_score,
-    honeyScore: db.honey_score,
-    nuttyScore: db.nutty_score,
-    toastScore: db.toast_score,
-    oxidationScore: db.oxidation_score,
+    fruityScore: db.fruity_score,
+    floralMineralScore: db.floral_mineral_score,
+    yeastyAutolyticScore: db.yeasty_autolytic_score,
+    acidityFreshnessScore: db.acidity_freshness_score,
+    bodyTextureScore: db.body_texture_score,
+    finishComplexityScore: db.finish_complexity_score,
     agingYears: db.aging_years,
     agingStage: db.aging_stage as WineTerrestrialData['agingStage'],
     drinkingWindowStart: db.drinking_window_start,
@@ -721,4 +721,37 @@ function mapDbUAPSConfig(db: DBUAPSConfig): UAPSConfig {
     createdAt: db.created_at,
     updatedAt: db.updated_at,
   };
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 벌크 인서트 (CellarTracker 데이터 수집용)
+// ═══════════════════════════════════════════════════════════════════════════
+
+export async function bulkInsertTerrestrialData(
+  records: Omit<DBWineTerrestrialData, 'id' | 'created_at' | 'updated_at'>[]
+): Promise<{ inserted: number; errors: number }> {
+  if (!isSupabaseConfigured()) return { inserted: 0, errors: 0 };
+
+  let totalInserted = 0;
+  let totalErrors = 0;
+  const BATCH_SIZE = 500;
+
+  for (let i = 0; i < records.length; i += BATCH_SIZE) {
+    const batch = records.slice(i, i + BATCH_SIZE);
+
+    const { data, error } = await supabase!
+      .from('wine_terrestrial_data')
+      .insert(batch)
+      .select('id');
+
+    if (error) {
+      dbLogger.error(`UAPS: 벌크 인서트 배치 ${i / BATCH_SIZE + 1} 실패:`, error);
+      totalErrors += batch.length;
+    } else {
+      totalInserted += data?.length || 0;
+    }
+  }
+
+  dbLogger.info(`UAPS: 벌크 인서트 완료 - 삽입: ${totalInserted}, 에러: ${totalErrors}`);
+  return { inserted: totalInserted, errors: totalErrors };
 }

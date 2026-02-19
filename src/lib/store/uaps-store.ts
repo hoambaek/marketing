@@ -9,6 +9,7 @@ import type {
   ProductInput,
   ModelStatus,
   ParsedUAPSConfig,
+  TerrestrialModel,
 } from '@/lib/types/uaps';
 import { DEFAULT_COEFFICIENTS } from '@/lib/types/uaps';
 import {
@@ -38,6 +39,7 @@ interface UAPSState {
   modelLastTrained: string | null;
   modelDataCount: number;
   modelGroupCount: number;
+  terrestrialModels: TerrestrialModel[];
 
   // 설정
   config: ParsedUAPSConfig;
@@ -82,6 +84,7 @@ export const useUAPSStore = create<UAPSState>((set, get) => ({
   modelLastTrained: null,
   modelDataCount: 0,
   modelGroupCount: 0,
+  terrestrialModels: [],
   config: {
     tci: DEFAULT_COEFFICIENTS.tci,
     fri: DEFAULT_COEFFICIENTS.fri,
@@ -166,9 +169,11 @@ export const useUAPSStore = create<UAPSState>((set, get) => ({
   },
 
   selectProduct: (id) => {
-    set({ selectedProductId: id, latestPrediction: null });
+    set({ selectedProductId: id });
     if (id) {
       get().loadPredictions(id);
+    } else {
+      set({ latestPrediction: null });
     }
   },
 
@@ -251,6 +256,7 @@ export const useUAPSStore = create<UAPSState>((set, get) => ({
         modelLastTrained: lastTrained,
         modelDataCount: dataCount,
         modelGroupCount: modelList.length,
+        terrestrialModels: modelList,
       });
     } catch (error) {
       storeLogger.error('UAPS: 모델 상태 조회 실패:', error);

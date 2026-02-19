@@ -15,7 +15,7 @@ import {
   createAgingPrediction,
 } from '@/lib/supabase/database/uaps';
 import { findSimilarClusters, parseUAPSConfig } from '@/lib/utils/uaps-engine';
-import { runAIPrediction, buildPredictionResult } from '@/lib/utils/uaps-ai-predictor';
+import { runAIPrediction, buildPredictionResult, generateExpertProfile } from '@/lib/utils/uaps-ai-predictor';
 
 export async function POST(request: NextRequest) {
   try {
@@ -55,12 +55,28 @@ export async function POST(request: NextRequest) {
 
     apiLogger.log('UAPS: 매칭 클러스터', clusters.length, '개');
 
-    // 4. Layer 2: AI 예측 실행
+    // 3.5. 전문가 프로파일 생성 (Google Search grounding)
+    let expertProfile: Record<string, number> | null = null;
+    let expertSources: string[] | null = null;
+    try {
+      const expertResult = await generateExpertProfile(product);
+      if (expertResult) {
+        expertProfile = expertResult.profile;
+        expertSources = expertResult.sources;
+        apiLogger.log('UAPS: 전문가 프로파일 생성 성공 (신뢰도:', expertResult.confidence, ')');
+      }
+    } catch (e) {
+      apiLogger.warn('UAPS: 전문가 프로파일 생성 실패, 통계 기반 사용:', e);
+    }
+
+    // 4. Layer 2: AI 예측 실행 (전문가 프로파일을 추가 컨텍스트로 전달)
     const aiResponse = await runAIPrediction(
       product,
       clusters,
       underseaDurationMonths,
-      config
+      config,
+      expertProfile,
+      expertSources
     );
 
     // 5. 결과 통합 (앙상블)
@@ -69,7 +85,9 @@ export async function POST(request: NextRequest) {
       aiResponse,
       clusters,
       underseaDurationMonths,
-      config
+      config,
+      expertProfile,
+      expertSources
     );
 
     // 6. DB에 저장

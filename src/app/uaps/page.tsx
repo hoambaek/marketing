@@ -1,6 +1,8 @@
 'use client';
 
-import { useEffect, useState, useMemo, useCallback } from 'react';
+import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
+import { createPortal } from 'react-dom';
+import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   RadarChart,
@@ -9,6 +11,7 @@ import {
   PolarAngleAxis,
   PolarRadiusAxis,
   ComposedChart,
+  Area,
   Line,
   XAxis,
   YAxis,
@@ -17,6 +20,8 @@ import {
   ResponsiveContainer,
   Legend,
   ReferenceArea,
+  ReferenceDot,
+  ReferenceLine,
 } from 'recharts';
 import {
   Anchor,
@@ -35,14 +40,13 @@ import {
   Target,
   Database,
   Gauge,
-  ShieldAlert,
   Save,
   BarChart3,
+  Info,
 } from 'lucide-react';
 import { useUAPSStore } from '@/lib/store/uaps-store';
 import type {
   AgingProduct,
-  AgingPrediction,
   ProductInput,
   WineType,
   ReductionPotential,
@@ -58,7 +62,10 @@ import {
 import {
   generateTimelineData,
   calculateOptimalHarvestWindow,
+  findSimilarClusters,
+  predictFlavorProfileStatistical,
 } from '@/lib/utils/uaps-engine';
+import { applyAgingAdjustments } from '@/lib/utils/uaps-ai-predictor';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // 공통 컴포넌트
@@ -157,6 +164,7 @@ export default function UAPSPage() {
     modelLastTrained,
     modelDataCount,
     modelGroupCount,
+    terrestrialModels,
     config,
     isLoading,
     isTraining,
@@ -190,7 +198,8 @@ export default function UAPSPage() {
 
   const [showModal, setShowModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState<AgingProduct | null>(null);
-  const [predictionMonths, setPredictionMonths] = useState(12);
+  const [showCoefficientDialog, setShowCoefficientDialog] = useState(false);
+  // predictionMonths는 제품의 plannedDurationMonths 사용
 
   const [localTci, setLocalTci] = useState(config.tci);
   const [localFri, setLocalFri] = useState(config.fri);
@@ -211,6 +220,35 @@ export default function UAPSPage() {
     if (!selectedProduct) return null;
     return calculateOptimalHarvestWindow(selectedProduct, config);
   }, [selectedProduct, config]);
+
+  const beforeProfile = useMemo(() => {
+    // 1순위: AI 예측에서 생성된 전문가 프로파일
+    if (latestPrediction?.expertProfileJson) {
+      return latestPrediction.expertProfileJson;
+    }
+    // 2순위: 기존 통계 기반
+    if (!selectedProduct || terrestrialModels.length === 0) return null;
+    const clusters = findSimilarClusters(selectedProduct, terrestrialModels);
+    if (clusters.length === 0) return null;
+    return predictFlavorProfileStatistical(clusters, 0, config, selectedProduct);
+  }, [selectedProduct, terrestrialModels, config, latestPrediction]);
+
+  const afterProfile = useMemo(() => {
+    if (!selectedProduct) return null;
+    const months = selectedProduct.plannedDurationMonths;
+    if (!months) return null;
+
+    // 전문가 프로파일이 있으면 TCI/FRI 보정만 적용
+    if (beforeProfile && latestPrediction?.expertProfileJson) {
+      return applyAgingAdjustments(beforeProfile, months, config);
+    }
+
+    // 통계 기반 폴백
+    if (terrestrialModels.length === 0) return null;
+    const clusters = findSimilarClusters(selectedProduct, terrestrialModels);
+    if (clusters.length === 0) return null;
+    return predictFlavorProfileStatistical(clusters, months, config, selectedProduct);
+  }, [selectedProduct, terrestrialModels, config, beforeProfile, latestPrediction]);
 
   const handleSaveCoefficients = useCallback(async () => {
     if (localTci !== config.tci) await updateCoefficient('tci_coefficient', localTci);
@@ -246,7 +284,7 @@ export default function UAPSPage() {
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
-            className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-red-500/20 border border-red-500/40 text-red-300 px-5 py-3 rounded-xl backdrop-blur-md flex items-center gap-3 max-w-lg"
+            className="fixed top-4 left-4 right-4 sm:left-1/2 sm:right-auto sm:-translate-x-1/2 z-50 bg-red-500/20 border border-red-500/40 text-red-300 px-4 sm:px-5 py-3 rounded-xl backdrop-blur-md flex items-center gap-3 sm:max-w-lg"
           >
             <AlertTriangle className="w-4 h-4 shrink-0" />
             <span className="text-sm">{error}</span>
@@ -303,6 +341,21 @@ export default function UAPSPage() {
               >
                 2-Layer Hybrid AI가 해저 숙성의 풍미 변화를 과학적으로 예측합니다
               </motion.p>
+
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 1.1 }}
+                className="mt-4"
+              >
+                <Link
+                  href="/uaps/how-it-works"
+                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border border-cyan-400/20 text-cyan-400/60 text-xs hover:bg-cyan-400/[0.06] hover:border-cyan-400/30 hover:text-cyan-400/80 transition-all duration-300"
+                >
+                  <Info className="w-3 h-3" />
+                  작동 원리
+                </Link>
+              </motion.div>
             </div>
           </motion.div>
         </div>
@@ -480,264 +533,360 @@ export default function UAPSPage() {
       </AnimatePresence>
 
         {/* ═══════════════════════════════════════════════════════════ */}
-        {/* 예측 시뮬레이터 */}
+        {/* 예측 시뮬레이터 + AI 인사이트 — 컴팩트 단일 행 */}
         {/* ═══════════════════════════════════════════════════════════ */}
         {selectedProductId && selectedProduct && (
-          <SectionWrapper
-            title="예측 시뮬레이터"
-            icon={Target}
-            iconColor="#22d3ee"
-            delay={0.2}
-            action={
-              <button
-                onClick={() => runPrediction(selectedProductId, predictionMonths)}
-                disabled={isPredicting}
-                className="flex items-center gap-2 bg-gradient-to-r from-cyan-500 to-cyan-400 text-black font-medium rounded-xl px-5 py-2 text-sm hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isPredicting ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Play className="w-4 h-4" />
-                )}
-                {isPredicting ? '분석 중...' : 'AI 예측'}
-              </button>
-            }
+          <motion.div
+            key="simulation-card"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3 }}
+            layout
+            className="relative"
           >
-            <div className="space-y-4">
-              {/* 슬라이더 */}
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <label className="text-sm text-white/50">숙성 기간</label>
-                  <span className="text-lg font-light text-cyan-400 tracking-tight">
-                    {predictionMonths}<span className="text-sm text-white/30 ml-1">개월</span>
-                  </span>
-                </div>
-                <input
-                  type="range"
-                  min={3}
-                  max={36}
-                  step={1}
-                  value={predictionMonths}
-                  onChange={(e) => setPredictionMonths(Number(e.target.value))}
-                  className="w-full accent-cyan-400 h-1.5 bg-white/[0.06] rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-cyan-400 [&::-webkit-slider-thumb]:shadow-[0_0_8px_rgba(34,211,238,0.4)]"
-                />
-                <div className="flex justify-between text-[10px] text-white/20">
-                  <span>3개월</span>
-                  <span>12</span>
-                  <span>24</span>
-                  <span>36개월</span>
-                </div>
-              </div>
+            <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/[0.02] to-transparent rounded-2xl" />
+            <div className="relative bg-[#0d1421]/60 backdrop-blur-xl border border-white/[0.06] rounded-2xl overflow-hidden">
+              {/* 상단 스트립 */}
+              <div className="absolute top-0 left-1/2 -translate-x-1/2 w-2/3 h-px bg-gradient-to-r from-transparent via-cyan-400/30 to-transparent" />
 
-              {/* 품질 점수 */}
-              {latestPrediction?.overallQualityScore != null && (
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  className="pt-4 border-t border-white/[0.06]"
-                >
-                  <div className="grid grid-cols-4 gap-3">
+              {/* 시뮬레이터 행 */}
+              <div className="px-4 sm:px-5 py-3.5 border-b border-white/[0.04] space-y-3 sm:space-y-0">
+                {/* 상단: 라벨 + 기간 + 버튼 */}
+                <div className="flex items-center gap-3 sm:gap-4">
+                  <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
+                    <div className="p-1.5 rounded-lg bg-cyan-500/[0.08]">
+                      <Target className="w-3.5 h-3.5 text-cyan-400" />
+                    </div>
+                    <span className="text-xs text-white/40 uppercase tracking-wider">Simulation</span>
+                  </div>
+
+                  {/* 숙성 기간 */}
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[10px] text-white/25">기간</span>
+                    <span className="text-sm font-light text-cyan-400 font-mono">
+                      {selectedProduct.plannedDurationMonths ?? '—'}
+                    </span>
+                    <span className="text-[10px] text-white/20">개월</span>
+                  </div>
+
+                  <div className="flex-1" />
+
+                  <button
+                    onClick={() => setShowCoefficientDialog(true)}
+                    className="p-2 sm:p-1.5 rounded-lg border border-white/[0.06] hover:border-white/[0.12] hover:bg-white/[0.04] text-white/30 hover:text-white/60 transition-all shrink-0"
+                    title="보정 계수 설정"
+                  >
+                    <Settings2 className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
+                  </button>
+                  <button
+                    onClick={() => runPrediction(selectedProductId, selectedProduct.plannedDurationMonths || 18)}
+                    disabled={isPredicting || !selectedProduct.plannedDurationMonths}
+                    className="flex items-center gap-1.5 bg-gradient-to-r from-cyan-500/90 to-cyan-400/90 text-black font-medium rounded-lg px-3.5 py-2 sm:py-1.5 text-xs hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
+                  >
+                    {isPredicting ? (
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                    ) : (
+                      <Play className="w-3 h-3" />
+                    )}
+                    {isPredicting ? '분석 중' : 'AI 예측'}
+                  </button>
+                </div>
+
+                {/* 품질 점수 — 모바일: 별도 행, 데스크톱: 인라인 */}
+                {latestPrediction?.overallQualityScore != null && (
+                  <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
                     {[
-                      { label: '종합 품질', value: latestPrediction.overallQualityScore, color: '#22d3ee' },
-                      { label: '질감 성숙', value: latestPrediction.textureMaturityScore, color: '#fbbf24' },
-                      { label: '향 신선도', value: latestPrediction.aromaFreshnessScore, color: '#34d399' },
-                      { label: 'Off-flavor', value: latestPrediction.offFlavorRiskScore, color: '#f87171' },
-                    ].map((score) => (
-                      <div key={score.label} className="text-center">
-                        <div
-                          className="w-14 h-14 mx-auto rounded-full border-2 flex items-center justify-center mb-1.5"
-                          style={{ borderColor: `${score.color}50`, backgroundColor: `${score.color}08` }}
-                        >
-                          <span className="text-lg font-light" style={{ color: score.color }}>
-                            {score.value != null ? Math.round(score.value) : '—'}
-                          </span>
-                        </div>
-                        <p className="text-[10px] text-white/40">{score.label}</p>
+                      { label: '종합', value: latestPrediction.overallQualityScore, color: '#C4A052' },
+                      { label: '질감', value: latestPrediction.textureMaturityScore, color: '#34d399' },
+                      { label: '향', value: latestPrediction.aromaFreshnessScore, color: '#22d3ee' },
+                      { label: '환원취', value: latestPrediction.offFlavorRiskScore, color: '#f87171' },
+                    ].map((s) => (
+                      <div key={s.label} className="flex items-center gap-1">
+                        <div className="w-1 h-1 rounded-full" style={{ backgroundColor: s.color }} />
+                        <span className="text-[10px] text-white/30">{s.label}</span>
+                        <span className="text-xs font-mono font-medium" style={{ color: `${s.color}cc` }}>
+                          {s.value != null ? Math.round(s.value) : '—'}
+                        </span>
                       </div>
                     ))}
+                    <span className="text-[9px] text-white/15 ml-1 font-mono">
+                      ±{Math.round((1 - latestPrediction.predictionConfidence) * 100)}%
+                    </span>
                   </div>
-                  <p className="text-[10px] text-white/30 text-center mt-3">
-                    예측 신뢰도 {Math.round(latestPrediction.predictionConfidence * 100)}%
-                  </p>
-                </motion.div>
-              )}
-            </div>
-          </SectionWrapper>
-        )}
-
-        {/* ═══════════════════════════════════════════════════════════ */}
-        {/* AI 인사이트 */}
-        {/* ═══════════════════════════════════════════════════════════ */}
-        {latestPrediction && (
-          <SectionWrapper title="AI 인사이트" icon={Sparkles} iconColor="#B76E79" delay={0.25}>
-            <div className="space-y-4">
-              {latestPrediction.aiInsightText && (
-                <div className="bg-white/[0.02] border border-white/[0.04] rounded-xl p-4">
-                  <p className="text-white/70 text-sm leading-relaxed italic">
-                    &ldquo;{latestPrediction.aiInsightText}&rdquo;
-                  </p>
-                </div>
-              )}
-
-              {latestPrediction.aiRiskWarning && (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="bg-red-500/[0.06] border border-red-500/20 rounded-xl p-4 flex items-start gap-3"
-                >
-                  <ShieldAlert className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
-                  <div>
-                    <p className="text-red-300 text-sm font-medium mb-1">리스크 경고</p>
-                    <p className="text-red-300/60 text-sm">{latestPrediction.aiRiskWarning}</p>
-                  </div>
-                </motion.div>
-              )}
-
-              {/* 신뢰도 바 */}
-              <div className="flex items-center gap-4">
-                <span className="text-xs text-white/40 shrink-0">신뢰도</span>
-                <div className="flex-1 h-1.5 bg-white/[0.06] rounded-full overflow-hidden">
-                  <motion.div
-                    initial={{ width: 0 }}
-                    animate={{ width: `${latestPrediction.predictionConfidence * 100}%` }}
-                    transition={{ duration: 0.8, ease: 'easeOut' }}
-                    className={`h-full rounded-full ${
-                      latestPrediction.predictionConfidence >= 0.8
-                        ? 'bg-emerald-400'
-                        : latestPrediction.predictionConfidence >= 0.5
-                          ? 'bg-amber-400'
-                          : 'bg-red-400'
-                    }`}
-                  />
-                </div>
-                <span className="text-xs text-white/50 font-mono shrink-0">
-                  {Math.round(latestPrediction.predictionConfidence * 100)}%
-                </span>
+                )}
               </div>
+
+              {/* AI 인사이트 행 */}
+              {latestPrediction && (
+                <div className="px-5 py-3 space-y-2">
+                  {latestPrediction.aiInsightText ? (
+                    <>
+                      {/* 투하 전·후 2단 인사이트 */}
+                      {latestPrediction.aiInsightText.includes('\n') ? (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                          {/* 투하 전 특징 */}
+                          <div className="flex items-start gap-2">
+                            <div className="p-1 rounded-md bg-cyan-400/[0.06] shrink-0 mt-0.5">
+                              <Wine className="w-3 h-3 text-cyan-400/60" />
+                            </div>
+                            <div className="min-w-0">
+                              <span className="text-[9px] text-cyan-400/40 uppercase tracking-wider">Before</span>
+                              <p className="text-[11px] text-white/50 leading-relaxed mt-0.5">
+                                {latestPrediction.aiInsightText.split('\n')[0]}
+                              </p>
+                            </div>
+                          </div>
+                          {/* 숙성 후 예측 */}
+                          <div className="flex items-start gap-2">
+                            <div className="p-1 rounded-md bg-[#B76E79]/[0.06] shrink-0 mt-0.5">
+                              <Sparkles className="w-3 h-3 text-[#B76E79]/60" />
+                            </div>
+                            <div className="min-w-0">
+                              <span className="text-[9px] text-[#B76E79]/40 uppercase tracking-wider">After</span>
+                              <p className="text-[11px] text-white/50 leading-relaxed mt-0.5">
+                                {latestPrediction.aiInsightText.split('\n').slice(1).join(' ')}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex items-start gap-2">
+                          <div className="p-1.5 rounded-lg bg-[#B76E79]/[0.08] shrink-0 mt-0.5">
+                            <Sparkles className="w-3.5 h-3.5 text-[#B76E79]" />
+                          </div>
+                          <p className="text-[11px] text-white/50 leading-relaxed">
+                            {latestPrediction.aiInsightText}
+                          </p>
+                        </div>
+                      )}
+                      {/* 출처 + 신뢰도 */}
+                      <div className="flex items-center justify-between">
+                        {latestPrediction.expertSources && latestPrediction.expertSources.length > 0 ? (
+                          <p className="text-[9px] text-white/20">
+                            Sources: {latestPrediction.expertSources.join(' · ')}
+                          </p>
+                        ) : <div />}
+                        {latestPrediction.predictionConfidence != null && (
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <div className="w-10 h-1 bg-white/[0.06] rounded-full overflow-hidden">
+                              <div
+                                className={`h-full rounded-full transition-all ${
+                                  latestPrediction.predictionConfidence >= 0.8 ? 'bg-emerald-400/60' :
+                                  latestPrediction.predictionConfidence >= 0.5 ? 'bg-amber-400/60' : 'bg-red-400/60'
+                                }`}
+                                style={{ width: `${latestPrediction.predictionConfidence * 100}%` }}
+                              />
+                            </div>
+                            <span className="text-[9px] text-white/25 font-mono">
+                              {Math.round(latestPrediction.predictionConfidence * 100)}%
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </>
+                  ) : (
+                    <p className="text-[11px] text-white/25 italic">AI 예측을 실행하면 투하 전·후 비교 인사이트가 표시됩니다</p>
+                  )}
+                </div>
+              )}
             </div>
-          </SectionWrapper>
+          </motion.div>
         )}
 
         {/* ═══════════════════════════════════════════════════════════ */}
         {/* 차트 (풍미 레이더 + 타임라인) */}
         {/* ═══════════════════════════════════════════════════════════ */}
-        {(latestPrediction || selectedProduct) && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {latestPrediction && (
-              <SectionWrapper title="풍미 프로파일" icon={BarChart3} iconColor="#B76E79" delay={0.3}>
-                <div className="h-[350px]">
-                  <FlavorRadar prediction={latestPrediction} />
-                </div>
-              </SectionWrapper>
-            )}
+        {(beforeProfile || afterProfile) && (
+          <SectionWrapper title="풍미 프로파일" icon={BarChart3} iconColor="#B76E79" delay={0.3}>
+            <FlavorRadar beforeProfile={beforeProfile} afterProfile={afterProfile} />
+          </SectionWrapper>
+        )}
 
-            {selectedProduct && timelineData.length > 0 && (
-              <SectionWrapper title="타임라인 & Golden Window" icon={Gauge} iconColor="#fbbf24" delay={0.35}>
-                <div className="h-[350px]">
-                  <TimelineChart data={timelineData} harvestWindow={harvestWindow} />
+        {selectedProduct && timelineData.length > 0 && (
+          <SectionWrapper title="숙성 타임라인" icon={Gauge} iconColor="#C4A052" delay={0.35}>
+            <div className="h-[280px] sm:h-[400px]">
+              <TimelineChart data={timelineData} harvestWindow={harvestWindow} />
+            </div>
+            {harvestWindow && (
+              <div className="mt-2.5 space-y-2">
+                {/* 핵심 지표 — 컴팩트 인라인 */}
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <div className="flex items-center gap-1.5 bg-[#C4A052]/[0.10] border border-[#C4A052]/[0.25] rounded-lg px-3 py-2 shadow-[0_0_12px_rgba(196,160,82,0.08)]">
+                    <span className="text-[9px] text-[#C4A052]/70 uppercase tracking-wider font-medium">Peak</span>
+                    <span className="text-sm font-medium text-[#C4A052]" style={{ fontFamily: "var(--font-cormorant), 'Cormorant Garamond', serif" }}>
+                      {harvestWindow.peakMonth}<span className="text-[10px] text-[#C4A052]/50 ml-px">개월</span>
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1.5 bg-white/[0.02] border border-white/[0.06] rounded-lg px-2.5 py-1.5" title="질감·향·환원취·기포를 종합한 품질 점수 (0~100)">
+                    <span className="text-[9px] text-white/25 uppercase tracking-wider">품질</span>
+                    <span className="text-sm font-light text-white/60" style={{ fontFamily: "var(--font-cormorant), 'Cormorant Garamond', serif" }}>
+                      {Math.round(harvestWindow.peakScore)}<span className="text-[10px] text-white/20 ml-px">/100</span>
+                    </span>
+                  </div>
                 </div>
-                {harvestWindow && (
-                  <p className="mt-3 text-xs text-white/35 leading-relaxed">
-                    {harvestWindow.recommendation}
-                  </p>
-                )}
-              </SectionWrapper>
+                {/* 범례 — 고스트 라인 포함 */}
+                <div className="flex flex-wrap items-center gap-x-2.5 sm:gap-x-3 gap-y-1.5">
+                  <div className="flex items-center gap-1">
+                    <div className="w-3 h-0.5 rounded-full bg-[#C4A052]" />
+                    <span className="text-[9px] text-white/30">종합 품질</span>
+                  </div>
+                  <span className="text-white/10 text-[8px] hidden sm:inline">|</span>
+                  <div className="flex items-center gap-1">
+                    <div className="w-3 h-px bg-emerald-400/40" />
+                    <span className="text-[9px] text-emerald-400/30">질감</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <div className="w-3 h-px border-t border-dashed border-emerald-400/30" />
+                    <span className="text-[9px] text-emerald-400/30">기포</span>
+                  </div>
+                  <span className="text-white/10 text-[8px] hidden sm:inline">|</span>
+                  <div className="flex items-center gap-1">
+                    <div className="w-3 h-px bg-red-400/35" />
+                    <span className="text-[9px] text-red-400/30">향 감쇠</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <div className="w-3 h-px border-t border-dashed border-red-400/30" />
+                    <span className="text-[9px] text-red-400/30">환원취</span>
+                  </div>
+                </div>
+              </div>
             )}
-          </div>
+          </SectionWrapper>
         )}
 
         {/* ═══════════════════════════════════════════════════════════ */}
-        {/* 모델 & 보정 계수 설정 */}
+        {/* 모델 상태 */}
         {/* ═══════════════════════════════════════════════════════════ */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* 모델 상태 */}
-          <SectionWrapper title="모델 상태" icon={Settings2} iconColor="#C4A052" delay={0.4}>
-            <div className="space-y-3 mb-5">
-              {[
-                { label: '상태', value: MODEL_STATUS_LABELS[modelStatus], badge: true },
-                { label: '최종 학습일', value: modelLastTrained ? new Date(modelLastTrained).toLocaleDateString('ko-KR') : '—' },
-                { label: '학습 데이터', value: `${modelDataCount.toLocaleString()}건` },
-                { label: '모델 그룹', value: `${modelGroupCount}개` },
-              ].map((row) => (
-                <div key={row.label} className="flex items-center justify-between">
-                  <span className="text-xs text-white/40">{row.label}</span>
-                  {row.badge ? (
-                    <span
-                      className={`text-xs font-medium px-2.5 py-0.5 rounded-full ${
-                        modelStatus === 'trained'
-                          ? 'bg-emerald-500/15 text-emerald-400'
-                          : modelStatus === 'training'
-                            ? 'bg-amber-500/15 text-amber-400'
-                            : 'bg-white/[0.06] text-white/40'
-                      }`}
-                    >
-                      {row.value}
-                    </span>
-                  ) : (
-                    <span className="text-xs text-white/60 font-mono">{row.value}</span>
-                  )}
-                </div>
-              ))}
-            </div>
-            <button
-              onClick={trainModel}
-              disabled={isTraining}
-              className="w-full flex items-center justify-center gap-2 bg-[#C4A052]/15 hover:bg-[#C4A052]/25 border border-[#C4A052]/20 text-[#C4A052] font-medium rounded-xl px-4 py-2.5 text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isTraining ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <RefreshCw className="w-4 h-4" />
-              )}
-              {isTraining ? '학습 진행 중...' : '모델 재학습'}
-            </button>
-          </SectionWrapper>
+        <SectionWrapper title="모델 상태" icon={Settings2} iconColor="#C4A052" delay={0.4}>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-5">
+            {[
+              { label: '상태', value: MODEL_STATUS_LABELS[modelStatus], badge: true },
+              { label: '최종 학습일', value: modelLastTrained ? new Date(modelLastTrained).toLocaleDateString('ko-KR') : '—' },
+              { label: '학습 데이터', value: `${modelDataCount.toLocaleString()}건` },
+              { label: '모델 그룹', value: `${modelGroupCount}개` },
+            ].map((row) => (
+              <div key={row.label} className="text-center sm:text-left">
+                <span className="text-[10px] text-white/30 uppercase tracking-wider block mb-1">{row.label}</span>
+                {row.badge ? (
+                  <span
+                    className={`text-xs font-medium px-2.5 py-0.5 rounded-full ${
+                      modelStatus === 'trained'
+                        ? 'bg-emerald-500/15 text-emerald-400'
+                        : modelStatus === 'training'
+                          ? 'bg-amber-500/15 text-amber-400'
+                          : 'bg-white/[0.06] text-white/40'
+                    }`}
+                  >
+                    {row.value}
+                  </span>
+                ) : (
+                  <span className="text-sm text-white/60 font-mono">{row.value}</span>
+                )}
+              </div>
+            ))}
+          </div>
+          <button
+            onClick={trainModel}
+            disabled={isTraining}
+            className="w-full flex items-center justify-center gap-2 bg-[#C4A052]/15 hover:bg-[#C4A052]/25 border border-[#C4A052]/20 text-[#C4A052] font-medium rounded-xl px-4 py-2.5 text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isTraining ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <RefreshCw className="w-4 h-4" />
+            )}
+            {isTraining ? '학습 진행 중...' : '모델 재학습'}
+          </button>
+        </SectionWrapper>
 
-          {/* 보정 계수 */}
-          <SectionWrapper title="보정 계수" icon={Settings2} iconColor="#22d3ee" delay={0.45}>
-            <div className="space-y-5 mb-5">
-              <CoefficientSlider
-                label="TCI (질감 성숙)"
-                value={localTci}
-                onChange={setLocalTci}
-                min={0.1}
-                max={1.0}
-                step={0.05}
-                scientificBasis="가설적 추정 — 실험 검증 필요"
-                sourceType="hypothesis"
-              />
-              <CoefficientSlider
-                label="FRI (향 신선도)"
-                value={localFri}
-                onChange={setLocalFri}
-                min={0.1}
-                max={1.0}
-                step={0.01}
-                scientificBasis="아레니우스 방정식 · Ea=47kJ/mol"
-                recommendedValue={0.56}
-                sourceType="scientific"
-              />
-              <CoefficientSlider
-                label="BRI (기포 안정화)"
-                value={localBri}
-                onChange={setLocalBri}
-                min={1.0}
-                max={2.5}
-                step={0.05}
-                scientificBasis="헨리의 법칙 · 수심 30m CO₂ 압력 구배"
-                recommendedValue={1.6}
-                sourceType="scientific"
-              />
-            </div>
-            <button
-              onClick={handleSaveCoefficients}
-              className="w-full flex items-center justify-center gap-2 bg-white/[0.06] hover:bg-white/[0.1] border border-white/[0.08] text-white/80 hover:text-white font-medium rounded-xl px-4 py-2.5 text-sm transition-all"
+        {/* 보정 계수 다이얼로그 */}
+        <AnimatePresence>
+          {showCoefficientDialog && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md"
+              onClick={(e) => { if (e.target === e.currentTarget) setShowCoefficientDialog(false); }}
             >
-              <Save className="w-4 h-4" />
-              저장
-            </button>
-          </SectionWrapper>
-        </div>
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                className="bg-[#0d1421] border border-white/[0.08] rounded-2xl w-full max-w-md shadow-2xl overflow-hidden"
+              >
+                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-1/2 h-px bg-gradient-to-r from-transparent via-cyan-400/30 to-transparent" />
+                <div className="flex items-center gap-3 px-5 py-4 border-b border-white/[0.06]">
+                  <div className="p-2 bg-cyan-500/10 rounded-xl">
+                    <Settings2 className="w-4 h-4 text-cyan-400" />
+                  </div>
+                  <div className="flex-1">
+                    <h2 className="text-sm font-medium text-white">보정 계수</h2>
+                    <p className="text-[10px] text-white/25 mt-0.5">예측 시 적용 · 모델 학습에는 미사용</p>
+                  </div>
+                  <button onClick={() => setShowCoefficientDialog(false)} className="text-white/30 hover:text-white transition-colors">
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+                <div className="p-5 space-y-5">
+                  <CoefficientSlider
+                    label="TCI (질감 성숙)"
+                    value={localTci}
+                    onChange={setLocalTci}
+                    min={0.1}
+                    max={1.0}
+                    step={0.05}
+                    scientificBasis="가설적 추정 — 실험 검증 필요"
+                    sourceType="hypothesis"
+                    description={`Texture Catalysis Index — 해저 환경이 질감 발전(효모 자가분해·바디감)을 얼마나 촉진하는지 나타냅니다.\n\n도출 방식: 현재는 실험 데이터가 없어 가설 기반 추정치입니다. 해저의 일정한 저온(4~8°C)·고압(수심 30m ≈ 4기압) 환경이 효모 세포벽 분해를 가속한다는 가설에 기반하며, 값이 높을수록 숙성이 빠르게 진행됩니다.\n\n향후 실제 해저 숙성 와인의 관능 평가 데이터로 검증·보정할 예정입니다.`}
+                  />
+                  <CoefficientSlider
+                    label="FRI (향 신선도)"
+                    value={localFri}
+                    onChange={setLocalFri}
+                    min={0.1}
+                    max={1.0}
+                    step={0.01}
+                    scientificBasis="아레니우스 방정식 · Ea=47kJ/mol"
+                    recommendedValue={0.56}
+                    sourceType="scientific"
+                    description={`Freshness Retention Index — 해저 숙성 중 과실향·산도가 보존되는 비율입니다.\n\n아레니우스 방정식이란?\n화학 반응 속도가 온도에 따라 얼마나 변하는지 계산하는 공식입니다.\n  k = A × e^(-Ea / RT)\n  k: 반응 속도, Ea: 활성화 에너지, R: 기체 상수, T: 절대 온도\n\n계산 방식:\n해저(약 6°C)와 셀러(약 12°C)의 산화 반응 속도를 비교합니다.\n  셀러 속도: k₁ = A × e^(-47000 / 8.314 × 285)\n  해저 속도: k₂ = A × e^(-47000 / 8.314 × 279)\n  FRI = k₂ / k₁ ≈ 0.56\n\n즉, 해저에서는 향 손실이 셀러 대비 56% 수준으로 느려집니다.`}
+                  />
+                  <CoefficientSlider
+                    label="BRI (기포 안정화)"
+                    value={localBri}
+                    onChange={setLocalBri}
+                    min={1.0}
+                    max={2.5}
+                    step={0.05}
+                    scientificBasis="헨리의 법칙 · 수심 30m CO₂ 압력 구배"
+                    recommendedValue={1.6}
+                    sourceType="scientific"
+                    description={`Bubble Refinement Index — 수압이 CO₂ 기포를 얼마나 미세하게 만드는지 나타냅니다.\n\n헨리의 법칙이란?\n기체가 액체에 녹는 양은 압력에 비례한다는 법칙입니다.\n  C = k_H × P\n  C: 용해된 기체 농도, k_H: 헨리 상수, P: 기체 압력\n\n계산 방식:\n수심 30m에서는 수압이 약 4기압(지상 1 + 수압 3)입니다.\n  지상 CO₂ 용해: C₁ = k_H × 1atm\n  해저 CO₂ 용해: C₂ = k_H × 4atm\n  BRI = C₂ / C₁ = 4.0 (이론값)\n\n실제로는 온도·와인 성분 영향으로 보정하여 권장값 1.6을 사용합니다. 값이 높을수록 CO₂가 더 많이 녹아 기포가 작고 섬세해집니다.`}
+                  />
+                </div>
+                <div className="flex gap-3 px-5 pb-5">
+                  <button
+                    onClick={() => setShowCoefficientDialog(false)}
+                    className="flex-1 bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-white/50 rounded-xl py-2 text-sm transition-colors"
+                  >
+                    취소
+                  </button>
+                  <button
+                    onClick={async () => {
+                      await handleSaveCoefficients();
+                      setShowCoefficientDialog(false);
+                    }}
+                    className="flex-1 flex items-center justify-center gap-2 bg-gradient-to-r from-cyan-500/90 to-cyan-400/90 text-black font-medium rounded-xl py-2 text-sm hover:opacity-90 transition-opacity"
+                  >
+                    <Save className="w-3.5 h-3.5" />
+                    저장
+                  </button>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   );
@@ -889,7 +1038,7 @@ function ProductModal({
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
               <label className={labelClass}>pH <span className="text-white/20">(선택)</span></label>
               <input type="number" step="0.01" value={ph} onChange={(e) => setPh(e.target.value)} placeholder="3.10" className={inputClass} />
@@ -929,7 +1078,7 @@ function ProductModal({
                     <span className={`text-sm ${reductionChecks[item.id] ? 'text-white' : 'text-white/60'}`}>
                       {item.label}
                     </span>
-                    <span className="text-[11px] text-white/30 ml-2">{item.desc}</span>
+                    <span className="text-[11px] text-white/30 ml-2 hidden sm:inline">{item.desc}</span>
                   </div>
                   <span className={`text-xs font-mono ${item.weight > 0 ? 'text-red-400/60' : item.weight < 0 ? 'text-emerald-400/60' : 'text-white/20'}`}>
                     {item.weight > 0 ? '+' : ''}{item.weight}
@@ -959,7 +1108,7 @@ function ProductModal({
                     <span className={`text-sm ${reductionChecks[item.id] ? 'text-white' : 'text-white/60'}`}>
                       {item.label}
                     </span>
-                    <span className="text-[11px] text-white/30 ml-2">{item.desc}</span>
+                    <span className="text-[11px] text-white/30 ml-2 hidden sm:inline">{item.desc}</span>
                   </div>
                   <span className={`text-xs font-mono ${item.weight > 0 ? 'text-red-400/60' : 'text-emerald-400/60'}`}>
                     {item.weight > 0 ? '+' : ''}{item.weight}
@@ -981,7 +1130,7 @@ function ProductModal({
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
               <label className={labelClass}>투하 예정일</label>
               <input type="date" value={immersionDate} onChange={(e) => setImmersionDate(e.target.value)} className={inputClass} />
@@ -1034,37 +1183,144 @@ function ProductModal({
 // Flavor Radar 차트
 // ═══════════════════════════════════════════════════════════════════════════
 
-const BASELINE_PROFILES: Record<WineType, Record<string, number>> = {
-  blanc_de_blancs: { citrus: 75, brioche: 12, honey: 8, nutty: 6, toast: 5, oxidation: 3 },
-  blanc_de_noirs:  { citrus: 60, brioche: 18, honey: 10, nutty: 12, toast: 8, oxidation: 5 },
-  rose:            { citrus: 55, brioche: 15, honey: 12, nutty: 8, toast: 6, oxidation: 4 },
-  blend:           { citrus: 65, brioche: 15, honey: 10, nutty: 10, toast: 7, oxidation: 4 },
-  vintage:         { citrus: 45, brioche: 25, honey: 18, nutty: 20, toast: 15, oxidation: 8 },
+const FALLBACK_PROFILES: Record<WineType, Record<string, number>> = {
+  blanc_de_blancs: { fruity: 70, floralMineral: 65, yeastyAutolytic: 35, acidityFreshness: 80, bodyTexture: 45, finishComplexity: 55 },
+  blanc_de_noirs:  { fruity: 55, floralMineral: 40, yeastyAutolytic: 45, acidityFreshness: 65, bodyTexture: 65, finishComplexity: 55 },
+  rose:            { fruity: 65, floralMineral: 50, yeastyAutolytic: 30, acidityFreshness: 70, bodyTexture: 50, finishComplexity: 45 },
+  blend:           { fruity: 60, floralMineral: 45, yeastyAutolytic: 40, acidityFreshness: 70, bodyTexture: 55, finishComplexity: 50 },
+  vintage:         { fruity: 40, floralMineral: 55, yeastyAutolytic: 65, acidityFreshness: 55, bodyTexture: 70, finishComplexity: 75 },
 };
 
-function FlavorRadar({ prediction }: { prediction: AgingPrediction }) {
-  const baseline = BASELINE_PROFILES[prediction.wineType] || BASELINE_PROFILES.blend;
+function FlavorRadar({
+  beforeProfile,
+  afterProfile,
+}: {
+  beforeProfile: Record<string, number> | null;
+  afterProfile: Record<string, number> | null;
+}) {
+  const before = beforeProfile || FALLBACK_PROFILES.blend;
+  const after = afterProfile || before;
 
-  const radarData = FLAVOR_AXES.map((axis) => {
-    const predictedKey = `predicted${axis.key.charAt(0).toUpperCase() + axis.key.slice(1)}` as keyof AgingPrediction;
-    return {
-      axis: axis.label,
-      before: baseline[axis.key] ?? 30,
-      after: (prediction[predictedKey] as number | null) ?? 30,
-    };
-  });
+  const radarData = FLAVOR_AXES.map((axis) => ({
+    axis: axis.label,
+    before: Math.round(Math.min(100, Math.max(5, before[axis.key] ?? 50))),
+    after: Math.round(Math.min(100, Math.max(5, after[axis.key] ?? 50))),
+  }));
+
+  const changes = radarData.map((d) => ({
+    label: d.axis,
+    before: d.before,
+    after: d.after,
+    diff: d.after - d.before,
+  }));
 
   return (
-    <ResponsiveContainer width="100%" height="100%">
-      <RadarChart data={radarData} cx="50%" cy="50%" outerRadius="70%">
-        <PolarGrid stroke="rgba(255,255,255,0.06)" />
-        <PolarAngleAxis dataKey="axis" tick={{ fill: 'rgba(255,255,255,0.5)', fontSize: 11 }} />
-        <PolarRadiusAxis angle={90} domain={[0, 100]} tick={{ fill: 'rgba(255,255,255,0.2)', fontSize: 9 }} tickCount={5} />
-        <Radar name="투하 전" dataKey="before" stroke="#22d3ee" fill="#22d3ee" fillOpacity={0.15} strokeWidth={1} strokeDasharray="4 4" />
-        <Radar name="AI 예측" dataKey="after" stroke="#B76E79" fill="#B76E79" fillOpacity={0.35} strokeWidth={2} />
-        <Legend wrapperStyle={{ fontSize: 11, color: 'rgba(255,255,255,0.5)' }} />
-      </RadarChart>
-    </ResponsiveContainer>
+    <div className="flex flex-col lg:flex-row gap-4 lg:gap-0">
+      {/* 레이더 차트 — 좌측, 크게 */}
+      <div className="flex-1 h-[300px] sm:h-[380px] lg:h-[420px] relative">
+        <ResponsiveContainer width="100%" height="100%">
+          <RadarChart data={radarData} cx="50%" cy="50%" outerRadius="78%">
+            <defs>
+              <radialGradient id="radarBeforeFill" cx="50%" cy="50%" r="50%">
+                <stop offset="0%" stopColor="#22d3ee" stopOpacity={0.10} />
+                <stop offset="100%" stopColor="#22d3ee" stopOpacity={0.02} />
+              </radialGradient>
+              <radialGradient id="radarAfterFill" cx="50%" cy="50%" r="50%">
+                <stop offset="0%" stopColor="#B76E79" stopOpacity={0.35} />
+                <stop offset="100%" stopColor="#B76E79" stopOpacity={0.06} />
+              </radialGradient>
+              <filter id="radarGlow">
+                <feGaussianBlur stdDeviation="3" result="blur" />
+                <feMerge>
+                  <feMergeNode in="blur" />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
+              </filter>
+            </defs>
+            <PolarGrid stroke="rgba(255,255,255,0.04)" gridType="circle" />
+            <PolarAngleAxis
+              dataKey="axis"
+              tick={{ fill: 'rgba(255,255,255,0.5)', fontSize: 11, fontFamily: 'var(--font-pretendard, Pretendard, sans-serif)' }}
+              tickLine={false}
+            />
+            <PolarRadiusAxis
+              angle={90}
+              domain={[0, 100]}
+              tick={false}
+              axisLine={false}
+            />
+            <Radar
+              name="투하 전"
+              dataKey="before"
+              stroke="rgba(34,211,238,0.4)"
+              fill="url(#radarBeforeFill)"
+              strokeWidth={1}
+              strokeDasharray="4 3"
+            />
+            <Radar
+              name="AI 예측"
+              dataKey="after"
+              stroke="#B76E79"
+              fill="url(#radarAfterFill)"
+              strokeWidth={2}
+              filter="url(#radarGlow)"
+            />
+          </RadarChart>
+        </ResponsiveContainer>
+      </div>
+
+      {/* 우측 패널 — 범례 + 변화량 */}
+      <div className="lg:w-[220px] flex flex-col justify-center lg:pl-2 lg:border-l lg:border-white/[0.04]">
+        {/* 범례 */}
+        <div className="flex lg:flex-col items-center lg:items-start gap-3 lg:gap-2 mb-4 lg:mb-5">
+          <div className="flex items-center gap-2">
+            <div className="w-5 h-px border-t border-dashed border-cyan-400/50" />
+            <span className="text-[10px] text-white/40 tracking-wide">투하 전</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-5 h-[2px] rounded-full bg-[#B76E79]" />
+            <span className="text-[10px] text-white/40 tracking-wide">해저 숙성 후</span>
+          </div>
+        </div>
+
+        {/* 6축 변화량 카드 */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-1 gap-1.5">
+          {changes.map((c) => {
+            const isPositive = c.diff > 0;
+            const isNegative = c.diff < 0;
+            return (
+              <div
+                key={c.label}
+                className={`flex items-center justify-between rounded-lg px-3 py-2 transition-colors ${
+                  isPositive
+                    ? 'bg-[#B76E79]/[0.06] border border-[#B76E79]/[0.12]'
+                    : isNegative
+                    ? 'bg-cyan-400/[0.04] border border-cyan-400/[0.08]'
+                    : 'bg-white/[0.02] border border-white/[0.04]'
+                }`}
+              >
+                <div className="flex flex-col">
+                  <span className="text-[9px] text-white/30 tracking-wide leading-none mb-0.5">{c.label}</span>
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-[10px] text-white/20 font-mono">{c.before}</span>
+                    <span className="text-[8px] text-white/15">→</span>
+                    <span className="text-[10px] text-white/45 font-mono">{c.after}</span>
+                  </div>
+                </div>
+                <span
+                  className={`text-xs font-mono font-semibold tabular-nums ${
+                    isPositive ? 'text-[#B76E79]' : isNegative ? 'text-cyan-400/70' : 'text-white/15'
+                  }`}
+                  style={{ fontFamily: "var(--font-cormorant), 'Cormorant Garamond', serif" }}
+                >
+                  {isPositive ? '+' : ''}{c.diff}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -1076,44 +1332,144 @@ function TimelineChart({
   data,
   harvestWindow,
 }: {
-  data: { month: number; textureMaturity: number; aromaFreshness: number; offFlavorRisk: number; bubbleRefinement: number }[];
-  harvestWindow: { startMonths: number; endMonths: number; recommendation: string } | null;
+  data: { month: number; textureMaturity: number; aromaFreshness: number; offFlavorRisk: number; bubbleRefinement: number; compositeQuality?: number; gainScore?: number; lossScore?: number; netBenefit?: number }[];
+  harvestWindow: { startMonths: number; endMonths: number; peakMonth: number; peakScore: number; recommendation: string } | null;
 }) {
+  const peakPoint = harvestWindow
+    ? data.find((d) => d.month === harvestWindow.peakMonth)
+    : null;
+
+  // 커스텀 툴팁
+  const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?: { value: number; dataKey: string }[]; label?: number }) => {
+    if (!active || !payload?.length) return null;
+    const get = (key: string) => payload.find((p) => p.dataKey === key)?.value;
+    const quality = get('compositeQuality');
+    const texture = get('textureMaturity');
+    const bubble = get('bubbleRefinement');
+    const aroma = get('aromaFreshness');
+    const offFlavor = get('offFlavorRisk');
+    const isPeak = harvestWindow && label === harvestWindow.peakMonth;
+    return (
+      <div className={`px-3 py-2.5 rounded-xl border backdrop-blur-md ${isPeak ? 'bg-[#C4A052]/10 border-[#C4A052]/30' : 'bg-[#0d1421]/90 border-white/[0.08]'}`}>
+        <div className="flex items-center justify-between gap-4 mb-1.5">
+          <span className={`text-[11px] font-medium ${isPeak ? 'text-[#C4A052]' : 'text-white/60'}`}>
+            {label}개월{isPeak ? ' — Peak' : ''}
+          </span>
+          {quality != null && (
+            <span className="text-sm font-mono font-medium text-[#C4A052]">{Math.round(quality)}</span>
+          )}
+        </div>
+        <div className="grid grid-cols-2 gap-x-3 gap-y-0.5">
+          {texture != null && <span className="text-[10px] text-emerald-400/60">질감 {Math.round(texture)}</span>}
+          {aroma != null && <span className="text-[10px] text-red-400/50">향 {Math.round(aroma)}</span>}
+          {bubble != null && <span className="text-[10px] text-emerald-400/60">기포 {Math.round(bubble)}</span>}
+          {offFlavor != null && <span className="text-[10px] text-red-400/50">환원취 {Math.round(offFlavor)}</span>}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <ResponsiveContainer width="100%" height="100%">
-      <ComposedChart data={data} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
-        <CartesianGrid stroke="rgba(255,255,255,0.04)" />
-        <XAxis dataKey="month" tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 10 }} tickFormatter={(v) => `${v}m`} />
-        <YAxis domain={[0, 100]} tick={{ fill: 'rgba(255,255,255,0.3)', fontSize: 10 }} />
-        <Tooltip
-          contentStyle={{
-            background: '#0d1421',
-            border: '1px solid rgba(255,255,255,0.08)',
-            borderRadius: '12px',
-            fontSize: '12px',
-          }}
-          labelFormatter={(v) => `${v}개월`}
-        />
-        <Legend wrapperStyle={{ fontSize: 11, color: 'rgba(255,255,255,0.5)' }} />
+      <ComposedChart data={data} margin={{ top: 20, right: 12, left: -10, bottom: 5 }}>
+        <defs>
+          {/* 종합 품질 곡선 아래 그라디언트 — 금색 */}
+          <linearGradient id="qualityGradient" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#C4A052" stopOpacity={0.2} />
+            <stop offset="60%" stopColor="#C4A052" stopOpacity={0.05} />
+            <stop offset="100%" stopColor="#C4A052" stopOpacity={0} />
+          </linearGradient>
+          {/* 이득 영역 */}
+          <linearGradient id="gainFill" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#22c55e" stopOpacity={0.22} />
+            <stop offset="70%" stopColor="#22c55e" stopOpacity={0.08} />
+            <stop offset="100%" stopColor="#22c55e" stopOpacity={0.02} />
+          </linearGradient>
+          {/* 손실 영역 */}
+          <linearGradient id="lossFill" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#ef4444" stopOpacity={0.18} />
+            <stop offset="70%" stopColor="#ef4444" stopOpacity={0.06} />
+            <stop offset="100%" stopColor="#ef4444" stopOpacity={0.02} />
+          </linearGradient>
+          {/* 피크 마커 글로우 */}
+          <filter id="peakGlow">
+            <feGaussianBlur stdDeviation="4" result="blur" />
+            <feMerge>
+              <feMergeNode in="blur" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+        </defs>
 
+        <CartesianGrid stroke="rgba(255,255,255,0.03)" vertical={false} />
+        <XAxis
+          dataKey="month"
+          tick={{ fill: 'rgba(255,255,255,0.3)', fontSize: 9 }}
+          tickFormatter={(v) => `${v}`}
+          axisLine={{ stroke: 'rgba(255,255,255,0.06)' }}
+          tickLine={false}
+          label={{ value: '개월', position: 'insideBottomRight', offset: -5, fill: 'rgba(255,255,255,0.2)', fontSize: 9 }}
+        />
+        <YAxis
+          domain={[0, 100]}
+          tick={{ fill: 'rgba(255,255,255,0.2)', fontSize: 9 }}
+          axisLine={false}
+          tickLine={false}
+          tickCount={6}
+        />
+        <Tooltip content={<CustomTooltip />} cursor={{ stroke: 'rgba(196,160,82,0.2)', strokeWidth: 1, strokeDasharray: '3 3' }} />
+
+        {/* 3구간 배경 제거됨 */}
+
+        {/* 이득/손실 영역 — 극히 미묘한 배경 */}
+        <Area type="monotone" dataKey="gainScore" stroke="none" fill="url(#gainFill)" legendType="none" />
+        <Area type="monotone" dataKey="lossScore" stroke="none" fill="url(#lossFill)" legendType="none" />
+
+        {/* 이득 고스트 라인: 질감(실선) + 기포(점선) — 에메랄드 */}
+        <Line type="monotone" dataKey="textureMaturity" stroke="#34d399" strokeWidth={1} strokeOpacity={0.4} dot={false} legendType="none" />
+        <Line type="monotone" dataKey="bubbleRefinement" stroke="#34d399" strokeWidth={1} strokeOpacity={0.3} strokeDasharray="3 4" dot={false} legendType="none" />
+
+        {/* 손실 고스트 라인: 향 신선도(실선, 하강=감쇠) + Off-flavor(점선) — 레드 */}
+        <Line type="monotone" dataKey="aromaFreshness" stroke="#f87171" strokeWidth={1} strokeOpacity={0.35} dot={false} legendType="none" />
+        <Line type="monotone" dataKey="offFlavorRisk" stroke="#f87171" strokeWidth={1} strokeOpacity={0.3} strokeDasharray="3 4" dot={false} legendType="none" />
+
+        {/* 종합 품질 곡선 — 주인공 */}
+        <Area
+          type="monotone"
+          dataKey="compositeQuality"
+          stroke="#C4A052"
+          strokeWidth={2.5}
+          fill="url(#qualityGradient)"
+          dot={false}
+          activeDot={{ r: 4, fill: '#C4A052', stroke: 'rgba(255,255,255,0.8)', strokeWidth: 1.5 }}
+          legendType="none"
+        />
+
+        {/* 피크 수직선 */}
         {harvestWindow && (
-          <ReferenceArea
-            x1={harvestWindow.startMonths}
-            x2={harvestWindow.endMonths}
-            y1={0}
-            y2={100}
-            fill="#22c55e"
-            fillOpacity={0.06}
-            stroke="#22c55e"
-            strokeOpacity={0.15}
-            strokeDasharray="4 4"
+          <ReferenceLine
+            x={harvestWindow.peakMonth}
+            stroke="#C4A052"
+            strokeWidth={1}
+            strokeDasharray="2 3"
+            strokeOpacity={0.4}
           />
         )}
 
-        <Line type="monotone" dataKey="textureMaturity" name="질감 성숙도" stroke="#fbbf24" strokeWidth={2} dot={false} />
-        <Line type="monotone" dataKey="aromaFreshness" name="향 신선도" stroke="#22d3ee" strokeWidth={2} dot={false} />
-        <Line type="monotone" dataKey="offFlavorRisk" name="Off-flavor" stroke="#f87171" strokeWidth={2} strokeDasharray="6 3" dot={false} />
-        <Line type="monotone" dataKey="bubbleRefinement" name="기포 미세화" stroke="#a78bfa" strokeWidth={2} dot={false} />
+        {/* 골든 윈도우 경계선 제거됨 */}
+
+        {/* 피크 마커 */}
+        {harvestWindow && peakPoint && (
+          <ReferenceDot
+            x={harvestWindow.peakMonth}
+            y={peakPoint.compositeQuality ?? 0}
+            r={5}
+            fill="#C4A052"
+            stroke="rgba(255,255,255,0.9)"
+            strokeWidth={2}
+            filter="url(#peakGlow)"
+          />
+        )}
       </ComposedChart>
     </ResponsiveContainer>
   );
@@ -1133,6 +1489,7 @@ function CoefficientSlider({
   scientificBasis,
   recommendedValue,
   sourceType,
+  description,
 }: {
   label: string;
   value: number;
@@ -1143,11 +1500,54 @@ function CoefficientSlider({
   scientificBasis?: string;
   recommendedValue?: number;
   sourceType?: 'hypothesis' | 'scientific';
+  description?: string;
 }) {
+  const [showTooltip, setShowTooltip] = useState(false);
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const [tooltipPos, setTooltipPos] = useState({ top: 0, left: 0 });
+
+  const openTooltip = () => {
+    if (btnRef.current) {
+      const rect = btnRef.current.getBoundingClientRect();
+      setTooltipPos({
+        top: rect.top - 8,
+        left: Math.max(12, Math.min(rect.left, window.innerWidth - 300)),
+      });
+    }
+    setShowTooltip(true);
+  };
+
   return (
     <div>
       <div className="flex items-center justify-between mb-2">
-        <label className="text-xs text-white/50">{label}</label>
+        <div className="flex items-center gap-1.5">
+          <label className="text-xs text-white/50">{label}</label>
+          {description && (
+            <>
+              <button
+                ref={btnRef}
+                type="button"
+                onMouseEnter={openTooltip}
+                onMouseLeave={() => setShowTooltip(false)}
+                onClick={() => showTooltip ? setShowTooltip(false) : openTooltip()}
+                className="text-white/25 hover:text-white/60 transition-colors"
+              >
+                <Info className="w-3.5 h-3.5" />
+              </button>
+              {showTooltip && typeof document !== 'undefined' && createPortal(
+                <div
+                  className="fixed w-72 bg-[#12131a] border border-white/[0.12] rounded-xl p-3.5 shadow-2xl z-[9999]"
+                  style={{ top: tooltipPos.top, left: tooltipPos.left, transform: 'translateY(-100%)' }}
+                  onMouseEnter={() => setShowTooltip(true)}
+                  onMouseLeave={() => setShowTooltip(false)}
+                >
+                  <p className="text-[11px] leading-[1.7] text-white/60 whitespace-pre-line">{description}</p>
+                </div>,
+                document.body
+              )}
+            </>
+          )}
+        </div>
         <span className="text-xs text-cyan-400 font-mono font-medium">{value.toFixed(2)}</span>
       </div>
       <input

@@ -24,17 +24,199 @@ import {
 import { WINE_TYPE_LABELS, REDUCTION_POTENTIAL_LABELS } from '@/lib/types/uaps';
 
 // ═══════════════════════════════════════════════════════════════════════════
+// 전문가 프로파일 (Google Search Grounding)
+// ═══════════════════════════════════════════════════════════════════════════
+
+interface ExpertProfileResult {
+  profile: Record<string, number>;
+  sources: string[];
+  confidence: number;
+  summary: string;
+}
+
+/**
+ * Google Search grounding으로 전문가 테이스팅 노트 기반 프로파일 생성
+ */
+export async function generateExpertProfile(
+  product: AgingProduct
+): Promise<ExpertProfileResult | null> {
+  const { GoogleGenAI } = await import('@google/genai');
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) return null;
+
+  const ai = new GoogleGenAI({ apiKey });
+  const prompt = buildExpertProfilePrompt(product);
+
+  const EXPERT_TIMEOUT_MS = 45_000;
+  const GROUNDING_MODELS = ['gemini-2.5-flash', 'gemini-2.5-flash-lite'];
+
+  for (const modelName of GROUNDING_MODELS) {
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), EXPERT_TIMEOUT_MS);
+
+      // Google Search grounding + JSON 모드 동시 사용 시도
+      let response;
+      try {
+        response = await ai.models.generateContent({
+          model: modelName,
+          contents: prompt,
+          config: {
+            tools: [{ googleSearch: {} }],
+            responseMimeType: 'application/json',
+            abortSignal: controller.signal,
+          },
+        });
+      } catch {
+        // JSON 모드와 grounding 호환 불가 시 텍스트 모드 폴백
+        response = await ai.models.generateContent({
+          model: modelName,
+          contents: prompt,
+          config: {
+            tools: [{ googleSearch: {} }],
+            abortSignal: controller.signal,
+          },
+        });
+      }
+
+      clearTimeout(timeout);
+
+      const responseText = response.text ?? '';
+      const parsed = parseExpertProfileResponse(responseText);
+      if (parsed) {
+        console.log(`UAPS: ${modelName} 전문가 프로파일 생성 성공`);
+        return parsed;
+      }
+    } catch (err: unknown) {
+      const error = err instanceof Error ? err : new Error(String(err));
+      const isRateLimit = error.message.includes('429') || error.message.includes('RESOURCE_EXHAUSTED');
+      const isTimeout = error.name === 'AbortError';
+      if (!isRateLimit && !isTimeout) {
+        console.warn(`UAPS: ${modelName} 전문가 프로파일 실패:`, error.message);
+        break;
+      }
+      console.warn(`UAPS: ${modelName} ${isTimeout ? '타임아웃' : '할당량 초과'}, 다음 모델 시도...`);
+    }
+  }
+
+  return null;
+}
+
+function buildExpertProfilePrompt(product: AgingProduct): string {
+  const vintageStr = product.vintage ? ` ${product.vintage}` : '';
+  const searchQuery = `${product.productName}${vintageStr}`;
+
+  return `당신은 와인 전문가입니다.
+다음 샴페인의 풍미 프로파일을 전문가 테이스팅 노트를 기반으로 분석해주세요.
+
+## 대상 와인
+- 이름: ${searchQuery}
+- 생산자: ${product.producer || '미입력'}
+- 타입: ${WINE_TYPE_LABELS[product.wineType]}
+${product.vintage ? `- 빈티지: ${product.vintage}` : '- NV (논빈티지)'}
+${product.ph ? `- pH: ${product.ph}` : ''}
+${product.dosage ? `- Dosage: ${product.dosage}g/L` : ''}
+
+## 요청
+Wine Advocate, Decanter, Wine Spectator, Jancis Robinson, CellarTracker 등 전문가 리뷰를 검색하여
+이 와인의 현재 상태(투하 전) 풍미 프로파일을 0-100 스케일로 평가해주세요.
+
+각 축의 기준:
+- 30 이하: 약함/미미
+- 40-55: 보통
+- 55-70: 좋음
+- 70-85: 우수
+- 85+: 뛰어남
+
+JSON만 응답:
+{
+  "fruity": 0-100,
+  "floralMineral": 0-100,
+  "yeastyAutolytic": 0-100,
+  "acidityFreshness": 0-100,
+  "bodyTexture": 0-100,
+  "finishComplexity": 0-100,
+  "sources": ["검색에서 참조한 리뷰 출처 1-3개"],
+  "confidence": 0-1,
+  "summary": "한 줄 요약 (한국어)"
+}`;
+}
+
+function parseExpertProfileResponse(text: string): ExpertProfileResult | null {
+  try {
+    // JSON 블록 추출
+    let jsonStr = text;
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (jsonMatch) jsonStr = jsonMatch[0];
+    jsonStr = jsonStr.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
+
+    const parsed = JSON.parse(jsonStr);
+    const FLAVOR_KEYS = ['fruity', 'floralMineral', 'yeastyAutolytic', 'acidityFreshness', 'bodyTexture', 'finishComplexity'];
+    const profile: Record<string, number> = {};
+
+    for (const key of FLAVOR_KEYS) {
+      const val = Number(parsed[key]);
+      if (isNaN(val)) return null;
+      profile[key] = Math.min(100, Math.max(0, Math.round(val)));
+    }
+
+    return {
+      profile,
+      sources: Array.isArray(parsed.sources) ? parsed.sources.map(String) : [],
+      confidence: typeof parsed.confidence === 'number' ? parsed.confidence : 0.7,
+      summary: typeof parsed.summary === 'string' ? parsed.summary : '',
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * beforeProfile에 TCI/FRI 시간 보정만 적용하여 afterProfile 생성
+ */
+export function applyAgingAdjustments(
+  beforeProfile: Record<string, number>,
+  underseaMonths: number,
+  config: ParsedUAPSConfig,
+): Record<string, number> {
+  const result: Record<string, number> = {};
+  const monthFactor = underseaMonths / 12;
+
+  for (const [key, baseValue] of Object.entries(beforeProfile)) {
+    let adjusted = baseValue;
+
+    if (key === 'fruity') {
+      adjusted *= Math.exp(-0.02 * underseaMonths * config.fri);
+    } else if (key === 'floralMineral') {
+      adjusted += monthFactor * 4;
+    } else if (key === 'yeastyAutolytic') {
+      adjusted += monthFactor * (1 / config.tci) * 5;
+    } else if (key === 'acidityFreshness') {
+      adjusted *= Math.exp(-0.015 * underseaMonths * config.fri);
+    } else if (key === 'bodyTexture') {
+      adjusted += monthFactor * (1 / config.tci) * 4;
+    } else if (key === 'finishComplexity') {
+      adjusted += monthFactor * 3.5;
+    }
+
+    result[key] = Math.round(Math.min(100, Math.max(0, adjusted)) * 10) / 10;
+  }
+
+  return result;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
 // AI 예측 응답 타입
 // ═══════════════════════════════════════════════════════════════════════════
 
 interface AIPredictionResponse {
   flavorProfile: {
-    citrus: number;
-    brioche: number;
-    honey: number;
-    nutty: number;
-    toast: number;
-    oxidation: number;
+    fruity: number;
+    floralMineral: number;
+    yeastyAutolytic: number;
+    acidityFreshness: number;
+    bodyTexture: number;
+    finishComplexity: number;
   };
   qualityScores: {
     textureMaturity: number;
@@ -47,6 +229,8 @@ interface AIPredictionResponse {
     endMonths: number;
   };
   insight: string;
+  beforeCharacter: string;
+  afterPrediction: string;
   riskWarning: string | null;
 }
 
@@ -58,7 +242,9 @@ function buildPredictionPrompt(
   product: AgingProduct,
   clusters: ClusterMatch[],
   underseaMonths: number,
-  config: ParsedUAPSConfig
+  config: ParsedUAPSConfig,
+  expertProfile?: Record<string, number> | null,
+  expertSources?: string[] | null
 ): string {
   const clusterContext = clusters.slice(0, 3).map((c) => {
     const fp = c.model.flavorProfileJson as Record<string, { mean: number; stdDev: number }>;
@@ -98,17 +284,23 @@ ${JSON.stringify(clusterContext, null, 2)}
 - 환원 성향: ${REDUCTION_POTENTIAL_LABELS[product.reductionPotential]} (${product.reductionPotential})
 - 해저 숙성 기간: ${underseaMonths}개월, 수심 ${product.agingDepth}m
 
-## 요청
+${expertProfile ? `## 전문가 테이스팅 기반 투하 전 프로파일 (Google Search 분석)
+- 과실향: ${expertProfile.fruity}, 플로럴·미네랄: ${expertProfile.floralMineral}, 효모·숙성: ${expertProfile.yeastyAutolytic}
+- 산도·상쾌함: ${expertProfile.acidityFreshness}, 바디감·질감: ${expertProfile.bodyTexture}, 여운·복합미: ${expertProfile.finishComplexity}
+${expertSources?.length ? `- 출처: ${expertSources.join(', ')}` : ''}
+→ 이 프로파일을 투하 전 기준으로 사용하여 해저 숙성 변화를 예측하세요.
+
+` : ''}## 요청
 다음 JSON 형식으로만 응답해주세요. 추가 텍스트 없이 JSON만:
 
 {
   "flavorProfile": {
-    "citrus": 0-100,
-    "brioche": 0-100,
-    "honey": 0-100,
-    "nutty": 0-100,
-    "toast": 0-100,
-    "oxidation": 0-100
+    "fruity": 0-100,           // 과실향 (감귤류, 과일, 열대과일)
+    "floralMineral": 0-100,    // 플로럴·미네랄 (꽃향, 백악, 부싯돌)
+    "yeastyAutolytic": 0-100,  // 효모·숙성향 (브리오슈, 자가분해)
+    "acidityFreshness": 0-100, // 산도·상쾌함 (산미, 크리스피)
+    "bodyTexture": 0-100,      // 바디감·질감 (크리미, 무스, 풍부함)
+    "finishComplexity": 0-100  // 여운·복합미 (깊이, 레이어)
   },
   "qualityScores": {
     "textureMaturity": 0-100,
@@ -120,7 +312,8 @@ ${JSON.stringify(clusterContext, null, 2)}
     "startMonths": 시작월,
     "endMonths": 종료월
   },
-  "insight": "예측 근거 설명 (한국어, 2-3문장. 유사 와인 언급 포함)",
+  "beforeCharacter": "투하 전 이 샴페인의 원래 특징 (한국어, 2-3문장. 전문가 리뷰 기반 풍미·질감·산도 등 핵심 특성 설명)",
+  "afterPrediction": "해저 숙성 후 예상 변화 (한국어, 2-3문장. 어떤 풍미가 강화/감소되고 질감이 어떻게 변하는지)",
   "riskWarning": "리스크 경고 (한국어) 또는 null"
 }`;
 }
@@ -140,9 +333,11 @@ export async function runAIPrediction(
   product: AgingProduct,
   clusters: ClusterMatch[],
   underseaMonths: number,
-  config: ParsedUAPSConfig
+  config: ParsedUAPSConfig,
+  expertProfile?: Record<string, number> | null,
+  expertSources?: string[] | null
 ): Promise<AIPredictionResponse> {
-  const prompt = buildPredictionPrompt(product, clusters, underseaMonths, config);
+  const prompt = buildPredictionPrompt(product, clusters, underseaMonths, config, expertProfile, expertSources);
 
   // 모델 우선순위: Gemini 3 Flash → 2.5 Flash → 2.5 Flash Lite
   const GEMINI_MODELS = ['gemini-3-flash-preview', 'gemini-2.5-flash', 'gemini-2.5-flash-lite'];
@@ -215,21 +410,23 @@ export function buildPredictionResult(
   aiResponse: AIPredictionResponse,
   clusters: ClusterMatch[],
   underseaMonths: number,
-  config: ParsedUAPSConfig
+  config: ParsedUAPSConfig,
+  expertProfile?: Record<string, number> | null,
+  expertSources?: string[] | null
 ): Omit<AgingPrediction, 'id' | 'createdAt'> {
   const { startMonths, endMonths, recommendation } = calculateOptimalHarvestWindow(product, config);
 
   // AI 결과와 통계 결과를 앙상블 (AI 70% + 통계 30%)
-  const statisticalFlavors = predictFlavorProfileStatistical(clusters, underseaMonths, config);
+  const statisticalFlavors = predictFlavorProfileStatistical(clusters, underseaMonths, config, product);
   const aiFlavors = aiResponse.flavorProfile;
 
   const ensembleFlavors = {
-    citrus: blend(aiFlavors.citrus, statisticalFlavors.citrus),
-    brioche: blend(aiFlavors.brioche, statisticalFlavors.brioche),
-    honey: blend(aiFlavors.honey, statisticalFlavors.honey),
-    nutty: blend(aiFlavors.nutty, statisticalFlavors.nutty),
-    toast: blend(aiFlavors.toast, statisticalFlavors.toast),
-    oxidation: blend(aiFlavors.oxidation, statisticalFlavors.oxidation),
+    fruity: blend(aiFlavors.fruity, statisticalFlavors.fruity),
+    floralMineral: blend(aiFlavors.floralMineral, statisticalFlavors.floralMineral),
+    yeastyAutolytic: blend(aiFlavors.yeastyAutolytic, statisticalFlavors.yeastyAutolytic),
+    acidityFreshness: blend(aiFlavors.acidityFreshness, statisticalFlavors.acidityFreshness),
+    bodyTexture: blend(aiFlavors.bodyTexture, statisticalFlavors.bodyTexture),
+    finishComplexity: blend(aiFlavors.finishComplexity, statisticalFlavors.finishComplexity),
   };
 
   // 신뢰도 = 매칭 클러스터 수 기반
@@ -244,12 +441,12 @@ export function buildPredictionResult(
     underseaDurationMonths: underseaMonths,
     agingDepth: product.agingDepth,
     immersionDate: product.immersionDate,
-    predictedCitrus: ensembleFlavors.citrus,
-    predictedBrioche: ensembleFlavors.brioche,
-    predictedHoney: ensembleFlavors.honey,
-    predictedNutty: ensembleFlavors.nutty,
-    predictedToast: ensembleFlavors.toast,
-    predictedOxidation: ensembleFlavors.oxidation,
+    predictedFruity: ensembleFlavors.fruity,
+    predictedFloralMineral: ensembleFlavors.floralMineral,
+    predictedYeastyAutolytic: ensembleFlavors.yeastyAutolytic,
+    predictedAcidityFreshness: ensembleFlavors.acidityFreshness,
+    predictedBodyTexture: ensembleFlavors.bodyTexture,
+    predictedFinishComplexity: ensembleFlavors.finishComplexity,
     textureMaturityScore: aiResponse.qualityScores.textureMaturity,
     aromaFreshnessScore: aiResponse.qualityScores.aromaFreshness,
     offFlavorRiskScore: aiResponse.qualityScores.offFlavorRisk,
@@ -257,8 +454,10 @@ export function buildPredictionResult(
     optimalHarvestStartMonths: aiResponse.harvestWindow.startMonths || startMonths,
     optimalHarvestEndMonths: aiResponse.harvestWindow.endMonths || endMonths,
     harvestRecommendation: recommendation,
-    aiInsightText: aiResponse.insight,
+    aiInsightText: [aiResponse.beforeCharacter, aiResponse.afterPrediction].filter(Boolean).join('\n') || aiResponse.insight,
     aiRiskWarning: aiResponse.riskWarning,
+    expertProfileJson: expertProfile || null,
+    expertSources: expertSources || null,
     tciApplied: config.tci,
     friApplied: config.fri,
     briApplied: config.bri,
@@ -281,12 +480,12 @@ function clampPredictionValues(response: AIPredictionResponse): AIPredictionResp
 
   return {
     flavorProfile: {
-      citrus: clamp(response.flavorProfile?.citrus ?? 50),
-      brioche: clamp(response.flavorProfile?.brioche ?? 30),
-      honey: clamp(response.flavorProfile?.honey ?? 20),
-      nutty: clamp(response.flavorProfile?.nutty ?? 15),
-      toast: clamp(response.flavorProfile?.toast ?? 10),
-      oxidation: clamp(response.flavorProfile?.oxidation ?? 5),
+      fruity: clamp(response.flavorProfile?.fruity ?? 60),
+      floralMineral: clamp(response.flavorProfile?.floralMineral ?? 45),
+      yeastyAutolytic: clamp(response.flavorProfile?.yeastyAutolytic ?? 40),
+      acidityFreshness: clamp(response.flavorProfile?.acidityFreshness ?? 70),
+      bodyTexture: clamp(response.flavorProfile?.bodyTexture ?? 55),
+      finishComplexity: clamp(response.flavorProfile?.finishComplexity ?? 50),
     },
     qualityScores: {
       textureMaturity: clamp(response.qualityScores?.textureMaturity ?? 70),
@@ -299,6 +498,8 @@ function clampPredictionValues(response: AIPredictionResponse): AIPredictionResp
       endMonths: response.harvestWindow?.endMonths ?? 18,
     },
     insight: response.insight || '예측 데이터가 충분하지 않아 통계 기반으로 분석했습니다.',
+    beforeCharacter: response.beforeCharacter || '',
+    afterPrediction: response.afterPrediction || '',
     riskWarning: response.riskWarning || null,
   };
 }
@@ -310,7 +511,7 @@ function buildStatisticalFallback(
   underseaMonths: number,
   config: ParsedUAPSConfig
 ): AIPredictionResponse {
-  const flavors = predictFlavorProfileStatistical(clusters, underseaMonths, config);
+  const flavors = predictFlavorProfileStatistical(clusters, underseaMonths, config, product);
   const textureMaturity = calculateTextureMaturity(0, underseaMonths, config.tci);
   const aromaFreshness = calculateAromaFreshness(0, underseaMonths, config.fri);
   const offFlavorRisk = calculateOffFlavorRisk(
@@ -327,12 +528,12 @@ function buildStatisticalFallback(
 
   return {
     flavorProfile: {
-      citrus: flavors.citrus,
-      brioche: flavors.brioche,
-      honey: flavors.honey,
-      nutty: flavors.nutty,
-      toast: flavors.toast,
-      oxidation: flavors.oxidation,
+      fruity: flavors.fruity,
+      floralMineral: flavors.floralMineral,
+      yeastyAutolytic: flavors.yeastyAutolytic,
+      acidityFreshness: flavors.acidityFreshness,
+      bodyTexture: flavors.bodyTexture,
+      finishComplexity: flavors.finishComplexity,
     },
     qualityScores: {
       textureMaturity,
@@ -341,7 +542,9 @@ function buildStatisticalFallback(
       overallQuality,
     },
     harvestWindow: { startMonths, endMonths },
-    insight: `${WINE_TYPE_LABELS[product.wineType]} 타입의 통계 패턴을 기반으로 예측했습니다. ${underseaMonths}개월 해저 숙성 시 질감 성숙도 ${textureMaturity}점, 향 신선도 ${aromaFreshness}점으로 예상됩니다.`,
+    insight: `${WINE_TYPE_LABELS[product.wineType]} 타입의 통계 패턴을 기반으로 예측했습니다.`,
+    beforeCharacter: `${WINE_TYPE_LABELS[product.wineType]} 타입의 일반적 풍미 패턴을 기반으로 분석했습니다. 전문가 리뷰 데이터가 없어 통계 기반 프로파일을 사용합니다.`,
+    afterPrediction: `${underseaMonths}개월 해저 숙성 시 질감 성숙도 ${textureMaturity}점, 향 신선도 ${aromaFreshness}점으로 예상됩니다. 효모·숙성향과 바디감이 강화되고 과실향은 일부 감소합니다.`,
     riskWarning: offFlavorRisk >= config.riskThresholds.offFlavor
       ? `Off-flavor 리스크가 ${offFlavorRisk}%로 높습니다. 환원 성향(${REDUCTION_POTENTIAL_LABELS[product.reductionPotential]})을 감안하여 ${startMonths}개월 이내 인양을 검토하세요.`
       : null,

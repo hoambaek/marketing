@@ -62,6 +62,8 @@ someAction: async (data) => {
 - `/data-log` - Ocean aging data visualization
 - `/cost-calculator` - Product cost calculation
 - `/video-generator` - AI video generation (Google Veo)
+- `/uaps` - UAPS 해저 숙성 예측 대시보드
+- `/uaps/how-it-works` - UAPS 작동 원리 인포그래픽
 - `/calendar`, `/checklist`, `/kpi`, `/settings` - Supporting pages
 
 **State Management** (`src/lib/store/`):
@@ -70,11 +72,13 @@ someAction: async (data) => {
 - `budget-store.ts` - Budget items, expenses
 - `issue-store.ts` - Issues/risks management
 - `ocean-data-store.ts` - Ocean aging data
+- `uaps-store.ts` - UAPS 예측 시스템 (제품, 예측, 모델, 설정)
 - `toast-store.ts` - UI notifications
 
 **Database Layer** (`src/lib/supabase/`):
 - `client.ts` - Supabase client with `isSupabaseConfigured()` check
 - `database.ts` - All CRUD functions + DB↔App type mapping
+- `database/uaps.ts` - UAPS 전용 CRUD (제품, 예측, 모델, 설정, 지상 데이터)
 
 **API Routes** (`src/app/api/`):
 - `/api/ai-assistant` - Gemini AI with function calling (authenticated)
@@ -82,6 +86,10 @@ someAction: async (data) => {
 - `/api/ocean-data` - Ocean data fetching from Open-Meteo
 - `/api/video-generator` - Google Veo video generation
 - `/api/video-generator/download` - Video file download proxy
+- `/api/uaps/predict` - UAPS AI 예측 (Gemini Layer 2)
+- `/api/uaps/model/train` - Layer 1 모델 학습
+- `/api/uaps/nlp/extract` - Gemini NLP 풍미 6축 추출
+- `/api/uaps/cellartracker/upload` - CellarTracker 데이터 업로드
 
 ### Type System
 
@@ -92,6 +100,11 @@ All types defined in `src/lib/types/index.ts`:
 - `IssueItem` - Issue management types
 - `OceanDataDaily`, `SalinityRecord` - Ocean data types
 - `CostCalculatorSettings` - Cost calculation types
+
+UAPS types defined in `src/lib/types/uaps.ts`:
+- `AgingProduct`, `AgingPrediction`, `WineTerrestrialData`, `TerrestrialModel`
+- `UAPSConfig`, `FlavorDictionary`, `ProductInput`
+- 6축 풍미: `fruity`, `floralMineral`, `yeastyAutolytic`, `acidityFreshness`, `bodyTexture`, `finishComplexity`
 
 ### Authentication
 
@@ -124,6 +137,7 @@ When Clerk env vars are missing, middleware passes through (useful for local dev
 **Issues**: `issues`
 **Ocean Data**: `ocean_data_daily`, `salinity_records`
 **Cost Calculator**: `cost_calculator_settings`
+**UAPS**: `wine_terrestrial_data`, `terrestrial_model`, `aging_products`, `aging_predictions`, `uaps_config`, `flavor_dictionary`
 
 ### Field Naming Convention
 - **Database**: snake_case (e.g., `due_date`, `created_at`)
@@ -138,6 +152,39 @@ This project uses a **Deep Sea** theme:
 - **Borders**: `border-white/[0.06]` to `border-white/[0.08]`
 - **Accents**: Rose Gold (`#B76E79`), Champagne Gold (`#C4A052`)
 - **Fonts**: Cormorant Garamond (English), Pretendard (Korean)
+
+## UAPS (Undersea Aging Predictive System)
+
+해저 숙성 풍미 예측 시스템. 2-Layer Hybrid AI 아키텍처.
+
+### 핵심 파일
+- `src/lib/utils/uaps-engine.ts` - Layer 1 통계 엔진 (질감/향/기포/환원취 계산, 복합 품질, 골든 윈도우)
+- `src/lib/utils/uaps-ai-predictor.ts` - Layer 2 Gemini AI 추론 (전문가 프로파일, TCI/FRI/BRI 보정)
+- `src/lib/store/uaps-store.ts` - Zustand 상태 관리
+- `src/lib/supabase/database/uaps.ts` - DB CRUD
+- `src/lib/types/uaps.ts` - 타입 + 상수 (FLAVOR_AXES, WINE_TYPE_LABELS 등)
+- `docs/uaps/UAPS_MASTER_PLAN.md` - 마스터 플랜
+
+### 풍미 6축 (WSET/OIV 기준)
+DB 컬럼: `fruity_score`, `floral_mineral_score`, `yeasty_autolytic_score`, `acidity_freshness_score`, `body_texture_score`, `finish_complexity_score`
+TS 키: `fruity`, `floralMineral`, `yeastyAutolytic`, `acidityFreshness`, `bodyTexture`, `finishComplexity`
+
+### 예측 파이프라인
+1. 지상 데이터 수집 → `wine_terrestrial_data` (현재 37,125건)
+2. Layer 1: 와인 타입 × 숙성 단계 클러스터링 → `terrestrial_model` (19개 그룹)
+3. Layer 2: Gemini AI 전문가 프로파일 생성
+4. 해저 환경 보정: TCI(질감) · FRI(향) · BRI(기포)
+5. 타임라인 1~36개월 + 골든 윈도우 + 품질 점수(0~100)
+
+### 보정 계수
+- **TCI** (Temperature-Pressure Coefficient): 기본값 0.40, 가설적 추정
+- **FRI** (Flavor Retention Index): 기본값 0.56, 아레니우스 방정식 기반
+- **BRI** (Bubble Retention Index): 기본값 0.72, Henry의 법칙 기반
+
+### 데이터 수집 도구
+- `data/cellartracker/upload_csv.mjs` - CSV → Supabase 업로드
+- `data/cellartracker/upload_notes.mjs` - JSON → Supabase 업로드
+- `data/cellartracker/collect_notes.md` - 수집 가이드
 
 ## Environment Variables
 

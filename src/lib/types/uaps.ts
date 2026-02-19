@@ -39,15 +39,13 @@ export interface WineTerrestrialData {
   alcohol: number | null;
   acidity: number | null;
   reductionPotential: ReductionPotential | null;
-  // 풍미 프로파일 (0-100)
-  citrusScore: number | null;
-  greenAppleScore: number | null;
-  briocheScore: number | null;
-  yeastScore: number | null;
-  honeyScore: number | null;
-  nuttyScore: number | null;
-  toastScore: number | null;
-  oxidationScore: number | null;
+  // 풍미 프로파일 (0-100) — WSET/OIV 6축
+  fruityScore: number | null;
+  floralMineralScore: number | null;
+  yeastyAutolyticScore: number | null;
+  acidityFreshnessScore: number | null;
+  bodyTextureScore: number | null;
+  finishComplexityScore: number | null;
   // 숙성
   agingYears: number | null;
   agingStage: AgingStage | null;
@@ -116,13 +114,13 @@ export interface AgingPrediction {
   underseaDurationMonths: number;
   agingDepth: number;
   immersionDate: string | null;
-  // 예측 풍미
-  predictedCitrus: number | null;
-  predictedBrioche: number | null;
-  predictedHoney: number | null;
-  predictedNutty: number | null;
-  predictedToast: number | null;
-  predictedOxidation: number | null;
+  // 예측 풍미 — WSET/OIV 6축
+  predictedFruity: number | null;
+  predictedFloralMineral: number | null;
+  predictedYeastyAutolytic: number | null;
+  predictedAcidityFreshness: number | null;
+  predictedBodyTexture: number | null;
+  predictedFinishComplexity: number | null;
   // 품질 점수
   textureMaturityScore: number | null;
   aromaFreshnessScore: number | null;
@@ -135,6 +133,9 @@ export interface AgingPrediction {
   // AI 인사이트
   aiInsightText: string | null;
   aiRiskWarning: string | null;
+  // 전문가 프로파일 (Google Search grounding)
+  expertProfileJson: Record<string, number> | null;
+  expertSources: string[] | null;
   // 보정 계수
   tciApplied: number;
   friApplied: number;
@@ -315,14 +316,14 @@ export const MODEL_STATUS_LABELS: Record<ModelStatus, string> = {
   trained: '학습 완료',
 };
 
-// 풍미 축 라벨 (레이더 차트용)
+// 풍미 축 라벨 (레이더 차트용) — WSET/OIV 검증 6축
 export const FLAVOR_AXES = [
-  { key: 'citrus', label: 'Citrus', color: '#fde047' },
-  { key: 'brioche', label: 'Brioche', color: '#d4a574' },
-  { key: 'honey', label: 'Honey', color: '#fbbf24' },
-  { key: 'nutty', label: 'Nutty', color: '#a78bfa' },
-  { key: 'toast', label: 'Toast', color: '#fb923c' },
-  { key: 'oxidation', label: 'Oxidation', color: '#f87171' },
+  { key: 'fruity', label: '과실향', color: '#fde047' },
+  { key: 'floralMineral', label: '플로럴·미네랄', color: '#a78bfa' },
+  { key: 'yeastyAutolytic', label: '효모·숙성향', color: '#d4a574' },
+  { key: 'acidityFreshness', label: '산도·상쾌함', color: '#22d3ee' },
+  { key: 'bodyTexture', label: '바디감·질감', color: '#fb923c' },
+  { key: 'finishComplexity', label: '여운·복합미', color: '#f472b6' },
 ] as const;
 
 // 기본 보정 계수 (과학적 도출값)
