@@ -21,6 +21,7 @@ const isPublicApiRoute = createRouteMatcher([
   '/api/health(.*)',       // 헬스체크
   '/api/public/(.*)',      // 명시적 공개 API
   '/api/cron/(.*)',        // Cron 엔드포인트 (CRON_SECRET으로 자체 인증)
+  '/api/external/(.*)',    // 외부 API (EXTERNAL_API_KEY로 자체 인증)
 ]);
 
 // Clerk가 설정되지 않은 경우 기본 미들웨어
