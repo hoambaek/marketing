@@ -7,6 +7,7 @@ const ALLOWED_HOSTS = [
   'generativelanguage.googleapis.com',
   'storage.googleapis.com',
   'video.googleapis.com',
+  'cdn-video.51sux.com',
 ];
 
 // Download video by proxying from Google's servers
@@ -63,20 +64,22 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-      return NextResponse.json(
-        { error: 'API key is not configured' },
-        { status: 500 }
-      );
+    // Google 호스트는 API key 필요, 그 외(Seedance CDN 등)는 직접 접근
+    const isGoogleHost = parsedUrl.hostname.endsWith('.googleapis.com');
+
+    const fetchHeaders: Record<string, string> = {};
+    if (isGoogleHost) {
+      const apiKey = process.env.GEMINI_API_KEY;
+      if (!apiKey) {
+        return NextResponse.json(
+          { error: 'API key is not configured' },
+          { status: 500 }
+        );
+      }
+      fetchHeaders['x-goog-api-key'] = apiKey;
     }
 
-    // Fetch the video from Google's servers with API key header
-    const response = await fetch(videoUri, {
-      headers: {
-        'x-goog-api-key': apiKey,
-      },
-    });
+    const response = await fetch(videoUri, { headers: fetchHeaders });
 
     if (!response.ok) {
       apiLogger.error('Video download failed:', response.status, response.statusText);

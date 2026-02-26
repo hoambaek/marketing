@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { apiLogger } from '@/lib/logger';
 
+export const maxDuration = 120;
+
 const BASE_URL = 'https://generativelanguage.googleapis.com/v1beta';
 
 // Start video generation via REST API (Google Veo)
@@ -18,7 +20,7 @@ export async function POST(request: NextRequest) {
 
     const formData = await request.formData();
     const prompt = formData.get('prompt') as string;
-    const image = formData.get('image') as File | null;
+    const firstFrame = formData.get('firstFrame') as File | null;
 
     if (!prompt) {
       return NextResponse.json(
@@ -35,20 +37,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Build request body per Google Veo REST API spec
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const instance: any = { prompt };
 
-    // If image is provided, add as reference image
-    if (image) {
-      const imageBuffer = await image.arrayBuffer();
+    // 첫 프레임 이미지 → bytesBase64Encoded (veo-3.1 지원 방식)
+    if (firstFrame) {
+      const imageBuffer = await firstFrame.arrayBuffer();
       const base64Image = Buffer.from(imageBuffer).toString('base64');
-      instance.referenceImages = [{
-        referenceImage: {
-          imageBytes: base64Image,
-        },
-        referenceType: 'REFERENCE_TYPE_STYLE',
-      }];
+      instance.image = {
+        bytesBase64Encoded: base64Image,
+        mimeType: firstFrame.type,
+      };
     }
 
     const requestBody = {
