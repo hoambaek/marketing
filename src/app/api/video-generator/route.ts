@@ -1,18 +1,10 @@
-import { GoogleGenAI } from '@google/genai';
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { apiLogger } from '@/lib/logger';
 
-// Initialize Google Gen AI client
-const getAIClient = () => {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) {
-    throw new Error('GEMINI_API_KEY is not configured');
-  }
-  return new GoogleGenAI({ apiKey });
-};
+const BASE_URL = 'https://generativelanguage.googleapis.com/v1beta';
 
-// Start video generation
+// Start video generation via REST API (Google Veo)
 export async function POST(request: NextRequest) {
   try {
     // 인증 확인
@@ -35,36 +27,70 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const ai = getAIClient();
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      return NextResponse.json(
+        { error: 'API 키가 설정되지 않았습니다.' },
+        { status: 500 }
+      );
+    }
 
-    // Prepare generation config
+    // Build request body per Google Veo REST API spec
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const generateConfig: any = {
-      model: 'veo-3.1-generate-preview',
-      prompt: prompt,
-      config: {
+    const instance: any = { prompt };
+
+    // If image is provided, add as reference image
+    if (image) {
+      const imageBuffer = await image.arrayBuffer();
+      const base64Image = Buffer.from(imageBuffer).toString('base64');
+      instance.referenceImages = [{
+        referenceImage: {
+          imageBytes: base64Image,
+        },
+        referenceType: 'REFERENCE_TYPE_STYLE',
+      }];
+    }
+
+    const requestBody = {
+      instances: [instance],
+      parameters: {
         aspectRatio: '16:9',
-        resolution: '1080p', // Full HD 1920x1080
-        numberOfVideos: 1,
+        resolution: '1080p',
+        durationSeconds: '8',
         personGeneration: 'allow_adult',
       },
     };
 
-    // If image is provided, add it to the request
-    if (image) {
-      const imageBuffer = await image.arrayBuffer();
-      const base64Image = Buffer.from(imageBuffer).toString('base64');
+    apiLogger.info('Veo request body:', JSON.stringify(requestBody, null, 2));
 
-      generateConfig.image = {
-        imageBytes: base64Image,
-        mimeType: image.type,
-      };
+    // Call predictLongRunning endpoint
+    const response = await fetch(
+      `${BASE_URL}/models/veo-3.1-generate-preview:predictLongRunning`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-goog-api-key': apiKey,
+        },
+        body: JSON.stringify(requestBody),
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      apiLogger.error('Veo API error:', response.status, errorData);
+
+      const errorMsg = errorData?.error?.message || `API 오류 (${response.status})`;
+      return NextResponse.json(
+        { error: errorMsg },
+        { status: response.status }
+      );
     }
 
-    // Start video generation operation
-    const operation = await ai.models.generateVideos(generateConfig);
+    const operation = await response.json();
+    apiLogger.info('Veo operation started:', operation.name);
 
-    // Return the operation ID for polling
+    // Return the operation name for polling
     return NextResponse.json({
       success: true,
       operationName: operation.name,
@@ -79,8 +105,6 @@ export async function POST(request: NextRequest) {
         errorMessage = 'API 키가 유효하지 않습니다.';
       } else if (error.message.includes('quota')) {
         errorMessage = 'API 할당량을 초과했습니다.';
-      } else if (error.message.includes('not configured')) {
-        errorMessage = 'API 키가 설정되지 않았습니다.';
       } else {
         errorMessage = error.message;
       }
@@ -125,11 +149,12 @@ export async function GET(request: NextRequest) {
 
     // Use REST API directly to poll operation status
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/${operationName}?key=${apiKey}`,
+      `${BASE_URL}/${operationName}`,
       {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
+          'x-goog-api-key': apiKey,
         },
       }
     );

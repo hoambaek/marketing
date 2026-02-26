@@ -71,13 +71,12 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Add API key to the URI if not already present
-    const downloadUrl = videoUri.includes('key=')
-      ? videoUri
-      : `${videoUri}${videoUri.includes('?') ? '&' : '?'}key=${apiKey}`;
-
-    // Fetch the video from Google's servers
-    const response = await fetch(downloadUrl);
+    // Fetch the video from Google's servers with API key header
+    const response = await fetch(videoUri, {
+      headers: {
+        'x-goog-api-key': apiKey,
+      },
+    });
 
     if (!response.ok) {
       apiLogger.error('Video download failed:', response.status, response.statusText);
