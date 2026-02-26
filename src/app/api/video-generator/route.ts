@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
       parameters: {
         aspectRatio: '16:9',
         resolution: '1080p',
-        durationSeconds: '8',
+        durationSeconds: 8,
         personGeneration: 'allow_adult',
       },
     };
