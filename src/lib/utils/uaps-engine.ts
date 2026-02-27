@@ -14,12 +14,20 @@ import type {
   AgingProduct,
   WineType,
   AgingStage,
+  ProductCategory,
   ReductionPotential,
   TimelineDataPoint,
   ParsedUAPSConfig,
   CoefficientMeta,
+  AgingFactors,
+  QualityWeights,
 } from '@/lib/types/uaps';
-import { DEFAULT_COEFFICIENTS } from '@/lib/types/uaps';
+import {
+  DEFAULT_COEFFICIENTS,
+  DEFAULT_AGING_FACTORS,
+  DEFAULT_QUALITY_WEIGHTS,
+  PRODUCT_CATEGORY_LABELS,
+} from '@/lib/types/uaps';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // 과학적 계수 계산
@@ -167,6 +175,7 @@ interface FlavorStats {
 
 interface GroupStats {
   wineType: WineType;
+  productCategory: ProductCategory;
   agingStage: AgingStage;
   sampleCount: number;
   flavorProfile: Record<string, FlavorStats>;
@@ -189,22 +198,26 @@ const FLAVOR_KEYS = [
 type FlavorKey = typeof FLAVOR_KEYS[number];
 
 /**
- * 지상 데이터 전체를 wine_type × aging_stage 그룹별로 집계
+ * 지상 데이터 전체를 product_category × aging_stage 그룹별로 집계
+ * (기존 wine_type 기반에서 product_category 기반으로 전환)
  */
 export function trainTerrestrialModel(
   data: WineTerrestrialData[]
 ): Omit<TerrestrialModel, 'id' | 'createdAt' | 'updatedAt'>[] {
-  const groups = groupByTypeAndStage(data);
+  const groups = groupByCategoryAndStage(data);
   const results: Omit<TerrestrialModel, 'id' | 'createdAt' | 'updatedAt'>[] = [];
 
   for (const [key, records] of Object.entries(groups)) {
-    const [wineType, agingStage] = key.split('::') as [WineType, AgingStage];
+    const [productCategory, agingStage] = key.split('::') as [ProductCategory, AgingStage];
     if (records.length < 5) continue; // 최소 5건 이상
 
-    const stats = computeGroupStats(wineType, agingStage, records, data);
+    // wineType은 그룹 내 최빈값 사용 (하위 호환)
+    const wineType = getMostFrequentWineType(records);
+    const stats = computeGroupStats(wineType, agingStage, records, data, productCategory);
 
     results.push({
       wineType: stats.wineType,
+      productCategory: stats.productCategory,
       agingStage: stats.agingStage,
       sampleCount: stats.sampleCount,
       flavorProfileJson: stats.flavorProfile,
@@ -220,17 +233,31 @@ export function trainTerrestrialModel(
   return results;
 }
 
-function groupByTypeAndStage(
+function groupByCategoryAndStage(
   data: WineTerrestrialData[]
 ): Record<string, WineTerrestrialData[]> {
   const groups: Record<string, WineTerrestrialData[]> = {};
   for (const d of data) {
     const stage = d.agingStage || inferAgingStage(d.agingYears);
-    const key = `${d.wineType}::${stage}`;
+    const category = d.productCategory || 'champagne/wine';
+    const key = `${category}::${stage}`;
     if (!groups[key]) groups[key] = [];
     groups[key].push(d);
   }
   return groups;
+}
+
+function getMostFrequentWineType(records: WineTerrestrialData[]): WineType {
+  const counts = new Map<string, number>();
+  for (const r of records) {
+    counts.set(r.wineType, (counts.get(r.wineType) || 0) + 1);
+  }
+  let maxType = 'blend';
+  let maxCount = 0;
+  for (const [type, count] of counts) {
+    if (count > maxCount) { maxType = type; maxCount = count; }
+  }
+  return maxType as WineType;
 }
 
 function inferAgingStage(agingYears: number | null): AgingStage {
@@ -245,7 +272,8 @@ function computeGroupStats(
   wineType: WineType,
   agingStage: AgingStage,
   records: WineTerrestrialData[],
-  allData: WineTerrestrialData[]
+  allData: WineTerrestrialData[],
+  productCategory: ProductCategory = 'champagne/wine'
 ): GroupStats {
   // 풍미 프로파일 통계
   const flavorProfile: Record<string, FlavorStats> = {};
@@ -261,8 +289,8 @@ function computeGroupStats(
   const dosageValues = records.map((r) => r.dosage).filter((v): v is number => v !== null);
   const alcoholValues = records.map((r) => r.alcohol).filter((v): v is number => v !== null);
 
-  // 풍미 전이 곡선 (해당 wine_type의 전체 데이터에서 연수별 추이 계산)
-  const typeData = allData.filter((d) => d.wineType === wineType);
+  // 풍미 전이 곡선 (해당 productCategory의 전체 데이터에서 연수별 추이 계산)
+  const typeData = allData.filter((d) => (d.productCategory || 'champagne/wine') === productCategory);
   const transitionCurves = computeTransitionCurves(typeData);
 
   // 클러스터 중심점 (pH × dosage × reduction 조합)
@@ -277,6 +305,7 @@ function computeGroupStats(
 
   return {
     wineType,
+    productCategory,
     agingStage,
     sampleCount: records.length,
     flavorProfile,
@@ -387,18 +416,27 @@ export interface ClusterMatch {
 
 /**
  * 입력 제품과 가장 유사한 학습 모델 클러스터를 찾음
+ * productCategory 기반 매칭 (wine 계열 보너스 포함)
  */
 export function findSimilarClusters(
   product: AgingProduct,
   models: TerrestrialModel[],
   topK: number = 5
 ): ClusterMatch[] {
+  const productCategory = (product.productCategory || 'champagne/wine') as ProductCategory;
+
   const scored = models.map((model) => {
     let similarity = 0;
 
-    // 와인 타입 일치: +50점
-    if (model.wineType === product.wineType) {
+    // productCategory 일치: +50점
+    if (model.productCategory === productCategory) {
       similarity += 50;
+    } else {
+      // wine 계열 보너스: champagne/wine 제품이 다른 wine 모델과도 부분 매칭
+      const wineCategories = ['champagne/wine'];
+      if (wineCategories.includes(productCategory) && wineCategories.includes(model.productCategory)) {
+        similarity += 30;
+      }
     }
 
     // pH 근접도: 최대 +20점 (차이 0 = 20점, 차이 0.5 이상 = 0점)
@@ -548,25 +586,18 @@ export function calculateOffFlavorRisk(
 // ═══════════════════════════════════════════════════════════════════════════
 
 /**
- * 와인 타입별 가중치로 종합 품질 점수 산출
- * 이진 임계값 대신 연속적 점수로 골든 윈도우 판정
+ * 종합 품질 점수 산출
+ * qualityWeights 파라미터로 카테고리별 가중치 주입 (없으면 DEFAULT 사용)
  */
-const QUALITY_WEIGHTS: Record<string, { texture: number; aroma: number; bubble: number; risk: number }> = {
-  blanc_de_blancs: { texture: 0.25, aroma: 0.35, bubble: 0.25, risk: 0.15 },
-  blanc_de_noirs:  { texture: 0.30, aroma: 0.30, bubble: 0.25, risk: 0.15 },
-  rose:            { texture: 0.25, aroma: 0.40, bubble: 0.20, risk: 0.15 },
-  blend:           { texture: 0.30, aroma: 0.30, bubble: 0.25, risk: 0.15 },
-  vintage:         { texture: 0.35, aroma: 0.30, bubble: 0.20, risk: 0.15 },
-};
-
 export function calculateCompositeQuality(
   texture: number,
   aroma: number,
   bubble: number,
   risk: number,
-  wineType: string
+  _wineType: string,
+  qualityWeights?: QualityWeights
 ): number {
-  const w = QUALITY_WEIGHTS[wineType] || QUALITY_WEIGHTS.blend;
+  const w = qualityWeights || DEFAULT_QUALITY_WEIGHTS;
   const riskScore = Math.max(0, 100 - risk);
 
   // 기본 가중 평균
@@ -605,21 +636,25 @@ export function calculateCompositeQuality(
  */
 export function calculateOptimalHarvestWindow(
   product: AgingProduct,
-  config: ParsedUAPSConfig
+  config: ParsedUAPSConfig,
+  agingFactors?: AgingFactors,
+  qualityWeights?: QualityWeights
 ): { startMonths: number; endMonths: number; peakMonth: number; peakScore: number; recommendation: string } {
   const reductionPotential = product.reductionPotential || 'low';
-  const wineFactors = WINE_TYPE_AGING_FACTORS[product.wineType] || WINE_TYPE_AGING_FACTORS.blend;
-  const baseAging = wineFactors.baseAgingYears;
+  const af = agingFactors || DEFAULT_AGING_FACTORS;
+  const baseAging = (product.terrestrialAgingYears != null && product.terrestrialAgingYears > 0)
+    ? product.terrestrialAgingYears
+    : af.baseAgingYears;
 
   // 6-36개월 각 월별 복합 품질 계산
   const monthlyScores: { month: number; score: number }[] = [];
   for (let m = 1; m <= 36; m += 1) {
-    const texture = calculateTextureMaturity(baseAging, m, config.tci * wineFactors.textureMult);
-    const aroma = calculateAromaFreshness(baseAging, m, config.fri * wineFactors.aromaDecay);
+    const texture = calculateTextureMaturity(baseAging, m, config.tci * af.textureMult);
+    const aroma = calculateAromaFreshness(baseAging, m, config.fri * af.aromaDecay);
     const bubble = calculateBubbleRefinement(m, product.agingDepth, config.bri);
-    const risk = calculateOffFlavorRisk(reductionPotential, m, texture) * wineFactors.riskMult;
+    const risk = calculateOffFlavorRisk(reductionPotential, m, texture) * af.riskMult;
 
-    const score = calculateCompositeQuality(texture, aroma, bubble, risk, product.wineType);
+    const score = calculateCompositeQuality(texture, aroma, bubble, risk, product.wineType, qualityWeights);
     monthlyScores.push({ month: m, score });
   }
 
@@ -657,7 +692,7 @@ export function calculateOptimalHarvestWindow(
   }
 
   const recommendation = generateRecommendation(
-    startMonths, endMonths, peakMonth, peakScore, reductionPotential, product.wineType
+    startMonths, endMonths, peakMonth, peakScore, reductionPotential, product.productCategory || product.wineType
   );
 
   return { startMonths, endMonths, peakMonth, peakScore, recommendation };
@@ -669,9 +704,9 @@ function generateRecommendation(
   peak: number,
   peakScore: number,
   reduction: ReductionPotential,
-  wineType: string
+  categoryOrType: string
 ): string {
-  const typeLabel = WINE_TYPE_LABELS_INTERNAL[wineType] || wineType;
+  const typeLabel = PRODUCT_CATEGORY_LABELS[categoryOrType as ProductCategory] || categoryOrType;
   const windowWidth = end - start;
   const widthLabel = windowWidth >= 10 ? '넓음' : windowWidth >= 6 ? '표준' : '좁음';
 
@@ -685,14 +720,6 @@ function generateRecommendation(
   return msg;
 }
 
-// 내부용 라벨 (types/uaps에 의존하지 않도록)
-const WINE_TYPE_LABELS_INTERNAL: Record<string, string> = {
-  blanc_de_blancs: 'Blanc de Blancs',
-  blanc_de_noirs: 'Blanc de Noirs',
-  rose: 'Rosé',
-  blend: 'Blend',
-  vintage: 'Vintage',
-};
 
 // ═══════════════════════════════════════════════════════════════════════════
 // 타임라인 데이터 생성 (차트용)
@@ -701,34 +728,28 @@ const WINE_TYPE_LABELS_INTERNAL: Record<string, string> = {
 /**
  * 6-36개월 범위의 월별 타임라인 데이터 생성
  */
-// 와인 타입별 숙성 특성 보정 계수
-// baseAgingYears: 투하 전 셀러 숙성 추정 (NV 기준)
-const WINE_TYPE_AGING_FACTORS: Record<string, { baseAgingYears: number; textureMult: number; aromaDecay: number; riskMult: number }> = {
-  blanc_de_blancs: { baseAgingYears: 2.2, textureMult: 0.7,  aromaDecay: 0.75, riskMult: 0.6  },  // 느린 숙성, 향 보존 우수, 저위험
-  blanc_de_noirs:  { baseAgingYears: 1.9, textureMult: 1.2,  aromaDecay: 1.05, riskMult: 1.3  },  // 빠른 숙성, 환원 위험
-  rose:            { baseAgingYears: 1.7, textureMult: 1.0,  aromaDecay: 1.25, riskMult: 0.8  },  // 보통 숙성, 향 감소 빠름
-  blend:           { baseAgingYears: 2.0, textureMult: 1.0,  aromaDecay: 1.0,  riskMult: 1.0  },  // 기준
-  vintage:         { baseAgingYears: 2.6, textureMult: 0.8,  aromaDecay: 0.7,  riskMult: 1.4  },  // 느린 발전, 향 보존 우수, 높은 잠재력
-};
-
 export function generateTimelineData(
   product: AgingProduct,
-  config: ParsedUAPSConfig
+  config: ParsedUAPSConfig,
+  agingFactors?: AgingFactors,
+  qualityWeights?: QualityWeights
 ): (TimelineDataPoint & { compositeQuality: number; gainScore: number; lossScore: number; netBenefit: number })[] {
   const reductionPotential = product.reductionPotential || 'low';
-  const wineFactors = WINE_TYPE_AGING_FACTORS[product.wineType] || WINE_TYPE_AGING_FACTORS.blend;
-  const baseAging = wineFactors.baseAgingYears;
-  const w = QUALITY_WEIGHTS[product.wineType] || QUALITY_WEIGHTS.blend;
+  const af = agingFactors || DEFAULT_AGING_FACTORS;
+  const w = qualityWeights || DEFAULT_QUALITY_WEIGHTS;
+  const baseAging = (product.terrestrialAgingYears != null && product.terrestrialAgingYears > 0)
+    ? product.terrestrialAgingYears
+    : af.baseAgingYears;
   const points: (TimelineDataPoint & { compositeQuality: number; gainScore: number; lossScore: number; netBenefit: number })[] = [];
 
   for (let m = 1; m <= 36; m += 1) {
-    const textureMaturity = calculateTextureMaturity(baseAging, m, config.tci * wineFactors.textureMult);
-    const aromaFreshness = calculateAromaFreshness(baseAging, m, config.fri * wineFactors.aromaDecay);
-    const offFlavorRisk = calculateOffFlavorRisk(reductionPotential, m, textureMaturity) * wineFactors.riskMult;
+    const textureMaturity = calculateTextureMaturity(baseAging, m, config.tci * af.textureMult);
+    const aromaFreshness = calculateAromaFreshness(baseAging, m, config.fri * af.aromaDecay);
+    const offFlavorRisk = calculateOffFlavorRisk(reductionPotential, m, textureMaturity) * af.riskMult;
     const bubbleRefinement = calculateBubbleRefinement(m, product.agingDepth, config.bri);
 
     const compositeQuality = calculateCompositeQuality(
-      textureMaturity, aromaFreshness, bubbleRefinement, offFlavorRisk, product.wineType
+      textureMaturity, aromaFreshness, bubbleRefinement, offFlavorRisk, product.wineType, w
     );
 
     // 이득: 시간이 지나면 좋아지는 요소 (질감 + 기포)의 가중 평균
@@ -813,7 +834,9 @@ export function predictFlavorProfileStatistical(
   clusters: ClusterMatch[],
   underseaMonths: number,
   config: ParsedUAPSConfig,
-  product?: AgingProduct
+  product?: AgingProduct,
+  allModels?: TerrestrialModel[],
+  agingFactors?: AgingFactors
 ): Record<string, number> {
   if (clusters.length === 0) {
     return { fruity: 60, floralMineral: 45, yeastyAutolytic: 40, acidityFreshness: 70, bodyTexture: 55, finishComplexity: 50 };
@@ -876,23 +899,12 @@ export function predictFlavorProfileStatistical(
     rawValues[outputKeys[i]] = Math.min(100, Math.max(5, rawValues[outputKeys[i]]));
   }
 
-  // 3단계: 와인 타입 특성 보존 — 정규화 후에도 데이터 부족 시 타입별 기본값 보완
-  const WINE_TYPE_DEFAULTS: Record<string, Record<string, number>> = {
-    blanc_de_blancs: { fruity: 70, floralMineral: 65, yeastyAutolytic: 35, acidityFreshness: 80, bodyTexture: 45, finishComplexity: 55 },
-    blanc_de_noirs:  { fruity: 55, floralMineral: 40, yeastyAutolytic: 45, acidityFreshness: 65, bodyTexture: 65, finishComplexity: 55 },
-    rose:            { fruity: 65, floralMineral: 50, yeastyAutolytic: 30, acidityFreshness: 70, bodyTexture: 50, finishComplexity: 45 },
-    blend:           { fruity: 60, floralMineral: 45, yeastyAutolytic: 40, acidityFreshness: 70, bodyTexture: 55, finishComplexity: 50 },
-    vintage:         { fruity: 40, floralMineral: 55, yeastyAutolytic: 65, acidityFreshness: 55, bodyTexture: 70, finishComplexity: 75 },
-  };
-
-  const wineType = clusters[0]?.model.wineType || 'blend';
-  const defaults = WINE_TYPE_DEFAULTS[wineType] || WINE_TYPE_DEFAULTS.blend;
+  // 3단계: 데이터 부족 시 범용 기본값으로 보완 (카테고리별 특성은 AI Layer 2에서 보정)
 
   for (const key of outputKeys) {
     if (rawValues[key] < 15) {
-      // 데이터 부족 축 → 타입별 기본값으로 보완 (블렌딩)
-      const defaultVal = defaults[key] || 40;
-      rawValues[key] = rawValues[key] * 0.3 + defaultVal * 0.7;
+      // 데이터 부족 축 → 범용 기본값(50)으로 보완
+      rawValues[key] = rawValues[key] * 0.3 + 50 * 0.7;
     }
   }
 
@@ -946,33 +958,80 @@ export function predictFlavorProfileStatistical(
     }
   }
 
-  for (let i = 0; i < flavorKeys.length; i++) {
-    let baseValue = rawValues[outputKeys[i]];
+  // ─── Pseudo-cohort t=0 앵커 계산 ─────────────────────────────────────────
+  // 제품의 투하 전 agingStage 클러스터 평균 = t=0 앵커
+  // 예측 = t0_anchor + Δ × TCI/FRI (앵커 고정, 변화량에만 보정 적용)
+  // 이 방식은 cross-sectional 편향의 절대값을 상쇄하고 변화율만 추출
+  let t0Profile: Record<string, number> | null = null;
+  if (allModels && allModels.length > 0 && product) {
+    const af = agingFactors || DEFAULT_AGING_FACTORS;
+    const baseAgingYears = (product.terrestrialAgingYears != null && product.terrestrialAgingYears > 0)
+      ? product.terrestrialAgingYears
+      : af.baseAgingYears;
+    const t0Stage = inferAgingStage(baseAgingYears);
+    const productCategory = (product.productCategory || 'champagne/wine') as ProductCategory;
+    const t0Model = allModels.find(m =>
+      m.productCategory === productCategory && m.agingStage === t0Stage
+    );
+    if (t0Model) {
+      const fp = t0Model.flavorProfileJson as Record<string, { mean: number } | undefined>;
+      t0Profile = {
+        fruity:           fp.fruityScore?.mean           ?? rawValues.fruity,
+        floralMineral:    fp.floralMineralScore?.mean    ?? rawValues.floralMineral,
+        yeastyAutolytic:  fp.yeastyAutolyticScore?.mean  ?? rawValues.yeastyAutolytic,
+        acidityFreshness: fp.acidityFreshnessScore?.mean ?? rawValues.acidityFreshness,
+        bodyTexture:      fp.bodyTextureScore?.mean      ?? rawValues.bodyTexture,
+        finishComplexity: fp.finishComplexityScore?.mean ?? rawValues.finishComplexity,
+      };
+    }
+  }
 
-    // TCI/FRI 보정 적용
+  for (let i = 0; i < flavorKeys.length; i++) {
+    const key = outputKeys[i];
+    const targetValue = rawValues[key];     // 목표 stage 클러스터 평균
+    const anchorValue = t0Profile?.[key] ?? targetValue; // t=0 앵커 (없으면 target 자체)
+    const delta = targetValue - anchorValue; // 숙성 단계 간 변화량
     const monthFactor = underseaMonths / 12;
 
-    if (outputKeys[i] === 'fruity') {
-      // FRI로 보존: 해저에서 과실향 감소 속도 지연
-      baseValue *= Math.exp(-0.015 * underseaMonths * config.fri);
-    } else if (outputKeys[i] === 'floralMineral') {
-      // 해저 환경에서 미네랄 성분 증가 (약간 가속)
-      baseValue += monthFactor * 2.5;
-    } else if (outputKeys[i] === 'yeastyAutolytic') {
-      // TCI로 가속: 자가분해 가속 = 방법론 핵심
-      baseValue += monthFactor * (1 / config.tci) * 3;
-    } else if (outputKeys[i] === 'acidityFreshness') {
-      // FRI로 보존: 산도 유지
-      baseValue *= Math.exp(-0.012 * underseaMonths * config.fri);
-    } else if (outputKeys[i] === 'bodyTexture') {
-      // TCI로 가속: 질감 발전
-      baseValue += monthFactor * (1 / config.tci) * 2.5;
-    } else if (outputKeys[i] === 'finishComplexity') {
-      // 시간 기반 점진적 증가
-      baseValue += monthFactor * 2;
+    let adjustedValue: number;
+
+    if (t0Profile) {
+      // ── Pseudo-cohort 방식: 앵커 고정, Δ에만 TCI/FRI 보정 ──────────────
+      let adjustedDelta = delta;
+      if (key === 'fruity') {
+        adjustedDelta = delta * Math.exp(-0.015 * underseaMonths * config.fri);
+      } else if (key === 'floralMineral') {
+        adjustedDelta = delta + monthFactor * 2.5;
+      } else if (key === 'yeastyAutolytic') {
+        adjustedDelta = delta + monthFactor * (1 / config.tci) * 3;
+      } else if (key === 'acidityFreshness') {
+        adjustedDelta = delta * Math.exp(-0.012 * underseaMonths * config.fri);
+      } else if (key === 'bodyTexture') {
+        adjustedDelta = delta + monthFactor * (1 / config.tci) * 2.5;
+      } else if (key === 'finishComplexity') {
+        adjustedDelta = delta + monthFactor * 2;
+      }
+      adjustedValue = anchorValue + adjustedDelta;
+    } else {
+      // ── 기존 방식: t=0 앵커 없을 때 폴백 ─────────────────────────────────
+      let baseValue = targetValue;
+      if (key === 'fruity') {
+        baseValue *= Math.exp(-0.015 * underseaMonths * config.fri);
+      } else if (key === 'floralMineral') {
+        baseValue += monthFactor * 2.5;
+      } else if (key === 'yeastyAutolytic') {
+        baseValue += monthFactor * (1 / config.tci) * 3;
+      } else if (key === 'acidityFreshness') {
+        baseValue *= Math.exp(-0.012 * underseaMonths * config.fri);
+      } else if (key === 'bodyTexture') {
+        baseValue += monthFactor * (1 / config.tci) * 2.5;
+      } else if (key === 'finishComplexity') {
+        baseValue += monthFactor * 2;
+      }
+      adjustedValue = baseValue;
     }
 
-    result[outputKeys[i]] = Math.round(Math.min(100, Math.max(0, baseValue)) * 10) / 10;
+    result[key] = Math.round(Math.min(100, Math.max(0, adjustedValue)) * 10) / 10;
   }
 
   return result;

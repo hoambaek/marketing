@@ -11,7 +11,11 @@
 import type {
   AgingProduct,
   AgingPrediction,
+  TerrestrialModel,
   ParsedUAPSConfig,
+  AgingFactors,
+  QualityWeights,
+  ProductCategory,
 } from '@/lib/types/uaps';
 import type { ClusterMatch } from './uaps-engine';
 import {
@@ -21,7 +25,14 @@ import {
   calculateOptimalHarvestWindow,
   predictFlavorProfileStatistical,
 } from './uaps-engine';
-import { WINE_TYPE_LABELS, REDUCTION_POTENTIAL_LABELS } from '@/lib/types/uaps';
+import {
+  WINE_TYPE_LABELS,
+  REDUCTION_POTENTIAL_LABELS,
+  PRODUCT_CATEGORY_LABELS,
+  DEFAULT_AGING_FACTORS,
+  DEFAULT_QUALITY_WEIGHTS,
+  AGING_FACTORS_RANGE,
+} from '@/lib/types/uaps';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // 전문가 프로파일 (Google Search Grounding)
@@ -48,7 +59,7 @@ export async function generateExpertProfile(
   const prompt = buildExpertProfilePrompt(product);
 
   const EXPERT_TIMEOUT_MS = 45_000;
-  const GROUNDING_MODELS = ['gemini-2.5-flash', 'gemini-2.5-flash-lite'];
+  const GROUNDING_MODELS = ['gemini-3-flash-preview', 'gemini-2.5-flash', 'gemini-2.5-flash-lite'];
 
   for (const modelName of GROUNDING_MODELS) {
     try {
@@ -105,21 +116,50 @@ export async function generateExpertProfile(
 function buildExpertProfilePrompt(product: AgingProduct): string {
   const vintageStr = product.vintage ? ` ${product.vintage}` : '';
   const searchQuery = `${product.productName}${vintageStr}`;
+  const category = (product.productCategory || 'champagne/wine') as ProductCategory;
+  const categoryLabel = PRODUCT_CATEGORY_LABELS[category] || category;
 
-  return `당신은 와인 전문가입니다.
-다음 샴페인의 풍미 프로파일을 전문가 테이스팅 노트를 기반으로 분석해주세요.
+  // 카테고리별 전문가 역할
+  const expertRoles: Record<string, string> = {
+    'champagne/wine': '와인 전문가',
+    coldbrew: '커피 전문가 (SCA Q-Grader)',
+    sake: '사케 전문가 (唎酒師)',
+    whisky: '위스키 전문가',
+    spirits: '전통주/증류주 전문가',
+    puer: '보이차/생차 전문가 (茶藝師)',
+    soy_sauce: '발효 식품 전문가',
+    vinegar: '식초/발효 식품 전문가',
+  };
+  const expertRole = expertRoles[category] || '식음 전문가';
 
-## 대상 와인
+  // 카테고리별 참조 소스
+  const sourcesByCategory: Record<string, string> = {
+    'champagne/wine': 'Wine Advocate, Decanter, Wine Spectator, Jancis Robinson, CellarTracker',
+    coldbrew: 'CoffeeReview, Cup of Excellence, SCA 리뷰',
+    sake: '全国新酒鑑評会, Kura Master, IWC Sake, SAKEDOO',
+    whisky: 'WhiskyBase, Whisky Advocate, Master of Malt',
+    spirits: '더술닷컴, 전통주갤러리, 우리술닷컴',
+    puer: 'YunnanSourcing, TeaDB, 茶友网',
+    soy_sauce: '職人醤油, 全国品評会',
+    vinegar: 'Amazon Reviews, 黒酢品評会',
+  };
+  const sources = sourcesByCategory[category] || '전문 리뷰 사이트';
+
+  return `당신은 ${expertRole}입니다.
+다음 ${categoryLabel} 제품의 풍미 프로파일을 전문가 테이스팅 노트를 기반으로 분석해주세요.
+
+## 대상 제품
 - 이름: ${searchQuery}
+- 카테고리: ${categoryLabel}
 - 생산자: ${product.producer || '미입력'}
-- 타입: ${WINE_TYPE_LABELS[product.wineType]}
+- 타입: ${WINE_TYPE_LABELS[product.wineType] || product.wineType}
 ${product.vintage ? `- 빈티지: ${product.vintage}` : '- NV (논빈티지)'}
 ${product.ph ? `- pH: ${product.ph}` : ''}
 ${product.dosage ? `- Dosage: ${product.dosage}g/L` : ''}
 
 ## 요청
-Wine Advocate, Decanter, Wine Spectator, Jancis Robinson, CellarTracker 등 전문가 리뷰를 검색하여
-이 와인의 현재 상태(투하 전) 풍미 프로파일을 0-100 스케일로 평가해주세요.
+${sources} 등 전문가 리뷰를 검색하여
+이 제품의 현재 상태(투하 전) 풍미 프로파일을 0-100 스케일로 평가해주세요.
 
 각 축의 기준:
 - 30 이하: 약함/미미
@@ -232,6 +272,8 @@ interface AIPredictionResponse {
   beforeCharacter: string;
   afterPrediction: string;
   riskWarning: string | null;
+  agingFactors?: AgingFactors;
+  qualityWeights?: QualityWeights;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -260,7 +302,10 @@ function buildPredictionPrompt(
     };
   });
 
-  return `당신은 와인 숙성 과학 전문가입니다.
+  const category = (product.productCategory || 'champagne/wine') as ProductCategory;
+  const categoryLabel = PRODUCT_CATEGORY_LABELS[category] || category;
+
+  return `당신은 식음 숙성 과학 전문가입니다.
 아래 데이터를 기반으로 해저 숙성 후 풍미를 예측해주세요.
 
 ## 학습된 지상 숙성 패턴 (매칭 클러스터 상위 3개)
@@ -279,7 +324,8 @@ ${JSON.stringify(clusterContext, null, 2)}
 
 ## 예측 대상 제품
 - 제품명: ${product.productName}
-- 와인 타입: ${WINE_TYPE_LABELS[product.wineType]} (${product.wineType})
+- 카테고리: ${categoryLabel} (${category})
+- 와인 타입: ${WINE_TYPE_LABELS[product.wineType] || product.wineType} (${product.wineType})
 - 물리화학: pH ${product.ph ?? '미입력'}, 도사주 ${product.dosage ?? '미입력'}g/L, 알코올 ${product.alcohol ?? '미입력'}%
 - 환원 성향: ${REDUCTION_POTENTIAL_LABELS[product.reductionPotential]} (${product.reductionPotential})
 - 해저 숙성 기간: ${underseaMonths}개월, 수심 ${product.agingDepth}m
@@ -312,8 +358,20 @@ ${expertSources?.length ? `- 출처: ${expertSources.join(', ')}` : ''}
     "startMonths": 시작월,
     "endMonths": 종료월
   },
-  "beforeCharacter": "투하 전 이 샴페인의 원래 특징 (한국어, 2-3문장. 전문가 리뷰 기반 풍미·질감·산도 등 핵심 특성 설명)",
-  "afterPrediction": "해저 숙성 후 예상 변화 (한국어, 2-3문장. 어떤 풍미가 강화/감소되고 질감이 어떻게 변하는지)",
+  "agingFactors": {
+    "baseAgingYears": 숫자,  // 이 카테고리 제품의 투하 전 평균 숙성 기간(년). 와인:2.0, 커피:0.5, 사케:1.0, 위스키:5.0 등
+    "textureMult": 0.3~1.5,  // 질감 가속 배수. 높을수록 해저에서 질감이 빨리 변함. 예: 위스키 1.3, 식초 0.5
+    "aromaDecay": 0.3~1.5,   // 향 감소 속도 배수. 높을수록 향이 빨리 감소. 예: 커피 1.4, 보이차 0.4
+    "riskMult": 0.3~2.0      // 환원/결함 리스크 배수. 예: 와인 1.0, 간장 0.5
+  },
+  "qualityWeights": {
+    "texture": 0~1,   // 질감 가중치 (합계 1.0)
+    "aroma": 0~1,     // 향 가중치
+    "bubble": 0~1,    // 기포/탄산 가중치 (기포 없는 제품은 0 또는 매우 낮게)
+    "risk": 0~1       // 리스크 가중치
+  },
+  "beforeCharacter": "투하 전 이 제품의 원래 특징 (한국어, 2-3문장)",
+  "afterPrediction": "해저 숙성 후 예상 변화 (한국어, 2-3문장)",
   "riskWarning": "리스크 경고 (한국어) 또는 null"
 }`;
 }
@@ -335,7 +393,8 @@ export async function runAIPrediction(
   underseaMonths: number,
   config: ParsedUAPSConfig,
   expertProfile?: Record<string, number> | null,
-  expertSources?: string[] | null
+  expertSources?: string[] | null,
+  allModels?: TerrestrialModel[]
 ): Promise<AIPredictionResponse> {
   const prompt = buildPredictionPrompt(product, clusters, underseaMonths, config, expertProfile, expertSources);
 
@@ -398,7 +457,7 @@ export async function runAIPrediction(
   } catch (error) {
     // AI 실패 시 Layer 1 통계 기반 폴백
     console.error('UAPS AI 예측 실패, 통계 기반 폴백 사용:', error);
-    return buildStatisticalFallback(product, clusters, underseaMonths, config);
+    return buildStatisticalFallback(product, clusters, underseaMonths, config, allModels);
   }
 }
 
@@ -412,12 +471,17 @@ export function buildPredictionResult(
   underseaMonths: number,
   config: ParsedUAPSConfig,
   expertProfile?: Record<string, number> | null,
-  expertSources?: string[] | null
+  expertSources?: string[] | null,
+  allModels?: TerrestrialModel[]
 ): Omit<AgingPrediction, 'id' | 'createdAt'> {
-  const { startMonths, endMonths, recommendation } = calculateOptimalHarvestWindow(product, config);
+  // AI 추론 보정 계수 (없으면 DEFAULT 폴백)
+  const aiAgingFactors = aiResponse.agingFactors || DEFAULT_AGING_FACTORS;
+  const aiQualityWeights = aiResponse.qualityWeights || DEFAULT_QUALITY_WEIGHTS;
+
+  const { startMonths, endMonths, recommendation } = calculateOptimalHarvestWindow(product, config, aiAgingFactors, aiQualityWeights);
 
   // AI 결과와 통계 결과를 앙상블 (AI 70% + 통계 30%)
-  const statisticalFlavors = predictFlavorProfileStatistical(clusters, underseaMonths, config, product);
+  const statisticalFlavors = predictFlavorProfileStatistical(clusters, underseaMonths, config, product, allModels, aiAgingFactors);
   const aiFlavors = aiResponse.flavorProfile;
 
   const ensembleFlavors = {
@@ -435,6 +499,7 @@ export function buildPredictionResult(
   return {
     productId: product.id,
     wineType: product.wineType,
+    productCategory: (product.productCategory || 'champagne/wine') as ProductCategory,
     inputPh: product.ph,
     inputDosage: product.dosage,
     inputReductionPotential: product.reductionPotential,
@@ -462,6 +527,8 @@ export function buildPredictionResult(
     friApplied: config.fri,
     briApplied: config.bri,
     predictionConfidence: Math.round(predictionConfidence * 100) / 100,
+    agingFactorsJson: aiResponse.agingFactors || null,
+    qualityWeightsJson: aiResponse.qualityWeights || null,
   };
 }
 
@@ -474,9 +541,36 @@ function blend(aiValue: number, statValue: number): number {
   return Math.round((aiValue * 0.7 + statValue * 0.3) * 10) / 10;
 }
 
-/** 값 범위 0-100 클램핑 */
+/** 값 범위 클램핑 + agingFactors/qualityWeights 정규화 */
 function clampPredictionValues(response: AIPredictionResponse): AIPredictionResponse {
   const clamp = (v: number) => Math.min(100, Math.max(0, Math.round(v * 10) / 10));
+
+  // agingFactors 범위 클램핑
+  let agingFactors: AgingFactors | undefined;
+  if (response.agingFactors) {
+    const af = response.agingFactors;
+    agingFactors = {
+      baseAgingYears: Math.min(AGING_FACTORS_RANGE.baseAgingYears.max, Math.max(AGING_FACTORS_RANGE.baseAgingYears.min, af.baseAgingYears ?? DEFAULT_AGING_FACTORS.baseAgingYears)),
+      textureMult: Math.min(AGING_FACTORS_RANGE.textureMult.max, Math.max(AGING_FACTORS_RANGE.textureMult.min, af.textureMult ?? DEFAULT_AGING_FACTORS.textureMult)),
+      aromaDecay: Math.min(AGING_FACTORS_RANGE.aromaDecay.max, Math.max(AGING_FACTORS_RANGE.aromaDecay.min, af.aromaDecay ?? DEFAULT_AGING_FACTORS.aromaDecay)),
+      riskMult: Math.min(AGING_FACTORS_RANGE.riskMult.max, Math.max(AGING_FACTORS_RANGE.riskMult.min, af.riskMult ?? DEFAULT_AGING_FACTORS.riskMult)),
+    };
+  }
+
+  // qualityWeights 정규화 (합계 = 1.0)
+  let qualityWeights: QualityWeights | undefined;
+  if (response.qualityWeights) {
+    const qw = response.qualityWeights;
+    const sum = (qw.texture ?? 0) + (qw.aroma ?? 0) + (qw.bubble ?? 0) + (qw.risk ?? 0);
+    if (sum > 0) {
+      qualityWeights = {
+        texture: (qw.texture ?? 0) / sum,
+        aroma: (qw.aroma ?? 0) / sum,
+        bubble: (qw.bubble ?? 0) / sum,
+        risk: (qw.risk ?? 0) / sum,
+      };
+    }
+  }
 
   return {
     flavorProfile: {
@@ -501,6 +595,8 @@ function clampPredictionValues(response: AIPredictionResponse): AIPredictionResp
     beforeCharacter: response.beforeCharacter || '',
     afterPrediction: response.afterPrediction || '',
     riskWarning: response.riskWarning || null,
+    agingFactors,
+    qualityWeights,
   };
 }
 
@@ -509,9 +605,10 @@ function buildStatisticalFallback(
   product: AgingProduct,
   clusters: ClusterMatch[],
   underseaMonths: number,
-  config: ParsedUAPSConfig
+  config: ParsedUAPSConfig,
+  allModels?: TerrestrialModel[]
 ): AIPredictionResponse {
-  const flavors = predictFlavorProfileStatistical(clusters, underseaMonths, config, product);
+  const flavors = predictFlavorProfileStatistical(clusters, underseaMonths, config, product, allModels, DEFAULT_AGING_FACTORS);
   const textureMaturity = calculateTextureMaturity(0, underseaMonths, config.tci);
   const aromaFreshness = calculateAromaFreshness(0, underseaMonths, config.fri);
   const offFlavorRisk = calculateOffFlavorRisk(
@@ -525,6 +622,7 @@ function buildStatisticalFallback(
   ) / 10;
 
   const { startMonths, endMonths } = calculateOptimalHarvestWindow(product, config);
+  const categoryLabel = PRODUCT_CATEGORY_LABELS[(product.productCategory || 'champagne/wine') as ProductCategory] || product.wineType;
 
   return {
     flavorProfile: {
@@ -542,11 +640,13 @@ function buildStatisticalFallback(
       overallQuality,
     },
     harvestWindow: { startMonths, endMonths },
-    insight: `${WINE_TYPE_LABELS[product.wineType]} 타입의 통계 패턴을 기반으로 예측했습니다.`,
-    beforeCharacter: `${WINE_TYPE_LABELS[product.wineType]} 타입의 일반적 풍미 패턴을 기반으로 분석했습니다. 전문가 리뷰 데이터가 없어 통계 기반 프로파일을 사용합니다.`,
+    insight: `${categoryLabel} 카테고리의 통계 패턴을 기반으로 예측했습니다.`,
+    beforeCharacter: `${categoryLabel} 카테고리의 일반적 풍미 패턴을 기반으로 분석했습니다. 전문가 리뷰 데이터가 없어 통계 기반 프로파일을 사용합니다.`,
     afterPrediction: `${underseaMonths}개월 해저 숙성 시 질감 성숙도 ${textureMaturity}점, 향 신선도 ${aromaFreshness}점으로 예상됩니다. 효모·숙성향과 바디감이 강화되고 과실향은 일부 감소합니다.`,
     riskWarning: offFlavorRisk >= config.riskThresholds.offFlavor
       ? `Off-flavor 리스크가 ${offFlavorRisk}%로 높습니다. 환원 성향(${REDUCTION_POTENTIAL_LABELS[product.reductionPotential]})을 감안하여 ${startMonths}개월 이내 인양을 검토하세요.`
       : null,
+    agingFactors: DEFAULT_AGING_FACTORS,
+    qualityWeights: DEFAULT_QUALITY_WEIGHTS,
   };
 }

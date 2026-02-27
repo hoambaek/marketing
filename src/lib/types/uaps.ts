@@ -10,6 +10,18 @@
 
 export type WineType = 'blanc_de_blancs' | 'blanc_de_noirs' | 'rose' | 'blend' | 'vintage';
 
+export type ProductCategory =
+  | 'champagne/wine'
+  | 'coldbrew'
+  | 'sake'
+  | 'whisky'
+  | 'spirits'
+  | 'puer'
+  | 'soy_sauce'
+  | 'vinegar'
+  | 'tea'
+  | 'other';
+
 export type AgingStage = 'youthful' | 'developing' | 'mature' | 'aged';
 
 export type DataSource = 'vivino' | 'cellartracker' | 'decanter' | 'internal_tasting' | 'manual_entry' | 'csv_import' | 'huggingface';
@@ -33,6 +45,7 @@ export interface WineTerrestrialData {
   producer: string | null;
   vintage: number | null;
   wineType: WineType;
+  productCategory: ProductCategory | null;
   // 물리화학
   ph: number | null;
   dosage: number | null;
@@ -48,6 +61,7 @@ export interface WineTerrestrialData {
   finishComplexityScore: number | null;
   // 숙성
   agingYears: number | null;
+  agingYearsConfidence: number | null;  // 0.0~1.0 (NLP 추론 신뢰도)
   agingStage: AgingStage | null;
   drinkingWindowStart: number | null;
   drinkingWindowEnd: number | null;
@@ -64,6 +78,7 @@ export interface WineTerrestrialData {
 export interface TerrestrialModel {
   id: string;
   wineType: WineType;
+  productCategory: ProductCategory;
   agingStage: AgingStage;
   sampleCount: number;
   flavorProfileJson: unknown;
@@ -81,6 +96,7 @@ export interface TerrestrialModel {
 export interface AgingProduct {
   id: string;
   productName: string;
+  productCategory: string;
   wineType: WineType;
   vintage: number | null;
   producer: string;
@@ -95,6 +111,8 @@ export interface AgingProduct {
   immersionDate: string | null;
   plannedDurationMonths: number | null;
   agingDepth: number;
+  // 지상 숙성 이력 (투하 전)
+  terrestrialAgingYears: number | null;
   // 상태
   status: ProductStatus;
   notes: string | null;
@@ -108,6 +126,7 @@ export interface AgingPrediction {
   productId: string | null;
   // 입력
   wineType: WineType;
+  productCategory: ProductCategory | null;
   inputPh: number | null;
   inputDosage: number | null;
   inputReductionPotential: string | null;
@@ -141,6 +160,9 @@ export interface AgingPrediction {
   friApplied: number;
   briApplied: number;
   predictionConfidence: number;
+  // AI 추론 보정 계수
+  agingFactorsJson: AgingFactors | null;
+  qualityWeightsJson: QualityWeights | null;
   // 메타
   createdAt: string;
 }
@@ -174,6 +196,7 @@ export interface UAPSConfig {
 // 제품 등록 입력
 export interface ProductInput {
   productName: string;
+  productCategory: string;
   wineType: WineType;
   vintage: number | null;
   producer: string;
@@ -186,6 +209,7 @@ export interface ProductInput {
   immersionDate: string | null;
   plannedDurationMonths: number | null;
   agingDepth: number;
+  terrestrialAgingYears: number | null;
   notes: string | null;
 }
 
@@ -246,6 +270,7 @@ export interface ParsedUAPSConfig {
 // 지상 데이터 필터
 export interface TerrestrialDataFilters {
   wineType?: WineType;
+  productCategory?: ProductCategory;
   agingStage?: AgingStage;
   dataSource?: DataSource;
   limit?: number;
@@ -325,6 +350,64 @@ export const FLAVOR_AXES = [
   { key: 'bodyTexture', label: '바디감·질감', color: '#fb923c' },
   { key: 'finishComplexity', label: '여운·복합미', color: '#f472b6' },
 ] as const;
+
+// ═══════════════════════════════════════════════════════════════════════════
+// AI 추론 보정 계수 인터페이스
+// ═══════════════════════════════════════════════════════════════════════════
+
+// 카테고리별 숙성 특성 계수 (AI가 실시간 추론)
+export interface AgingFactors {
+  baseAgingYears: number;  // 투하 전 숙성 추정 (년)
+  textureMult: number;     // 질감 가속 배수 (0.3~1.5)
+  aromaDecay: number;      // 향 감소 속도 배수 (0.3~1.5)
+  riskMult: number;        // 환원 리스크 배수 (0.3~2.0)
+}
+
+// 카테고리별 품질 가중치 (합계 = 1.0)
+export interface QualityWeights {
+  texture: number;   // 질감 가중치
+  aroma: number;     // 향 가중치
+  bubble: number;    // 기포 가중치
+  risk: number;      // 리스크 가중치
+}
+
+// 계수 범위 상수 (클램핑용)
+export const AGING_FACTORS_RANGE = {
+  baseAgingYears: { min: 0, max: 30 },
+  textureMult: { min: 0.3, max: 1.5 },
+  aromaDecay: { min: 0.3, max: 1.5 },
+  riskMult: { min: 0.3, max: 2.0 },
+} as const;
+
+// 기본 AgingFactors (샴페인 blend 기준)
+export const DEFAULT_AGING_FACTORS: AgingFactors = {
+  baseAgingYears: 2.0,
+  textureMult: 1.0,
+  aromaDecay: 1.0,
+  riskMult: 1.0,
+};
+
+// 기본 QualityWeights (범용)
+export const DEFAULT_QUALITY_WEIGHTS: QualityWeights = {
+  texture: 0.30,
+  aroma: 0.30,
+  bubble: 0.25,
+  risk: 0.15,
+};
+
+// 카테고리 라벨
+export const PRODUCT_CATEGORY_LABELS: Record<ProductCategory, string> = {
+  'champagne/wine': '샴페인/와인',
+  coldbrew: '콜드브루 커피',
+  sake: '사케',
+  whisky: '위스키',
+  spirits: '한국 전통주',
+  puer: '생차/보이차',
+  soy_sauce: '간장',
+  vinegar: '식초',
+  tea: '차',
+  other: '기타',
+};
 
 // 기본 보정 계수 (과학적 도출값)
 export const DEFAULT_COEFFICIENTS = {

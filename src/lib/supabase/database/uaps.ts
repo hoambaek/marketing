@@ -15,8 +15,9 @@ import type {
   UAPSConfig,
   TerrestrialDataFilters,
   ProductInput,
-  WineType,
-  AgingStage,
+  ProductCategory,
+  AgingFactors,
+  QualityWeights,
 } from '@/lib/types/uaps';
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -26,6 +27,7 @@ import type {
 interface DBAgingProduct {
   id: string;
   product_name: string;
+  product_category: string;
   wine_type: string;
   vintage: number | null;
   producer: string;
@@ -38,6 +40,7 @@ interface DBAgingProduct {
   immersion_date: string | null;
   planned_duration_months: number | null;
   aging_depth: number;
+  terrestrial_aging_years: number | null;
   status: string;
   notes: string | null;
   created_at: string;
@@ -48,6 +51,7 @@ interface DBAgingPrediction {
   id: string;
   product_id: string | null;
   wine_type: string;
+  product_category: string | null;
   input_ph: number | null;
   input_dosage: number | null;
   input_reduction_potential: string | null;
@@ -75,6 +79,8 @@ interface DBAgingPrediction {
   fri_applied: number;
   bri_applied: number;
   prediction_confidence: number;
+  aging_factors_json: AgingFactors | null;
+  quality_weights_json: QualityWeights | null;
   created_at: string;
 }
 
@@ -84,6 +90,7 @@ interface DBWineTerrestrialData {
   producer: string | null;
   vintage: number | null;
   wine_type: string;
+  product_category?: string | null;
   ph: number | null;
   dosage: number | null;
   alcohol: number | null;
@@ -96,6 +103,7 @@ interface DBWineTerrestrialData {
   body_texture_score: number | null;
   finish_complexity_score: number | null;
   aging_years: number | null;
+  aging_years_confidence: number | null;
   aging_stage: string | null;
   drinking_window_start: number | null;
   drinking_window_end: number | null;
@@ -109,6 +117,7 @@ interface DBWineTerrestrialData {
 interface DBTerrestrialModel {
   id: string;
   wine_type: string;
+  product_category: string;
   aging_stage: string;
   sample_count: number;
   flavor_profile_json: Record<string, unknown>;
@@ -189,6 +198,7 @@ export async function createAgingProduct(
     .from('aging_products')
     .insert({
       product_name: input.productName,
+      product_category: input.productCategory ?? 'champagne',
       wine_type: input.wineType,
       vintage: input.vintage,
       producer: input.producer,
@@ -201,6 +211,7 @@ export async function createAgingProduct(
       immersion_date: input.immersionDate,
       planned_duration_months: input.plannedDurationMonths,
       aging_depth: input.agingDepth,
+      terrestrial_aging_years: input.terrestrialAgingYears ?? null,
       notes: input.notes,
     })
     .select()
@@ -222,6 +233,7 @@ export async function updateAgingProduct(
 
   const dbUpdates: Record<string, unknown> = {};
   if (updates.productName !== undefined) dbUpdates.product_name = updates.productName;
+  if (updates.productCategory !== undefined) dbUpdates.product_category = updates.productCategory;
   if (updates.wineType !== undefined) dbUpdates.wine_type = updates.wineType;
   if (updates.vintage !== undefined) dbUpdates.vintage = updates.vintage;
   if (updates.producer !== undefined) dbUpdates.producer = updates.producer;
@@ -234,6 +246,7 @@ export async function updateAgingProduct(
   if (updates.immersionDate !== undefined) dbUpdates.immersion_date = updates.immersionDate;
   if (updates.plannedDurationMonths !== undefined) dbUpdates.planned_duration_months = updates.plannedDurationMonths;
   if (updates.agingDepth !== undefined) dbUpdates.aging_depth = updates.agingDepth;
+  if (updates.terrestrialAgingYears !== undefined) dbUpdates.terrestrial_aging_years = updates.terrestrialAgingYears;
   if (updates.notes !== undefined) dbUpdates.notes = updates.notes;
   if (updates.status !== undefined) dbUpdates.status = updates.status;
 
@@ -308,6 +321,7 @@ export async function createAgingPrediction(
     .insert({
       product_id: prediction.productId,
       wine_type: prediction.wineType,
+      product_category: prediction.productCategory,
       input_ph: prediction.inputPh,
       input_dosage: prediction.inputDosage,
       input_reduction_potential: prediction.inputReductionPotential,
@@ -335,6 +349,8 @@ export async function createAgingPrediction(
       fri_applied: prediction.friApplied,
       bri_applied: prediction.briApplied,
       prediction_confidence: prediction.predictionConfidence,
+      aging_factors_json: prediction.agingFactorsJson,
+      quality_weights_json: prediction.qualityWeightsJson,
     })
     .select()
     .single();
@@ -362,6 +378,9 @@ export async function fetchWineTerrestrialData(
 
   if (filters?.wineType) {
     query = query.eq('wine_type', filters.wineType);
+  }
+  if (filters?.productCategory) {
+    query = query.eq('product_category', filters.productCategory);
   }
   if (filters?.agingStage) {
     query = query.eq('aging_stage', filters.agingStage);
@@ -426,6 +445,7 @@ export async function bulkInsertWineTerrestrialData(
     body_texture_score: r.bodyTextureScore,
     finish_complexity_score: r.finishComplexityScore,
     aging_years: r.agingYears,
+    aging_years_confidence: r.agingYearsConfidence ?? null,
     aging_stage: r.agingStage,
     drinking_window_start: r.drinkingWindowStart,
     drinking_window_end: r.drinkingWindowEnd,
@@ -476,17 +496,24 @@ export async function fetchTerrestrialModels(): Promise<TerrestrialModel[] | nul
 }
 
 export async function fetchTerrestrialModelByTypeStage(
-  wineType: WineType,
-  agingStage: AgingStage
+  wineType: string,
+  agingStage: string,
+  productCategory?: string
 ): Promise<TerrestrialModel | null> {
   if (!isSupabaseConfigured()) return null;
 
-  const { data, error } = await supabase!
+  let query = supabase!
     .from('terrestrial_model')
     .select('*')
-    .eq('wine_type', wineType)
-    .eq('aging_stage', agingStage)
-    .single();
+    .eq('aging_stage', agingStage);
+
+  if (productCategory) {
+    query = query.eq('product_category', productCategory);
+  } else {
+    query = query.eq('wine_type', wineType);
+  }
+
+  const { data, error } = await query.single();
 
   if (error) {
     if (error.code === 'PGRST116') return null;
@@ -506,6 +533,7 @@ export async function upsertTerrestrialModel(
     .from('terrestrial_model')
     .upsert({
       wine_type: model.wineType,
+      product_category: model.productCategory,
       aging_stage: model.agingStage,
       sample_count: model.sampleCount,
       flavor_profile_json: model.flavorProfileJson,
@@ -516,7 +544,7 @@ export async function upsertTerrestrialModel(
       confidence_score: model.confidenceScore,
       computed_at: model.computedAt,
     }, {
-      onConflict: 'wine_type,aging_stage',
+      onConflict: 'product_category,aging_stage',
     })
     .select()
     .single();
@@ -596,6 +624,7 @@ function mapDbAgingProduct(db: DBAgingProduct): AgingProduct {
   return {
     id: db.id,
     productName: db.product_name,
+    productCategory: db.product_category ?? 'champagne',
     wineType: db.wine_type as AgingProduct['wineType'],
     vintage: db.vintage,
     producer: db.producer,
@@ -608,6 +637,7 @@ function mapDbAgingProduct(db: DBAgingProduct): AgingProduct {
     immersionDate: db.immersion_date,
     plannedDurationMonths: db.planned_duration_months,
     agingDepth: db.aging_depth,
+    terrestrialAgingYears: db.terrestrial_aging_years ?? null,
     status: db.status as AgingProduct['status'],
     notes: db.notes,
     createdAt: db.created_at,
@@ -620,6 +650,7 @@ function mapDbAgingPrediction(db: DBAgingPrediction): AgingPrediction {
     id: db.id,
     productId: db.product_id,
     wineType: db.wine_type as AgingPrediction['wineType'],
+    productCategory: (db.product_category as AgingPrediction['productCategory']) ?? null,
     inputPh: db.input_ph,
     inputDosage: db.input_dosage,
     inputReductionPotential: db.input_reduction_potential,
@@ -647,6 +678,8 @@ function mapDbAgingPrediction(db: DBAgingPrediction): AgingPrediction {
     friApplied: db.fri_applied,
     briApplied: db.bri_applied,
     predictionConfidence: db.prediction_confidence,
+    agingFactorsJson: db.aging_factors_json ?? null,
+    qualityWeightsJson: db.quality_weights_json ?? null,
     createdAt: db.created_at,
   };
 }
@@ -658,6 +691,7 @@ function mapDbWineTerrestrialData(db: DBWineTerrestrialData): WineTerrestrialDat
     producer: db.producer,
     vintage: db.vintage,
     wineType: db.wine_type as WineTerrestrialData['wineType'],
+    productCategory: (db.product_category as WineTerrestrialData['productCategory']) ?? null,
     ph: db.ph,
     dosage: db.dosage,
     alcohol: db.alcohol,
@@ -670,6 +704,7 @@ function mapDbWineTerrestrialData(db: DBWineTerrestrialData): WineTerrestrialDat
     bodyTextureScore: db.body_texture_score,
     finishComplexityScore: db.finish_complexity_score,
     agingYears: db.aging_years,
+    agingYearsConfidence: db.aging_years_confidence ?? null,
     agingStage: db.aging_stage as WineTerrestrialData['agingStage'],
     drinkingWindowStart: db.drinking_window_start,
     drinkingWindowEnd: db.drinking_window_end,
@@ -685,6 +720,7 @@ function mapDbTerrestrialModel(db: DBTerrestrialModel): TerrestrialModel {
   return {
     id: db.id,
     wineType: db.wine_type as TerrestrialModel['wineType'],
+    productCategory: db.product_category as TerrestrialModel['productCategory'],
     agingStage: db.aging_stage as TerrestrialModel['agingStage'],
     sampleCount: db.sample_count,
     flavorProfileJson: db.flavor_profile_json,

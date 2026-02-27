@@ -4,6 +4,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## TOP PRIORITY
 
+**0. 세션 시작 시 메모리 문서 읽기**
+- 세션 시작 시 반드시 아래 메모리 파일을 읽어 이전 작업 맥락을 파악할 것
+- `/Users/hoambaek/.claude/projects/-Users-hoambaek-Documents-Cursor-musedemaree-marketing/memory/MEMORY.md`
+- 진행 상황 문서: `docs/uaps/UAPS_DATA_COLLECTION_PROGRESS.md`
+
 **1. 한국어로 답변하기**
 - 모든 응답은 한국어로 작성
 - 코드 주석과 커밋 메시지도 한국어 권장
@@ -170,11 +175,24 @@ DB 컬럼: `fruity_score`, `floral_mineral_score`, `yeasty_autolytic_score`, `ac
 TS 키: `fruity`, `floralMineral`, `yeastyAutolytic`, `acidityFreshness`, `bodyTexture`, `finishComplexity`
 
 ### 예측 파이프라인
-1. 지상 데이터 수집 → `wine_terrestrial_data` (현재 37,125건)
-2. Layer 1: 와인 타입 × 숙성 단계 클러스터링 → `terrestrial_model` (19개 그룹)
-3. Layer 2: Gemini AI 전문가 프로파일 생성
-4. 해저 환경 보정: TCI(질감) · FRI(향) · BRI(기포)
-5. 타임라인 1~36개월 + 골든 윈도우 + 품질 점수(0~100)
+1. 지상 데이터 수집 → `wine_terrestrial_data` (현재 **112,316건**, 8개 카테고리)
+2. NLP 6축 풍미 추출 → Ollama 로컬 LLM 배치 처리 (`data/scripts/nlp_extract_ollama.mjs`)
+3. Layer 1: 와인 타입 × 숙성 단계 클러스터링 → `terrestrial_model` (19개 그룹)
+4. Layer 2: Gemini AI 전문가 프로파일 생성
+5. 해저 환경 보정: TCI(질감) · FRI(향) · BRI(기포)
+6. 타임라인 1~36개월 + 골든 윈도우 + 품질 점수(0~100)
+
+### 8개 카테고리 데이터 현황
+| 카테고리 | DB 건수 | 주요 소스 |
+|---------|--------|---------|
+| 샴페인/와인 | ~76,335 | WineMag 130K + Decanter + Parker + Gambero Rosso |
+| 콜드브루 커피 | ~19,056 | CoffeeReview + CoE + SCAJ + Sweet Maria's |
+| 사케 | ~5,067 | 全国新酒鑑評会 + 広島 + Kura Master + SAKEDOO |
+| 생차/보이차 | ~3,185 | YunnanSourcing + 号级茶 + TeaDB + Reddit |
+| 한국 전통주 | ~2,379 | 더술닷컴 + 전통주갤러리 + 우리술닷컴 |
+| 간장 | ~1,263 | 職人醤油 + 全国品評会 + 식품안전나라 |
+| 식초 | ~702 | Amazon US 발사믹 + 일본 黒酢 + 예천 감식초 |
+| 위스키 | ~435 | WhiskyBase + WhiskyAdvocate |
 
 ### 보정 계수
 - **TCI** (Temperature-Pressure Coefficient): 기본값 0.40, 가설적 추정
@@ -182,9 +200,10 @@ TS 키: `fruity`, `floralMineral`, `yeastyAutolytic`, `acidityFreshness`, `bodyT
 - **BRI** (Bubble Retention Index): 기본값 0.72, Henry의 법칙 기반
 
 ### 데이터 수집 도구
+- `data/scripts/nlp_extract_ollama.mjs` - Ollama LLM 6축 NLP 추출 (현재 진행 중)
+- `docs/uaps/NLP_EXTRACTION_GUIDE.md` - NLP 추출 원격 실행 가이드
 - `data/cellartracker/upload_csv.mjs` - CSV → Supabase 업로드
 - `data/cellartracker/upload_notes.mjs` - JSON → Supabase 업로드
-- `data/cellartracker/collect_notes.md` - 수집 가이드
 
 ## Environment Variables
 

@@ -207,6 +207,7 @@ export async function POST(request: NextRequest) {
         body_texture_score: flavors.bodyTexture,
         finish_complexity_score: flavors.finishComplexity,
         aging_years: vintage ? new Date().getFullYear() - vintage : null,
+        aging_years_confidence: vintage ? 0.92 : null,
         aging_stage: agingStage,
         drinking_window_start: null as number | null,
         drinking_window_end: null as number | null,

@@ -598,6 +598,7 @@ CREATE TABLE IF NOT EXISTS terrestrial_model (
 CREATE TABLE IF NOT EXISTS aging_products (
   id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
   product_name TEXT NOT NULL,
+  product_category TEXT DEFAULT 'champagne',
   wine_type TEXT NOT NULL CHECK (wine_type IN ('blanc_de_blancs', 'blanc_de_noirs', 'rose', 'blend', 'vintage')),
   vintage INTEGER,
   producer TEXT DEFAULT 'Muse de Marée',

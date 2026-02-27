@@ -3,6 +3,7 @@
 import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import Link from 'next/link';
+import { useParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   RadarChart,
@@ -18,7 +19,6 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  Legend,
   ReferenceArea,
   ReferenceDot,
   ReferenceLine,
@@ -35,7 +35,6 @@ import {
   AlertTriangle,
   Settings2,
   Play,
-  RefreshCw,
   Sparkles,
   Target,
   Database,
@@ -43,38 +42,9 @@ import {
   Save,
   BarChart3,
   Info,
-  LayoutGrid,
   ChevronDown,
+  LayoutGrid,
 } from 'lucide-react';
-
-// 카테고리 목록
-const UAPS_CATEGORIES = [
-  { slug: 'champagne',  label: '샴페인',      emoji: '🥂', color: '#C4A052', href: '/uaps' },
-  { slug: 'red-wine',   label: '레드와인',    emoji: '🍷', color: '#9f1239', href: '/uaps/red-wine' },
-  { slug: 'white-wine', label: '화이트와인',  emoji: '🍾', color: '#ca8a04', href: '/uaps/white-wine' },
-  { slug: 'whisky',     label: '위스키',      emoji: '🥃', color: '#d97706', href: '/uaps/whisky' },
-  { slug: 'soy-sauce',  label: '간장',        emoji: '🫙', color: '#92400e', href: '/uaps/soy-sauce' },
-  { slug: 'vinegar',    label: '식초',        emoji: '🍶', color: '#10b981', href: '/uaps/vinegar' },
-  { slug: 'cold-brew',  label: '콜드브루',    emoji: '☕', color: '#f97316', href: '/uaps/cold-brew' },
-  { slug: 'spirits',    label: '소주',        emoji: '🍵', color: '#06b6d4', href: '/uaps/spirits' },
-  { slug: 'yakju',      label: '전통주',      emoji: '🍚', color: '#84cc16', href: '/uaps/yakju' },
-  { slug: 'puerh',      label: '보이차',      emoji: '🫖', color: '#f43f5e', href: '/uaps/puerh' },
-];
-
-// slug → DB category name 매핑
-const UAPS_CATEGORY_DB: Record<string, string> = {
-  'champagne':  'champagne',
-  'red-wine':   'red_wine',
-  'white-wine': 'white_wine',
-  'whisky':     'whisky',
-  'soy-sauce':  'soy_sauce',
-  'vinegar':    'finished_vinegar',
-  'cold-brew':  'cold_brew_coffee',
-  'spirits':    'spirits',
-  'yakju':      'korean_yakju',
-  'puerh':      'puerh_sheng',
-};
-
 import { useUAPSStore } from '@/lib/store/uaps-store';
 import type {
   AgingProduct,
@@ -85,9 +55,7 @@ import type {
 import {
   WINE_TYPE_LABELS,
   PRODUCT_STATUS_LABELS,
-  PRODUCT_STATUS_COLORS,
   REDUCTION_POTENTIAL_LABELS,
-  MODEL_STATUS_LABELS,
   FLAVOR_AXES,
 } from '@/lib/types/uaps';
 import {
@@ -99,33 +67,168 @@ import {
 import { applyAgingAdjustments } from '@/lib/utils/uaps-ai-predictor';
 
 // ═══════════════════════════════════════════════════════════════════════════
+// 카테고리 목록 (드롭다운용)
+// ═══════════════════════════════════════════════════════════════════════════
+
+const ALL_CATEGORIES = [
+  { slug: 'champagne',  label: '샴페인',      emoji: '🥂', href: '/uaps' },
+  { slug: 'red-wine',   label: '레드와인',    emoji: '🍷', href: '/uaps/red-wine' },
+  { slug: 'white-wine', label: '화이트와인',  emoji: '🍾', href: '/uaps/white-wine' },
+  { slug: 'whisky',     label: '위스키',      emoji: '🥃', href: '/uaps/whisky' },
+  { slug: 'soy-sauce',  label: '간장',        emoji: '🫙', href: '/uaps/soy-sauce' },
+  { slug: 'vinegar',    label: '식초',        emoji: '🍶', href: '/uaps/vinegar' },
+  { slug: 'cold-brew',  label: '콜드브루',    emoji: '☕', href: '/uaps/cold-brew' },
+  { slug: 'spirits',    label: '소주',        emoji: '🍵', href: '/uaps/spirits' },
+  { slug: 'yakju',      label: '전통주',      emoji: '🍚', href: '/uaps/yakju' },
+  { slug: 'puerh',      label: '보이차',      emoji: '🫖', href: '/uaps/puerh' },
+];
+
+// slug → DB category name
+const SLUG_TO_DB_CATEGORY: Record<string, string> = {
+  'red-wine':   'red_wine',
+  'white-wine': 'white_wine',
+  'whisky':     'whisky',
+  'soy-sauce':  'soy_sauce',
+  'vinegar':    'finished_vinegar',
+  'cold-brew':  'cold_brew_coffee',
+  'spirits':    'spirits',
+  'yakju':      'korean_yakju',
+  'puerh':      'puerh_sheng',
+};
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 카테고리별 테마 설정
+// ═══════════════════════════════════════════════════════════════════════════
+
+const CATEGORY_CONFIG: Record<string, {
+  label: string;
+  title: string;
+  subtitle: string;
+  accent: string;      // hex
+  accentRgb: string;   // r, g, b
+  secondAccent: string;
+  bgFrom: string;
+  bgVia: string;
+  icon: string;
+}> = {
+  'red-wine': {
+    label: '레드와인',
+    title: 'Red Wine Intelligence',
+    subtitle: '레드와인 해저 숙성 풍미 예측 시스템',
+    accent: '#e11d48',
+    accentRgb: '225, 29, 72',
+    secondAccent: '#fb7185',
+    bgFrom: '#1a0008',
+    bgVia: '#1a000c',
+    icon: '🍷',
+  },
+  'white-wine': {
+    label: '화이트와인',
+    title: 'White Wine Intelligence',
+    subtitle: '화이트와인 해저 숙성 풍미 예측 시스템',
+    accent: '#ca8a04',
+    accentRgb: '202, 138, 4',
+    secondAccent: '#fde68a',
+    bgFrom: '#120e00',
+    bgVia: '#1a1400',
+    icon: '🍾',
+  },
+  whisky: {
+    label: '위스키',
+    title: 'Whisky Intelligence',
+    subtitle: '위스키 해저 숙성 풍미 예측 시스템',
+    accent: '#d97706',
+    accentRgb: '217, 119, 6',
+    secondAccent: '#fbbf24',
+    bgFrom: '#120a00',
+    bgVia: '#1a0e00',
+    icon: '🥃',
+  },
+  'soy-sauce': {
+    label: '간장',
+    title: 'Soy Sauce Intelligence',
+    subtitle: '간장 해저 숙성 풍미 예측 시스템',
+    accent: '#92400e',
+    accentRgb: '146, 64, 14',
+    secondAccent: '#d97706',
+    bgFrom: '#1a1000',
+    bgVia: '#1a1208',
+    icon: '🫙',
+  },
+  vinegar: {
+    label: '식초',
+    title: 'Vinegar Intelligence',
+    subtitle: '식초 해저 숙성 풍미 예측 시스템',
+    accent: '#10b981',
+    accentRgb: '16, 185, 129',
+    secondAccent: '#6ee7b7',
+    bgFrom: '#081a10',
+    bgVia: '#0a1f12',
+    icon: '🍶',
+  },
+  'cold-brew': {
+    label: '콜드브루',
+    title: 'Cold Brew Intelligence',
+    subtitle: '콜드브루 해저 숙성 풍미 예측 시스템',
+    accent: '#f97316',
+    accentRgb: '249, 115, 22',
+    secondAccent: '#fdba74',
+    bgFrom: '#1a0d00',
+    bgVia: '#1a1008',
+    icon: '☕',
+  },
+  spirits: {
+    label: '소주',
+    title: 'Soju Intelligence',
+    subtitle: '소주·전통 증류주 해저 숙성 풍미 예측 시스템',
+    accent: '#06b6d4',
+    accentRgb: '6, 182, 212',
+    secondAccent: '#67e8f9',
+    bgFrom: '#001a1f',
+    bgVia: '#001a20',
+    icon: '🍵',
+  },
+  yakju: {
+    label: '전통주',
+    title: 'Jeontongju Intelligence',
+    subtitle: '전통주 해저 숙성 풍미 예측 시스템',
+    accent: '#84cc16',
+    accentRgb: '132, 204, 22',
+    secondAccent: '#bef264',
+    bgFrom: '#0a1400',
+    bgVia: '#0c1a00',
+    icon: '🍚',
+  },
+  puerh: {
+    label: '보이차',
+    title: 'Puerh Intelligence',
+    subtitle: '보이차(생차) 해저 숙성 풍미 예측 시스템',
+    accent: '#f43f5e',
+    accentRgb: '244, 63, 94',
+    secondAccent: '#fda4af',
+    bgFrom: '#1a000a',
+    bgVia: '#1a000d',
+    icon: '🫖',
+  },
+};
+
+const DEFAULT_CONFIG = CATEGORY_CONFIG['soy-sauce'];
+
+// ═══════════════════════════════════════════════════════════════════════════
 // 공통 컴포넌트
 // ═══════════════════════════════════════════════════════════════════════════
 
 function GlowCard({
   children,
   className = '',
-  color = 'cyan',
+  accentRgb,
   delay = 0,
 }: {
   children: React.ReactNode;
   className?: string;
-  color?: 'cyan' | 'rose' | 'amber' | 'emerald';
+  accentRgb: string;
   delay?: number;
 }) {
-  const glowColors = {
-    cyan: 'from-cyan-500/[0.03]',
-    rose: 'from-[#B76E79]/[0.03]',
-    amber: 'from-[#C4A052]/[0.03]',
-    emerald: 'from-emerald-500/[0.03]',
-  };
-  const stripColors = {
-    cyan: 'via-cyan-400/40',
-    rose: 'via-[#B76E79]/40',
-    amber: 'via-[#C4A052]/40',
-    emerald: 'via-emerald-400/40',
-  };
-
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -133,9 +236,15 @@ function GlowCard({
       transition={{ duration: 0.5, delay }}
       className="relative group"
     >
-      <div className={`absolute inset-0 bg-gradient-to-br ${glowColors[color]} to-transparent rounded-2xl blur-xl group-hover:opacity-150 transition-all`} />
+      <div
+        className="absolute inset-0 rounded-2xl blur-xl group-hover:opacity-150 transition-all"
+        style={{ background: `radial-gradient(ellipse at center, rgba(${accentRgb}, 0.04), transparent)` }}
+      />
       <div className={`relative bg-[#0d1421]/60 backdrop-blur-xl border border-white/[0.06] rounded-2xl p-5 hover:border-white/[0.12] transition-all ${className}`}>
-        <div className={`absolute top-0 left-1/2 -translate-x-1/2 w-1/2 h-px bg-gradient-to-r from-transparent ${stripColors[color]} to-transparent`} />
+        <div
+          className="absolute top-0 left-1/2 -translate-x-1/2 w-1/2 h-px"
+          style={{ background: `linear-gradient(90deg, transparent, rgba(${accentRgb}, 0.4), transparent)` }}
+        />
         {children}
       </div>
     </motion.div>
@@ -148,14 +257,14 @@ function SectionWrapper({
   children,
   delay = 0,
   action,
-  iconColor = '#22d3ee',
+  iconColor,
 }: {
   title: string;
   icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>;
   children: React.ReactNode;
   delay?: number;
   action?: React.ReactNode;
-  iconColor?: string;
+  iconColor: string;
 }) {
   return (
     <motion.div
@@ -164,11 +273,11 @@ function SectionWrapper({
       transition={{ duration: 0.6, delay }}
       className="relative"
     >
-      <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/[0.02] to-transparent rounded-3xl" />
+      <div className="absolute inset-0 bg-gradient-to-br from-white/[0.01] to-transparent rounded-3xl" />
       <div className="relative bg-[#0d1421]/40 backdrop-blur-xl border border-white/[0.06] rounded-3xl p-5 sm:p-6">
         <div className="flex items-center justify-between mb-5">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-xl" style={{ backgroundColor: `${iconColor}15` }}>
+            <div className="p-2 rounded-xl" style={{ backgroundColor: `${iconColor}18` }}>
               <Icon className="w-5 h-5" style={{ color: iconColor }} />
             </div>
             <h3 className="text-lg font-medium text-white/90">{title}</h3>
@@ -185,20 +294,21 @@ function SectionWrapper({
 // 메인 페이지
 // ═══════════════════════════════════════════════════════════════════════════
 
-export default function UAPSPage() {
+export default function CategoryUAPSPage() {
+  const params = useParams();
+  const categorySlug = typeof params.category === 'string' ? params.category : 'soy-sauce';
+  const categoryDbName = SLUG_TO_DB_CATEGORY[categorySlug] ?? categorySlug;
+  const theme = CATEGORY_CONFIG[categorySlug] ?? DEFAULT_CONFIG;
+
   const {
     agingProducts,
     selectedProductId,
     predictions,
     latestPrediction,
-    modelStatus,
-    modelLastTrained,
     modelDataCount,
-    modelGroupCount,
     terrestrialModels,
     config,
     isLoading,
-    isTraining,
     isPredicting,
     error,
     loadAgingProducts,
@@ -209,7 +319,6 @@ export default function UAPSPage() {
     loadPredictions,
     runPrediction,
     loadModelStatus,
-    trainModel,
     loadConfig,
     updateCoefficient,
     clearError,
@@ -231,8 +340,6 @@ export default function UAPSPage() {
   const [editingProduct, setEditingProduct] = useState<AgingProduct | null>(null);
   const [showCoefficientDialog, setShowCoefficientDialog] = useState(false);
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
-  const [listCategory, setListCategory] = useState('champagne');
-  // predictionMonths는 제품의 plannedDurationMonths 사용
 
   const [localTci, setLocalTci] = useState(config.tci);
   const [localFri, setLocalFri] = useState(config.fri);
@@ -255,11 +362,7 @@ export default function UAPSPage() {
   }, [selectedProduct, config]);
 
   const beforeProfile = useMemo(() => {
-    // 1순위: AI 예측에서 생성된 전문가 프로파일
-    if (latestPrediction?.expertProfileJson) {
-      return latestPrediction.expertProfileJson;
-    }
-    // 2순위: 기존 통계 기반
+    if (latestPrediction?.expertProfileJson) return latestPrediction.expertProfileJson;
     if (!selectedProduct || terrestrialModels.length === 0) return null;
     const clusters = findSimilarClusters(selectedProduct, terrestrialModels);
     if (clusters.length === 0) return null;
@@ -270,13 +373,9 @@ export default function UAPSPage() {
     if (!selectedProduct) return null;
     const months = selectedProduct.plannedDurationMonths;
     if (!months) return null;
-
-    // 전문가 프로파일이 있으면 TCI/FRI 보정만 적용
     if (beforeProfile && latestPrediction?.expertProfileJson) {
       return applyAgingAdjustments(beforeProfile, months, config);
     }
-
-    // 통계 기반 폴백
     if (terrestrialModels.length === 0) return null;
     const clusters = findSimilarClusters(selectedProduct, terrestrialModels);
     if (clusters.length === 0) return null;
@@ -293,13 +392,16 @@ export default function UAPSPage() {
     <div className="min-h-screen pb-20">
       {/* Ambient Background */}
       <div className="fixed inset-0 -z-10">
-        <div className="absolute inset-0 bg-gradient-to-b from-[#0a0f1a] via-[#0d1525] to-[#0a0f1a]" />
+        <div
+          className="absolute inset-0"
+          style={{ background: `linear-gradient(to bottom, ${theme.bgFrom}, ${theme.bgVia}, ${theme.bgFrom})` }}
+        />
         <div
           className="absolute inset-0 opacity-30"
           style={{
-            backgroundImage: `radial-gradient(ellipse 80% 50% at 50% -20%, rgba(6, 182, 212, 0.12), transparent),
+            backgroundImage: `radial-gradient(ellipse 80% 50% at 50% -20%, rgba(${theme.accentRgb}, 0.12), transparent),
                               radial-gradient(ellipse 60% 40% at 20% 80%, rgba(183, 145, 110, 0.06), transparent),
-                              radial-gradient(ellipse 50% 30% at 80% 50%, rgba(34, 211, 238, 0.08), transparent)`,
+                              radial-gradient(ellipse 50% 30% at 80% 50%, rgba(${theme.accentRgb}, 0.08), transparent)`,
           }}
         />
         <div
@@ -343,7 +445,8 @@ export default function UAPSPage() {
               initial={{ scaleX: 0 }}
               animate={{ scaleX: 1 }}
               transition={{ duration: 1.2, delay: 0.3, ease: [0.25, 0.46, 0.45, 0.94] }}
-              className="hidden sm:block absolute -left-6 top-1/2 w-16 h-px bg-gradient-to-r from-cyan-400 to-transparent origin-left"
+              className="hidden sm:block absolute -left-6 top-1/2 w-16 h-px origin-left"
+              style={{ background: `linear-gradient(to right, ${theme.accent}, transparent)` }}
             />
 
             <div className="sm:pl-14">
@@ -351,18 +454,24 @@ export default function UAPSPage() {
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ duration: 0.8, delay: 0.4 }}
-                className="text-cyan-400/70 text-[10px] sm:text-sm tracking-[0.2em] sm:tracking-[0.3em] uppercase mb-2 sm:mb-4 font-light"
+                className="text-[10px] sm:text-sm tracking-[0.2em] sm:tracking-[0.3em] uppercase mb-2 sm:mb-4 font-light"
+                style={{ color: `rgba(${theme.accentRgb}, 0.7)` }}
               >
-                Undersea Aging Predictive System
+                Undersea Aging Predictive System · {theme.label}
               </motion.p>
 
               <h1
                 className="text-3xl sm:text-5xl lg:text-6xl text-white/95 mb-2 sm:mb-6 leading-[1.1] tracking-tight"
                 style={{ fontFamily: "var(--font-cormorant), 'Playfair Display', Georgia, serif" }}
               >
-                <span className="sm:block inline">Predictive </span>
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-[#B76E79] to-cyan-400">
-                  Intelligence
+                <span className="sm:block inline">{theme.icon} </span>
+                <span
+                  className="text-transparent bg-clip-text"
+                  style={{
+                    backgroundImage: `linear-gradient(to right, ${theme.accent}, #B76E79, ${theme.accent})`,
+                  }}
+                >
+                  {theme.title}
                 </span>
               </h1>
 
@@ -372,7 +481,7 @@ export default function UAPSPage() {
                 transition={{ duration: 1, delay: 0.8 }}
                 className="text-white/40 text-sm sm:text-lg max-w-lg font-light leading-relaxed"
               >
-                2-Layer Hybrid AI가 해저 숙성의 풍미 변화를 과학적으로 예측합니다
+                {theme.subtitle}
               </motion.p>
 
               <motion.div
@@ -381,60 +490,61 @@ export default function UAPSPage() {
                 transition={{ duration: 0.6, delay: 1.1 }}
                 className="mt-4 flex items-center gap-2"
               >
-                {/* 카테고리 드롭다운 */}
+                {/* 카테고리 선택 드롭다운 */}
                 <div className="relative">
                   <button
-                    onClick={() => setShowCategoryDropdown(!showCategoryDropdown)}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border border-white/[0.1] text-white/40 text-xs hover:bg-white/[0.04] hover:border-white/20 hover:text-white/60 transition-all duration-300"
+                    onClick={() => setShowCategoryDropdown((v) => !v)}
+                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border border-white/[0.1] text-white/35 text-xs hover:bg-white/[0.04] hover:border-white/20 hover:text-white/55 transition-all duration-300"
                   >
                     <LayoutGrid className="w-3 h-3" />
                     카테고리
-                    <ChevronDown className={`w-2.5 h-2.5 transition-transform duration-200 ${showCategoryDropdown ? 'rotate-180' : ''}`} />
+                    <ChevronDown className={`w-3 h-3 transition-transform ${showCategoryDropdown ? 'rotate-180' : ''}`} />
                   </button>
-
                   <AnimatePresence>
                     {showCategoryDropdown && (
-                      <>
-                        {/* 배경 오버레이 */}
-                        <div
-                          className="fixed inset-0 z-40"
-                          onClick={() => setShowCategoryDropdown(false)}
-                        />
-                        <motion.div
-                          initial={{ opacity: 0, y: 8, scale: 0.95 }}
-                          animate={{ opacity: 1, y: 0, scale: 1 }}
-                          exit={{ opacity: 0, y: 8, scale: 0.95 }}
-                          transition={{ duration: 0.15 }}
-                          className="absolute left-0 top-full mt-2 z-50 bg-[#0d1421]/95 border border-white/[0.08] rounded-2xl shadow-2xl backdrop-blur-xl overflow-hidden min-w-[160px]"
-                        >
-                          <div className="p-1.5">
-                            <p className="text-[9px] text-white/25 uppercase tracking-wider px-3 pt-1.5 pb-1">카테고리 예측</p>
-                            {UAPS_CATEGORIES.map((cat) => (
-                              <Link
-                                key={cat.slug}
-                                href={cat.href}
-                                onClick={() => setShowCategoryDropdown(false)}
-                                className="flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-white/[0.04] transition-colors group"
-                              >
-                                <div
-                                  className="w-1.5 h-1.5 rounded-full shrink-0 opacity-70 group-hover:opacity-100 transition-opacity"
-                                  style={{ backgroundColor: cat.color }}
-                                />
-                                <span className="text-xs text-white/50 group-hover:text-white/80 transition-colors">
-                                  {cat.label}
-                                </span>
-                              </Link>
-                            ))}
-                          </div>
-                        </motion.div>
-                      </>
+                      <motion.div
+                        initial={{ opacity: 0, y: -6, scale: 0.96 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: -6, scale: 0.96 }}
+                        transition={{ duration: 0.15 }}
+                        className="absolute left-0 top-full mt-2 z-50 bg-[#0d1421]/95 backdrop-blur-xl border border-white/[0.08] rounded-xl overflow-hidden shadow-2xl min-w-[140px]"
+                      >
+                        {ALL_CATEGORIES.map((cat) => {
+                          const isActive = cat.slug === categorySlug || (cat.slug === 'champagne' && false);
+                          return (
+                            <Link
+                              key={cat.slug}
+                              href={cat.href}
+                              onClick={() => setShowCategoryDropdown(false)}
+                              className={`flex items-center gap-2 px-4 py-2.5 text-xs transition-all hover:bg-white/[0.06] ${isActive ? 'text-white/80 bg-white/[0.04]' : 'text-white/40 hover:text-white/70'}`}
+                            >
+                              <span>{cat.emoji}</span>
+                              <span>{cat.label}</span>
+                            </Link>
+                          );
+                        })}
+                      </motion.div>
                     )}
                   </AnimatePresence>
                 </div>
 
                 <Link
                   href="/uaps/how-it-works"
-                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border border-cyan-400/20 text-cyan-400/60 text-xs hover:bg-cyan-400/[0.06] hover:border-cyan-400/30 hover:text-cyan-400/80 transition-all duration-300"
+                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border text-xs transition-all duration-300"
+                  style={{
+                    borderColor: `rgba(${theme.accentRgb}, 0.2)`,
+                    color: `rgba(${theme.accentRgb}, 0.6)`,
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = `rgba(${theme.accentRgb}, 0.06)`;
+                    e.currentTarget.style.borderColor = `rgba(${theme.accentRgb}, 0.3)`;
+                    e.currentTarget.style.color = `rgba(${theme.accentRgb}, 0.8)`;
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = 'transparent';
+                    e.currentTarget.style.borderColor = `rgba(${theme.accentRgb}, 0.2)`;
+                    e.currentTarget.style.color = `rgba(${theme.accentRgb}, 0.6)`;
+                  }}
                 >
                   <Info className="w-3 h-3" />
                   작동 원리
@@ -453,7 +563,7 @@ export default function UAPSPage() {
         {/* 통계 카드 */}
         <div className="grid grid-cols-3 gap-2 sm:gap-4">
           {[
-            { label: '등록 제품', value: agingProducts.length, unit: '개', icon: Wine, color: '#22d3ee' },
+            { label: '등록 제품', value: agingProducts.length, unit: '개', icon: Wine, color: theme.accent },
             { label: '예측 실행', value: predictions.length, unit: '회', icon: Brain, color: '#B76E79' },
             { label: '학습 데이터', value: modelDataCount.toLocaleString(), unit: '건', icon: Database, color: '#C4A052' },
           ].map((stat, i) => (
@@ -470,9 +580,8 @@ export default function UAPSPage() {
                   className="absolute top-0 left-1/2 -translate-x-1/2 w-1/2 h-px"
                   style={{ background: `linear-gradient(90deg, transparent, ${stat.color}40, transparent)` }}
                 />
-                {/* 모바일: 아이콘+숫자 수직 컴팩트, 데스크톱: 기존 레이아웃 */}
                 <div className="flex flex-col items-center sm:items-start">
-                  <div className="p-1.5 sm:p-2 rounded-lg sm:rounded-xl mb-1.5 sm:mb-3" style={{ backgroundColor: `${stat.color}15` }}>
+                  <div className="p-1.5 sm:p-2 rounded-lg sm:rounded-xl mb-1.5 sm:mb-3" style={{ backgroundColor: `${stat.color}18` }}>
                     <stat.icon className="w-3.5 h-3.5 sm:w-4 sm:h-4" style={{ color: stat.color }} />
                   </div>
                   <p className="text-[9px] sm:text-xs text-white/40 uppercase tracking-wider mb-0.5 sm:mb-1">{stat.label}</p>
@@ -494,7 +603,7 @@ export default function UAPSPage() {
         <SectionWrapper
           title="숙성 제품 리스트"
           icon={Anchor}
-          iconColor="#22d3ee"
+          iconColor={theme.accent}
           delay={0.15}
           action={
             <button
@@ -506,30 +615,8 @@ export default function UAPSPage() {
             </button>
           }
         >
-          {/* 카테고리 필터 */}
-          <div className="flex flex-wrap gap-1.5 mb-4">
-            {UAPS_CATEGORIES.map((cat) => {
-              const dbCat = UAPS_CATEGORY_DB[cat.slug] ?? cat.slug;
-              return (
-                <button
-                  key={cat.slug}
-                  onClick={() => setListCategory(dbCat)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium border transition-all ${
-                    listCategory === dbCat
-                      ? 'border-white/20 bg-white/10 text-white'
-                      : 'border-white/[0.06] bg-white/[0.02] text-white/40 hover:text-white/70 hover:border-white/10'
-                  }`}
-                  style={listCategory === dbCat ? { borderColor: cat.color + '60', color: cat.color, backgroundColor: cat.color + '12' } : {}}
-                >
-                  <span>{cat.emoji}</span>
-                  {cat.label}
-                </button>
-              );
-            })}
-          </div>
-
           {(() => {
-            const filtered = agingProducts.filter((p) => (p.productCategory ?? 'champagne') === listCategory);
+            const filtered = agingProducts.filter((p) => (p.productCategory ?? 'champagne') === categoryDbName);
             return isLoading && agingProducts.length === 0 ? (
             <div className="flex items-center justify-center py-16 text-white/30">
               <Loader2 className="w-5 h-5 animate-spin mr-2" />
@@ -558,9 +645,14 @@ export default function UAPSPage() {
                     onKeyDown={(e) => { if (e.key === 'Enter') selectProduct(product.id); }}
                     className={`w-full text-left border rounded-xl p-4 transition-all cursor-pointer ${
                       selectedProductId === product.id
-                        ? 'border-cyan-400/50 bg-cyan-400/[0.06] shadow-[0_0_20px_rgba(34,211,238,0.08)]'
+                        ? 'border-white/20 bg-white/[0.04]'
                         : 'border-white/[0.06] bg-white/[0.02] hover:border-white/[0.12] hover:bg-white/[0.04]'
                     }`}
+                    style={selectedProductId === product.id ? {
+                      borderColor: `rgba(${theme.accentRgb}, 0.5)`,
+                      backgroundColor: `rgba(${theme.accentRgb}, 0.06)`,
+                      boxShadow: `0 0 20px rgba(${theme.accentRgb}, 0.08)`,
+                    } : {}}
                   >
                     <div className="flex items-start justify-between mb-2">
                       <h4 className="text-white font-medium text-sm truncate pr-2">
@@ -569,11 +661,15 @@ export default function UAPSPage() {
                       <span
                         className={`text-[10px] font-medium whitespace-nowrap px-2 py-0.5 rounded-full ${
                           product.status === 'immersed'
-                            ? 'bg-cyan-500/15 text-cyan-400'
+                            ? 'bg-white/10 text-white/50'
                             : product.status === 'harvested'
                               ? 'bg-amber-500/15 text-amber-400'
                               : 'bg-white/[0.06] text-white/50'
                         }`}
+                        style={product.status === 'immersed' ? {
+                          backgroundColor: `rgba(${theme.accentRgb}, 0.15)`,
+                          color: theme.accent,
+                        } : {}}
                       >
                         {PRODUCT_STATUS_LABELS[product.status]}
                       </span>
@@ -594,7 +690,6 @@ export default function UAPSPage() {
                           onClick={() => setEditingProduct(product)}
                           className="p-1.5 rounded-lg hover:bg-white/[0.06] text-white/30 hover:text-white/60 transition-colors"
                           aria-label="수정"
-                          title="수정"
                         >
                           <Pencil className="w-3.5 h-3.5" />
                         </button>
@@ -606,7 +701,6 @@ export default function UAPSPage() {
                           }}
                           className="p-1.5 rounded-lg hover:bg-red-500/20 text-white/30 hover:text-red-400 transition-colors"
                           aria-label="삭제"
-                          title="삭제"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
@@ -618,31 +712,32 @@ export default function UAPSPage() {
             </div>
           );
           })()}
-
         </SectionWrapper>
 
-      {/* 제품 추가/수정 모달 — 최상위 레벨에서 렌더링 */}
-      <AnimatePresence>
-        {(showModal || editingProduct) && (
-          <ProductModal
-            onClose={() => { setShowModal(false); setEditingProduct(null); }}
-            initialData={editingProduct}
-            initialCategory={editingProduct?.productCategory ?? listCategory}
-            onSubmit={async (input) => {
-              if (editingProduct) {
-                await editAgingProduct(editingProduct.id, input);
-                setEditingProduct(null);
-              } else {
-                const result = await addAgingProduct(input);
-                if (result) setShowModal(false);
-              }
-            }}
-          />
-        )}
-      </AnimatePresence>
+        {/* 제품 추가/수정 모달 */}
+        <AnimatePresence>
+          {(showModal || editingProduct) && (
+            <ProductModal
+              onClose={() => { setShowModal(false); setEditingProduct(null); }}
+              initialData={editingProduct}
+              accentRgb={theme.accentRgb}
+              accent={theme.accent}
+              categoryDbName={categoryDbName}
+              onSubmit={async (input) => {
+                if (editingProduct) {
+                  await editAgingProduct(editingProduct.id, input);
+                  setEditingProduct(null);
+                } else {
+                  const result = await addAgingProduct(input);
+                  if (result) setShowModal(false);
+                }
+              }}
+            />
+          )}
+        </AnimatePresence>
 
         {/* ═══════════════════════════════════════════════════════════ */}
-        {/* 예측 시뮬레이터 + AI 인사이트 — 컴팩트 단일 행 */}
+        {/* 예측 시뮬레이터 */}
         {/* ═══════════════════════════════════════════════════════════ */}
         {selectedProductId && selectedProduct && (
           <motion.div
@@ -653,26 +748,26 @@ export default function UAPSPage() {
             layout
             className="relative"
           >
-            <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/[0.02] to-transparent rounded-2xl" />
+            <div className="absolute inset-0 rounded-2xl" style={{ background: `radial-gradient(ellipse at top, rgba(${theme.accentRgb}, 0.03), transparent)` }} />
             <div className="relative bg-[#0d1421]/60 backdrop-blur-xl border border-white/[0.06] rounded-2xl overflow-hidden">
-              {/* 상단 스트립 */}
-              <div className="absolute top-0 left-1/2 -translate-x-1/2 w-2/3 h-px bg-gradient-to-r from-transparent via-cyan-400/30 to-transparent" />
+              <div
+                className="absolute top-0 left-1/2 -translate-x-1/2 w-2/3 h-px"
+                style={{ background: `linear-gradient(90deg, transparent, rgba(${theme.accentRgb}, 0.3), transparent)` }}
+              />
 
               {/* 시뮬레이터 행 */}
               <div className="px-4 sm:px-5 py-3.5 border-b border-white/[0.04] space-y-3 sm:space-y-0">
-                {/* 상단: 라벨 + 기간 + 버튼 */}
                 <div className="flex items-center gap-3 sm:gap-4">
                   <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
-                    <div className="p-1.5 rounded-lg bg-cyan-500/[0.08]">
-                      <Target className="w-3.5 h-3.5 text-cyan-400" />
+                    <div className="p-1.5 rounded-lg" style={{ backgroundColor: `rgba(${theme.accentRgb}, 0.08)` }}>
+                      <Target className="w-3.5 h-3.5" style={{ color: theme.accent }} />
                     </div>
                     <span className="text-xs text-white/40 uppercase tracking-wider">Simulation</span>
                   </div>
 
-                  {/* 숙성 기간 */}
                   <div className="flex items-center gap-1.5">
                     <span className="text-[10px] text-white/25">기간</span>
-                    <span className="text-sm font-light text-cyan-400 font-mono">
+                    <span className="text-sm font-light font-mono" style={{ color: theme.accent }}>
                       {selectedProduct.plannedDurationMonths ?? '—'}
                     </span>
                     <span className="text-[10px] text-white/20">개월</span>
@@ -690,7 +785,8 @@ export default function UAPSPage() {
                   <button
                     onClick={() => runPrediction(selectedProductId, selectedProduct.plannedDurationMonths || 18)}
                     disabled={isPredicting || !selectedProduct.plannedDurationMonths}
-                    className="flex items-center gap-1.5 bg-gradient-to-r from-cyan-500/90 to-cyan-400/90 text-black font-medium rounded-lg px-3.5 py-2 sm:py-1.5 text-xs hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
+                    className="flex items-center gap-1.5 text-black font-medium rounded-lg px-3.5 py-2 sm:py-1.5 text-xs hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
+                    style={{ background: `linear-gradient(to right, ${theme.accent}e6, rgba(${theme.accentRgb}, 0.85))` }}
                   >
                     {isPredicting ? (
                       <Loader2 className="w-3 h-3 animate-spin" />
@@ -701,13 +797,12 @@ export default function UAPSPage() {
                   </button>
                 </div>
 
-                {/* 품질 점수 — 모바일: 별도 행, 데스크톱: 인라인 */}
                 {latestPrediction?.overallQualityScore != null && (
                   <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
                     {[
                       { label: '종합', value: latestPrediction.overallQualityScore, color: '#C4A052' },
                       { label: '질감', value: latestPrediction.textureMaturityScore, color: '#34d399' },
-                      { label: '향', value: latestPrediction.aromaFreshnessScore, color: '#22d3ee' },
+                      { label: '향', value: latestPrediction.aromaFreshnessScore, color: theme.accent },
                       { label: '환원취', value: latestPrediction.offFlavorRiskScore, color: '#f87171' },
                     ].map((s) => (
                       <div key={s.label} className="flex items-center gap-1">
@@ -718,34 +813,28 @@ export default function UAPSPage() {
                         </span>
                       </div>
                     ))}
-                    <span className="text-[9px] text-white/15 ml-1 font-mono">
-                      ±{Math.round((1 - latestPrediction.predictionConfidence) * 100)}%
-                    </span>
                   </div>
                 )}
               </div>
 
-              {/* AI 인사이트 행 */}
+              {/* AI 인사이트 */}
               {latestPrediction && (
                 <div className="px-5 py-3 space-y-2">
                   {latestPrediction.aiInsightText ? (
                     <>
-                      {/* 투하 전·후 2단 인사이트 */}
                       {latestPrediction.aiInsightText.includes('\n') ? (
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                          {/* 투하 전 특징 */}
                           <div className="flex items-start gap-2">
-                            <div className="p-1 rounded-md bg-cyan-400/[0.06] shrink-0 mt-0.5">
-                              <Wine className="w-3 h-3 text-cyan-400/60" />
+                            <div className="p-1 rounded-md shrink-0 mt-0.5" style={{ backgroundColor: `rgba(${theme.accentRgb}, 0.06)` }}>
+                              <Wine className="w-3 h-3" style={{ color: `rgba(${theme.accentRgb}, 0.6)` }} />
                             </div>
                             <div className="min-w-0">
-                              <span className="text-[9px] text-cyan-400/40 uppercase tracking-wider">Before</span>
+                              <span className="text-[9px] uppercase tracking-wider" style={{ color: `rgba(${theme.accentRgb}, 0.4)` }}>Before</span>
                               <p className="text-[11px] text-white/50 leading-relaxed mt-0.5">
                                 {latestPrediction.aiInsightText.split('\n')[0]}
                               </p>
                             </div>
                           </div>
-                          {/* 숙성 후 예측 */}
                           <div className="flex items-start gap-2">
                             <div className="p-1 rounded-md bg-[#B76E79]/[0.06] shrink-0 mt-0.5">
                               <Sparkles className="w-3 h-3 text-[#B76E79]/60" />
@@ -768,18 +857,17 @@ export default function UAPSPage() {
                           </p>
                         </div>
                       )}
-                      {/* 출처 + 신뢰도 */}
                       <div className="flex items-center justify-between">
                         <div />
                         {latestPrediction.predictionConfidence != null && (
                           <div className="flex items-center gap-1.5 shrink-0">
                             <div className="w-10 h-1 bg-white/[0.06] rounded-full overflow-hidden">
                               <div
-                                className={`h-full rounded-full transition-all ${
-                                  latestPrediction.predictionConfidence >= 0.8 ? 'bg-emerald-400/60' :
-                                  latestPrediction.predictionConfidence >= 0.5 ? 'bg-amber-400/60' : 'bg-red-400/60'
-                                }`}
-                                style={{ width: `${latestPrediction.predictionConfidence * 100}%` }}
+                                className="h-full rounded-full transition-all"
+                                style={{
+                                  width: `${latestPrediction.predictionConfidence * 100}%`,
+                                  backgroundColor: theme.accent + '99',
+                                }}
                               />
                             </div>
                             <span className="text-[9px] text-white/25 font-mono">
@@ -799,14 +887,17 @@ export default function UAPSPage() {
         )}
 
         {/* ═══════════════════════════════════════════════════════════ */}
-        {/* 차트 (풍미 레이더 + 타임라인) */}
+        {/* 풍미 레이더 */}
         {/* ═══════════════════════════════════════════════════════════ */}
         {(beforeProfile || afterProfile) && (
           <SectionWrapper title="풍미 프로파일" icon={BarChart3} iconColor="#B76E79" delay={0.3}>
-            <FlavorRadar beforeProfile={beforeProfile} afterProfile={afterProfile} />
+            <FlavorRadar beforeProfile={beforeProfile} afterProfile={afterProfile} accentRgb={theme.accentRgb} accent={theme.accent} />
           </SectionWrapper>
         )}
 
+        {/* ═══════════════════════════════════════════════════════════ */}
+        {/* 숙성 타임라인 */}
+        {/* ═══════════════════════════════════════════════════════════ */}
         {selectedProduct && timelineData.length > 0 && (
           <SectionWrapper title="숙성 타임라인" icon={Gauge} iconColor="#C4A052" delay={0.35}>
             <div className="h-[280px] sm:h-[400px]">
@@ -814,22 +905,20 @@ export default function UAPSPage() {
             </div>
             {harvestWindow && (
               <div className="mt-2.5 space-y-2">
-                {/* 핵심 지표 — 컴팩트 인라인 */}
                 <div className="flex items-center gap-1.5 flex-wrap">
-                  <div className="flex items-center gap-1.5 bg-[#C4A052]/[0.10] border border-[#C4A052]/[0.25] rounded-lg px-3 py-2 shadow-[0_0_12px_rgba(196,160,82,0.08)]">
+                  <div className="flex items-center gap-1.5 bg-[#C4A052]/[0.10] border border-[#C4A052]/[0.25] rounded-lg px-3 py-2">
                     <span className="text-[9px] text-[#C4A052]/70 uppercase tracking-wider font-medium">Peak</span>
                     <span className="text-sm font-medium text-[#C4A052]" style={{ fontFamily: "var(--font-cormorant), 'Cormorant Garamond', serif" }}>
                       {harvestWindow.peakMonth}<span className="text-[10px] text-[#C4A052]/50 ml-px">개월</span>
                     </span>
                   </div>
-                  <div className="flex items-center gap-1.5 bg-white/[0.02] border border-white/[0.06] rounded-lg px-2.5 py-1.5" title="질감·향·환원취·기포를 종합한 품질 점수 (0~100)">
+                  <div className="flex items-center gap-1.5 bg-white/[0.02] border border-white/[0.06] rounded-lg px-2.5 py-1.5">
                     <span className="text-[9px] text-white/25 uppercase tracking-wider">품질</span>
                     <span className="text-sm font-light text-white/60" style={{ fontFamily: "var(--font-cormorant), 'Cormorant Garamond', serif" }}>
                       {Math.round(harvestWindow.peakScore)}<span className="text-[10px] text-white/20 ml-px">/100</span>
                     </span>
                   </div>
                 </div>
-                {/* 범례 — 고스트 라인 포함 */}
                 <div className="flex flex-wrap items-center gap-x-2.5 sm:gap-x-3 gap-y-1.5">
                   <div className="flex items-center gap-1">
                     <div className="w-3 h-0.5 rounded-full bg-[#C4A052]" />
@@ -859,51 +948,6 @@ export default function UAPSPage() {
           </SectionWrapper>
         )}
 
-        {/* ═══════════════════════════════════════════════════════════ */}
-        {/* 모델 상태 */}
-        {/* ═══════════════════════════════════════════════════════════ */}
-        <SectionWrapper title="모델 상태" icon={Settings2} iconColor="#C4A052" delay={0.4}>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-5">
-            {[
-              { label: '상태', value: MODEL_STATUS_LABELS[modelStatus], badge: true },
-              { label: '최종 학습일', value: modelLastTrained ? new Date(modelLastTrained).toLocaleDateString('ko-KR') : '—' },
-              { label: '학습 데이터', value: `${modelDataCount.toLocaleString()}건` },
-              { label: '모델 그룹', value: `${modelGroupCount}개` },
-            ].map((row) => (
-              <div key={row.label} className="text-center sm:text-left">
-                <span className="text-[10px] text-white/30 uppercase tracking-wider block mb-1">{row.label}</span>
-                {row.badge ? (
-                  <span
-                    className={`text-xs font-medium px-2.5 py-0.5 rounded-full ${
-                      modelStatus === 'trained'
-                        ? 'bg-emerald-500/15 text-emerald-400'
-                        : modelStatus === 'training'
-                          ? 'bg-amber-500/15 text-amber-400'
-                          : 'bg-white/[0.06] text-white/40'
-                    }`}
-                  >
-                    {row.value}
-                  </span>
-                ) : (
-                  <span className="text-sm text-white/60 font-mono">{row.value}</span>
-                )}
-              </div>
-            ))}
-          </div>
-          <button
-            onClick={trainModel}
-            disabled={isTraining}
-            className="w-full flex items-center justify-center gap-2 bg-[#C4A052]/15 hover:bg-[#C4A052]/25 border border-[#C4A052]/20 text-[#C4A052] font-medium rounded-xl px-4 py-2.5 text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isTraining ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <RefreshCw className="w-4 h-4" />
-            )}
-            {isTraining ? '학습 진행 중...' : '모델 재학습'}
-          </button>
-        </SectionWrapper>
-
         {/* 보정 계수 다이얼로그 */}
         <AnimatePresence>
           {showCoefficientDialog && (
@@ -920,10 +964,13 @@ export default function UAPSPage() {
                 exit={{ opacity: 0, scale: 0.95, y: 20 }}
                 className="bg-[#0d1421] border border-white/[0.08] rounded-2xl w-full max-w-md shadow-2xl overflow-hidden"
               >
-                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-1/2 h-px bg-gradient-to-r from-transparent via-cyan-400/30 to-transparent" />
+                <div
+                  className="absolute top-0 left-1/2 -translate-x-1/2 w-1/2 h-px"
+                  style={{ background: `linear-gradient(90deg, transparent, rgba(${theme.accentRgb}, 0.3), transparent)` }}
+                />
                 <div className="flex items-center gap-3 px-5 py-4 border-b border-white/[0.06]">
-                  <div className="p-2 bg-cyan-500/10 rounded-xl">
-                    <Settings2 className="w-4 h-4 text-cyan-400" />
+                  <div className="p-2 rounded-xl" style={{ backgroundColor: `rgba(${theme.accentRgb}, 0.1)` }}>
+                    <Settings2 className="w-4 h-4" style={{ color: theme.accent }} />
                   </div>
                   <div className="flex-1">
                     <h2 className="text-sm font-medium text-white">보정 계수</h2>
@@ -934,41 +981,9 @@ export default function UAPSPage() {
                   </button>
                 </div>
                 <div className="p-5 space-y-5">
-                  <CoefficientSlider
-                    label="TCI (질감 성숙)"
-                    value={localTci}
-                    onChange={setLocalTci}
-                    min={0.1}
-                    max={1.0}
-                    step={0.05}
-                    scientificBasis="가설적 추정 — 실험 검증 필요"
-                    sourceType="hypothesis"
-                    description={`Texture Catalysis Index — 해저 환경이 질감 발전(효모 자가분해·바디감)을 얼마나 촉진하는지 나타냅니다.\n\n도출 방식: 현재는 실험 데이터가 없어 가설 기반 추정치입니다. 해저의 일정한 저온(4~8°C)·고압(수심 30m ≈ 4기압) 환경이 효모 세포벽 분해를 가속한다는 가설에 기반하며, 값이 높을수록 숙성이 빠르게 진행됩니다.\n\n향후 실제 해저 숙성 와인의 관능 평가 데이터로 검증·보정할 예정입니다.`}
-                  />
-                  <CoefficientSlider
-                    label="FRI (향 신선도)"
-                    value={localFri}
-                    onChange={setLocalFri}
-                    min={0.1}
-                    max={1.0}
-                    step={0.01}
-                    scientificBasis="아레니우스 방정식 · Ea=47kJ/mol"
-                    recommendedValue={0.56}
-                    sourceType="scientific"
-                    description={`Freshness Retention Index — 해저 숙성 중 과실향·산도가 보존되는 비율입니다.\n\n아레니우스 방정식이란?\n화학 반응 속도가 온도에 따라 얼마나 변하는지 계산하는 공식입니다.\n  k = A × e^(-Ea / RT)\n  k: 반응 속도, Ea: 활성화 에너지, R: 기체 상수, T: 절대 온도\n\n계산 방식:\n해저(약 6°C)와 셀러(약 12°C)의 산화 반응 속도를 비교합니다.\n  셀러 속도: k₁ = A × e^(-47000 / 8.314 × 285)\n  해저 속도: k₂ = A × e^(-47000 / 8.314 × 279)\n  FRI = k₂ / k₁ ≈ 0.56\n\n즉, 해저에서는 향 손실이 셀러 대비 56% 수준으로 느려집니다.`}
-                  />
-                  <CoefficientSlider
-                    label="BRI (기포 안정화)"
-                    value={localBri}
-                    onChange={setLocalBri}
-                    min={1.0}
-                    max={2.5}
-                    step={0.05}
-                    scientificBasis="헨리의 법칙 · 수심 30m CO₂ 압력 구배"
-                    recommendedValue={1.6}
-                    sourceType="scientific"
-                    description={`Bubble Refinement Index — 수압이 CO₂ 기포를 얼마나 미세하게 만드는지 나타냅니다.\n\n헨리의 법칙이란?\n기체가 액체에 녹는 양은 압력에 비례한다는 법칙입니다.\n  C = k_H × P\n  C: 용해된 기체 농도, k_H: 헨리 상수, P: 기체 압력\n\n계산 방식:\n수심 30m에서는 수압이 약 4기압(지상 1 + 수압 3)입니다.\n  지상 CO₂ 용해: C₁ = k_H × 1atm\n  해저 CO₂ 용해: C₂ = k_H × 4atm\n  BRI = C₂ / C₁ = 4.0 (이론값)\n\n실제로는 온도·와인 성분 영향으로 보정하여 권장값 1.6을 사용합니다. 값이 높을수록 CO₂가 더 많이 녹아 기포가 작고 섬세해집니다.`}
-                  />
+                  <CoefficientSlider label="TCI (질감 성숙)" value={localTci} onChange={setLocalTci} min={0.1} max={1.0} step={0.05} accent={theme.accent} accentRgb={theme.accentRgb} scientificBasis="가설적 추정 — 실험 검증 필요" sourceType="hypothesis" />
+                  <CoefficientSlider label="FRI (향 신선도)" value={localFri} onChange={setLocalFri} min={0.1} max={1.0} step={0.01} accent={theme.accent} accentRgb={theme.accentRgb} scientificBasis="아레니우스 방정식 · Ea=47kJ/mol" recommendedValue={0.56} sourceType="scientific" />
+                  <CoefficientSlider label="BRI (기포 안정화)" value={localBri} onChange={setLocalBri} min={1.0} max={2.5} step={0.05} accent={theme.accent} accentRgb={theme.accentRgb} scientificBasis="헨리의 법칙 · 수심 30m CO₂" recommendedValue={1.6} sourceType="scientific" />
                 </div>
                 <div className="flex gap-3 px-5 pb-5">
                   <button
@@ -978,11 +993,9 @@ export default function UAPSPage() {
                     취소
                   </button>
                   <button
-                    onClick={async () => {
-                      await handleSaveCoefficients();
-                      setShowCoefficientDialog(false);
-                    }}
-                    className="flex-1 flex items-center justify-center gap-2 bg-gradient-to-r from-cyan-500/90 to-cyan-400/90 text-black font-medium rounded-xl py-2 text-sm hover:opacity-90 transition-opacity"
+                    onClick={async () => { await handleSaveCoefficients(); setShowCoefficientDialog(false); }}
+                    className="flex-1 flex items-center justify-center gap-2 text-black font-medium rounded-xl py-2 text-sm hover:opacity-90 transition-opacity"
+                    style={{ background: `linear-gradient(to right, ${theme.accent}e6, rgba(${theme.accentRgb}, 0.85))` }}
                   >
                     <Save className="w-3.5 h-3.5" />
                     저장
@@ -1001,81 +1014,26 @@ export default function UAPSPage() {
 // 제품 추가/수정 모달
 // ═══════════════════════════════════════════════════════════════════════════
 
-// 모달용 카테고리 목록 (DB 이름 기준)
-const MODAL_CATEGORIES = [
-  { value: 'champagne',        label: '🥂 샴페인' },
-  { value: 'red_wine',         label: '🍷 레드와인' },
-  { value: 'white_wine',       label: '🍾 화이트와인' },
-  { value: 'whisky',           label: '🥃 위스키' },
-  { value: 'soy_sauce',        label: '🫙 간장' },
-  { value: 'finished_vinegar', label: '🍶 식초' },
-  { value: 'cold_brew_coffee', label: '☕ 콜드브루' },
-  { value: 'spirits',          label: '🍵 소주' },
-  { value: 'korean_yakju',     label: '🍚 전통주' },
-  { value: 'puerh_sheng',      label: '🫖 보이차' },
-];
-
 function ProductModal({
   onClose,
   onSubmit,
   initialData,
-  initialCategory = 'champagne',
+  accent,
+  accentRgb,
+  categoryDbName = 'champagne',
 }: {
   onClose: () => void;
   onSubmit: (input: ProductInput) => Promise<void>;
   initialData?: AgingProduct | null;
-  initialCategory?: string;
+  accent: string;
+  accentRgb: string;
+  categoryDbName?: string;
 }) {
   const isEdit = !!initialData;
-  const [productCategory, setProductCategory] = useState(initialData?.productCategory ?? initialCategory);
   const [productName, setProductName] = useState(initialData?.productName ?? '');
   const [wineType, setWineType] = useState<WineType>(initialData?.wineType ?? 'blanc_de_blancs');
   const [vintage, setVintage] = useState<string>(initialData?.vintage?.toString() ?? '');
-  const [ph, setPh] = useState<string>(initialData?.ph?.toString() ?? '');
-  const [dosage, setDosage] = useState<string>(initialData?.dosage?.toString() ?? '');
   const [alcohol, setAlcohol] = useState<string>(initialData?.alcohol?.toString() ?? '');
-  // 환원 성향 체크리스트 → 자동 산출
-  const REDUCTION_CHECKLIST = [
-    { id: 'brutNature', label: '낮은 도사주', desc: 'Brut Nature · Extra Brut (0~6g/L)', weight: 2, group: 'dosage' },
-    { id: 'brut', label: '일반 도사주', desc: 'Brut · Extra Dry (6~12g/L)', weight: 0, group: 'dosage' },
-    { id: 'highDosage', label: '높은 도사주', desc: 'Demi-Sec · Doux (12g/L+)', weight: -2, group: 'dosage' },
-    { id: 'reductive', label: '환원적 양조', desc: '스테인리스 스틸 발효 · 불활성 가스 블랭킷 · 저온 발효', weight: 1, group: null },
-    { id: 'surLie', label: '장기 앙금 접촉', desc: 'Sur lie 장기 숙성', weight: 1, group: null },
-    { id: 'oxidative', label: '산화적 양조 · 솔레라', desc: '산소 접촉 반복, 솔레라 블렌딩', weight: -1, group: null },
-    { id: 'oak', label: '오크 숙성', desc: '오크통 숙성 과정 포함', weight: -1, group: null },
-  ] as const;
-
-  const [reductionChecks, setReductionChecks] = useState<Record<string, boolean>>(() => {
-    // 수정 모드: DB에 저장된 체크리스트 복원
-    if (initialData?.reductionChecks) return { ...initialData.reductionChecks };
-    const initial: Record<string, boolean> = {};
-    REDUCTION_CHECKLIST.forEach((item) => { initial[item.id] = false; });
-    return initial;
-  });
-
-  const reductionScore = REDUCTION_CHECKLIST.reduce(
-    (sum, item) => sum + (reductionChecks[item.id] ? item.weight : 0), 0
-  );
-  const reductionPotential: ReductionPotential = reductionScore >= 3 ? 'high' : reductionScore >= 1 ? 'medium' : 'low';
-
-  const toggleReductionCheck = (id: string) => {
-    const item = REDUCTION_CHECKLIST.find((c) => c.id === id);
-    setReductionChecks((prev) => {
-      const next = { ...prev };
-      // 같은 그룹(dosage)은 라디오처럼 하나만 선택
-      if (item?.group) {
-        REDUCTION_CHECKLIST.forEach((c) => {
-          if (c.group === item.group && c.id !== id) next[c.id] = false;
-        });
-      }
-      next[id] = !prev[id];
-      return next;
-    });
-  };
-
-  const [terrestrialAgingYears, setTerrestrialAgingYears] = useState<string>(
-    initialData?.terrestrialAgingYears?.toString() ?? ''
-  );
   const [immersionDate, setImmersionDate] = useState(initialData?.immersionDate ?? '');
   const [plannedDurationMonths, setPlannedDurationMonths] = useState<string>(initialData?.plannedDurationMonths?.toString() ?? '');
   const [agingDepth, setAgingDepth] = useState<string>(initialData?.agingDepth?.toString() ?? '30');
@@ -1088,27 +1046,27 @@ function ProductModal({
     setIsSubmitting(true);
     await onSubmit({
       productName: productName.trim(),
-      productCategory,
+      productCategory: initialData?.productCategory ?? categoryDbName,
       wineType,
       vintage: vintage ? Number(vintage) : null,
       producer: '',
-      ph: ph ? Number(ph) : null,
-      dosage: dosage ? Number(dosage) : null,
+      ph: null,
+      dosage: null,
       alcohol: alcohol ? Number(alcohol) : null,
       acidity: null,
-      reductionPotential,
-      reductionChecks: { ...reductionChecks },
+      reductionPotential: 'low',
+      reductionChecks: {},
       immersionDate: immersionDate || null,
       plannedDurationMonths: plannedDurationMonths ? Number(plannedDurationMonths) : null,
       agingDepth: agingDepth ? Number(agingDepth) : 30,
-      terrestrialAgingYears: terrestrialAgingYears ? Number(terrestrialAgingYears) : null,
+      terrestrialAgingYears: null,
       notes: notes.trim() || null,
     });
     setIsSubmitting(false);
   };
 
   const inputClass =
-    'w-full px-3 py-2.5 bg-white/[0.04] border border-white/[0.08] rounded-xl text-sm text-white placeholder:text-white/20 focus:outline-none focus:border-cyan-400/40 transition-colors';
+    'w-full px-3 py-2.5 bg-white/[0.04] border border-white/[0.08] rounded-xl text-sm text-white placeholder:text-white/20 focus:outline-none transition-colors';
   const labelClass = 'block text-xs text-white/50 mb-1.5';
 
   return (
@@ -1123,11 +1081,11 @@ function ProductModal({
         initial={{ opacity: 0, scale: 0.95, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 20 }}
-        className="bg-[#0d1421] border border-white/[0.08] rounded-2xl w-full max-w-lg max-h-[85vh] overflow-y-auto shadow-2xl"
+        className="bg-[#0d1421] border border-white/[0.08] rounded-2xl w-full max-w-md max-h-[85vh] overflow-y-auto shadow-2xl"
       >
         <div className="flex items-center gap-3 p-5 border-b border-white/[0.06]">
-          <div className="p-2 bg-cyan-500/10 rounded-xl">
-            <Anchor className="w-5 h-5 text-cyan-400" />
+          <div className="p-2 rounded-xl" style={{ backgroundColor: `rgba(${accentRgb}, 0.1)` }}>
+            <Anchor className="w-5 h-5" style={{ color: accent }} />
           </div>
           <h2 className="text-lg font-medium text-white flex-1">
             {isEdit ? '숙성 제품 수정' : '새 숙성 제품 등록'}
@@ -1139,25 +1097,12 @@ function ProductModal({
 
         <form onSubmit={handleSubmit} className="p-5 space-y-4">
           <div>
-            <label className={labelClass}>카테고리</label>
-            <select
-              value={productCategory}
-              onChange={(e) => setProductCategory(e.target.value)}
-              className={inputClass}
-            >
-              {MODAL_CATEGORIES.map((cat) => (
-                <option key={cat.value} value={cat.value}>{cat.label}</option>
-              ))}
-            </select>
-          </div>
-
-          <div>
             <label className={labelClass}>제품명 *</label>
             <input
               type="text"
               value={productName}
               onChange={(e) => setProductName(e.target.value)}
-              placeholder="Muse de Marée Blanc de Blancs 2024"
+              placeholder="예: 쥰마이 다이긴조 2023"
               className={inputClass}
               required
             />
@@ -1165,7 +1110,7 @@ function ProductModal({
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className={labelClass}>와인 타입</label>
+              <label className={labelClass}>타입</label>
               <select value={wineType} onChange={(e) => setWineType(e.target.value as WineType)} className={inputClass}>
                 {Object.entries(WINE_TYPE_LABELS).map(([key, label]) => (
                   <option key={key} value={key}>{label}</option>
@@ -1178,125 +1123,9 @@ function ProductModal({
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div>
-              <label className={labelClass}>pH <span className="text-white/20">(선택)</span></label>
-              <input type="number" step="0.01" value={ph} onChange={(e) => setPh(e.target.value)} placeholder="3.10" className={inputClass} />
-            </div>
-            <div>
-              <label className={labelClass}>Dosage g/L <span className="text-white/20">(선택)</span></label>
-              <input type="number" value={dosage} onChange={(e) => setDosage(e.target.value)} placeholder="8" className={inputClass} />
-            </div>
-            <div>
-              <label className={labelClass}>Alcohol % <span className="text-white/20">(선택)</span></label>
-              <input type="number" value={alcohol} onChange={(e) => setAlcohol(e.target.value)} placeholder="12.5" className={inputClass} />
-            </div>
-          </div>
-
           <div>
-            <label className={labelClass}>환원 성향 (해당 항목 체크)</label>
-            {/* 도사주 구간 — 하나만 선택 */}
-            <p className="text-[11px] text-white/30 mb-1.5 mt-2">도사주 (하나만 선택)</p>
-            <div className="space-y-1.5">
-              {REDUCTION_CHECKLIST.filter((item) => item.group === 'dosage').map((item) => (
-                <label
-                  key={item.id}
-                  className={`flex items-center gap-3 px-3 py-2.5 rounded-xl border cursor-pointer transition-all ${
-                    reductionChecks[item.id]
-                      ? 'border-cyan-400/30 bg-cyan-400/[0.05]'
-                      : 'border-white/[0.06] bg-white/[0.02] hover:border-white/[0.12]'
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name="dosageGroup"
-                    checked={reductionChecks[item.id]}
-                    onChange={() => toggleReductionCheck(item.id)}
-                    className="accent-cyan-400"
-                  />
-                  <div className="flex-1 min-w-0">
-                    <span className={`text-sm ${reductionChecks[item.id] ? 'text-white' : 'text-white/60'}`}>
-                      {item.label}
-                    </span>
-                    <span className="text-[11px] text-white/30 ml-2 hidden sm:inline">{item.desc}</span>
-                  </div>
-                  <span className={`text-xs font-mono ${item.weight > 0 ? 'text-red-400/60' : item.weight < 0 ? 'text-emerald-400/60' : 'text-white/20'}`}>
-                    {item.weight > 0 ? '+' : ''}{item.weight}
-                  </span>
-                </label>
-              ))}
-            </div>
-            {/* 양조 방식 — 복수 선택 가능 */}
-            <p className="text-[11px] text-white/30 mb-1.5 mt-3">양조 방식 (복수 선택 가능)</p>
-            <div className="space-y-1.5">
-              {REDUCTION_CHECKLIST.filter((item) => item.group === null).map((item) => (
-                <label
-                  key={item.id}
-                  className={`flex items-center gap-3 px-3 py-2.5 rounded-xl border cursor-pointer transition-all ${
-                    reductionChecks[item.id]
-                      ? 'border-cyan-400/30 bg-cyan-400/[0.05]'
-                      : 'border-white/[0.06] bg-white/[0.02] hover:border-white/[0.12]'
-                  }`}
-                >
-                  <input
-                    type="checkbox"
-                    checked={reductionChecks[item.id]}
-                    onChange={() => toggleReductionCheck(item.id)}
-                    className="accent-cyan-400 rounded"
-                  />
-                  <div className="flex-1 min-w-0">
-                    <span className={`text-sm ${reductionChecks[item.id] ? 'text-white' : 'text-white/60'}`}>
-                      {item.label}
-                    </span>
-                    <span className="text-[11px] text-white/30 ml-2 hidden sm:inline">{item.desc}</span>
-                  </div>
-                  <span className={`text-xs font-mono ${item.weight > 0 ? 'text-red-400/60' : 'text-emerald-400/60'}`}>
-                    {item.weight > 0 ? '+' : ''}{item.weight}
-                  </span>
-                </label>
-              ))}
-            </div>
-            {/* 자동 산출 결과 */}
-            <div className="mt-3 flex items-center gap-3 px-3 py-2 rounded-xl bg-white/[0.03] border border-white/[0.06]">
-              <span className="text-xs text-white/40">산출 결과:</span>
-              <span className={`text-sm font-medium ${
-                reductionPotential === 'high' ? 'text-red-400' : reductionPotential === 'medium' ? 'text-amber-400' : 'text-emerald-400'
-              }`}>
-                {REDUCTION_POTENTIAL_LABELS[reductionPotential]}
-              </span>
-              <span className="text-[11px] text-white/20 font-mono">
-                (점수: {reductionScore})
-              </span>
-            </div>
-          </div>
-
-          <div>
-            <label className={labelClass}>
-              투하 전 지상 숙성 기간 (년) <span className="text-white/20">(선택)</span>
-            </label>
-            <div className="flex items-center gap-3">
-              <input
-                type="number"
-                step="0.1"
-                min="0"
-                max="20"
-                value={terrestrialAgingYears}
-                onChange={(e) => setTerrestrialAgingYears(e.target.value)}
-                placeholder={`기본값: ${
-                  wineType === 'blanc_de_blancs' ? '2.2' :
-                  wineType === 'blanc_de_noirs' ? '1.9' :
-                  wineType === 'rose' ? '1.7' :
-                  wineType === 'vintage' ? '2.6' : '2.0'
-                }년 (타입 추정)`}
-                className={inputClass + ' flex-1'}
-              />
-              {terrestrialAgingYears && (
-                <span className="text-xs text-cyan-400 whitespace-nowrap">실측값 사용</span>
-              )}
-            </div>
-            <p className="text-[11px] text-white/30 mt-1.5">
-              소믈리에가 평가한 투하 전 실제 숙성 연수를 입력하면 예측 정밀도가 향상됩니다.
-            </p>
+            <label className={labelClass}>Alcohol % <span className="text-white/20">(선택)</span></label>
+            <input type="number" value={alcohol} onChange={(e) => setAlcohol(e.target.value)} placeholder="15.5" className={inputClass} />
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -1336,7 +1165,8 @@ function ProductModal({
             <button
               type="submit"
               disabled={!productName.trim() || isSubmitting}
-              className="flex-1 flex items-center justify-center gap-2 bg-gradient-to-r from-cyan-500 to-cyan-400 text-black font-medium rounded-xl py-2.5 text-sm hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-1 flex items-center justify-center gap-2 text-black font-medium rounded-xl py-2.5 text-sm hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{ background: `linear-gradient(to right, ${accent}, rgba(${accentRgb}, 0.85))` }}
             >
               {isSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}
               {isEdit ? '수정' : '등록'}
@@ -1349,25 +1179,22 @@ function ProductModal({
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// Flavor Radar 차트
+// Flavor Radar
 // ═══════════════════════════════════════════════════════════════════════════
-
-const FALLBACK_PROFILES: Record<WineType, Record<string, number>> = {
-  blanc_de_blancs: { fruity: 70, floralMineral: 65, yeastyAutolytic: 35, acidityFreshness: 80, bodyTexture: 45, finishComplexity: 55 },
-  blanc_de_noirs:  { fruity: 55, floralMineral: 40, yeastyAutolytic: 45, acidityFreshness: 65, bodyTexture: 65, finishComplexity: 55 },
-  rose:            { fruity: 65, floralMineral: 50, yeastyAutolytic: 30, acidityFreshness: 70, bodyTexture: 50, finishComplexity: 45 },
-  blend:           { fruity: 60, floralMineral: 45, yeastyAutolytic: 40, acidityFreshness: 70, bodyTexture: 55, finishComplexity: 50 },
-  vintage:         { fruity: 40, floralMineral: 55, yeastyAutolytic: 65, acidityFreshness: 55, bodyTexture: 70, finishComplexity: 75 },
-};
 
 function FlavorRadar({
   beforeProfile,
   afterProfile,
+  accent,
+  accentRgb,
 }: {
   beforeProfile: Record<string, number> | null;
   afterProfile: Record<string, number> | null;
+  accent: string;
+  accentRgb: string;
 }) {
-  const before = beforeProfile || FALLBACK_PROFILES.blend;
+  const fallback = { fruity: 50, floralMineral: 45, yeastyAutolytic: 40, acidityFreshness: 55, bodyTexture: 50, finishComplexity: 50 };
+  const before = beforeProfile || fallback;
   const after = afterProfile || before;
 
   const radarData = FLAVOR_AXES.map((axis) => ({
@@ -1385,20 +1212,19 @@ function FlavorRadar({
 
   return (
     <div className="flex flex-col lg:flex-row gap-4 lg:gap-0">
-      {/* 레이더 차트 — 좌측, 크게 */}
       <div className="flex-1 h-[300px] sm:h-[380px] lg:h-[420px] relative">
         <ResponsiveContainer width="100%" height="100%">
           <RadarChart data={radarData} cx="50%" cy="50%" outerRadius="78%">
             <defs>
-              <radialGradient id="radarBeforeFill" cx="50%" cy="50%" r="50%">
-                <stop offset="0%" stopColor="#22d3ee" stopOpacity={0.10} />
-                <stop offset="100%" stopColor="#22d3ee" stopOpacity={0.02} />
+              <radialGradient id="catRadarBeforeFill" cx="50%" cy="50%" r="50%">
+                <stop offset="0%" stopColor={accent} stopOpacity={0.10} />
+                <stop offset="100%" stopColor={accent} stopOpacity={0.02} />
               </radialGradient>
-              <radialGradient id="radarAfterFill" cx="50%" cy="50%" r="50%">
+              <radialGradient id="catRadarAfterFill" cx="50%" cy="50%" r="50%">
                 <stop offset="0%" stopColor="#B76E79" stopOpacity={0.35} />
                 <stop offset="100%" stopColor="#B76E79" stopOpacity={0.06} />
               </radialGradient>
-              <filter id="radarGlow">
+              <filter id="catRadarGlow">
                 <feGaussianBlur stdDeviation="3" result="blur" />
                 <feMerge>
                   <feMergeNode in="blur" />
@@ -1412,38 +1238,17 @@ function FlavorRadar({
               tick={{ fill: 'rgba(255,255,255,0.5)', fontSize: 11, fontFamily: 'var(--font-pretendard, Pretendard, sans-serif)' }}
               tickLine={false}
             />
-            <PolarRadiusAxis
-              angle={90}
-              domain={[0, 100]}
-              tick={false}
-              axisLine={false}
-            />
-            <Radar
-              name="투하 전"
-              dataKey="before"
-              stroke="rgba(34,211,238,0.4)"
-              fill="url(#radarBeforeFill)"
-              strokeWidth={1}
-              strokeDasharray="4 3"
-            />
-            <Radar
-              name="AI 예측"
-              dataKey="after"
-              stroke="#B76E79"
-              fill="url(#radarAfterFill)"
-              strokeWidth={2}
-              filter="url(#radarGlow)"
-            />
+            <PolarRadiusAxis angle={90} domain={[0, 100]} tick={false} axisLine={false} />
+            <Radar name="투하 전" dataKey="before" stroke={`rgba(${accentRgb},0.4)`} fill="url(#catRadarBeforeFill)" strokeWidth={1} strokeDasharray="4 3" />
+            <Radar name="AI 예측" dataKey="after" stroke="#B76E79" fill="url(#catRadarAfterFill)" strokeWidth={2} filter="url(#catRadarGlow)" />
           </RadarChart>
         </ResponsiveContainer>
       </div>
 
-      {/* 우측 패널 — 범례 + 변화량 */}
       <div className="lg:w-[220px] flex flex-col justify-center lg:pl-2 lg:border-l lg:border-white/[0.04]">
-        {/* 범례 */}
         <div className="flex lg:flex-col items-center lg:items-start gap-3 lg:gap-2 mb-4 lg:mb-5">
           <div className="flex items-center gap-2">
-            <div className="w-5 h-px border-t border-dashed border-cyan-400/50" />
+            <div className="w-5 h-px border-t border-dashed" style={{ borderColor: `${accent}80` }} />
             <span className="text-[10px] text-white/40 tracking-wide">투하 전</span>
           </div>
           <div className="flex items-center gap-2">
@@ -1452,7 +1257,6 @@ function FlavorRadar({
           </div>
         </div>
 
-        {/* 6축 변화량 카드 */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-1 gap-1.5">
           {changes.map((c) => {
             const isPositive = c.diff > 0;
@@ -1460,13 +1264,11 @@ function FlavorRadar({
             return (
               <div
                 key={c.label}
-                className={`flex items-center justify-between rounded-lg px-3 py-2 transition-colors ${
-                  isPositive
-                    ? 'bg-[#B76E79]/[0.06] border border-[#B76E79]/[0.12]'
-                    : isNegative
-                    ? 'bg-cyan-400/[0.04] border border-cyan-400/[0.08]'
-                    : 'bg-white/[0.02] border border-white/[0.04]'
-                }`}
+                className="flex items-center justify-between rounded-lg px-3 py-2 border"
+                style={{
+                  backgroundColor: isPositive ? `rgba(183,110,121,0.06)` : isNegative ? `rgba(${accentRgb},0.04)` : 'rgba(255,255,255,0.02)',
+                  borderColor: isPositive ? 'rgba(183,110,121,0.12)' : isNegative ? `rgba(${accentRgb},0.08)` : 'rgba(255,255,255,0.04)',
+                }}
               >
                 <div className="flex flex-col">
                   <span className="text-[9px] text-white/30 tracking-wide leading-none mb-0.5">{c.label}</span>
@@ -1477,10 +1279,11 @@ function FlavorRadar({
                   </div>
                 </div>
                 <span
-                  className={`text-xs font-mono font-semibold tabular-nums ${
-                    isPositive ? 'text-[#B76E79]' : isNegative ? 'text-cyan-400/70' : 'text-white/15'
-                  }`}
-                  style={{ fontFamily: "var(--font-cormorant), 'Cormorant Garamond', serif" }}
+                  className="text-xs font-mono font-semibold tabular-nums"
+                  style={{
+                    color: isPositive ? '#B76E79' : isNegative ? `rgba(${accentRgb},0.7)` : 'rgba(255,255,255,0.15)',
+                    fontFamily: "var(--font-cormorant), 'Cormorant Garamond', serif",
+                  }}
                 >
                   {isPositive ? '+' : ''}{c.diff}
                 </span>
@@ -1494,21 +1297,18 @@ function FlavorRadar({
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// Timeline & Golden Window 차트
+// Timeline 차트 (재사용)
 // ═══════════════════════════════════════════════════════════════════════════
 
 function TimelineChart({
   data,
   harvestWindow,
 }: {
-  data: { month: number; textureMaturity: number; aromaFreshness: number; offFlavorRisk: number; bubbleRefinement: number; compositeQuality?: number; gainScore?: number; lossScore?: number; netBenefit?: number }[];
+  data: { month: number; textureMaturity: number; aromaFreshness: number; offFlavorRisk: number; bubbleRefinement: number; compositeQuality?: number; gainScore?: number; lossScore?: number }[];
   harvestWindow: { startMonths: number; endMonths: number; peakMonth: number; peakScore: number; recommendation: string } | null;
 }) {
-  const peakPoint = harvestWindow
-    ? data.find((d) => d.month === harvestWindow.peakMonth)
-    : null;
+  const peakPoint = harvestWindow ? data.find((d) => d.month === harvestWindow.peakMonth) : null;
 
-  // 커스텀 툴팁
   const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?: { value: number; dataKey: string }[]; label?: number }) => {
     if (!active || !payload?.length) return null;
     const get = (key: string) => payload.find((p) => p.dataKey === key)?.value;
@@ -1524,9 +1324,7 @@ function TimelineChart({
           <span className={`text-[11px] font-medium ${isPeak ? 'text-[#C4A052]' : 'text-white/60'}`}>
             {label}개월{isPeak ? ' — Peak' : ''}
           </span>
-          {quality != null && (
-            <span className="text-sm font-mono font-medium text-[#C4A052]">{Math.round(quality)}</span>
-          )}
+          {quality != null && <span className="text-sm font-mono font-medium text-[#C4A052]">{Math.round(quality)}</span>}
         </div>
         <div className="grid grid-cols-2 gap-x-3 gap-y-0.5">
           {texture != null && <span className="text-[10px] text-emerald-400/60">질감 {Math.round(texture)}</span>}
@@ -1542,102 +1340,40 @@ function TimelineChart({
     <ResponsiveContainer width="100%" height="100%">
       <ComposedChart data={data} margin={{ top: 20, right: 12, left: -10, bottom: 5 }}>
         <defs>
-          {/* 종합 품질 곡선 아래 그라디언트 — 금색 */}
-          <linearGradient id="qualityGradient" x1="0" y1="0" x2="0" y2="1">
+          <linearGradient id="catQualityGradient" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor="#C4A052" stopOpacity={0.2} />
             <stop offset="60%" stopColor="#C4A052" stopOpacity={0.05} />
             <stop offset="100%" stopColor="#C4A052" stopOpacity={0} />
           </linearGradient>
-          {/* 이득 영역 */}
-          <linearGradient id="gainFill" x1="0" y1="0" x2="0" y2="1">
+          <linearGradient id="catGainFill" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor="#22c55e" stopOpacity={0.22} />
-            <stop offset="70%" stopColor="#22c55e" stopOpacity={0.08} />
             <stop offset="100%" stopColor="#22c55e" stopOpacity={0.02} />
           </linearGradient>
-          {/* 손실 영역 */}
-          <linearGradient id="lossFill" x1="0" y1="0" x2="0" y2="1">
+          <linearGradient id="catLossFill" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor="#ef4444" stopOpacity={0.18} />
-            <stop offset="70%" stopColor="#ef4444" stopOpacity={0.06} />
             <stop offset="100%" stopColor="#ef4444" stopOpacity={0.02} />
           </linearGradient>
-          {/* 피크 마커 글로우 */}
-          <filter id="peakGlow">
+          <filter id="catPeakGlow">
             <feGaussianBlur stdDeviation="4" result="blur" />
-            <feMerge>
-              <feMergeNode in="blur" />
-              <feMergeNode in="SourceGraphic" />
-            </feMerge>
+            <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
           </filter>
         </defs>
-
         <CartesianGrid stroke="rgba(255,255,255,0.03)" vertical={false} />
-        <XAxis
-          dataKey="month"
-          tick={{ fill: 'rgba(255,255,255,0.3)', fontSize: 9 }}
-          tickFormatter={(v) => `${v}`}
-          axisLine={{ stroke: 'rgba(255,255,255,0.06)' }}
-          tickLine={false}
-          label={{ value: '개월', position: 'insideBottomRight', offset: -5, fill: 'rgba(255,255,255,0.2)', fontSize: 9 }}
-        />
-        <YAxis
-          domain={[0, 100]}
-          tick={{ fill: 'rgba(255,255,255,0.2)', fontSize: 9 }}
-          axisLine={false}
-          tickLine={false}
-          tickCount={6}
-        />
+        <XAxis dataKey="month" tick={{ fill: 'rgba(255,255,255,0.3)', fontSize: 9 }} axisLine={{ stroke: 'rgba(255,255,255,0.06)' }} tickLine={false} label={{ value: '개월', position: 'insideBottomRight', offset: -5, fill: 'rgba(255,255,255,0.2)', fontSize: 9 }} />
+        <YAxis domain={[0, 100]} tick={{ fill: 'rgba(255,255,255,0.2)', fontSize: 9 }} axisLine={false} tickLine={false} tickCount={6} />
         <Tooltip content={<CustomTooltip />} cursor={{ stroke: 'rgba(196,160,82,0.2)', strokeWidth: 1, strokeDasharray: '3 3' }} />
-
-        {/* 3구간 배경 제거됨 */}
-
-        {/* 이득/손실 영역 — 극히 미묘한 배경 */}
-        <Area type="monotone" dataKey="gainScore" stroke="none" fill="url(#gainFill)" legendType="none" />
-        <Area type="monotone" dataKey="lossScore" stroke="none" fill="url(#lossFill)" legendType="none" />
-
-        {/* 이득 고스트 라인: 질감(실선) + 기포(점선) — 에메랄드 */}
+        <Area type="monotone" dataKey="gainScore" stroke="none" fill="url(#catGainFill)" legendType="none" />
+        <Area type="monotone" dataKey="lossScore" stroke="none" fill="url(#catLossFill)" legendType="none" />
         <Line type="monotone" dataKey="textureMaturity" stroke="#34d399" strokeWidth={1} strokeOpacity={0.4} dot={false} legendType="none" />
         <Line type="monotone" dataKey="bubbleRefinement" stroke="#34d399" strokeWidth={1} strokeOpacity={0.3} strokeDasharray="3 4" dot={false} legendType="none" />
-
-        {/* 손실 고스트 라인: 향 신선도(실선, 하강=감쇠) + Off-flavor(점선) — 레드 */}
         <Line type="monotone" dataKey="aromaFreshness" stroke="#f87171" strokeWidth={1} strokeOpacity={0.35} dot={false} legendType="none" />
         <Line type="monotone" dataKey="offFlavorRisk" stroke="#f87171" strokeWidth={1} strokeOpacity={0.3} strokeDasharray="3 4" dot={false} legendType="none" />
-
-        {/* 종합 품질 곡선 — 주인공 */}
-        <Area
-          type="monotone"
-          dataKey="compositeQuality"
-          stroke="#C4A052"
-          strokeWidth={2.5}
-          fill="url(#qualityGradient)"
-          dot={false}
-          activeDot={{ r: 4, fill: '#C4A052', stroke: 'rgba(255,255,255,0.8)', strokeWidth: 1.5 }}
-          legendType="none"
-        />
-
-        {/* 피크 수직선 */}
+        <Area type="monotone" dataKey="compositeQuality" stroke="#C4A052" strokeWidth={2.5} fill="url(#catQualityGradient)" dot={false} activeDot={{ r: 4, fill: '#C4A052', stroke: 'rgba(255,255,255,0.8)', strokeWidth: 1.5 }} legendType="none" />
         {harvestWindow && (
-          <ReferenceLine
-            x={harvestWindow.peakMonth}
-            stroke="#C4A052"
-            strokeWidth={1}
-            strokeDasharray="2 3"
-            strokeOpacity={0.4}
-          />
+          <ReferenceLine x={harvestWindow.peakMonth} stroke="#C4A052" strokeWidth={1} strokeDasharray="2 3" strokeOpacity={0.4} />
         )}
-
-        {/* 골든 윈도우 경계선 제거됨 */}
-
-        {/* 피크 마커 */}
         {harvestWindow && peakPoint && (
-          <ReferenceDot
-            x={harvestWindow.peakMonth}
-            y={peakPoint.compositeQuality ?? 0}
-            r={5}
-            fill="#C4A052"
-            stroke="rgba(255,255,255,0.9)"
-            strokeWidth={2}
-            filter="url(#peakGlow)"
-          />
+          <ReferenceDot x={harvestWindow.peakMonth} y={peakPoint.compositeQuality ?? 0} r={5} fill="#C4A052" stroke="rgba(255,255,255,0.9)" strokeWidth={2} filter="url(#catPeakGlow)" />
         )}
       </ComposedChart>
     </ResponsiveContainer>
@@ -1658,7 +1394,8 @@ function CoefficientSlider({
   scientificBasis,
   recommendedValue,
   sourceType,
-  description,
+  accent,
+  accentRgb,
 }: {
   label: string;
   value: number;
@@ -1669,55 +1406,14 @@ function CoefficientSlider({
   scientificBasis?: string;
   recommendedValue?: number;
   sourceType?: 'hypothesis' | 'scientific';
-  description?: string;
+  accent: string;
+  accentRgb: string;
 }) {
-  const [showTooltip, setShowTooltip] = useState(false);
-  const btnRef = useRef<HTMLButtonElement>(null);
-  const [tooltipPos, setTooltipPos] = useState({ top: 0, left: 0 });
-
-  const openTooltip = () => {
-    if (btnRef.current) {
-      const rect = btnRef.current.getBoundingClientRect();
-      setTooltipPos({
-        top: rect.top - 8,
-        left: Math.max(12, Math.min(rect.left, window.innerWidth - 300)),
-      });
-    }
-    setShowTooltip(true);
-  };
-
   return (
     <div>
       <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-1.5">
-          <label className="text-xs text-white/50">{label}</label>
-          {description && (
-            <>
-              <button
-                ref={btnRef}
-                type="button"
-                onMouseEnter={openTooltip}
-                onMouseLeave={() => setShowTooltip(false)}
-                onClick={() => showTooltip ? setShowTooltip(false) : openTooltip()}
-                className="text-white/25 hover:text-white/60 transition-colors"
-              >
-                <Info className="w-3.5 h-3.5" />
-              </button>
-              {showTooltip && typeof document !== 'undefined' && createPortal(
-                <div
-                  className="fixed w-72 bg-[#12131a] border border-white/[0.12] rounded-xl p-3.5 shadow-2xl z-[9999]"
-                  style={{ top: tooltipPos.top, left: tooltipPos.left, transform: 'translateY(-100%)' }}
-                  onMouseEnter={() => setShowTooltip(true)}
-                  onMouseLeave={() => setShowTooltip(false)}
-                >
-                  <p className="text-[11px] leading-[1.7] text-white/60 whitespace-pre-line">{description}</p>
-                </div>,
-                document.body
-              )}
-            </>
-          )}
-        </div>
-        <span className="text-xs text-cyan-400 font-mono font-medium">{value.toFixed(2)}</span>
+        <label className="text-xs text-white/50">{label}</label>
+        <span className="text-xs font-mono font-medium" style={{ color: accent }}>{value.toFixed(2)}</span>
       </div>
       <input
         type="range"
@@ -1726,22 +1422,19 @@ function CoefficientSlider({
         step={step}
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
-        className="w-full accent-cyan-400 h-1.5 bg-white/[0.06] rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3.5 [&::-webkit-slider-thumb]:h-3.5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-cyan-400 [&::-webkit-slider-thumb]:shadow-[0_0_6px_rgba(34,211,238,0.3)]"
+        className="w-full h-1.5 bg-white/[0.06] rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3.5 [&::-webkit-slider-thumb]:h-3.5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow-lg"
+        style={{ accentColor: accent }}
       />
       <div className="flex justify-between text-[10px] text-white/20 mt-1">
         <span>{min}</span>
         {recommendedValue !== undefined && (
-          <span className="text-cyan-400/50">권장 {recommendedValue}</span>
+          <span style={{ color: `${accent}80` }}>권장 {recommendedValue}</span>
         )}
         <span>{max}</span>
       </div>
       {scientificBasis && (
         <div className="flex items-center gap-1.5 mt-1.5">
-          <span
-            className={`w-1.5 h-1.5 rounded-full shrink-0 ${
-              sourceType === 'scientific' ? 'bg-emerald-400' : 'bg-amber-400'
-            }`}
-          />
+          <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${sourceType === 'scientific' ? 'bg-emerald-400' : 'bg-amber-400'}`} />
           <span className="text-[10px] text-white/30">{scientificBasis}</span>
         </div>
       )}
