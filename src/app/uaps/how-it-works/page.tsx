@@ -925,9 +925,9 @@ export default function HowItWorksPage() {
                 desc: '제품 등록 시 소믈리에가 직접 입력한 숙성 연수를 가장 높은 우선순위로 사용합니다. AI 추론이나 평균값 대신 실제 전문가 경험이 예측에 직접 반영됩니다.',
               },
               {
-                status: 'pending',
-                label: '전체 데이터 풍미 점수 추출 중',
-                desc: '112K건 리뷰 전체에서 6축 풍미 점수를 추출하는 작업이 진행 중입니다. 완료되면 더 많은 데이터로 통계 모델을 재학습해 정확도가 크게 향상될 예정입니다.',
+                status: 'done',
+                label: '전체 데이터 풍미 점수 추출 완료',
+                desc: '112K건 리뷰 전체에서 6축 풍미 점수 추출이 완료되었습니다. 추출된 점수를 반영해 통계 모델이 재학습되어 예측 정확도가 크게 향상되었습니다.',
               },
             ].map((item, i) => (
               <div key={i} className={`flex gap-4 p-4 rounded-xl ${i < 3 ? 'mb-1' : ''} ${item.status === 'done' ? 'bg-emerald-500/[0.04]' : 'bg-amber-500/[0.04]'}`}>

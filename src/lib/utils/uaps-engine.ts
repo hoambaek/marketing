@@ -239,7 +239,7 @@ function groupByCategoryAndStage(
   const groups: Record<string, WineTerrestrialData[]> = {};
   for (const d of data) {
     const stage = d.agingStage || inferAgingStage(d.agingYears);
-    const category = d.productCategory || 'champagne/wine';
+    const category = d.productCategory || 'champagne';
     const key = `${category}::${stage}`;
     if (!groups[key]) groups[key] = [];
     groups[key].push(d);
@@ -273,7 +273,7 @@ function computeGroupStats(
   agingStage: AgingStage,
   records: WineTerrestrialData[],
   allData: WineTerrestrialData[],
-  productCategory: ProductCategory = 'champagne/wine'
+  productCategory: ProductCategory = 'champagne'
 ): GroupStats {
   // 풍미 프로파일 통계
   const flavorProfile: Record<string, FlavorStats> = {};
@@ -290,7 +290,7 @@ function computeGroupStats(
   const alcoholValues = records.map((r) => r.alcohol).filter((v): v is number => v !== null);
 
   // 풍미 전이 곡선 (해당 productCategory의 전체 데이터에서 연수별 추이 계산)
-  const typeData = allData.filter((d) => (d.productCategory || 'champagne/wine') === productCategory);
+  const typeData = allData.filter((d) => (d.productCategory || 'champagne') === productCategory);
   const transitionCurves = computeTransitionCurves(typeData);
 
   // 클러스터 중심점 (pH × dosage × reduction 조합)
@@ -423,7 +423,7 @@ export function findSimilarClusters(
   models: TerrestrialModel[],
   topK: number = 5
 ): ClusterMatch[] {
-  const productCategory = (product.productCategory || 'champagne/wine') as ProductCategory;
+  const productCategory = (product.productCategory || 'champagne') as ProductCategory;
 
   const scored = models.map((model) => {
     let similarity = 0;
@@ -432,8 +432,8 @@ export function findSimilarClusters(
     if (model.productCategory === productCategory) {
       similarity += 50;
     } else {
-      // wine 계열 보너스: champagne/wine 제품이 다른 wine 모델과도 부분 매칭
-      const wineCategories = ['champagne/wine'];
+      // wine 계열 보너스: champagne 제품이 다른 wine 모델과도 부분 매칭
+      const wineCategories = ['champagne'];
       if (wineCategories.includes(productCategory) && wineCategories.includes(model.productCategory)) {
         similarity += 30;
       }
@@ -594,7 +594,7 @@ export function calculateCompositeQuality(
   aroma: number,
   bubble: number,
   risk: number,
-  _wineType: string,
+  _wineType: string | null,
   qualityWeights?: QualityWeights
 ): number {
   const w = qualityWeights || DEFAULT_QUALITY_WEIGHTS;
@@ -692,7 +692,7 @@ export function calculateOptimalHarvestWindow(
   }
 
   const recommendation = generateRecommendation(
-    startMonths, endMonths, peakMonth, peakScore, reductionPotential, product.productCategory || product.wineType
+    startMonths, endMonths, peakMonth, peakScore, reductionPotential, product.productCategory || product.wineType || 'blend'
   );
 
   return { startMonths, endMonths, peakMonth, peakScore, recommendation };
@@ -969,7 +969,7 @@ export function predictFlavorProfileStatistical(
       ? product.terrestrialAgingYears
       : af.baseAgingYears;
     const t0Stage = inferAgingStage(baseAgingYears);
-    const productCategory = (product.productCategory || 'champagne/wine') as ProductCategory;
+    const productCategory = (product.productCategory || 'champagne') as ProductCategory;
     const t0Model = allModels.find(m =>
       m.productCategory === productCategory && m.agingStage === t0Stage
     );

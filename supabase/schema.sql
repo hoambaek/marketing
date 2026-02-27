@@ -599,7 +599,7 @@ CREATE TABLE IF NOT EXISTS aging_products (
   id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
   product_name TEXT NOT NULL,
   product_category TEXT DEFAULT 'champagne',
-  wine_type TEXT NOT NULL CHECK (wine_type IN ('blanc_de_blancs', 'blanc_de_noirs', 'rose', 'blend', 'vintage')),
+  wine_type TEXT,  -- NULL 허용 (비샴페인 카테고리)
   vintage INTEGER,
   producer TEXT DEFAULT 'Muse de Marée',
   ph NUMERIC,
@@ -611,6 +611,7 @@ CREATE TABLE IF NOT EXISTS aging_products (
   immersion_date DATE,
   planned_duration_months INTEGER,
   aging_depth INTEGER DEFAULT 30,
+  terrestrial_aging_years NUMERIC,  -- 투하 전 지상 숙성 기간 (년)
   status TEXT NOT NULL DEFAULT 'planned' CHECK (status IN ('planned', 'immersed', 'harvested')),
   notes TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW(),

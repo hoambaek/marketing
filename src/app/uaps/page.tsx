@@ -61,18 +61,18 @@ const UAPS_CATEGORIES = [
   { slug: 'puerh',      label: '보이차',      emoji: '🫖', color: '#f43f5e', href: '/uaps/puerh' },
 ];
 
-// slug → DB category name 매핑
+// slug → DB product_category 매핑 (DB 실제값 기준)
 const UAPS_CATEGORY_DB: Record<string, string> = {
   'champagne':  'champagne',
   'red-wine':   'red_wine',
   'white-wine': 'white_wine',
   'whisky':     'whisky',
   'soy-sauce':  'soy_sauce',
-  'vinegar':    'finished_vinegar',
-  'cold-brew':  'cold_brew_coffee',
+  'vinegar':    'vinegar',
+  'cold-brew':  'coldbrew',
   'spirits':    'spirits',
-  'yakju':      'korean_yakju',
-  'puerh':      'puerh_sheng',
+  'yakju':      'spirits',
+  'puerh':      'puer',
 };
 
 import { useUAPSStore } from '@/lib/store/uaps-store';
@@ -81,6 +81,7 @@ import type {
   ProductInput,
   WineType,
   ReductionPotential,
+  ReductionCheckItem,
 } from '@/lib/types/uaps';
 import {
   WINE_TYPE_LABELS,
@@ -89,6 +90,9 @@ import {
   REDUCTION_POTENTIAL_LABELS,
   MODEL_STATUS_LABELS,
   FLAVOR_AXES,
+  CATEGORY_SUBTYPES,
+  CATEGORY_REDUCTION_CHECKLIST,
+  CATEGORY_FIELD_CONFIG,
 } from '@/lib/types/uaps';
 import {
   generateTimelineData,
@@ -581,7 +585,11 @@ export default function UAPSPage() {
                     <div className="flex items-end justify-between">
                       <div className="space-y-1">
                         <p className="text-xs text-white/40">
-                          {WINE_TYPE_LABELS[product.wineType]}
+                          {product.wineType
+                            ? WINE_TYPE_LABELS[product.wineType]
+                            : CATEGORY_SUBTYPES[product.productCategory]?.find(
+                                (s) => s.value === String((product.reductionChecks as Record<string, unknown> | null)?._subtype ?? '')
+                              )?.label ?? product.productCategory}
                           {product.vintage ? ` · ${product.vintage}` : ''}
                         </p>
                         <p className="text-xs text-white/30">
@@ -1001,18 +1009,18 @@ export default function UAPSPage() {
 // 제품 추가/수정 모달
 // ═══════════════════════════════════════════════════════════════════════════
 
-// 모달용 카테고리 목록 (DB 이름 기준)
+// 모달용 카테고리 목록 (DB product_category 값 기준)
 const MODAL_CATEGORIES = [
-  { value: 'champagne',        label: '🥂 샴페인' },
-  { value: 'red_wine',         label: '🍷 레드와인' },
-  { value: 'white_wine',       label: '🍾 화이트와인' },
-  { value: 'whisky',           label: '🥃 위스키' },
-  { value: 'soy_sauce',        label: '🫙 간장' },
-  { value: 'finished_vinegar', label: '🍶 식초' },
-  { value: 'cold_brew_coffee', label: '☕ 콜드브루' },
-  { value: 'spirits',          label: '🍵 소주' },
-  { value: 'korean_yakju',     label: '🍚 전통주' },
-  { value: 'puerh_sheng',      label: '🫖 보이차' },
+  { value: 'champagne',   label: '🥂 샴페인' },
+  { value: 'red_wine',    label: '🍷 레드와인' },
+  { value: 'white_wine',  label: '🍾 화이트와인' },
+  { value: 'whisky',      label: '🥃 위스키' },
+  { value: 'sake',        label: '🍶 사케' },
+  { value: 'coldbrew',    label: '☕ 콜드브루' },
+  { value: 'puer',        label: '🫖 생차/보이차' },
+  { value: 'soy_sauce',   label: '🫙 간장' },
+  { value: 'vinegar',     label: '🍶 식초' },
+  { value: 'spirits',     label: '🍚 한국 전통주' },
 ];
 
 function ProductModal({
@@ -1027,44 +1035,56 @@ function ProductModal({
   initialCategory?: string;
 }) {
   const isEdit = !!initialData;
-  const [productCategory, setProductCategory] = useState(initialData?.productCategory ?? initialCategory);
+  const [productCategory, setProductCategory] = useState(
+    initialData?.productCategory ?? initialCategory
+  );
   const [productName, setProductName] = useState(initialData?.productName ?? '');
-  const [wineType, setWineType] = useState<WineType>(initialData?.wineType ?? 'blanc_de_blancs');
+
+  // 카테고리별 동적 설정
+  const fieldConfig = CATEGORY_FIELD_CONFIG[productCategory] ?? CATEGORY_FIELD_CONFIG['champagne'];
+  const subtypeOptions = CATEGORY_SUBTYPES[productCategory] ?? CATEGORY_SUBTYPES['champagne'];
+  const reductionChecklist: ReductionCheckItem[] = CATEGORY_REDUCTION_CHECKLIST[productCategory] ?? CATEGORY_REDUCTION_CHECKLIST['champagne'];
+
+  const [subtype, setSubtype] = useState<string>(
+    initialData?.wineType ?? subtypeOptions[0]?.value ?? ''
+  );
   const [vintage, setVintage] = useState<string>(initialData?.vintage?.toString() ?? '');
   const [ph, setPh] = useState<string>(initialData?.ph?.toString() ?? '');
   const [dosage, setDosage] = useState<string>(initialData?.dosage?.toString() ?? '');
   const [alcohol, setAlcohol] = useState<string>(initialData?.alcohol?.toString() ?? '');
-  // 환원 성향 체크리스트 → 자동 산출
-  const REDUCTION_CHECKLIST = [
-    { id: 'brutNature', label: '낮은 도사주', desc: 'Brut Nature · Extra Brut (0~6g/L)', weight: 2, group: 'dosage' },
-    { id: 'brut', label: '일반 도사주', desc: 'Brut · Extra Dry (6~12g/L)', weight: 0, group: 'dosage' },
-    { id: 'highDosage', label: '높은 도사주', desc: 'Demi-Sec · Doux (12g/L+)', weight: -2, group: 'dosage' },
-    { id: 'reductive', label: '환원적 양조', desc: '스테인리스 스틸 발효 · 불활성 가스 블랭킷 · 저온 발효', weight: 1, group: null },
-    { id: 'surLie', label: '장기 앙금 접촉', desc: 'Sur lie 장기 숙성', weight: 1, group: null },
-    { id: 'oxidative', label: '산화적 양조 · 솔레라', desc: '산소 접촉 반복, 솔레라 블렌딩', weight: -1, group: null },
-    { id: 'oak', label: '오크 숙성', desc: '오크통 숙성 과정 포함', weight: -1, group: null },
-  ] as const;
 
+  // 카테고리 변경 시 서브타입 + 체크리스트 초기화
+  const handleCategoryChange = (newCategory: string) => {
+    setProductCategory(newCategory);
+    const newSubtypes = CATEGORY_SUBTYPES[newCategory];
+    if (newSubtypes?.[0]) setSubtype(newSubtypes[0].value);
+    const newChecklist = CATEGORY_REDUCTION_CHECKLIST[newCategory] ?? [];
+    const freshChecks: Record<string, boolean> = {};
+    newChecklist.forEach((item) => { freshChecks[item.id] = false; });
+    setReductionChecks(freshChecks);
+    if (!CATEGORY_FIELD_CONFIG[newCategory]?.showDosage) setDosage('');
+    if (!CATEGORY_FIELD_CONFIG[newCategory]?.showVintage) setVintage('');
+  };
+
+  // 환원 성향 체크리스트 → 자동 산출
   const [reductionChecks, setReductionChecks] = useState<Record<string, boolean>>(() => {
-    // 수정 모드: DB에 저장된 체크리스트 복원
     if (initialData?.reductionChecks) return { ...initialData.reductionChecks };
     const initial: Record<string, boolean> = {};
-    REDUCTION_CHECKLIST.forEach((item) => { initial[item.id] = false; });
+    reductionChecklist.forEach((item) => { initial[item.id] = false; });
     return initial;
   });
 
-  const reductionScore = REDUCTION_CHECKLIST.reduce(
+  const reductionScore = reductionChecklist.reduce(
     (sum, item) => sum + (reductionChecks[item.id] ? item.weight : 0), 0
   );
   const reductionPotential: ReductionPotential = reductionScore >= 3 ? 'high' : reductionScore >= 1 ? 'medium' : 'low';
 
   const toggleReductionCheck = (id: string) => {
-    const item = REDUCTION_CHECKLIST.find((c) => c.id === id);
+    const item = reductionChecklist.find((c) => c.id === id);
     setReductionChecks((prev) => {
       const next = { ...prev };
-      // 같은 그룹(dosage)은 라디오처럼 하나만 선택
       if (item?.group) {
-        REDUCTION_CHECKLIST.forEach((c) => {
+        reductionChecklist.forEach((c) => {
           if (c.group === item.group && c.id !== id) next[c.id] = false;
         });
       }
@@ -1072,6 +1092,11 @@ function ProductModal({
       return next;
     });
   };
+
+  // 그룹별 분리 (라디오 그룹 vs 복수 선택)
+  const groupedItems = reductionChecklist.filter((item) => item.group !== null);
+  const ungroupedItems = reductionChecklist.filter((item) => item.group === null);
+  const uniqueGroups = [...new Set(groupedItems.map((item) => item.group))];
 
   const [terrestrialAgingYears, setTerrestrialAgingYears] = useState<string>(
     initialData?.terrestrialAgingYears?.toString() ?? ''
@@ -1086,10 +1111,12 @@ function ProductModal({
     e.preventDefault();
     if (!productName.trim()) return;
     setIsSubmitting(true);
+    // champagne만 WineType으로, 나머지는 null
+    const isWineCategory = productCategory === 'champagne';
     await onSubmit({
       productName: productName.trim(),
       productCategory,
-      wineType,
+      wineType: isWineCategory ? (subtype as WineType) : null,
       vintage: vintage ? Number(vintage) : null,
       producer: '',
       ph: ph ? Number(ph) : null,
@@ -1097,7 +1124,7 @@ function ProductModal({
       alcohol: alcohol ? Number(alcohol) : null,
       acidity: null,
       reductionPotential,
-      reductionChecks: { ...reductionChecks },
+      reductionChecks: { ...reductionChecks, _subtype: subtype as unknown as boolean },
       immersionDate: immersionDate || null,
       plannedDurationMonths: plannedDurationMonths ? Number(plannedDurationMonths) : null,
       agingDepth: agingDepth ? Number(agingDepth) : 30,
@@ -1138,11 +1165,12 @@ function ProductModal({
         </div>
 
         <form onSubmit={handleSubmit} className="p-5 space-y-4">
+          {/* 카테고리 선택 */}
           <div>
             <label className={labelClass}>카테고리</label>
             <select
               value={productCategory}
-              onChange={(e) => setProductCategory(e.target.value)}
+              onChange={(e) => handleCategoryChange(e.target.value)}
               className={inputClass}
             >
               {MODAL_CATEGORIES.map((cat) => (
@@ -1151,111 +1179,129 @@ function ProductModal({
             </select>
           </div>
 
+          {/* 제품명 */}
           <div>
             <label className={labelClass}>제품명 *</label>
             <input
               type="text"
               value={productName}
               onChange={(e) => setProductName(e.target.value)}
-              placeholder="Muse de Marée Blanc de Blancs 2024"
+              placeholder="제품명을 입력하세요"
               className={inputClass}
               required
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          {/* 서브타입 + 빈티지 (동적) */}
+          <div className={`grid gap-3 ${fieldConfig.showVintage ? 'grid-cols-2' : 'grid-cols-1'}`}>
             <div>
-              <label className={labelClass}>와인 타입</label>
-              <select value={wineType} onChange={(e) => setWineType(e.target.value as WineType)} className={inputClass}>
-                {Object.entries(WINE_TYPE_LABELS).map(([key, label]) => (
-                  <option key={key} value={key}>{label}</option>
+              <label className={labelClass}>{fieldConfig.subtypeLabel}</label>
+              <select value={subtype} onChange={(e) => setSubtype(e.target.value)} className={inputClass}>
+                {subtypeOptions.map((opt) => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
                 ))}
               </select>
             </div>
-            <div>
-              <label className={labelClass}>빈티지</label>
-              <input type="number" value={vintage} onChange={(e) => setVintage(e.target.value)} placeholder="2024" className={inputClass} />
-            </div>
+            {fieldConfig.showVintage && (
+              <div>
+                <label className={labelClass}>{fieldConfig.vintageLabel}</label>
+                <input type="number" value={vintage} onChange={(e) => setVintage(e.target.value)} placeholder="2024" className={inputClass} />
+              </div>
+            )}
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {/* pH / Dosage / Alcohol (동적) */}
+          <div className={`grid grid-cols-1 gap-3 ${fieldConfig.showDosage && fieldConfig.showAlcohol ? 'sm:grid-cols-3' : fieldConfig.showDosage || fieldConfig.showAlcohol ? 'sm:grid-cols-2' : ''}`}>
             <div>
               <label className={labelClass}>pH <span className="text-white/20">(선택)</span></label>
               <input type="number" step="0.01" value={ph} onChange={(e) => setPh(e.target.value)} placeholder="3.10" className={inputClass} />
             </div>
-            <div>
-              <label className={labelClass}>Dosage g/L <span className="text-white/20">(선택)</span></label>
-              <input type="number" value={dosage} onChange={(e) => setDosage(e.target.value)} placeholder="8" className={inputClass} />
-            </div>
-            <div>
-              <label className={labelClass}>Alcohol % <span className="text-white/20">(선택)</span></label>
-              <input type="number" value={alcohol} onChange={(e) => setAlcohol(e.target.value)} placeholder="12.5" className={inputClass} />
-            </div>
+            {fieldConfig.showDosage && (
+              <div>
+                <label className={labelClass}>Dosage g/L <span className="text-white/20">(선택)</span></label>
+                <input type="number" value={dosage} onChange={(e) => setDosage(e.target.value)} placeholder="8" className={inputClass} />
+              </div>
+            )}
+            {fieldConfig.showAlcohol && (
+              <div>
+                <label className={labelClass}>Alcohol % <span className="text-white/20">(선택)</span></label>
+                <input type="number" value={alcohol} onChange={(e) => setAlcohol(e.target.value)} placeholder="12.5" className={inputClass} />
+              </div>
+            )}
           </div>
 
+          {/* 환원 성향 체크리스트 (카테고리별 동적) */}
           <div>
             <label className={labelClass}>환원 성향 (해당 항목 체크)</label>
-            {/* 도사주 구간 — 하나만 선택 */}
-            <p className="text-[11px] text-white/30 mb-1.5 mt-2">도사주 (하나만 선택)</p>
-            <div className="space-y-1.5">
-              {REDUCTION_CHECKLIST.filter((item) => item.group === 'dosage').map((item) => (
-                <label
-                  key={item.id}
-                  className={`flex items-center gap-3 px-3 py-2.5 rounded-xl border cursor-pointer transition-all ${
-                    reductionChecks[item.id]
-                      ? 'border-cyan-400/30 bg-cyan-400/[0.05]'
-                      : 'border-white/[0.06] bg-white/[0.02] hover:border-white/[0.12]'
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name="dosageGroup"
-                    checked={reductionChecks[item.id]}
-                    onChange={() => toggleReductionCheck(item.id)}
-                    className="accent-cyan-400"
-                  />
-                  <div className="flex-1 min-w-0">
-                    <span className={`text-sm ${reductionChecks[item.id] ? 'text-white' : 'text-white/60'}`}>
-                      {item.label}
-                    </span>
-                    <span className="text-[11px] text-white/30 ml-2 hidden sm:inline">{item.desc}</span>
-                  </div>
-                  <span className={`text-xs font-mono ${item.weight > 0 ? 'text-red-400/60' : item.weight < 0 ? 'text-emerald-400/60' : 'text-white/20'}`}>
-                    {item.weight > 0 ? '+' : ''}{item.weight}
-                  </span>
-                </label>
-              ))}
-            </div>
-            {/* 양조 방식 — 복수 선택 가능 */}
-            <p className="text-[11px] text-white/30 mb-1.5 mt-3">양조 방식 (복수 선택 가능)</p>
-            <div className="space-y-1.5">
-              {REDUCTION_CHECKLIST.filter((item) => item.group === null).map((item) => (
-                <label
-                  key={item.id}
-                  className={`flex items-center gap-3 px-3 py-2.5 rounded-xl border cursor-pointer transition-all ${
-                    reductionChecks[item.id]
-                      ? 'border-cyan-400/30 bg-cyan-400/[0.05]'
-                      : 'border-white/[0.06] bg-white/[0.02] hover:border-white/[0.12]'
-                  }`}
-                >
-                  <input
-                    type="checkbox"
-                    checked={reductionChecks[item.id]}
-                    onChange={() => toggleReductionCheck(item.id)}
-                    className="accent-cyan-400 rounded"
-                  />
-                  <div className="flex-1 min-w-0">
-                    <span className={`text-sm ${reductionChecks[item.id] ? 'text-white' : 'text-white/60'}`}>
-                      {item.label}
-                    </span>
-                    <span className="text-[11px] text-white/30 ml-2 hidden sm:inline">{item.desc}</span>
-                  </div>
-                  <span className={`text-xs font-mono ${item.weight > 0 ? 'text-red-400/60' : 'text-emerald-400/60'}`}>
-                    {item.weight > 0 ? '+' : ''}{item.weight}
-                  </span>
-                </label>
-              ))}
-            </div>
+            {/* 그룹별 라디오 */}
+            {uniqueGroups.map((group) => (
+              <div key={group}>
+                <p className="text-[11px] text-white/30 mb-1.5 mt-2">{group} (하나만 선택)</p>
+                <div className="space-y-1.5">
+                  {groupedItems.filter((item) => item.group === group).map((item) => (
+                    <label
+                      key={item.id}
+                      className={`flex items-center gap-3 px-3 py-2.5 rounded-xl border cursor-pointer transition-all ${
+                        reductionChecks[item.id]
+                          ? 'border-cyan-400/30 bg-cyan-400/[0.05]'
+                          : 'border-white/[0.06] bg-white/[0.02] hover:border-white/[0.12]'
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name={`group-${group}`}
+                        checked={reductionChecks[item.id] ?? false}
+                        onChange={() => toggleReductionCheck(item.id)}
+                        className="accent-cyan-400"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <span className={`text-sm ${reductionChecks[item.id] ? 'text-white' : 'text-white/60'}`}>
+                          {item.label}
+                        </span>
+                        <span className="text-[11px] text-white/30 ml-2 hidden sm:inline">{item.desc}</span>
+                      </div>
+                      <span className={`text-xs font-mono ${item.weight > 0 ? 'text-red-400/60' : item.weight < 0 ? 'text-emerald-400/60' : 'text-white/20'}`}>
+                        {item.weight > 0 ? '+' : ''}{item.weight}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            ))}
+            {/* 비그룹 복수 선택 */}
+            {ungroupedItems.length > 0 && (
+              <>
+                <p className="text-[11px] text-white/30 mb-1.5 mt-3">특성 (복수 선택 가능)</p>
+                <div className="space-y-1.5">
+                  {ungroupedItems.map((item) => (
+                    <label
+                      key={item.id}
+                      className={`flex items-center gap-3 px-3 py-2.5 rounded-xl border cursor-pointer transition-all ${
+                        reductionChecks[item.id]
+                          ? 'border-cyan-400/30 bg-cyan-400/[0.05]'
+                          : 'border-white/[0.06] bg-white/[0.02] hover:border-white/[0.12]'
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={reductionChecks[item.id] ?? false}
+                        onChange={() => toggleReductionCheck(item.id)}
+                        className="accent-cyan-400 rounded"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <span className={`text-sm ${reductionChecks[item.id] ? 'text-white' : 'text-white/60'}`}>
+                          {item.label}
+                        </span>
+                        <span className="text-[11px] text-white/30 ml-2 hidden sm:inline">{item.desc}</span>
+                      </div>
+                      <span className={`text-xs font-mono ${item.weight > 0 ? 'text-red-400/60' : item.weight < 0 ? 'text-emerald-400/60' : 'text-white/20'}`}>
+                        {item.weight > 0 ? '+' : ''}{item.weight}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              </>
+            )}
             {/* 자동 산출 결과 */}
             <div className="mt-3 flex items-center gap-3 px-3 py-2 rounded-xl bg-white/[0.03] border border-white/[0.06]">
               <span className="text-xs text-white/40">산출 결과:</span>
@@ -1270,24 +1316,20 @@ function ProductModal({
             </div>
           </div>
 
+          {/* 투하 전 지상 숙성 기간 */}
           <div>
             <label className={labelClass}>
-              투하 전 지상 숙성 기간 (년) <span className="text-white/20">(선택)</span>
+              투하 전 숙성 기간 (년) <span className="text-white/20">(선택)</span>
             </label>
             <div className="flex items-center gap-3">
               <input
                 type="number"
                 step="0.1"
                 min="0"
-                max="20"
+                max="30"
                 value={terrestrialAgingYears}
                 onChange={(e) => setTerrestrialAgingYears(e.target.value)}
-                placeholder={`기본값: ${
-                  wineType === 'blanc_de_blancs' ? '2.2' :
-                  wineType === 'blanc_de_noirs' ? '1.9' :
-                  wineType === 'rose' ? '1.7' :
-                  wineType === 'vintage' ? '2.6' : '2.0'
-                }년 (타입 추정)`}
+                placeholder="투하 전 실제 숙성 연수"
                 className={inputClass + ' flex-1'}
               />
               {terrestrialAgingYears && (
@@ -1295,10 +1337,11 @@ function ProductModal({
               )}
             </div>
             <p className="text-[11px] text-white/30 mt-1.5">
-              소믈리에가 평가한 투하 전 실제 숙성 연수를 입력하면 예측 정밀도가 향상됩니다.
+              투하 전 실제 숙성 연수를 입력하면 예측 정밀도가 향상됩니다.
             </p>
           </div>
 
+          {/* 투하 조건 */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
               <label className={labelClass}>투하 예정일</label>
@@ -1314,6 +1357,7 @@ function ProductModal({
             </div>
           </div>
 
+          {/* 메모 */}
           <div>
             <label className={labelClass}>메모</label>
             <textarea
@@ -1325,6 +1369,7 @@ function ProductModal({
             />
           </div>
 
+          {/* 버튼 */}
           <div className="flex gap-3 pt-2">
             <button
               type="button"

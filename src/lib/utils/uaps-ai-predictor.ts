@@ -116,12 +116,14 @@ export async function generateExpertProfile(
 function buildExpertProfilePrompt(product: AgingProduct): string {
   const vintageStr = product.vintage ? ` ${product.vintage}` : '';
   const searchQuery = `${product.productName}${vintageStr}`;
-  const category = (product.productCategory || 'champagne/wine') as ProductCategory;
+  const category = (product.productCategory || 'champagne') as ProductCategory;
   const categoryLabel = PRODUCT_CATEGORY_LABELS[category] || category;
 
   // 카테고리별 전문가 역할
   const expertRoles: Record<string, string> = {
-    'champagne/wine': '와인 전문가',
+    champagne: '샴페인/스파클링 와인 전문가',
+    red_wine: '레드 와인 전문가',
+    white_wine: '화이트 와인 전문가',
     coldbrew: '커피 전문가 (SCA Q-Grader)',
     sake: '사케 전문가 (唎酒師)',
     whisky: '위스키 전문가',
@@ -134,7 +136,9 @@ function buildExpertProfilePrompt(product: AgingProduct): string {
 
   // 카테고리별 참조 소스
   const sourcesByCategory: Record<string, string> = {
-    'champagne/wine': 'Wine Advocate, Decanter, Wine Spectator, Jancis Robinson, CellarTracker',
+    champagne: 'Wine Advocate, Decanter, Wine Spectator, Jancis Robinson, CellarTracker',
+    red_wine: 'Wine Advocate, Robert Parker, Decanter, Wine Spectator',
+    white_wine: 'Wine Advocate, Jancis Robinson, Decanter, CellarTracker',
     coldbrew: 'CoffeeReview, Cup of Excellence, SCA 리뷰',
     sake: '全国新酒鑑評会, Kura Master, IWC Sake, SAKEDOO',
     whisky: 'WhiskyBase, Whisky Advocate, Master of Malt',
@@ -152,7 +156,7 @@ function buildExpertProfilePrompt(product: AgingProduct): string {
 - 이름: ${searchQuery}
 - 카테고리: ${categoryLabel}
 - 생산자: ${product.producer || '미입력'}
-- 타입: ${WINE_TYPE_LABELS[product.wineType] || product.wineType}
+- 타입: ${product.wineType ? (WINE_TYPE_LABELS[product.wineType] || product.wineType) : product.productCategory}
 ${product.vintage ? `- 빈티지: ${product.vintage}` : '- NV (논빈티지)'}
 ${product.ph ? `- pH: ${product.ph}` : ''}
 ${product.dosage ? `- Dosage: ${product.dosage}g/L` : ''}
@@ -302,7 +306,7 @@ function buildPredictionPrompt(
     };
   });
 
-  const category = (product.productCategory || 'champagne/wine') as ProductCategory;
+  const category = (product.productCategory || 'champagne') as ProductCategory;
   const categoryLabel = PRODUCT_CATEGORY_LABELS[category] || category;
 
   return `당신은 식음 숙성 과학 전문가입니다.
@@ -325,7 +329,7 @@ ${JSON.stringify(clusterContext, null, 2)}
 ## 예측 대상 제품
 - 제품명: ${product.productName}
 - 카테고리: ${categoryLabel} (${category})
-- 와인 타입: ${WINE_TYPE_LABELS[product.wineType] || product.wineType} (${product.wineType})
+- 서브타입: ${product.wineType ? (WINE_TYPE_LABELS[product.wineType] || product.wineType) : category} (${product.wineType ?? 'N/A'})
 - 물리화학: pH ${product.ph ?? '미입력'}, 도사주 ${product.dosage ?? '미입력'}g/L, 알코올 ${product.alcohol ?? '미입력'}%
 - 환원 성향: ${REDUCTION_POTENTIAL_LABELS[product.reductionPotential]} (${product.reductionPotential})
 - 해저 숙성 기간: ${underseaMonths}개월, 수심 ${product.agingDepth}m
@@ -499,7 +503,7 @@ export function buildPredictionResult(
   return {
     productId: product.id,
     wineType: product.wineType,
-    productCategory: (product.productCategory || 'champagne/wine') as ProductCategory,
+    productCategory: (product.productCategory || 'champagne') as ProductCategory,
     inputPh: product.ph,
     inputDosage: product.dosage,
     inputReductionPotential: product.reductionPotential,
@@ -622,7 +626,7 @@ function buildStatisticalFallback(
   ) / 10;
 
   const { startMonths, endMonths } = calculateOptimalHarvestWindow(product, config);
-  const categoryLabel = PRODUCT_CATEGORY_LABELS[(product.productCategory || 'champagne/wine') as ProductCategory] || product.wineType;
+  const categoryLabel = PRODUCT_CATEGORY_LABELS[(product.productCategory || 'champagne') as ProductCategory] || product.wineType;
 
   return {
     flavorProfile: {
