@@ -510,9 +510,9 @@ export default function HowItWorksPage() {
               <span className="text-white/30">→ 제외 (잘못된 학습 데이터 유입 방지)</span>
             </div>
           </div>
-          <div className="mt-2 rounded-lg bg-cyan-500/[0.06] border border-cyan-500/15 px-3 py-2">
-            <p className="text-[11px] text-cyan-300/70">
-              ⏳ 전체 112K 건 NLP 추출 진행 중 — 완료 후 통계 모델 재학습 예정
+          <div className="mt-2 rounded-lg bg-emerald-500/[0.06] border border-emerald-500/15 px-3 py-2">
+            <p className="text-[11px] text-emerald-300/70">
+              ✅ 전체 112K 건 NLP 6축 추출 완료 — 통계 모델 재학습 반영됨
             </p>
           </div>
         </FlowNode>
