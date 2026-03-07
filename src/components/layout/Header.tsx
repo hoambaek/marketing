@@ -24,6 +24,7 @@ const navigation: NavItem[] = [
   { name: '예산관리', href: '/budget' },
   { name: '데이터로그', href: '/data-log' },
   { name: 'UAPS', href: '/uaps' },
+  { name: 'CXP', href: '/cxp' },
   { name: '블로그', href: 'https://blog.musedemaree.com/admin', external: true },
 ];
 
