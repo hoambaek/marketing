@@ -366,29 +366,63 @@ export default function CXP005Page() {
                 핵심: <span className="text-white/70">리스트형이되, 매 항목에 &quot;깊이 레이어&quot; 전환</span>. 각 행동마다 &quot;표면(시연) → 깊이(뿌리)&quot; 교차. 이 전환이 반복되면서 시청자가 패턴을 인식하고 <span className="text-[#C4A052]">&quot;다음 뿌리는 뭘까?&quot;</span> 기대하며 완주.
               </p>
 
+              <div className="bg-white/[0.03] rounded-xl p-4 mb-4">
+                <h4 className="text-xs font-semibold text-white/50 uppercase tracking-wider mb-2">리스트형이되, 매 항목에 &quot;깊이 레이어&quot; 전환</h4>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-white/[0.06]">
+                        <th className="text-left text-white/30 font-medium py-2 px-2">구간</th>
+                        <th className="text-left text-white/30 font-medium py-2 px-2">표면 (시연)</th>
+                        <th className="text-left text-white/30 font-medium py-2 px-2">깊이 (뿌리)</th>
+                        <th className="text-left text-white/30 font-medium py-2 px-2">편집</th>
+                      </tr>
+                    </thead>
+                    <tbody className="text-sm text-white/50">
+                      {[
+                        { area: '두 손', surface: '컵 건넴', depth: '"제사에서 신에게"', edit: '시연 → 톤 변화 + 0.3초 pause' },
+                        { area: '고개 돌림', surface: '돌려 마시기', depth: '"스승 앞에서"', edit: '시연 → 톤 변화' },
+                        { area: '어른 먼저', surface: '기다리기', depth: '"제사 순서"', edit: '시연 → 톤 변화' },
+                        { area: '나이', surface: '—', depth: '"두 개의 언어"', edit: '대표님 정면만' },
+                        { area: '빈 잔', surface: '채우기', depth: '"emptying yourself"', edit: '시연 → 004 콜백' },
+                      ].map((row) => (
+                        <tr key={row.area} className="border-b border-white/[0.03]">
+                          <td className="py-2 px-2 text-white/60">{row.area}</td>
+                          <td className="py-2 px-2">{row.surface}</td>
+                          <td className="py-2 px-2 text-white/40">{row.depth}</td>
+                          <td className="py-2 px-2 text-white/30">{row.edit}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <p className="text-xs text-white/40 mt-2">&quot;표면 → 깊이&quot; 전환이 반복되면서 시청자가 패턴을 인식하고 &quot;다음 것의 뿌리는 뭘까?&quot; 기대하며 완주.</p>
+              </div>
+
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-white/[0.06]">
                       <th className="text-left text-white/30 font-medium py-2 px-2">구간</th>
-                      <th className="text-left text-white/30 font-medium py-2 px-2">표면 (시연)</th>
-                      <th className="text-left text-white/30 font-medium py-2 px-2">깊이 (뿌리)</th>
-                      <th className="text-left text-white/30 font-medium py-2 px-2">편집</th>
+                      <th className="text-left text-white/30 font-medium py-2 px-2">화면</th>
+                      <th className="text-left text-white/30 font-medium py-2 px-2">오디오</th>
                     </tr>
                   </thead>
                   <tbody className="text-sm text-white/50">
                     {[
-                      { section: '두 손', surface: '컵 건넴', depth: '"제사에서 신에게"', edit: '시연 → 톤 변화 + 0.3초 pause' },
-                      { section: '고개 돌림', surface: '돌려 마시기', depth: '"스승 앞에서"', edit: '시연 → 톤 변화' },
-                      { section: '어른 먼저', surface: '기다리기', depth: '"제사 순서"', edit: '시연 → 톤 변화' },
-                      { section: '나이', surface: '—', depth: '"두 개의 언어"', edit: '대표님 정면만' },
-                      { section: '빈 잔', surface: '채우기', depth: '"emptying yourself"', edit: '시연 → 004 콜백' },
+                      { section: '0-2초', visual: '대표님 정면 (후킹)', audio: '음성 100%' },
+                      { section: '2-4초', visual: '대표님 (Authority Hook)', audio: '음성 100%' },
+                      { section: '4-7초', visual: 'G2 손 클로즈업 ↔ 대표님 설명', audio: '음성 100%' },
+                      { section: '7-9초', visual: 'G3 고개 돌림 시연', audio: '음성 100%' },
+                      { section: '9-11초', visual: 'G4 식탁 세팅 + 기다림', audio: '음성 100%' },
+                      { section: '11-13초', visual: 'G5 대표님 정면 (대화 톤)', audio: '음성 100%' },
+                      { section: '13-15초', visual: 'G6 빈 잔 채우기 클로즈업', audio: '음성 100% → 약간 느림' },
+                      { section: '15-20초', visual: 'G7 클로즈업 → 여운', audio: '음성 100% → 페이드' },
                     ].map((row) => (
                       <tr key={row.section} className="border-b border-white/[0.03]">
                         <td className="py-2 px-2 text-white/60">{row.section}</td>
-                        <td className="py-2 px-2">{row.surface}</td>
-                        <td className="py-2 px-2 text-white/40">{row.depth}</td>
-                        <td className="py-2 px-2 text-white/40">{row.edit}</td>
+                        <td className="py-2 px-2">{row.visual}</td>
+                        <td className="py-2 px-2 text-white/40">{row.audio}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -396,23 +430,13 @@ export default function CXP005Page() {
               </div>
 
               <div className="bg-white/[0.03] rounded-xl p-4">
-                <h4 className="text-xs font-semibold text-white/50 uppercase tracking-wider mb-2">틱톡 편집</h4>
+                <h4 className="text-xs font-semibold text-white/50 uppercase tracking-wider mb-2">편집 포인트</h4>
                 <ul className="space-y-1.5 text-sm text-white/40">
                   <li>— 번호 카운팅: 화면 한쪽에 1/5 ~ 5/5</li>
-                  <li>— 시연: 빠르게 (1.5초)</li>
-                  <li>— 뿌리 설명: 톤 변화 + 약간 느려짐 (0.5초 추가)</li>
+                  <li>— 시연: 빠르게 (1.5초), 뿌리 설명: 톤 변화 + 약간 느려짐 (0.5초 추가)</li>
                   <li>— 한국어 키워드: 큰 폰트 팝업 (제사, 존댓말, 절)</li>
                   <li>— BGM: 가볍되 전통 느낌 (가야금 잔잔한 배경 or 무음)</li>
-                </ul>
-              </div>
-
-              <div className="bg-white/[0.03] rounded-xl p-4">
-                <h4 className="text-xs font-semibold text-white/50 uppercase tracking-wider mb-2">인스타 릴스 편집</h4>
-                <ul className="space-y-1.5 text-sm text-white/40">
-                  <li>— 동일 구조, 각 항목에 1-2초 여유</li>
-                  <li>— 자막: 전체 영어 CC</li>
-                  <li>— 마지막 프레임: &quot;Korean Manners — The Real Story&quot; + 계정명</li>
-                  <li>— 커버: 두 손 시연 또는 고개 돌림 시연</li>
+                  <li>— #5 빈 잔 장면에서 &quot;empty yourself first&quot; 텍스트 페이드인 — 004 콜백</li>
                 </ul>
               </div>
             </div>
@@ -551,6 +575,7 @@ export default function CXP005Page() {
                       { metric: '완주율', target: '50%+', note: '"다음 뿌리는 뭘까" 구조' },
                       { metric: '저장', target: '좋아요 대비 30%+', note: '실용 + 깊이 = 저장 최강' },
                       { metric: '공유', target: '도달 대비 3%+', note: '' },
+                      { metric: '댓글', target: '번호 투표 + "didn\'t know" 류', note: '' },
                     ].map((row) => (
                       <tr key={row.metric} className="border-b border-white/[0.03]">
                         <td className="py-2 px-2">{row.metric}</td>
@@ -578,18 +603,17 @@ export default function CXP005Page() {
             <div className="pt-4">
               <div className="space-y-2">
                 {[
-                  { ep: '001', title: '한복 팩트체크', role: '발견', hook: '"재밌네"' },
-                  { ep: '002', title: '절 해독', role: '신뢰', hook: '"한국인 시선 신기하다"' },
-                  { ep: '003', title: '대취타', role: '트래픽', hook: 'BTS 팬덤 유입' },
-                  { ep: '004', title: '절의 철학', role: '전환', hook: '"이 사람 진짜다. 팔로우"', prerequisite: true },
-                  { ep: '005', title: '예절의 뿌리', role: '확산', hook: '"이거 친구한테 보내야 해"', active: true },
+                  { ep: '001', title: '한복 팩트체크', hook: '발견 ("재밌네")' },
+                  { ep: '002', title: '절 해독', hook: '신뢰 ("한국인 시선 신기하다")' },
+                  { ep: '003', title: '대취타', hook: '트래픽 (BTS 팬덤 유입)' },
+                  { ep: '004', title: '절의 철학', hook: '전환 ("이 사람 진짜다. 팔로우")', prerequisite: true },
+                  { ep: '005', title: '예절의 뿌리', hook: '확산 ("이거 친구한테 보내야 해")', active: true },
                 ].map((item) => (
                   <div key={item.ep} className={`flex items-center gap-3 rounded-lg p-3 ${item.active ? 'bg-[#C4A052]/10 border border-[#C4A052]/20' : item.prerequisite ? 'bg-white/[0.04] border border-white/[0.08]' : 'bg-white/[0.03]'}`}>
                     <span className={`text-[10px] font-mono w-8 h-5 rounded flex items-center justify-center ${item.active ? 'text-[#C4A052] bg-[#C4A052]/20' : item.prerequisite ? 'text-white/50 bg-white/[0.08]' : 'text-white/30 bg-white/[0.05]'}`}>
                       {item.ep}
                     </span>
                     <span className={`text-sm font-medium ${item.active ? 'text-[#C4A052]' : item.prerequisite ? 'text-white/70' : 'text-white/60'}`}>{item.title}</span>
-                    <span className={`text-[10px] px-1.5 py-0.5 rounded ${item.active ? 'text-[#C4A052] bg-[#C4A052]/10' : 'text-white/30 bg-white/[0.05]'}`}>{item.role}</span>
                     {item.prerequisite && <span className="text-[10px] text-white/30 bg-white/[0.05] px-1.5 py-0.5 rounded">선행편</span>}
                     <span className="text-xs text-white/35 ml-auto italic">{item.hook}</span>
                   </div>
@@ -597,7 +621,10 @@ export default function CXP005Page() {
               </div>
               <div className="bg-white/[0.03] rounded-xl p-4 mt-4">
                 <p className="text-sm text-white/50">
-                  005는 가장 공유/저장이 높을 <span className="text-[#C4A052]">&quot;실용 + 깊이&quot;</span> 편. 004(감동)와 005(실용)가 짝을 이루어 팔로워를 고정시킨다.
+                  005는 시리즈의 <span className="text-[#C4A052]">&quot;확산(spread)&quot;</span> 에피소드. 004(감동)와 005(실용)가 짝을 이루어 팔로워를 고정시킨다.
+                </p>
+                <p className="text-sm text-white/40 mt-2">
+                  004에서 &quot;empty yourself&quot;의 철학 → 005에서 &quot;그 철학이 일상에서 어떤 행동으로 나타나는가&quot;를 5가지로. 004(감동)와 005(실용)가 짝을 이루어 팔로워를 고정시킨다.
                 </p>
               </div>
             </div>
