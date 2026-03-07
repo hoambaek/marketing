@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { productId, underseaDurationMonths, agingDepth } = body;
+    const { productId, underseaDurationMonths, agingDepth, oceanConditions } = body;
 
     if (!productId || !underseaDurationMonths) {
       return NextResponse.json(
@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
       apiLogger.warn('UAPS: 전문가 프로파일 생성 실패, 통계 기반 사용:', e);
     }
 
-    // 4. Layer 2: AI 예측 실행 (전문가 프로파일 + 전체 모델 전달)
+    // 4. Layer 2: AI 예측 실행 (전문가 프로파일 + 전체 모델 + 해양 데이터 전달)
     const aiResponse = await runAIPrediction(
       product,
       clusters,
@@ -77,7 +77,8 @@ export async function POST(request: NextRequest) {
       config,
       expertProfile,
       expertSources,
-      models || []
+      models || [],
+      oceanConditions || null,
     );
 
     // 5. 결과 통합 (앙상블 + Pseudo-cohort t=0 앵커)

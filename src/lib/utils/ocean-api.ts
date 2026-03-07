@@ -27,7 +27,8 @@ const WEATHER_HISTORICAL_API_URL = 'https://archive-api.open-meteo.com/v1/archiv
  */
 export async function fetchOpenMeteoRawData(
   startDate: string,
-  endDate: string
+  endDate: string,
+  options?: { marineModel?: string }
 ): Promise<{ marine: Record<string, unknown>; weather: Record<string, unknown> }> {
   const { latitude, longitude } = WANDO_COORDINATES;
 
@@ -52,6 +53,11 @@ export async function fetchOpenMeteoRawData(
     end_date: endDate,
     timezone: 'Asia/Seoul',
   });
+
+  // ERA5-Ocean 모델은 1940~현재-5일 범위만 지원 → 백필 전용
+  if (options?.marineModel) {
+    marineParams.set('models', options.marineModel);
+  }
 
   const weatherApiUrl = useArchiveWeather ? WEATHER_HISTORICAL_API_URL : WEATHER_API_URL;
   const weatherParams = new URLSearchParams({
@@ -182,6 +188,7 @@ export function processHourlyToDailyData(
     const velocities: (number | null)[] = [];
     const directions: (number | null)[] = [];
     const waveHeights: (number | null)[] = [];
+    const wavePeriods: (number | null)[] = [];
     const pressures: (number | null)[] = [];
     const airTemps: (number | null)[] = [];
     const humidities: (number | null)[] = [];
@@ -191,6 +198,7 @@ export function processHourlyToDailyData(
       velocities.push(h.currentVelocity);
       directions.push(h.currentDirection);
       waveHeights.push(h.waveHeight);
+      wavePeriods.push(h.wavePeriod);
       pressures.push(h.surfacePressure);
       airTemps.push(h.airTemperature);
       humidities.push(h.humidity);
@@ -199,6 +207,7 @@ export function processHourlyToDailyData(
     const tempStats = calculateDailyAverages(seaTemps);
     const velocityStats = calculateDailyAverages(velocities);
     const waveStats = calculateDailyAverages(waveHeights);
+    const wavePeriodStats = calculateDailyAverages(wavePeriods);
     const pressureStats = calculateDailyAverages(pressures);
     const airTempStats = calculateDailyAverages(airTemps);
     const humidityStats = calculateDailyAverages(humidities);
@@ -212,6 +221,7 @@ export function processHourlyToDailyData(
       currentDirectionDominant: calculateDominantDirection(directions),
       waveHeightAvg: waveStats.avg,
       waveHeightMax: waveStats.max,
+      wavePeriodAvg: wavePeriodStats.avg,
       surfacePressureAvg: pressureStats.avg,
       airTemperatureAvg: airTempStats.avg,
       humidityAvg: humidityStats.avg,

@@ -199,6 +199,38 @@ export const useUAPSStore = create<UAPSState>((set, get) => ({
   runPrediction: async (productId, months, depth) => {
     set({ isPredicting: true, error: null });
     try {
+      // v3.1: ocean-data-store에서 전체 기간 통계 로드 (실시간 → 히스토리컬)
+      let oceanConditions = null;
+      try {
+        const { useOceanDataStore } = await import('./ocean-data-store');
+        const oceanState = useOceanDataStore.getState();
+        // 우선: historicalOceanStats (전체 수집 기간 평균)
+        if (oceanState.historicalOceanStats) {
+          const hs = oceanState.historicalOceanStats;
+          oceanConditions = {
+            seaTemperature: hs.seaTemperature,
+            currentVelocity: hs.currentVelocity,
+            waveHeight: hs.waveHeight,
+            wavePeriod: hs.wavePeriod,
+            waterPressure: hs.waterPressure,
+            salinity: hs.salinity,
+          };
+        } else if (oceanState.currentConditions) {
+          // 폴백: 실시간 데이터 (히스토리컬 미로드 시)
+          const cc = oceanState.currentConditions;
+          oceanConditions = {
+            seaTemperature: cc.seaTemperature,
+            currentVelocity: cc.currentVelocity,
+            waveHeight: cc.waveHeight,
+            wavePeriod: cc.wavePeriod,
+            waterPressure: cc.waterPressure,
+            salinity: cc.salinity,
+          };
+        }
+      } catch {
+        // ocean data store 로드 실패 시 무시 — 기본값 사용
+      }
+
       const response = await fetch('/api/uaps/predict', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -206,6 +238,7 @@ export const useUAPSStore = create<UAPSState>((set, get) => ({
           productId,
           underseaDurationMonths: months,
           agingDepth: depth,
+          oceanConditions,
         }),
       });
 

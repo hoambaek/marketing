@@ -110,7 +110,7 @@ export default function BaseModal({
             )}
 
             {/* 컨텐츠 */}
-            <div className="flex-1 overflow-y-auto">
+            <div className="flex-1 overflow-y-auto overflow-x-hidden">
               {children}
             </div>
           </motion.div>

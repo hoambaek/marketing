@@ -361,14 +361,14 @@ export default function HowItWorksPage() {
         <motion.div initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }} transition={{ duration: 0.5 }}
           className="flex items-center gap-2 mb-6">
           <div className="w-1.5 h-1.5 rounded-full bg-cyan-400/60" />
-          <h2 className="text-xs sm:text-sm text-white/40 tracking-widest uppercase">Data Pipeline · 8 Stages</h2>
+          <h2 className="text-xs sm:text-sm text-white/40 tracking-widest uppercase">Data Pipeline · 9 Stages</h2>
         </motion.div>
 
         {/* ── STAGE 01: 데이터 수집 ── */}
         <FlowNode
           number="01" icon={Database} color="#22d3ee" index={0}
           title="데이터 수집"
-          subtitle="Terrestrial Data Collection · 8 Categories"
+          subtitle="Terrestrial Data Collection · 10 Categories"
           inputs={[
             { label: '리뷰 플랫폼', type: 'raw' },
             { label: '공식 대회·협회', type: 'raw' },
@@ -384,7 +384,7 @@ export default function HowItWorksPage() {
         >
           <div className="space-y-3">
             <p className="text-white/50 text-xs leading-relaxed">
-              8개 카테고리에 걸쳐 지상 숙성 테이스팅 노트를 수집합니다.
+              10개 카테고리에 걸쳐 지상 숙성 테이스팅 노트를 수집합니다.
               <code className="mx-1 px-1.5 py-0.5 rounded bg-white/[0.05] text-white/50 text-[10px] font-mono">terrestrial_data</code>
               테이블에 저장되며, <span className="text-cyan-300">리뷰 텍스트</span>와
               <span className="text-cyan-300 ml-1">숙성 연수</span>가 핵심 원시 데이터입니다.
@@ -626,9 +626,55 @@ export default function HowItWorksPage() {
           </div>
         </FlowNode>
 
-        {/* ── STAGE 05: Layer 2 AI 추론 ── */}
+        {/* ── STAGE 05: 해양 환경 데이터 수집 ── */}
         <FlowNode
-          number="05" icon={Brain} color="#c084fc" index={4}
+          number="05" icon={Waves} color="#fbbf24" index={4}
+          title="해양 환경 데이터 수집 · 통계 분석"
+          subtitle="Ocean Data Collection · Historical Stats"
+          inputs={[
+            { label: 'Open-Meteo Marine API', type: 'raw' },
+            { label: 'Open-Meteo Weather API', type: 'raw' },
+            { label: '수동 염도 측정', type: 'raw' },
+          ]}
+          outputs={[
+            { label: '전체 기간 평균 수온', type: 'coeff' },
+            { label: '평균 해류속도', type: 'coeff' },
+            { label: '평균 파고 · 파주기', type: 'coeff' },
+            { label: '수압 · 염도', type: 'coeff' },
+          ]}
+        >
+          <p>
+            완도 해역의 해양 환경 데이터를 <span className="text-amber-300">2025년 1월부터</span> 일별로 수집합니다.
+            수온, 해류속도, 파고, 파주기, 기압, 기온, 습도를 시간별로 수집한 뒤 일별 평균으로 집계하여
+            Supabase <code className="mx-1 px-1.5 py-0.5 rounded bg-white/[0.05] text-white/50 text-[10px] font-mono">ocean_data_daily</code>에 저장합니다.
+          </p>
+          <p>
+            예측 시스템에는 <span className="text-amber-300">전체 수집 기간의 통계 평균</span>을 사용합니다.
+            당일 실시간 값이 아닌 장기 평균을 사용하여 일시적인 기상 변동에 흔들리지 않는 안정적인 예측을 보장합니다.
+          </p>
+          <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 gap-2">
+            {[
+              { label: '수온', unit: '°C', desc: 'FRI 아레니우스 보정', color: '#22d3ee' },
+              { label: '해류속도', unit: 'm/s', desc: 'K-TCI 운동학적 보정', color: '#34d399' },
+              { label: '파고', unit: 'm', desc: 'K-TCI 파에너지', color: '#60a5fa' },
+              { label: '파주기', unit: 's', desc: 'E∝H²/T 에너지 밀도', color: '#fbbf24' },
+              { label: '수압', unit: 'atm', desc: 'BRI 기포 안정화', color: '#C4A052' },
+              { label: '염도', unit: '‰', desc: '용해 환경 특성', color: '#a78bfa' },
+            ].map(item => (
+              <div key={item.label} className="rounded-lg border p-2 space-y-0.5" style={{ borderColor: `${item.color}20`, backgroundColor: `${item.color}06` }}>
+                <div className="flex items-baseline gap-1">
+                  <span className="text-[11px] font-mono font-medium" style={{ color: item.color }}>{item.label}</span>
+                  <span className="text-[9px] text-white/25">{item.unit}</span>
+                </div>
+                <p className="text-[9px] text-white/30">{item.desc}</p>
+              </div>
+            ))}
+          </div>
+        </FlowNode>
+
+        {/* ── STAGE 06: Layer 2 AI 추론 ── */}
+        <FlowNode
+          number="06" icon={Brain} color="#c084fc" index={5}
           title="AI가 해당 제품 특성 + 보정 계수 추론"
           subtitle="AI Expert Profile · Aging Factors · Quality Weights"
           inputs={[
@@ -636,6 +682,7 @@ export default function HowItWorksPage() {
             { label: '제품명 / 빈티지', type: 'raw' },
             { label: '생산자 / 환원 성향', type: 'raw' },
             { label: '제품 카테고리', type: 'raw' },
+            { label: '해양 환경 통계 (평균)', type: 'coeff' },
           ]}
           outputs={[
             { label: 'AI 전문가 풍미 프로파일', type: 'ai' },
@@ -680,34 +727,36 @@ export default function HowItWorksPage() {
           </p>
         </FlowNode>
 
-        {/* ── STAGE 06: 해저 환경 보정 ── */}
+        {/* ── STAGE 07: 해저 환경 보정 ── */}
         <FlowNode
-          number="06" icon={Waves} color="#22d3ee" index={5}
+          number="07" icon={Waves} color="#22d3ee" index={6}
           title="해저 환경 보정"
-          subtitle="TCI · FRI · BRI Coefficient Application"
+          subtitle="TCI · FRI · BRI · K-TCI Coefficient Application"
           inputs={[
             { label: 'expertProfileJson (AI)', type: 'ai' },
             { label: 'terrestrialAgingYears (소믈리에)', type: 'nlp' },
             { label: 'baseAgingYears (폴백)', type: 'model' },
             { label: 'agingDepth (수심 m)', type: 'raw' },
             { label: 'underseaMonths (계획 기간)', type: 'raw' },
+            { label: '해양 환경 통계 (파주기·파고·해류)', type: 'coeff' },
           ]}
           outputs={[
-            { label: 'textureMaturity (TCI)', type: 'coeff' },
+            { label: 'textureMaturity (TCI + K-TCI)', type: 'coeff' },
             { label: 'aromaFreshness (FRI)', type: 'coeff' },
             { label: 'bubbleRefinement (BRI)', type: 'coeff' },
             { label: 'offFlavorRisk', type: 'coeff' },
           ]}
         >
           <p>
-            3개 보정 계수가 지상 풍미 기준선에 적용됩니다.
-            각 계수는 해저 4°C, 수심 30m의 물리적 조건이 숙성에 미치는 영향을 모델링합니다.
+            3개 보정 계수 + <span className="text-amber-300">K-TCI(운동학적 질감 보정)</span>가 지상 풍미 기준선에 적용됩니다.
+            각 계수는 해저 환경의 물리적 조건이 숙성에 미치는 영향을 모델링합니다.
           </p>
 
-          {/* 계수 3개 인라인 */}
-          <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-2">
+          {/* 계수 4개 인라인 */}
+          <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
             {[
               { key: 'TCI', color: '#22d3ee', formula: 'sigmoid(base + m/(12×TCI))', basis: '가설 (CI: 0.06–0.54)', note: '질감·자가분해 가속', val: '0.30' },
+              { key: 'K-TCI', color: '#fbbf24', formula: 'kf = f(currentVelocity, waveHeight, wavePeriod)', basis: 'E_orbital ∝ H²/T', note: '파주기 < 5s → +0.15, > 12s → −0.05', val: '동적' },
               { key: 'FRI', color: '#34d399', formula: 'exp(-Ea/R × (1/T_sea − 1/T_land))', basis: 'Arrhenius Ea=47kJ/mol', note: '산화 속도 56.5% 감소', val: '0.565' },
               { key: 'BRI', color: '#C4A052', formula: '(5 bar / driving_force) × kH_ratio', basis: "Henry's Law 수심 30m", note: '기포 안정화 ×1.60', val: '1.60' },
             ].map(c => (
@@ -722,11 +771,20 @@ export default function HowItWorksPage() {
               </div>
             ))}
           </div>
+
+          <div className="mt-3 rounded-xl border border-amber-500/15 bg-amber-500/[0.04] p-3 space-y-1.5">
+            <p className="text-[10px] font-mono text-amber-400/60 uppercase tracking-widest">K-TCI: 운동학적 질감 보정 계수</p>
+            <p className="text-[11px] text-white/35 leading-relaxed">
+              해류속도, 파고, <span className="text-amber-300">파주기</span>로 해저 운동 에너지를 정량화합니다.
+              파주기가 짧을수록(풍파) 단위 시간당 진동 에너지가 높아져 질감 발달이 가속됩니다.
+              궤도 에너지 밀도 <code className="mx-1 px-1 py-0.5 rounded bg-white/[0.05] text-amber-300/70 text-[10px] font-mono">E ∝ H²/T</code> 관계에 기반합니다.
+            </p>
+          </div>
         </FlowNode>
 
-        {/* ── STAGE 07: 복합 품질 계산 ── */}
+        {/* ── STAGE 08: 복합 품질 계산 ── */}
         <FlowNode
-          number="07" icon={Target} color="#C4A052" index={6}
+          number="08" icon={Target} color="#C4A052" index={7}
           title="복합 품질 점수 & 골든 윈도우"
           subtitle="Composite Quality · Golden Window Detection"
           inputs={[
@@ -762,9 +820,9 @@ export default function HowItWorksPage() {
           </div>
         </FlowNode>
 
-        {/* ── STAGE 08: 예측 결과 ── */}
+        {/* ── STAGE 09: 예측 결과 ── */}
         <FlowNode
-          number="08" icon={Sparkles} color="#B76E79" index={7} isLast
+          number="09" icon={Sparkles} color="#B76E79" index={8} isLast
           title="최종 예측 리포트"
           subtitle="Prediction Output"
           inputs={[
@@ -849,6 +907,12 @@ export default function HowItWorksPage() {
             basis="Henry's Law · 수심 30m · 95% CI [1.37, 1.92]" color="#C4A052" sourceType="scientific"
             description="수심 30m에서 외부 수압(4 bar)이 CO₂ 손실 구동력을 지상(5 bar) 대비 40%로 감소시킵니다. 저온 CO₂ 용해도 증가 보정(×1.24) 적용. 기포가 더 미세하고 균일하게 유지됩니다."
           />
+          <CoefficientRow
+            keyName="K-TCI" label="운동학적 질감 계수 (Kinetic Texture Coefficient)" value="동적"
+            formula="kf = f(currentVelocity, waveHeight, wavePeriod) · E_orbital ∝ H²/T"
+            basis="해양 역학 · 전체 수집 기간 통계 평균 기반" color="#fbbf24" sourceType="hypothesis"
+            description="해류속도, 파고, 파주기로 해저의 운동학적 에너지를 정량화합니다. 짧은 파주기(< 5초, 풍파)는 고주파 진동으로 질감 발달을 가속하고(+0.15), 긴 파주기(> 12초, 너울)는 완만한 움직임으로 기본 수준을 유지합니다(−0.05). TCI에 추가 적용되는 동적 보정 계수입니다."
+          />
         </motion.div>
       </section>
 
@@ -882,7 +946,7 @@ export default function HowItWorksPage() {
           <div className="border-t border-white/[0.04] pt-3 space-y-3">
             {/* 미해결 항목 */}
             {[
-              { title: '6축 점수 추출 진행 중', desc: 'NLP 추출 완료 후 aging_years_confidence ≥ 0.75 데이터로 Layer 1 재학습 예정. 현재 폴백 방식 사용 중.', color: '#fb923c' },
+              { title: '카테고리별 보정 계수 실측 검증 필요', desc: 'AI가 추론하는 agingFactors/qualityWeights는 학습 데이터 기반 추정이며, 각 카테고리(커피, 간장, 보이차 등)의 실제 해저 숙성 결과로 검증이 필요합니다.', color: '#fb923c' },
               { title: 'TCI 미검증', desc: 'TCI(질감 가속 계수)는 유사 연구에서 간접 추론한 가설적 추정값입니다. 95% CI [0.06, 0.54]로 불확실성이 매우 크며, 실제 인양 후 블라인드 시음 데이터 축적 후 베이지안 업데이트가 필요합니다.', color: '#c084fc' },
               { title: 'Survivorship Bias', desc: '오래된 와인 리뷰는 품질이 뛰어나 살아남은 것만 남습니다. 고령 구간 클러스터의 품질 과대평가 가능성이 있으며, 인양 후 데이터로만 검증 가능합니다.', color: '#f87171' },
             ].map((item, i) => (

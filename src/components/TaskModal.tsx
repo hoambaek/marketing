@@ -189,7 +189,7 @@ export default function TaskModal({ isOpen, onClose, onSave, task, month, week }
     >
       {isEditing ? (
         /* Edit Mode */
-        <form onSubmit={handleSubmit} className="p-5 space-y-4">
+        <form onSubmit={handleSubmit} className="p-5 space-y-4 overflow-hidden">
           {/* Title */}
           <div>
             <label className="block text-sm font-medium text-foreground mb-1.5">
@@ -276,23 +276,23 @@ export default function TaskModal({ isOpen, onClose, onSave, task, month, week }
                 마감일
               </span>
             </label>
-            <div className="flex flex-col sm:flex-row gap-3">
-              <div className="flex-1">
+            <div className="flex flex-col sm:flex-row gap-3 min-w-0">
+              <div className="flex-1 min-w-0">
                 <input
                   type="date"
                   value={formData.dueDate}
                   onChange={handleDueDateChange}
-                  className="w-full px-4 py-2.5 bg-background border border-border rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all cursor-pointer"
+                  className="w-full min-w-0 px-4 py-2.5 bg-background border border-border rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all cursor-pointer [&::-webkit-calendar-picker-indicator]:invert [&::-webkit-calendar-picker-indicator]:opacity-50"
                 />
               </div>
               {/* D-Day Preview */}
               {formData.dueDate && (
-                <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-muted/30">
-                  <span className="text-sm text-muted-foreground">
+                <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-muted/30 flex-shrink-0">
+                  <span className="text-sm text-muted-foreground whitespace-nowrap">
                     {formatDateKorean(formData.dueDate)}
                   </span>
                   <span
-                    className={`px-2 py-0.5 rounded text-xs font-medium ${getDDayColorClass(formData.dueDate).bg} ${getDDayColorClass(formData.dueDate).text}`}
+                    className={`px-2 py-0.5 rounded text-xs font-medium whitespace-nowrap ${getDDayColorClass(formData.dueDate).bg} ${getDDayColorClass(formData.dueDate).text}`}
                   >
                     {formatDDay(formData.dueDate)}
                   </span>

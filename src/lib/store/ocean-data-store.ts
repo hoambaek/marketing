@@ -24,6 +24,19 @@ import {
   createSalinityRecord,
 } from '@/lib/supabase/database';
 
+// 전체 수집 기간 해양 통계 (UAPS 예측용)
+export interface HistoricalOceanStats {
+  seaTemperature: number | null;
+  currentVelocity: number | null;
+  waveHeight: number | null;
+  wavePeriod: number | null;
+  waterPressure: number | null;
+  salinity: number | null;
+  dataPoints: number;
+  periodStart: string | null;
+  periodEnd: string | null;
+}
+
 interface OceanDataState {
   // View State
   currentView: OceanDataView;
@@ -36,6 +49,7 @@ interface OceanDataState {
   dailyData: OceanDataDaily[];
   salinityRecords: SalinityRecord[];
   currentConditions: CurrentOceanConditions | null;
+  historicalOceanStats: HistoricalOceanStats | null;
 
   // Loading State
   isLoading: boolean;
@@ -50,6 +64,7 @@ interface OceanDataState {
   fetchOceanData: (view?: OceanDataView) => Promise<void>;
   fetchCurrentConditions: () => Promise<void>;
   loadSalinityRecords: () => Promise<void>;
+  loadHistoricalOceanStats: () => Promise<void>;
 
   addSalinityRecord: (salinity: number, depth?: number, notes?: string) => Promise<void>;
   updateDailySalinity: (date: string, salinity: number) => Promise<void>;
@@ -69,6 +84,7 @@ export const useOceanDataStore = create<OceanDataState>((set, get) => ({
   dailyData: [],
   salinityRecords: [],
   currentConditions: null,
+  historicalOceanStats: null,
 
   isLoading: false,
   isSaving: false,
@@ -164,6 +180,7 @@ export const useOceanDataStore = create<OceanDataState>((set, get) => ({
         const velocities = hours.map((h) => h.currentVelocity);
         const directions = hours.map((h) => h.currentDirection);
         const waveHeights = hours.map((h) => h.waveHeight);
+        const wavePeriods = hours.map((h) => h.wavePeriod);
         const pressures = hours.map((h) => h.surfacePressure);
         const airTemps = hours.map((h) => h.airTemperature);
         const humidities = hours.map((h) => h.humidity);
@@ -171,6 +188,7 @@ export const useOceanDataStore = create<OceanDataState>((set, get) => ({
         const tempStats = calculateDailyAverages(seaTemps);
         const velocityStats = calculateDailyAverages(velocities);
         const waveStats = calculateDailyAverages(waveHeights);
+        const wavePeriodStats = calculateDailyAverages(wavePeriods);
         const pressureStats = calculateDailyAverages(pressures);
         const airTempStats = calculateDailyAverages(airTemps);
         const humidityStats = calculateDailyAverages(humidities);
@@ -188,6 +206,7 @@ export const useOceanDataStore = create<OceanDataState>((set, get) => ({
           currentDirectionDominant: calculateDominantDirection(directions),
           waveHeightAvg: waveStats.avg,
           waveHeightMax: waveStats.max,
+          wavePeriodAvg: wavePeriodStats.avg,
           surfacePressureAvg: pressureStats.avg,
           airTemperatureAvg: airTempStats.avg,
           humidityAvg: humidityStats.avg,
@@ -253,6 +272,7 @@ export const useOceanDataStore = create<OceanDataState>((set, get) => ({
         currentVelocity: marineHourly.ocean_current_velocity?.[lastIndex] ?? null,
         currentDirection: marineHourly.ocean_current_direction?.[lastIndex] ?? null,
         waveHeight: marineHourly.wave_height?.[lastIndex] ?? null,
+        wavePeriod: marineHourly.wave_period?.[lastIndex] ?? null,
         surfacePressure,
         waterPressure: calculateWaterPressure(agingDepth, surfacePressure || undefined),
         salinity: latestSalinity,
@@ -367,6 +387,7 @@ export const useOceanDataStore = create<OceanDataState>((set, get) => ({
           currentDirectionDominant: day.currentDirectionDominant,
           waveHeightAvg: day.waveHeightAvg,
           waveHeightMax: day.waveHeightMax,
+          wavePeriodAvg: day.wavePeriodAvg,
           surfacePressureAvg: day.surfacePressureAvg,
           airTemperatureAvg: day.airTemperatureAvg,
           humidityAvg: day.humidityAvg,
@@ -378,6 +399,49 @@ export const useOceanDataStore = create<OceanDataState>((set, get) => ({
       storeLogger.error('Error saving data to Supabase:', error);
     } finally {
       set({ isSaving: false });
+    }
+  },
+
+  loadHistoricalOceanStats: async () => {
+    const { useSupabase, agingDepth } = get();
+    if (!useSupabase) return;
+
+    try {
+      // DB에서 전체 기간 일별 데이터 로드
+      const allData = await fetchOceanDataDaily();
+      if (!allData || allData.length === 0) return;
+
+      // 유효값만 추출하여 평균 계산
+      const validTemps = allData.map(d => d.seaTemperatureAvg).filter((v): v is number => v !== null);
+      const validVelocities = allData.map(d => d.currentVelocityAvg).filter((v): v is number => v !== null);
+      const validWaveHeights = allData.map(d => d.waveHeightAvg).filter((v): v is number => v !== null);
+      const validWavePeriods = allData.map(d => d.wavePeriodAvg).filter((v): v is number => v !== null);
+      const validSalinities = allData.map(d => d.salinity).filter((v): v is number => v !== null);
+
+      const avg = (arr: number[]) => arr.length > 0 ? arr.reduce((s, v) => s + v, 0) / arr.length : null;
+
+      const avgTemp = avg(validTemps);
+      const avgPressure = calculateWaterPressure(agingDepth);
+
+      const dates = allData.map(d => d.date).sort();
+
+      set({
+        historicalOceanStats: {
+          seaTemperature: avgTemp !== null ? Math.round(avgTemp * 100) / 100 : null,
+          currentVelocity: avg(validVelocities) !== null ? Math.round(avg(validVelocities)! * 1000) / 1000 : null,
+          waveHeight: avg(validWaveHeights) !== null ? Math.round(avg(validWaveHeights)! * 100) / 100 : null,
+          wavePeriod: avg(validWavePeriods) !== null ? Math.round(avg(validWavePeriods)! * 100) / 100 : null,
+          waterPressure: avgPressure,
+          salinity: avg(validSalinities) !== null ? Math.round(avg(validSalinities)! * 10) / 10 : null,
+          dataPoints: allData.length,
+          periodStart: dates[0] || null,
+          periodEnd: dates[dates.length - 1] || null,
+        },
+      });
+
+      storeLogger.log(`Historical ocean stats loaded: ${allData.length} days (${dates[0]} ~ ${dates[dates.length - 1]})`);
+    } catch (error) {
+      storeLogger.error('Error loading historical ocean stats:', error);
     }
   },
 

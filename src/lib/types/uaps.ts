@@ -31,6 +31,16 @@ export type FlavorCategory = 'fruit' | 'floral' | 'yeast' | 'nutty' | 'spice' | 
 
 export type ReductionPotential = 'low' | 'medium' | 'high';
 
+export type ClosureType =
+  | 'crown_cap'
+  | 'cork_natural'
+  | 'cork_agglomerated'
+  | 'screw_cap'
+  | 'glass_stopper'
+  | 'wax_seal'
+  | 'ceramic_cap'
+  | 'none';
+
 export type ProductStatus = 'planned' | 'immersed' | 'harvested';
 
 export type ModelStatus = 'untrained' | 'training' | 'trained';
@@ -108,6 +118,7 @@ export interface AgingProduct {
   acidity: number | null;
   reductionPotential: ReductionPotential;
   reductionChecks: Record<string, boolean> | null;
+  closureType: ClosureType;
   // 숙성 조건
   immersionDate: string | null;
   plannedDurationMonths: number | null;
@@ -207,6 +218,7 @@ export interface ProductInput {
   acidity: number | null;
   reductionPotential: ReductionPotential;
   reductionChecks: Record<string, boolean> | null;
+  closureType: ClosureType;
   immersionDate: string | null;
   plannedDurationMonths: number | null;
   agingDepth: number;
@@ -362,6 +374,7 @@ export interface AgingFactors {
   textureMult: number;     // 질감 가속 배수 (0.3~1.5)
   aromaDecay: number;      // 향 감소 속도 배수 (0.3~1.5)
   riskMult: number;        // 환원 리스크 배수 (0.3~2.0)
+  kineticFactor: number;   // 운동학적 인자 K-TCI (0.5~2.0), 해류 진동 기반 질감 가속
 }
 
 // 카테고리별 품질 가중치 (합계 = 1.0)
@@ -378,6 +391,7 @@ export const AGING_FACTORS_RANGE = {
   textureMult: { min: 0.3, max: 1.5 },
   aromaDecay: { min: 0.3, max: 1.5 },
   riskMult: { min: 0.3, max: 2.0 },
+  kineticFactor: { min: 0.5, max: 2.0 },
 } as const;
 
 // 기본 AgingFactors (샴페인 blend 기준)
@@ -386,6 +400,7 @@ export const DEFAULT_AGING_FACTORS: AgingFactors = {
   textureMult: 1.0,
   aromaDecay: 1.0,
   riskMult: 1.0,
+  kineticFactor: 1.0,
 };
 
 // 기본 QualityWeights (범용)
@@ -594,3 +609,96 @@ export const DEFAULT_COEFFICIENTS = {
   fri: 0.56,  // 아레니우스 방정식: Ea=47kJ/mol, 4°C/12°C 속도비
   bri: 1.6,   // 헨리의 법칙: 수심 30m CO2 압력 구배 + 용해도 보정
 } as const;
+
+// ═══════════════════════════════════════════════════════════════════════════
+// v3.0: 과학적 정합성 + 해양 데이터 통합
+// ═══════════════════════════════════════════════════════════════════════════
+
+// 마개 타입 라벨 & 산소 투과율 (OTR: mg O₂/year)
+export const CLOSURE_TYPE_LABELS: Record<ClosureType, string> = {
+  crown_cap: '크라운캡',
+  cork_natural: '천연 코르크',
+  cork_agglomerated: '압축 코르크',
+  screw_cap: '스크류캡',
+  glass_stopper: '유리 스토퍼',
+  wax_seal: '밀랍 씰',
+  ceramic_cap: '도자기 마개',
+  none: '없음 (개방 숙성)',
+};
+
+// OTR (Oxygen Transfer Rate, mg O₂/year) — 문헌 기반
+export const CLOSURE_OTR: Record<ClosureType, number> = {
+  crown_cap: 0.0,          // 밀봉 — 산소 투과 없음
+  cork_natural: 1.2,       // 천연 코르크 평균 OTR (0.5~2.5)
+  cork_agglomerated: 0.8,  // 압축 코르크 — 천연보다 약간 낮음
+  screw_cap: 0.05,         // Stelvin 타입 — 거의 밀봉
+  glass_stopper: 0.02,     // Vino-Seal — 거의 밀봉
+  wax_seal: 0.3,           // 밀랍 — 미세 투과
+  ceramic_cap: 0.5,        // 도자기 — 미세 기공
+  none: 5.0,               // 개방 — 최대 산화
+};
+
+// 카테고리별 기본 마개
+export const CATEGORY_DEFAULT_CLOSURE: Record<string, ClosureType> = {
+  champagne: 'crown_cap',
+  red_wine: 'cork_natural',
+  white_wine: 'screw_cap',
+  whisky: 'cork_natural',
+  sake: 'screw_cap',
+  coldbrew: 'screw_cap',
+  puer: 'none',
+  soy_sauce: 'ceramic_cap',
+  vinegar: 'glass_stopper',
+  spirits: 'cork_natural',
+};
+
+// 카테고리별 활성화 에너지 매트릭스 (kJ/mol)
+export interface CategoryEaEntry {
+  ea: number;           // 중앙값 (kJ/mol)
+  eaLower: number;      // 95% CI 하한
+  eaUpper: number;      // 95% CI 상한
+  reactionBasis: string; // 주요 반응 근거
+}
+
+export const CATEGORY_EA_MAP: Record<string, CategoryEaEntry> = {
+  champagne:  { ea: 47, eaLower: 42, eaUpper: 52, reactionBasis: '안토시아닌/폴리페놀 산화' },
+  red_wine:   { ea: 50, eaLower: 45, eaUpper: 55, reactionBasis: '안토시아닌 중합 + 타닌 산화' },
+  white_wine: { ea: 44, eaLower: 39, eaUpper: 49, reactionBasis: '폴리페놀 산화 (갈변)' },
+  whisky:     { ea: 60, eaLower: 52, eaUpper: 68, reactionBasis: '에스테르화 반응 (숙성향 생성)' },
+  sake:       { ea: 35, eaLower: 30, eaUpper: 40, reactionBasis: '아미노-카보닐 반응 (메일라드)' },
+  coldbrew:   { ea: 38, eaLower: 33, eaUpper: 43, reactionBasis: '클로로겐산 산화 (쓴맛 변화)' },
+  puer:       { ea: 42, eaLower: 37, eaUpper: 47, reactionBasis: '카테킨 산화 중합 (후발효)' },
+  soy_sauce:  { ea: 50, eaLower: 44, eaUpper: 56, reactionBasis: '멜라노이딘 생성 (갈변)' },
+  vinegar:    { ea: 45, eaLower: 40, eaUpper: 50, reactionBasis: '초산 에스테르화 (숙성향)' },
+  spirits:    { ea: 40, eaLower: 35, eaUpper: 45, reactionBasis: '아미노산-당 반응 (발효 복합미)' },
+};
+
+// K-TCI 최대 가속 제한 — effectiveTci = tci / kf 의 하한
+// effectiveTci >= 0.2 → 최대 1/0.2 = 5배 가속
+export const MAX_TCI_ACCELERATION = 5.0;
+export const MIN_EFFECTIVE_TCI = 1 / MAX_TCI_ACCELERATION; // 0.2
+
+// Conservative Cap — 해저/지상 품질 차이 제한
+export const CONSERVATIVE_CAP = {
+  compositeQualityDelta: 20,  // 최대 ±20점 이내
+} as const;
+
+// 해양 환경 데이터 (UAPS 예측용)
+export interface OceanConditionsForPrediction {
+  seaTemperature: number | null;    // 실측 수온 (°C)
+  currentVelocity: number | null;   // 실측 해류속도 (m/s)
+  waveHeight: number | null;        // 실측 파고 (m)
+  wavePeriod: number | null;        // 실측 파주기 (s)
+  waterPressure: number | null;     // 실측 수압 (atm)
+  salinity: number | null;          // 실측 염도 (‰)
+}
+
+// 깊이별 시뮬레이션 결과
+export interface DepthSimulationResult {
+  depth: number;
+  quality: number;
+  texture: number;
+  aroma: number;
+  bubble: number;
+  risk: number;
+}

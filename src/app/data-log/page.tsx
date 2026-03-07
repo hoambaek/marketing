@@ -30,6 +30,7 @@ import {
   ChevronDown,
   Anchor,
   ArrowDown,
+  Timer,
 } from 'lucide-react';
 import { useOceanDataStore } from '@/lib/store/ocean-data-store';
 import {
@@ -393,6 +394,7 @@ export default function DataLogPage() {
       수온: day.seaTemperatureAvg,
       해류속도: day.currentVelocityAvg,
       파고: day.waveHeightAvg,
+      파주기: day.wavePeriodAvg,
       기압: day.surfacePressureAvg,
       수압: calculateWaterPressure(day.depth, day.surfacePressureAvg || undefined),
       염도: day.salinity,
@@ -606,7 +608,7 @@ export default function DataLogPage() {
           </motion.div>
 
           {/* Data cards */}
-          <div className="flex-1 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+          <div className="flex-1 grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
             <DataCard
               icon={Thermometer}
               label="수온"
@@ -630,6 +632,14 @@ export default function DataLogPage() {
               unit="m"
               color={OCEAN_DATA_LABELS.waveHeight.color}
               delay={0.2}
+            />
+            <DataCard
+              icon={Timer}
+              label="파주기"
+              value={currentConditions?.wavePeriod?.toFixed(1) ?? null}
+              unit="s"
+              color={OCEAN_DATA_LABELS.wavePeriod.color}
+              delay={0.22}
             />
             <DataCard
               icon={Gauge}
@@ -752,6 +762,38 @@ export default function DataLogPage() {
                   stroke="#60a5fa"
                   strokeWidth={2}
                   fill="url(#waveGradient)"
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          </ChartWrapper>
+
+          {/* Wave Period Chart */}
+          <ChartWrapper title="파주기 변화" icon={Timer} delay={0.65}>
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={chartData}>
+                <defs>
+                  <linearGradient id="wavePeriodGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#fbbf24" stopOpacity={0.3} />
+                    <stop offset="100%" stopColor="#fbbf24" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" />
+                <XAxis
+                  dataKey="date"
+                  stroke="#ffffff30"
+                  tick={{ fill: '#ffffff50', fontSize: 11 }}
+                />
+                <YAxis
+                  stroke="#ffffff30"
+                  tick={{ fill: '#ffffff50', fontSize: 11 }}
+                />
+                <Tooltip content={<CustomTooltip />} />
+                <Area
+                  type="monotone"
+                  dataKey="파주기"
+                  stroke="#fbbf24"
+                  strokeWidth={2}
+                  fill="url(#wavePeriodGradient)"
                 />
               </AreaChart>
             </ResponsiveContainer>

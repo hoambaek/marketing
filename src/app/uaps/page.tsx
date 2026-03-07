@@ -82,6 +82,9 @@ import type {
   WineType,
   ReductionPotential,
   ReductionCheckItem,
+  ClosureType,
+  OceanConditionsForPrediction,
+  DepthSimulationResult,
 } from '@/lib/types/uaps';
 import {
   WINE_TYPE_LABELS,
@@ -93,14 +96,21 @@ import {
   CATEGORY_SUBTYPES,
   CATEGORY_REDUCTION_CHECKLIST,
   CATEGORY_FIELD_CONFIG,
+  CLOSURE_TYPE_LABELS,
+  CATEGORY_DEFAULT_CLOSURE,
+  CATEGORY_EA_MAP,
 } from '@/lib/types/uaps';
 import {
   generateTimelineData,
   calculateOptimalHarvestWindow,
   findSimilarClusters,
   predictFlavorProfileStatistical,
+  simulateDepthQualities,
+  deriveKineticFactorFromOcean,
 } from '@/lib/utils/uaps-engine';
 import { applyAgingAdjustments } from '@/lib/utils/uaps-ai-predictor';
+import { useOceanDataStore } from '@/lib/store/ocean-data-store';
+import { OceanConditionsCard, OptimalDepthCard, EnvironmentalImpactCard } from './components/OceanCardsV3';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // 공통 컴포넌트
@@ -219,12 +229,22 @@ export default function UAPSPage() {
     clearError,
   } = useUAPSStore();
 
+  // v3.0: 해양 데이터 스토어 — 실시간 + 전체 기간 통계
+  const {
+    currentConditions: oceanCurrentConditions,
+    historicalOceanStats,
+    fetchCurrentConditions: loadOceanConditions,
+    loadHistoricalOceanStats,
+  } = useOceanDataStore();
+
   useEffect(() => {
     loadAgingProducts();
     loadModelStatus();
     loadConfig();
     loadPredictions();
-  }, [loadAgingProducts, loadModelStatus, loadConfig, loadPredictions]);
+    loadOceanConditions();
+    loadHistoricalOceanStats();
+  }, [loadAgingProducts, loadModelStatus, loadConfig, loadPredictions, loadOceanConditions, loadHistoricalOceanStats]);
 
   const selectedProduct = useMemo(
     () => agingProducts.find((p) => p.id === selectedProductId) ?? null,
@@ -868,6 +888,41 @@ export default function UAPSPage() {
         )}
 
         {/* ═══════════════════════════════════════════════════════════ */}
+        {/* v3.0: 해양 환경 카드 3종 */}
+        {/* ═══════════════════════════════════════════════════════════ */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <OceanConditionsCard
+            currentConditions={oceanCurrentConditions}
+            accentColor="#22d3ee"
+          />
+          <OptimalDepthCard
+            product={selectedProduct}
+            config={config}
+            months={selectedProduct?.plannedDurationMonths ?? 12}
+            oceanConditions={historicalOceanStats ? {
+              seaTemperature: historicalOceanStats.seaTemperature,
+              currentVelocity: historicalOceanStats.currentVelocity,
+              waveHeight: historicalOceanStats.waveHeight,
+              wavePeriod: historicalOceanStats.wavePeriod,
+              waterPressure: historicalOceanStats.waterPressure,
+              salinity: historicalOceanStats.salinity,
+            } : null}
+            accentColor="#C4A052"
+          />
+          <EnvironmentalImpactCard
+            oceanConditions={historicalOceanStats ? {
+              seaTemperature: historicalOceanStats.seaTemperature,
+              currentVelocity: historicalOceanStats.currentVelocity,
+              waveHeight: historicalOceanStats.waveHeight,
+              wavePeriod: historicalOceanStats.wavePeriod,
+              waterPressure: historicalOceanStats.waterPressure,
+              salinity: historicalOceanStats.salinity,
+            } : null}
+            accentColor="#B76E79"
+          />
+        </div>
+
+        {/* ═══════════════════════════════════════════════════════════ */}
         {/* 모델 상태 */}
         {/* ═══════════════════════════════════════════════════════════ */}
         <SectionWrapper title="모델 상태" icon={Settings2} iconColor="#C4A052" delay={0.4}>
@@ -1052,6 +1107,9 @@ function ProductModal({
   const [ph, setPh] = useState<string>(initialData?.ph?.toString() ?? '');
   const [dosage, setDosage] = useState<string>(initialData?.dosage?.toString() ?? '');
   const [alcohol, setAlcohol] = useState<string>(initialData?.alcohol?.toString() ?? '');
+  const [closureType, setClosureType] = useState<string>(
+    initialData?.closureType ?? CATEGORY_DEFAULT_CLOSURE[productCategory] ?? 'cork_natural'
+  );
 
   // 카테고리 변경 시 서브타입 + 체크리스트 초기화
   const handleCategoryChange = (newCategory: string) => {
@@ -1064,6 +1122,7 @@ function ProductModal({
     setReductionChecks(freshChecks);
     if (!CATEGORY_FIELD_CONFIG[newCategory]?.showDosage) setDosage('');
     if (!CATEGORY_FIELD_CONFIG[newCategory]?.showVintage) setVintage('');
+    setClosureType(CATEGORY_DEFAULT_CLOSURE[newCategory] ?? 'cork_natural');
   };
 
   // 환원 성향 체크리스트 → 자동 산출
@@ -1125,6 +1184,7 @@ function ProductModal({
       acidity: null,
       reductionPotential,
       reductionChecks: { ...reductionChecks, _subtype: subtype as unknown as boolean },
+      closureType: closureType as ClosureType,
       immersionDate: immersionDate || null,
       plannedDurationMonths: plannedDurationMonths ? Number(plannedDurationMonths) : null,
       agingDepth: agingDepth ? Number(agingDepth) : 30,
@@ -1314,6 +1374,23 @@ function ProductModal({
                 (점수: {reductionScore})
               </span>
             </div>
+          </div>
+
+          {/* v3.0: 마개 타입 */}
+          <div>
+            <label className={labelClass}>마개 타입</label>
+            <select
+              value={closureType}
+              onChange={(e) => setClosureType(e.target.value)}
+              className={inputClass}
+            >
+              {Object.entries(CLOSURE_TYPE_LABELS).map(([value, label]) => (
+                <option key={value} value={value}>{label}</option>
+              ))}
+            </select>
+            <p className="text-[11px] text-white/30 mt-1">
+              마개의 산소 투과율(OTR)이 해저 숙성 시 FRI 보정에 반영됩니다.
+            </p>
           </div>
 
           {/* 투하 전 지상 숙성 기간 */}

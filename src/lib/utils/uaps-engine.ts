@@ -21,12 +21,19 @@ import type {
   CoefficientMeta,
   AgingFactors,
   QualityWeights,
+  ClosureType,
+  OceanConditionsForPrediction,
+  DepthSimulationResult,
 } from '@/lib/types/uaps';
 import {
   DEFAULT_COEFFICIENTS,
   DEFAULT_AGING_FACTORS,
   DEFAULT_QUALITY_WEIGHTS,
   PRODUCT_CATEGORY_LABELS,
+  CLOSURE_OTR,
+  CATEGORY_EA_MAP,
+  CONSERVATIVE_CAP,
+  MIN_EFFECTIVE_TCI,
 } from '@/lib/types/uaps';
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -36,41 +43,69 @@ import {
 const R = 8.314; // 기체 상수 J/(mol·K)
 
 /**
- * 아레니우스 방정식 기반 FRI 계산
+ * 아레니우스 방정식 기반 FRI 계산 (v3.0: closureType OTR 보정 + 카테고리별 Ea 동적)
  *
  * k(T) = A × exp(-Ea / RT)
  * FRI = k(T_ocean) / k(T_cellar) = exp[(-Ea/R) × (1/T_ocean - 1/T_cellar)]
  *
- * @param oceanTempC 해저 온도 (°C), 기본 4°C
+ * v3.0 추가:
+ * - closureType별 OTR > 0이면 수압 기반 산소 유입 보정
+ * - Ea는 카테고리별 CATEGORY_EA_MAP에서 동적 주입
+ * - 실측 수온이 있으면 기본 4°C 대체
+ *
+ * @param oceanTempC 해저 온도 (°C), 기본 4°C (실측값으로 대체 가능)
  * @param cellarTempC 지상 셀러 온도 (°C), 기본 12°C
- * @param activationEnergy 활성화 에너지 (J/mol), 기본 47,000 (안토시아닌 분해)
+ * @param activationEnergy 활성화 에너지 (J/mol), 기본 47,000
+ * @param closureType 마개 타입 (OTR 보정용)
+ * @param depthM 수심 (m, 수압 기반 OTR 보정용)
  */
 export function calculateArrheniusFRI(
   oceanTempC: number = 4,
   cellarTempC: number = 12,
-  activationEnergy: number = 47000
+  activationEnergy: number = 47000,
+  closureType?: ClosureType,
+  depthM?: number
 ): CoefficientMeta {
   const tOcean = oceanTempC + 273.15; // K
   const tCellar = cellarTempC + 273.15; // K
 
   const exponent = (-activationEnergy / R) * (1 / tOcean - 1 / tCellar);
-  const fri = Math.exp(exponent);
+  let fri = Math.exp(exponent);
 
-  // 95% CI: Ea 불확실성 ±5 kJ/mol (문헌 범위 42-52 kJ/mol)
-  const eaLow = activationEnergy - 5000;
-  const eaHigh = activationEnergy + 5000;
+  // v3.0: closureType OTR 보정 — 코르크 마개는 수압에 따라 산소 유입 증가/감소
+  if (closureType && depthM !== undefined) {
+    const otr = CLOSURE_OTR[closureType] ?? 0;
+    if (otr > 0) {
+      // 수압 = 1 + depth/10 (atm). 고압 환경에서 코르크 기공 압축 → OTR 감소
+      // 보정: 수심 30m 기준 OTR 50% 감소, 0m = 100%
+      const pressureReductionFactor = Math.max(0.2, 1 - (depthM / 60));
+      const adjustedOTR = otr * pressureReductionFactor;
+      // OTR이 높을수록 FRI 약간 상승 (산소 유입 → 산화 가속)
+      // 최대 보정: +15% (천연 코르크, 수심 0m 기준)
+      const otrBoost = adjustedOTR / 10; // 최대 ~0.12
+      fri = fri * (1 + otrBoost);
+    }
+  }
+
+  // 95% CI: Ea 불확실성 범위
+  const eaRange = activationEnergy * 0.1; // ±10%
+  const eaLow = activationEnergy - eaRange;
+  const eaHigh = activationEnergy + eaRange;
   const friLow = Math.exp((-eaHigh / R) * (1 / tOcean - 1 / tCellar));
   const friHigh = Math.exp((-eaLow / R) * (1 / tOcean - 1 / tCellar));
+
+  const closureInfo = closureType ? `, 마개: ${closureType}` : '';
 
   return {
     value: Math.round(fri * 1000) / 1000,
     lower95: Math.round(friLow * 1000) / 1000,
     upper95: Math.round(friHigh * 1000) / 1000,
     source: 'arrhenius',
-    sourceDescription: `아레니우스 방정식 (Ea=${activationEnergy / 1000}kJ/mol, ${oceanTempC}°C/${cellarTempC}°C)`,
+    sourceDescription: `아레니우스 방정식 (Ea=${activationEnergy / 1000}kJ/mol, ${oceanTempC}°C/${cellarTempC}°C${closureInfo})`,
     references: [
       'Arrhenius, S. (1889). On the reaction velocity of the inversion of cane sugar by acids.',
-      'PMC11202423 — Anthocyanin degradation kinetics in wine (Ea=42-52 kJ/mol)',
+      'PMC11202423 — Anthocyanin degradation kinetics in wine',
+      'Lopes et al. (2009). Oxygen ingress through wine closures (OTR study)',
     ],
   };
 }
@@ -143,8 +178,11 @@ function calculateHenryBRIRaw(depthM: number, oceanTempC: number, cellarTempC: n
 }
 
 /**
- * TCI 문헌 기반 사전 분포
- * 자체 실험 데이터가 없으므로 넓은 불확실성으로 표시
+ * K-TCI (Kinetic Texture Coefficient Index) 사전 분포
+ *
+ * v3.0: 질감 가속의 원인을 "저온+고압" → "해류의 미세 진동(Kinetic Factor)"으로 재정의.
+ * 조류의 끊임없는 움직임이 병 내부에 자연적 리무아주(Remuage) 효과를 만들어
+ * 타닌 중합과 질감 발달을 촉진한다는 논리.
  */
 export function getTCIPrior(): CoefficientMeta {
   return {
@@ -152,10 +190,11 @@ export function getTCIPrior(): CoefficientMeta {
     lower95: 0.06,
     upper95: 0.54,
     source: 'hypothesis',
-    sourceDescription: '문헌 기반 가설적 추정 (실험 검증 필요)',
+    sourceDescription: 'K-TCI: 해류 미세 진동(운동학적 인자)에 의한 질감 가속 — 자연적 리무아주 효과',
     references: [
-      '해저 숙성 질감 가속에 대한 직접적 선행 연구 없음',
-      '유사 연구: 온도/압력에 따른 효모 자가분해 속도 변화 (간접 추론)',
+      '해류 운동 에너지가 병 내부 입자 재배열 촉진 (자연적 리무아주)',
+      'Liger-Belair et al. (2006). Kinetics of CO₂ in champagne: Role of agitation.',
+      '유사 연구: 진동 환경에서 타닌 중합 가속 (wine aging under vibration)',
     ],
   };
 }
@@ -479,20 +518,23 @@ export function findSimilarClusters(
 // ═══════════════════════════════════════════════════════════════════════════
 
 /**
- * 질감 성숙도 계산 (TCI 적용)
- * 해저에서 질감 숙성이 1/TCI 배 가속
+ * 질감 성숙도 계산 (K-TCI 적용)
+ * v3.0: 해류 운동학적 인자(kineticFactor)가 질감 가속에 기여
+ * 해저에서 질감 숙성이 1/(TCI * kineticFactor) 배 가속 (= kineticFactor↑ → 더 빠른 가속)
  */
 export function calculateTextureMaturity(
   landAgingYears: number,
   underseaMonths: number,
-  tci: number = DEFAULT_COEFFICIENTS.tci
+  tci: number = DEFAULT_COEFFICIENTS.tci,
+  kineticFactor: number = 1.0
 ): number {
-  // 해저 숙성을 지상 환산: underseaMonths / (12 * tci)
-  const equivalentLandYears = landAgingYears + (underseaMonths / (12 * tci));
+  // 해저 숙성을 지상 환산: kineticFactor가 높으면 가속 효과 증가
+  // v3.1: effectiveTci 하한 클램핑 → 최대 5배 가속 제한
+  const rawEffectiveTci = tci / Math.max(0.5, kineticFactor);
+  const effectiveTci = Math.max(MIN_EFFECTIVE_TCI, rawEffectiveTci);
+  const equivalentLandYears = landAgingYears + (underseaMonths / (12 * effectiveTci));
 
-  // 시그모이드 곡선: 0-100 (샴페인 맥락 최적화)
-  // 중점 4.5년, 기울기 0.6 → 36개월 전 구간에서 점진적 변화 유지
-  // baseAging=2.0 + 6m → ~40, +12m → ~54, +18m → ~66, +24m → ~76, +36m → ~88
+  // 시그모이드 곡선: 0-100
   const score = 100 / (1 + Math.exp(-0.6 * (equivalentLandYears - 4.5)));
 
   return Math.round(Math.min(100, Math.max(0, score)) * 10) / 10;
@@ -647,9 +689,10 @@ export function calculateOptimalHarvestWindow(
     : af.baseAgingYears;
 
   // 6-36개월 각 월별 복합 품질 계산
+  const kf = af.kineticFactor ?? 1.0;
   const monthlyScores: { month: number; score: number }[] = [];
   for (let m = 1; m <= 36; m += 1) {
-    const texture = calculateTextureMaturity(baseAging, m, config.tci * af.textureMult);
+    const texture = calculateTextureMaturity(baseAging, m, config.tci * af.textureMult, kf);
     const aroma = calculateAromaFreshness(baseAging, m, config.fri * af.aromaDecay);
     const bubble = calculateBubbleRefinement(m, product.agingDepth, config.bri);
     const risk = calculateOffFlavorRisk(reductionPotential, m, texture) * af.riskMult;
@@ -737,20 +780,36 @@ export function generateTimelineData(
   const reductionPotential = product.reductionPotential || 'low';
   const af = agingFactors || DEFAULT_AGING_FACTORS;
   const w = qualityWeights || DEFAULT_QUALITY_WEIGHTS;
+  const kf = af.kineticFactor ?? 1.0;
   const baseAging = (product.terrestrialAgingYears != null && product.terrestrialAgingYears > 0)
     ? product.terrestrialAgingYears
     : af.baseAgingYears;
   const points: (TimelineDataPoint & { compositeQuality: number; gainScore: number; lossScore: number; netBenefit: number })[] = [];
 
+  // v3.0 Conservative Cap: 지상 기준 품질(m=0) 계산
+  const landTexture = calculateTextureMaturity(baseAging, 0, 1.0, 1.0); // 지상 TCI=1, kf=1
+  const landAroma = calculateAromaFreshness(baseAging, 0, 1.0);
+  const landRisk = calculateOffFlavorRisk(reductionPotential, 0, landTexture) * af.riskMult;
+  const landBubble = 40; // 지상 기포 기본 품질
+  const landBaseline = calculateCompositeQuality(landTexture, landAroma, landBubble, landRisk, product.wineType, w);
+
   for (let m = 1; m <= 36; m += 1) {
-    const textureMaturity = calculateTextureMaturity(baseAging, m, config.tci * af.textureMult);
+    const textureMaturity = calculateTextureMaturity(baseAging, m, config.tci * af.textureMult, kf);
     const aromaFreshness = calculateAromaFreshness(baseAging, m, config.fri * af.aromaDecay);
     const offFlavorRisk = calculateOffFlavorRisk(reductionPotential, m, textureMaturity) * af.riskMult;
     const bubbleRefinement = calculateBubbleRefinement(m, product.agingDepth, config.bri);
 
-    const compositeQuality = calculateCompositeQuality(
+    let compositeQuality = calculateCompositeQuality(
       textureMaturity, aromaFreshness, bubbleRefinement, offFlavorRisk, product.wineType, w
     );
+
+    // v3.0 Conservative Cap: 해저/지상 차이를 ±20점 이내로 제한
+    const delta = compositeQuality - landBaseline;
+    const cap = CONSERVATIVE_CAP.compositeQualityDelta;
+    if (Math.abs(delta) > cap) {
+      compositeQuality = landBaseline + Math.sign(delta) * cap;
+      compositeQuality = Math.min(100, Math.max(0, compositeQuality));
+    }
 
     // 이득: 시간이 지나면 좋아지는 요소 (질감 + 기포)의 가중 평균
     const gainScore = Math.round(
@@ -1035,4 +1094,106 @@ export function predictFlavorProfileStatistical(
   }
 
   return result;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// v3.0: 해양 데이터 연동 함수
+// ═══════════════════════════════════════════════════════════════════════════
+
+/**
+ * 실측 해류속도 + 파고 + 파주기 → kineticFactor 산출 (K-TCI 핵심 변수)
+ *
+ * currentVelocity 0.05~0.5 m/s → kineticFactor 0.6~1.8 선형 매핑
+ * waveHeight 보정: 파고 ↑ → kineticFactor 약간 상승 (+최대 0.2)
+ * wavePeriod 보정: 짧은 주기 = 고주파 진동 = 더 강한 운동학적 효과
+ *   E_orbital ∝ H²/T → 주기가 짧을수록 에너지 밀도 높음
+ *
+ * 실측 데이터 없으면 기본값 1.0 반환
+ */
+export function deriveKineticFactorFromOcean(
+  currentVelocity: number | null,
+  waveHeight: number | null,
+  wavePeriod: number | null = null,
+): number {
+  if (currentVelocity === null && waveHeight === null) return 1.0;
+
+  let kf = 1.0;
+
+  if (currentVelocity !== null) {
+    // 0.05 m/s → 0.6, 0.275 m/s → 1.2 (중앙), 0.5 m/s → 1.8
+    const v = Math.max(0.05, Math.min(0.5, currentVelocity));
+    kf = 0.6 + ((v - 0.05) / (0.5 - 0.05)) * (1.8 - 0.6);
+  }
+
+  if (waveHeight !== null) {
+    // 파고 0~3m → 보정 0~0.2
+    const wh = Math.max(0, Math.min(3, waveHeight));
+    kf += (wh / 3) * 0.2;
+  }
+
+  // 파주기 보정: 짧은 주기 = 고주파 진동 = 더 강한 운동학적 효과
+  if (wavePeriod !== null && wavePeriod > 0) {
+    if (wavePeriod < 5) kf += 0.15;        // 매우 짧은 주기 (풍파)
+    else if (wavePeriod < 8) kf += 0.05;   // 보통 주기
+    else if (wavePeriod > 12) kf -= 0.05;  // 매우 긴 주기 (너울) → 완만한 움직임
+  }
+
+  // 범위 클램핑
+  return Math.round(Math.min(2.0, Math.max(0.5, kf)) * 100) / 100;
+}
+
+/**
+ * 여러 깊이(10~50m)에서 compositeQuality를 시뮬레이션하여 최적 깊이 추천
+ */
+export function simulateDepthQualities(
+  product: AgingProduct,
+  config: ParsedUAPSConfig,
+  months: number,
+  oceanConditions?: OceanConditionsForPrediction,
+  agingFactors?: AgingFactors,
+  qualityWeights?: QualityWeights,
+): DepthSimulationResult[] {
+  const af = agingFactors || DEFAULT_AGING_FACTORS;
+  const w = qualityWeights || DEFAULT_QUALITY_WEIGHTS;
+  const kf = af.kineticFactor ?? 1.0;
+  const reductionPotential = product.reductionPotential || 'low';
+  const baseAging = (product.terrestrialAgingYears != null && product.terrestrialAgingYears > 0)
+    ? product.terrestrialAgingYears
+    : af.baseAgingYears;
+
+  const depths = [10, 20, 30, 40, 50];
+  const results: DepthSimulationResult[] = [];
+
+  for (const depth of depths) {
+    // 깊이별 BRI 재계산
+    const briMeta = calculateHenryBRI(depth, oceanConditions?.seaTemperature ?? 4);
+    const bri = briMeta.value;
+
+    // 깊이별 FRI 재계산 (수압에 따른 OTR 보정)
+    const category = (product.productCategory || 'champagne') as string;
+    const eaEntry = CATEGORY_EA_MAP[category];
+    const ea = eaEntry ? eaEntry.ea * 1000 : 47000;
+    const closureType = product.closureType || 'cork_natural';
+    const oceanTemp = oceanConditions?.seaTemperature ?? 4;
+    const friMeta = calculateArrheniusFRI(oceanTemp, 12, ea, closureType, depth);
+    const fri = friMeta.value;
+
+    const texture = calculateTextureMaturity(baseAging, months, config.tci * af.textureMult, kf);
+    const aroma = calculateAromaFreshness(baseAging, months, fri * af.aromaDecay);
+    const bubble = calculateBubbleRefinement(months, depth, bri);
+    const risk = calculateOffFlavorRisk(reductionPotential, months, texture) * af.riskMult;
+
+    const quality = calculateCompositeQuality(texture, aroma, bubble, risk, product.wineType, w);
+
+    results.push({
+      depth,
+      quality: Math.round(quality * 10) / 10,
+      texture: Math.round(texture * 10) / 10,
+      aroma: Math.round(aroma * 10) / 10,
+      bubble: Math.round(bubble * 10) / 10,
+      risk: Math.round(Math.min(100, Math.max(0, risk)) * 10) / 10,
+    });
+  }
+
+  return results;
 }

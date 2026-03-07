@@ -77,6 +77,13 @@ export default function MonthlyPlanPage() {
 
   useEffect(() => {
     setIsMounted(true);
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth() + 1;
+    if (AVAILABLE_YEARS.includes(currentYear)) {
+      setSelectedYear(currentYear);
+      setSelectedMonth(currentMonth);
+    }
   }, []);
 
   const currentMonthInfo = MONTHS_INFO.find((m) => m.id === selectedMonth);

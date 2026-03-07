@@ -43,6 +43,8 @@ export interface OceanDataDaily {
   // 파고
   waveHeightAvg: number | null;
   waveHeightMax: number | null;
+  // 파주기
+  wavePeriodAvg: number | null;
   // 기상
   surfacePressureAvg: number | null;
   airTemperatureAvg: number | null;
@@ -71,6 +73,7 @@ export interface CurrentOceanConditions {
   currentVelocity: number | null;
   currentDirection: number | null;
   waveHeight: number | null;
+  wavePeriod: number | null;
   surfacePressure: number | null;
   waterPressure: number | null; // 계산값
   salinity: number | null; // 최근 수동 입력값
@@ -118,6 +121,7 @@ export interface OceanChartDataPoint {
   currentVelocity?: number | null;
   waveHeight?: number | null;
   waveHeightMax?: number | null;
+  wavePeriod?: number | null;
   surfacePressure?: number | null;
   waterPressure?: number | null;
   salinity?: number | null;
@@ -130,5 +134,6 @@ export const OCEAN_DATA_LABELS: Record<string, { name: string; unit: string; col
   waveHeight: { name: '파고', unit: 'm', color: '#60a5fa' },
   surfacePressure: { name: '기압', unit: 'hPa', color: '#f472b6' },
   waterPressure: { name: '수압', unit: '기압', color: '#fb923c' },
+  wavePeriod: { name: '파주기', unit: 's', color: '#fbbf24' },
   salinity: { name: '염도', unit: '‰', color: '#34d399' },
 };

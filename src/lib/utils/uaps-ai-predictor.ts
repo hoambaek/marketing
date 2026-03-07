@@ -16,6 +16,7 @@ import type {
   AgingFactors,
   QualityWeights,
   ProductCategory,
+  OceanConditionsForPrediction,
 } from '@/lib/types/uaps';
 import type { ClusterMatch } from './uaps-engine';
 import {
@@ -29,9 +30,13 @@ import {
   WINE_TYPE_LABELS,
   REDUCTION_POTENTIAL_LABELS,
   PRODUCT_CATEGORY_LABELS,
+  CLOSURE_TYPE_LABELS,
+  CLOSURE_OTR,
+  CATEGORY_EA_MAP,
   DEFAULT_AGING_FACTORS,
   DEFAULT_QUALITY_WEIGHTS,
   AGING_FACTORS_RANGE,
+  MIN_EFFECTIVE_TCI,
 } from '@/lib/types/uaps';
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -217,14 +222,20 @@ function parseExpertProfileResponse(text: string): ExpertProfileResult | null {
 
 /**
  * beforeProfile에 TCI/FRI 시간 보정만 적용하여 afterProfile 생성
+ * v3.0: kineticFactor 반영 — TCI 기반 보정에 운동학적 인자 적용
  */
 export function applyAgingAdjustments(
   beforeProfile: Record<string, number>,
   underseaMonths: number,
   config: ParsedUAPSConfig,
+  kineticFactor: number = 1.0,
 ): Record<string, number> {
   const result: Record<string, number> = {};
   const monthFactor = underseaMonths / 12;
+  const kf = Math.max(0.5, kineticFactor);
+  // K-TCI: tci / kineticFactor (kf↑ → 더 빠른 가속)
+  // v3.1: effectiveTci 하한 클램핑 → 최대 5배 가속 제한
+  const effectiveTci = Math.max(MIN_EFFECTIVE_TCI, config.tci / kf);
 
   for (const [key, baseValue] of Object.entries(beforeProfile)) {
     let adjusted = baseValue;
@@ -234,11 +245,11 @@ export function applyAgingAdjustments(
     } else if (key === 'floralMineral') {
       adjusted += monthFactor * 4;
     } else if (key === 'yeastyAutolytic') {
-      adjusted += monthFactor * (1 / config.tci) * 5;
+      adjusted += monthFactor * (1 / effectiveTci) * 5;
     } else if (key === 'acidityFreshness') {
       adjusted *= Math.exp(-0.015 * underseaMonths * config.fri);
     } else if (key === 'bodyTexture') {
-      adjusted += monthFactor * (1 / config.tci) * 4;
+      adjusted += monthFactor * (1 / effectiveTci) * 4;
     } else if (key === 'finishComplexity') {
       adjusted += monthFactor * 3.5;
     }
@@ -290,7 +301,8 @@ function buildPredictionPrompt(
   underseaMonths: number,
   config: ParsedUAPSConfig,
   expertProfile?: Record<string, number> | null,
-  expertSources?: string[] | null
+  expertSources?: string[] | null,
+  oceanConditions?: OceanConditionsForPrediction | null,
 ): string {
   const clusterContext = clusters.slice(0, 3).map((c) => {
     const fp = c.model.flavorProfileJson as Record<string, { mean: number; stdDev: number }>;
@@ -309,6 +321,30 @@ function buildPredictionPrompt(
   const category = (product.productCategory || 'champagne') as ProductCategory;
   const categoryLabel = PRODUCT_CATEGORY_LABELS[category] || category;
 
+  // v3.0: 카테고리별 Ea 정보
+  const eaEntry = CATEGORY_EA_MAP[category];
+  const eaInfo = eaEntry
+    ? `${eaEntry.ea}kJ/mol (${eaEntry.reactionBasis}, 범위: ${eaEntry.eaLower}-${eaEntry.eaUpper})`
+    : '47kJ/mol (기본값)';
+
+  // v3.0: 마개 정보
+  const closureType = product.closureType || 'cork_natural';
+  const closureLabel = CLOSURE_TYPE_LABELS[closureType] || closureType;
+  const otr = CLOSURE_OTR[closureType] ?? 0;
+
+  // v3.1: 해양 환경 데이터 (전체 수집 기간 통계 기반)
+  const oceanSection = oceanConditions ? `
+## 해양 환경 데이터 (전체 수집 기간 평균)
+- 평균 수온: ${oceanConditions.seaTemperature !== null ? `${oceanConditions.seaTemperature}°C` : '미수집'}
+- 평균 해류속도: ${oceanConditions.currentVelocity !== null ? `${oceanConditions.currentVelocity} m/s` : '미수집'}
+- 평균 파고: ${oceanConditions.waveHeight !== null ? `${oceanConditions.waveHeight} m` : '미수집'}
+- 평균 파주기: ${oceanConditions.wavePeriod !== null ? `${oceanConditions.wavePeriod} s` : '미수집'}
+- 수압: ${oceanConditions.waterPressure !== null ? `${oceanConditions.waterPressure} atm` : '미수집'}
+- 평균 염도: ${oceanConditions.salinity !== null ? `${oceanConditions.salinity}‰` : '미수집'}
+→ 이 값은 전체 수집 기간의 통계 평균입니다. 기본 가정(수온 4°C 등) 대신 이 값 기반으로 추론하세요.
+→ 파주기가 짧을수록(< 6s) K-TCI(운동학적 질감 보정)가 강화됩니다. E_orbital ∝ H²/T.
+` : '';
+
   return `당신은 식음 숙성 과학 전문가입니다.
 아래 데이터를 기반으로 해저 숙성 후 풍미를 예측해주세요.
 
@@ -316,20 +352,25 @@ function buildPredictionPrompt(
 ${JSON.stringify(clusterContext, null, 2)}
 
 ## 해저 숙성 보정 계수 (과학적 근거)
-- TCI (질감 가속): ${config.tci} (95% CI: ${config.tciMeta.lower95}-${config.tciMeta.upper95})
+- K-TCI (운동학적 질감 가속): ${config.tci} (95% CI: ${config.tciMeta.lower95}-${config.tciMeta.upper95})
   근거: ${config.tciMeta.sourceDescription}
-  해저에서 질감 성숙이 ${(1 / config.tci).toFixed(1)}배 가속
+  해저에서 질감 성숙이 ${(1 / config.tci).toFixed(1)}배 가속 (K-TCI 합산 시 최대 5배 제한)
+  ⚡ K-TCI는 해류의 미세 진동(운동학적 인자)이 병 내부에 자연적 리무아주 효과를 만들어 질감을 가속합니다.
+  kineticFactor(0.5~2.0)를 추론해주세요. 높을수록 해류 진동 효과가 강합니다. (effectiveTci ≥ 0.2 클램핑)
 - FRI (신선도 유지): ${config.fri} (95% CI: ${config.friMeta.lower95}-${config.friMeta.upper95})
   근거: ${config.friMeta.sourceDescription}
   산화 속도가 ${(config.fri * 100).toFixed(0)}% 수준으로 감속
+  카테고리별 활성화 에너지(Ea): ${eaInfo}
+  마개: ${closureLabel} (OTR=${otr} mg O₂/year) — OTR이 높으면 산소 투과로 산화 가속
 - BRI (기포 안정화): ${config.bri} (95% CI: ${config.briMeta.lower95}-${config.briMeta.upper95})
   근거: ${config.briMeta.sourceDescription}
   효과: 외부 수압이 CO₂ 손실 구동력 감소 → 용존 CO₂ 안정화 → 기포 핵 균질화 → 기포가 작고 조밀해짐
-
+${oceanSection}
 ## 예측 대상 제품
 - 제품명: ${product.productName}
 - 카테고리: ${categoryLabel} (${category})
 - 서브타입: ${product.wineType ? (WINE_TYPE_LABELS[product.wineType] || product.wineType) : category} (${product.wineType ?? 'N/A'})
+- 마개: ${closureLabel} (OTR: ${otr} mg O₂/year)
 - 물리화학: pH ${product.ph ?? '미입력'}, 도사주 ${product.dosage ?? '미입력'}g/L, 알코올 ${product.alcohol ?? '미입력'}%
 - 환원 성향: ${REDUCTION_POTENTIAL_LABELS[product.reductionPotential]} (${product.reductionPotential})
 - 해저 숙성 기간: ${underseaMonths}개월, 수심 ${product.agingDepth}m
@@ -366,7 +407,8 @@ ${expertSources?.length ? `- 출처: ${expertSources.join(', ')}` : ''}
     "baseAgingYears": 숫자,  // 이 카테고리 제품의 투하 전 평균 숙성 기간(년). 와인:2.0, 커피:0.5, 사케:1.0, 위스키:5.0 등
     "textureMult": 0.3~1.5,  // 질감 가속 배수. 높을수록 해저에서 질감이 빨리 변함. 예: 위스키 1.3, 식초 0.5
     "aromaDecay": 0.3~1.5,   // 향 감소 속도 배수. 높을수록 향이 빨리 감소. 예: 커피 1.4, 보이차 0.4
-    "riskMult": 0.3~2.0      // 환원/결함 리스크 배수. 예: 와인 1.0, 간장 0.5
+    "riskMult": 0.3~2.0,     // 환원/결함 리스크 배수. 예: 와인 1.0, 간장 0.5
+    "kineticFactor": 0.5~2.0 // K-TCI 운동학적 인자. 해류 진동이 강할수록 높게. 기본 1.0
   },
   "qualityWeights": {
     "texture": 0~1,   // 질감 가중치 (합계 1.0)
@@ -398,9 +440,10 @@ export async function runAIPrediction(
   config: ParsedUAPSConfig,
   expertProfile?: Record<string, number> | null,
   expertSources?: string[] | null,
-  allModels?: TerrestrialModel[]
+  allModels?: TerrestrialModel[],
+  oceanConditions?: OceanConditionsForPrediction | null,
 ): Promise<AIPredictionResponse> {
-  const prompt = buildPredictionPrompt(product, clusters, underseaMonths, config, expertProfile, expertSources);
+  const prompt = buildPredictionPrompt(product, clusters, underseaMonths, config, expertProfile, expertSources, oceanConditions);
 
   // 모델 우선순위: Gemini 3 Flash → 2.5 Flash → 2.5 Flash Lite
   const GEMINI_MODELS = ['gemini-3-flash-preview', 'gemini-2.5-flash', 'gemini-2.5-flash-lite'];
@@ -558,6 +601,7 @@ function clampPredictionValues(response: AIPredictionResponse): AIPredictionResp
       textureMult: Math.min(AGING_FACTORS_RANGE.textureMult.max, Math.max(AGING_FACTORS_RANGE.textureMult.min, af.textureMult ?? DEFAULT_AGING_FACTORS.textureMult)),
       aromaDecay: Math.min(AGING_FACTORS_RANGE.aromaDecay.max, Math.max(AGING_FACTORS_RANGE.aromaDecay.min, af.aromaDecay ?? DEFAULT_AGING_FACTORS.aromaDecay)),
       riskMult: Math.min(AGING_FACTORS_RANGE.riskMult.max, Math.max(AGING_FACTORS_RANGE.riskMult.min, af.riskMult ?? DEFAULT_AGING_FACTORS.riskMult)),
+      kineticFactor: Math.min(AGING_FACTORS_RANGE.kineticFactor.max, Math.max(AGING_FACTORS_RANGE.kineticFactor.min, af.kineticFactor ?? DEFAULT_AGING_FACTORS.kineticFactor)),
     };
   }
 
@@ -650,7 +694,7 @@ function buildStatisticalFallback(
     riskWarning: offFlavorRisk >= config.riskThresholds.offFlavor
       ? `Off-flavor 리스크가 ${offFlavorRisk}%로 높습니다. 환원 성향(${REDUCTION_POTENTIAL_LABELS[product.reductionPotential]})을 감안하여 ${startMonths}개월 이내 인양을 검토하세요.`
       : null,
-    agingFactors: DEFAULT_AGING_FACTORS,
-    qualityWeights: DEFAULT_QUALITY_WEIGHTS,
+    agingFactors: { ...DEFAULT_AGING_FACTORS },
+    qualityWeights: { ...DEFAULT_QUALITY_WEIGHTS },
   };
 }

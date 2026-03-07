@@ -18,6 +18,7 @@ import type {
   ProductCategory,
   AgingFactors,
   QualityWeights,
+  ClosureType,
 } from '@/lib/types/uaps';
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -37,6 +38,7 @@ interface DBAgingProduct {
   acidity: number | null;
   reduction_potential: string;
   reduction_checks: Record<string, boolean> | null;
+  closure_type: string;
   immersion_date: string | null;
   planned_duration_months: number | null;
   aging_depth: number;
@@ -208,6 +210,7 @@ export async function createAgingProduct(
       acidity: input.acidity,
       reduction_potential: input.reductionPotential,
       reduction_checks: input.reductionChecks,
+      closure_type: input.closureType ?? 'cork_natural',
       immersion_date: input.immersionDate,
       planned_duration_months: input.plannedDurationMonths,
       aging_depth: input.agingDepth,
@@ -243,6 +246,7 @@ export async function updateAgingProduct(
   if (updates.acidity !== undefined) dbUpdates.acidity = updates.acidity;
   if (updates.reductionPotential !== undefined) dbUpdates.reduction_potential = updates.reductionPotential;
   if (updates.reductionChecks !== undefined) dbUpdates.reduction_checks = updates.reductionChecks;
+  if (updates.closureType !== undefined) dbUpdates.closure_type = updates.closureType;
   if (updates.immersionDate !== undefined) dbUpdates.immersion_date = updates.immersionDate;
   if (updates.plannedDurationMonths !== undefined) dbUpdates.planned_duration_months = updates.plannedDurationMonths;
   if (updates.agingDepth !== undefined) dbUpdates.aging_depth = updates.agingDepth;
@@ -634,6 +638,7 @@ function mapDbAgingProduct(db: DBAgingProduct): AgingProduct {
     acidity: db.acidity,
     reductionPotential: db.reduction_potential as AgingProduct['reductionPotential'],
     reductionChecks: db.reduction_checks,
+    closureType: (db.closure_type || 'cork_natural') as ClosureType,
     immersionDate: db.immersion_date,
     plannedDurationMonths: db.planned_duration_months,
     agingDepth: db.aging_depth,

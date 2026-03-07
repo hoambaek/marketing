@@ -21,7 +21,7 @@ import {
 
 export const maxDuration = 300; // 백필은 오래 걸릴 수 있음
 
-const BACKFILL_START_DATE = '2026-01-01';
+const BACKFILL_START_DATE = '2025-01-01';
 const CHUNK_DAYS = 30;
 
 function verifyCronSecret(request: Request): boolean {
@@ -76,7 +76,7 @@ export async function GET(request: Request) {
         console.log(`[백필] 청크 처리 중: ${chunk.start} ~ ${chunk.end} (${chunksProcessed + 1}/${chunks.length})`);
 
         // Open-Meteo API에서 데이터 fetch
-        const { marine, weather } = await fetchOpenMeteoRawData(chunk.start, chunk.end);
+        const { marine, weather } = await fetchOpenMeteoRawData(chunk.start, chunk.end, { marineModel: 'era5_ocean' });
 
         // 시간별 → 일별 집계
         const hourlyData = extractHourlyData(marine, weather);
