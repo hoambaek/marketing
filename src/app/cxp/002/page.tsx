@@ -102,7 +102,7 @@ export default function CXP002Page() {
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-6">
             {[
-              { label: '타깃 길이', value: 'TT 22초 / IG 27초', icon: Clock },
+              { label: '타깃 길이', value: 'TT 20초 / IG 25초', icon: Clock },
               { label: '언어', value: '영어 (한국어 믹스)', icon: Mic },
               { label: '상태', value: '기획 완료', icon: Layers },
               { label: '1순위 장면', value: '슈룹 (Netflix)', icon: Film },
@@ -184,14 +184,15 @@ export default function CXP002Page() {
           <CollapsibleSection title="스크립트" icon={Film}>
             <div className="pt-4 space-y-6">
               <div>
-                <h4 className="text-xs font-semibold text-white/50 uppercase tracking-wider mb-3">틱톡 버전 (22초)</h4>
+                <h4 className="text-xs font-semibold text-white/50 uppercase tracking-wider mb-3">틱톡 버전 (20초)</h4>
                 <div className="space-y-3">
                   {[
-                    { time: '0-3초', label: '후킹', screen: '슈룹 절하는 장면 캡처 (여러 세자빈 후보가 나란히 절)', subtitle: '"Same bow. But Koreans saw something completely different."', note: '텍스트 + 드라마 장면 (멘트 없음)' },
-                    { time: '3-7초', label: '문제 제기', screen: '대표님 정면 (한복)', subtitle: '"You see women bowing. Koreans see a power struggle. Watch her hands."' },
-                    { time: '7-13초', label: '해독 — 디테일 분석', screen: '드라마 장면 슬로모션/정지 + 대표님 설명 교차', subtitle: '"This one — her fingers are spread. Rushing through it. She doesn\'t mean it. But this one — fingers together. Slow. Controlled. Eyes down three seconds longer than she needs to. She\'s not bowing to the Queen. She\'s saying: I will outlast everyone in this room."', note: '같은 "큰절"인데 손가락/속도/시선의 차이가 의미를 바꿈' },
-                    { time: '13-18초', label: '전문가 레이어', screen: '대표님이 직접 두 가지를 시연', subtitle: '"I learned this when I was six. 절 is not just bowing. It\'s a sentence. Speed, depth, your eyes, even how you breathe — every Korean in the room reads all of it."' },
-                    { time: '18-22초', label: '캐치프레이즈', screen: '대표님 클로즈업', subtitle: '"You watched a bow. Koreans read a whole conversation. This is the real Korea."' },
+                    { time: '0-2초', label: '충격 후킹', screen: '슈룹 절하는 장면 캡처 (여러 세자빈 후보가 나란히 절)', subtitle: '"Everyone bowed the same. But one woman just declared war."', note: '텍스트 + 드라마 장면 (멘트 없음)' },
+                    { time: '2-4초', label: 'Authority Hook', screen: '대표님 정면 (한복, 확신에 찬 표정)', subtitle: '"I\'ve read bows since I was six. Watch her hands."' },
+                    { time: '4-12초', label: '해독 — 디테일 분석', screen: '드라마 장면 슬로모션/정지 + 대표님 설명 교차', subtitle: '"This one — fingers spread. Rushing through it. She doesn\'t mean it." ... "But this one — fingers together. Slow. Eyes down three seconds longer. She\'s not bowing to the Queen. She\'s saying: I will outlast everyone in this room."', note: '디테일 컷 1.2초씩: 손가락 벌어진/모은 극접사, 머리 올라오는 슬로모션' },
+                    { time: '12-16초', label: '의외성 한 방', screen: '대표님이 직접 두 가지를 빠르게 시연', subtitle: '"절 is not just bowing. It\'s a sentence. Speed, depth, your eyes, even how you breathe — every Korean in the room reads all of it. In one bow, she told everyone: I was born for this throne."' },
+                    { time: '16-18초', label: '전문가 레이어', screen: '대표님 정면 (클로즈업)', subtitle: '"I learned this when I was six. 한국인은 다 읽어요."' },
+                    { time: '18-20초', label: '캐치프레이즈', screen: '대표님 클로즈업 (정면 응시)', subtitle: '"You watched a bow. Koreans read a whole conversation. This is the real Korea."' },
                   ].map((scene) => (
                     <div key={scene.time} className="bg-white/[0.03] rounded-xl p-4 border-l-2 border-[#C4A052]/30">
                       <div className="flex items-center gap-2 mb-2">
@@ -207,16 +208,28 @@ export default function CXP002Page() {
               </div>
 
               <div>
-                <h4 className="text-xs font-semibold text-white/50 uppercase tracking-wider mb-3">인스타 릴스 버전 (27초) — 확장</h4>
+                <h4 className="text-xs font-semibold text-white/50 uppercase tracking-wider mb-3">인스타 릴스 버전 (25초) — 확장</h4>
                 <div className="bg-white/[0.03] rounded-xl p-4 space-y-2">
                   <p className="text-sm text-white/50">
-                    <span className="text-white/30">[7-15초]</span> 해독 확장 — &quot;fingers spread, head comes up too fast. She&apos;s performing. Not respecting. Every Korean viewer felt it.&quot;
+                    <span className="text-white/30">[0-2초]</span> 충격 후킹 (동일)
                   </p>
                   <p className="text-sm text-white/50">
-                    <span className="text-white/30">[15-21초]</span> 전문가 확장 — &quot;I started 절 training at six years old. In Korean traditional arts, your teacher watches your bow before they hear you play.&quot;
+                    <span className="text-white/30">[2-4초]</span> Authority Hook (동일)
                   </p>
                   <p className="text-sm text-white/50">
-                    <span className="text-white/30">[21-25초]</span> 마무리 — &quot;So when you watch K-drama and everyone bows &apos;the same way&apos; — they&apos;re not. Not even close.&quot;
+                    <span className="text-white/30">[4-14초]</span> 해독 확장 — &quot;This one — fingers spread. Head comes up too fast. She&apos;s performing. Not respecting. Every Korean viewer felt it.&quot; ... &quot;But this one — fingers together, tight. She goes down slowly. Stays three seconds longer than required. Eyes never leave the floor. She&apos;s not showing respect. She&apos;s showing: I was born for this.&quot;
+                  </p>
+                  <p className="text-sm text-white/50">
+                    <span className="text-white/30">[14-18초]</span> 의외성 한 방 확장 — &quot;절 tells them everything. Speed. Depth. Breath. Where your eyes go. In one bow, she told an entire room of royals: every one of you will kneel to me someday.&quot;
+                  </p>
+                  <p className="text-sm text-white/50">
+                    <span className="text-white/30">[18-21초]</span> 전문가 레이어 — &quot;I started 절 training at six years old. My teacher watched my bow before she heard me play. 한국인은 다 읽어요. Koreans read all of it.&quot;
+                  </p>
+                  <p className="text-sm text-white/50">
+                    <span className="text-white/30">[21-23초]</span> 브릿지 — &quot;So when you watch K-drama and everyone bows &apos;the same way&apos; — they&apos;re not. Not even close.&quot;
+                  </p>
+                  <p className="text-sm text-white/50">
+                    <span className="text-white/30">[23-25초]</span> 캐치프레이즈 — &quot;You saw a bow. Koreans read a conversation. This is the real Korea.&quot;
                   </p>
                 </div>
               </div>
@@ -238,11 +251,11 @@ export default function CXP002Page() {
                   </thead>
                   <tbody className="text-sm text-white/50">
                     {[
-                      { section: '후킹 (0-3초)', tone: '— (텍스트)', speed: '—', emotion: '시각적 질문' },
-                      { section: '문제 제기 (3-7초)', tone: '도발적, 자신감', speed: '보통', emotion: '"당신이 못 본 걸 보여줄게"' },
-                      { section: '해독 (7-13초)', tone: '분석가, 날카로움', speed: '느리게', emotion: '탐정이 증거 설명하듯' },
-                      { section: '전문가 (13-18초)', tone: '개인적, 진솔', speed: '보통', emotion: '자기 경험에서 나오는 확신' },
-                      { section: '캐치프레이즈', tone: '단호 + 여운', speed: '천천히', emotion: '정면 응시' },
+                      { section: '후킹 (0-2초)', tone: '— (텍스트)', speed: '—', emotion: '시각적 질문' },
+                      { section: 'Authority Hook (2-4초)', tone: '도발적, 자신감', speed: '보통', emotion: '"당신이 못 본 걸 보여줄게"' },
+                      { section: '해독 (4-12초)', tone: '분석가, 날카로움', speed: '느리게', emotion: '탐정이 증거 설명하듯' },
+                      { section: '의외성 (12-16초)', tone: '개인적, 진솔', speed: '보통', emotion: '자기 경험에서 나오는 확신' },
+                      { section: '캐치프레이즈 (18-20초)', tone: '단호 + 여운', speed: '천천히', emotion: '정면 응시' },
                     ].map((row) => (
                       <tr key={row.section} className="border-b border-white/[0.03]">
                         <td className="py-2 px-2 text-white/60">{row.section}</td>
@@ -344,11 +357,11 @@ export default function CXP002Page() {
                   </thead>
                   <tbody className="text-sm text-white/50">
                     {[
-                      { section: '0-3초', visual: '드라마 캡처 + 텍스트', audio: '정적 or 드라마 원음' },
-                      { section: '3-7초', visual: '대표님 정면', audio: '음성 100%' },
-                      { section: '7-13초', visual: '드라마 슬로모션 ↔ 대표님 분석 교차', audio: '음성 100%, 드라마 음소거' },
-                      { section: '13-18초', visual: '대표님 시연 (D2, D3, D4)', audio: '음성 100%' },
-                      { section: '18-22초', visual: '대표님 클로즈업', audio: '음성 100% → 여운' },
+                      { section: '0-2초', visual: '드라마 캡처 + 텍스트', audio: '정적 or 드라마 원음' },
+                      { section: '2-4초', visual: '대표님 정면', audio: '음성 100%' },
+                      { section: '4-12초', visual: '드라마 슬로모션 ↔ 대표님 분석 교차', audio: '음성 100%, 드라마 음소거' },
+                      { section: '12-16초', visual: '대표님 시연 (D2, D3, D4)', audio: '음성 100%' },
+                      { section: '18-20초', visual: '대표님 클로즈업', audio: '음성 100% → 여운' },
                     ].map((row) => (
                       <tr key={row.section} className="border-b border-white/[0.03]">
                         <td className="py-2 px-2 text-white/60">{row.section}</td>
@@ -382,9 +395,15 @@ export default function CXP002Page() {
                     <p className="text-xs text-white/60 mt-1 italic leading-relaxed">
                       Same bow. Every Korean saw something completely different.
                       <br /><br />
-                      In this K-drama scene, two women bow to the Queen. One is performing. One means it. Koreans read it instantly. Here&apos;s how.
+                      In this K-drama scene, two women bow to the Queen.
+                      <br />
+                      One is performing. One means it.
+                      <br />
+                      Koreans read it instantly. Here&apos;s how.
                       <br /><br />
-                      손가락, 속도, 시선, 숨 — 절 is a whole language. I&apos;ve been reading it since I was six.
+                      손가락, 속도, 시선, 숨 — 절 is a whole language.
+                      <br />
+                      I&apos;ve been reading it since I was six.
                     </p>
                   </div>
                   <div className="flex flex-wrap gap-1.5">
@@ -401,12 +420,39 @@ export default function CXP002Page() {
                   <div>
                     <span className="text-[10px] text-white/30 uppercase">캡션</span>
                     <p className="text-xs text-white/60 mt-1 italic leading-relaxed">
-                      You watched two women bow. Koreans watched a power struggle.
+                      You watched two women bow.
+                      <br />
+                      Koreans watched a power struggle.
                       <br /><br />
-                      Same 큰절. Same room. Same Queen. But one had her fingers spread — rushing through it. The other? Fingers tight. Slow descent. Eyes on the floor three seconds longer than required.
+                      Same 큰절. Same room. Same Queen.
+                      <br />
+                      But one had her fingers spread — rushing through it.
+                      <br />
+                      The other? Fingers tight. Slow descent.
+                      <br />
+                      Eyes on the floor three seconds longer than required.
                       <br /><br />
                       She wasn&apos;t bowing. She was declaring war.
+                      <br /><br />
+                      In Korean traditional arts, I learned 절 before I learned music.
+                      <br />
+                      Because your teacher reads your bow
+                      <br />
+                      before they listen to your playing.
+                      <br /><br />
+                      Speed. Depth. Breath. Where your eyes land.
+                      <br />
+                      한국인은 다 읽어요. Koreans read all of it.
+                      <br /><br />
+                      So next time you watch K-drama and think
+                      <br />
+                      &quot;they&apos;re all bowing the same&quot; — look closer.
                     </p>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {['#kdrama', '#koreanculture', '#jeol', '#koreanbowing', '#therealkorea', '#underthequeensumbrella', '#koreanheritage'].map((tag) => (
+                      <span key={tag} className="text-[10px] text-[#C4A052]/60 bg-[#C4A052]/5 px-1.5 py-0.5 rounded">{tag}</span>
+                    ))}
                   </div>
                 </div>
               </div>

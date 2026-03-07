@@ -96,12 +96,12 @@ export default function CXP005Page() {
             5 Korean Cheat Codes — How to Make Any Elder Love You
           </h1>
           <p className="text-sm text-white/50">
-            004의 철학이 일상에서 작동하는 5가지 구체적 행동 — &quot;3년 수련을 30초로&quot;
+            전제: 004(절의 철학)를 본 시청자가 &quot;그래서 구체적으로 어떻게 해?&quot;에 답하는 편 — &quot;3년 수련을 20초로&quot;
           </p>
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-6">
             {[
-              { label: '타깃 길이', value: 'TT 25초 / IG 30초', icon: Clock },
+              { label: '타깃 길이', value: 'TT 20초 / IG 25초', icon: Clock },
               { label: '언어', value: '영어 (한국어 믹스)', icon: Mic },
               { label: '상태', value: '기획 완료', icon: Layers },
               { label: '촬영', value: '대표님 단독 가능', icon: Camera },
@@ -148,11 +148,11 @@ export default function CXP005Page() {
                 <h4 className="text-sm font-medium text-white/50 uppercase tracking-wider mb-3">5가지 행동 — 뿌리(Root)</h4>
                 <div className="space-y-3">
                   {[
-                    { num: '1', behavior: '두 손으로 받기/드리기', root: '제사에서 신에게 올릴 때 두 손 → 어른을 신처럼 모시는 것' },
-                    { num: '2', behavior: '고개 돌려 마시기', root: '스승 앞에서 수련생은 정면에서 물도 마시지 않음' },
+                    { num: '1', behavior: '두 손으로 받기/드리기', root: '제사에서 신에게 올릴 때 두 손 → 어른을 신처럼 모시는 것의 일상화' },
+                    { num: '2', behavior: '고개 돌려 마시기', root: '스승 앞에서 수련생은 정면에서 물도 마시지 않음 → 겸양의 체화' },
                     { num: '3', behavior: '어른보다 먼저 먹지 않기', root: '제사의 "진설" 순서가 일상 식사에 스며든 것' },
-                    { num: '4', behavior: '나이를 묻는 것이 필수', root: '유교의 장유유서 → 관계가 정해져야 말이 정해짐' },
-                    { num: '5', behavior: '빈 잔을 채워주기', root: '자기 잔을 채우지 않는 것 = 004의 "emptying yourself" 콜백' },
+                    { num: '4', behavior: '나이를 묻는 것이 필수', root: '유교의 오륜 중 장유유서 → 관계가 정해져야 말이 정해짐' },
+                    { num: '5', behavior: '빈 잔을 채워주기', root: '자기 잔을 채우지 않는 것 = 004의 "emptying yourself" 철학 실전판' },
                   ].map((item) => (
                     <div key={item.num} className="flex items-start gap-3 border-l-2 border-[#C4A052]/30 pl-3">
                       <span className="text-xs font-mono text-[#C4A052] bg-[#C4A052]/10 px-1.5 py-0.5 rounded shrink-0">{item.num}</span>
@@ -171,16 +171,17 @@ export default function CXP005Page() {
           <CollapsibleSection title="스크립트" icon={Film}>
             <div className="pt-4 space-y-6">
               <div>
-                <h4 className="text-xs font-semibold text-white/50 uppercase tracking-wider mb-3">틱톡 버전 (25초)</h4>
+                <h4 className="text-xs font-semibold text-white/50 uppercase tracking-wider mb-3">틱톡 버전 (20초)</h4>
                 <div className="space-y-3">
                   {[
-                    { time: '0-4초', label: '후킹', screen: '대표님 정면 (세미포멀)', subtitle: '"My teacher spent 3 years teaching me how to show respect with my body. I\'ll show you in 25 seconds."', note: '권위 + 도전' },
-                    { time: '4-8초', label: '#1 두 손', screen: '두 손으로 잔/물건 건네는 클로즈업', subtitle: '"Both hands. Always. In Korean rituals, you offer to the gods with both hands. Korean elders? Same energy."', note: '제사 연결' },
-                    { time: '8-12초', label: '#2 고개 돌림', screen: '고개 돌려 마시는 시연', subtitle: '"Drinking next to an elder? Turn away. In my training, we never faced our teacher while drinking. Not even water."', note: '수련 경험' },
-                    { time: '12-15초', label: '#3 어른 먼저', screen: '식탁에서 기다리는 모습', subtitle: '"Never eat first. This comes from 제사 — ancestral rituals. The order is sacred."', note: '한국어 믹스: 제사' },
-                    { time: '15-18초', label: '#4 나이', screen: '대표님 정면 (대화 톤)', subtitle: '"\'How old are you?\' — not rude. Necessary. Because in Korean, you literally speak a different language depending on who\'s older."', note: '존댓말/반말 설명' },
-                    { time: '18-21초', label: '#5 빈 잔', screen: '빈 잔 채워주는 클로즈업', subtitle: '"Someone\'s glass is empty? Fill it. Never your own. Remember — empty yourself first."', note: '004 콜백' },
-                    { time: '21-25초', label: '캐치프레이즈', screen: '대표님 클로즈업 (정면 응시)', subtitle: '"These aren\'t tips. These are a thousand years of love disguised as manners. This is the real Korea."', note: '단호 + 따뜻' },
+                    { time: '0-2초', label: '충격 후킹', screen: '대표님 정면 (세미포멀, 자신감)', subtitle: '"Everything you know about Korean manners is surface level."', note: '도발적, 단호' },
+                    { time: '2-4초', label: 'Authority Hook', screen: '대표님 (확신에 찬 표정)', subtitle: '"3 years of training in 20 seconds. Here\'s what\'s really underneath."', note: '"3년 vs 20초" 반전' },
+                    { time: '4-7초', label: '#1 두 손', screen: '시연 — 두 손으로 컵 건넴 (클로즈업)', subtitle: '"Both hands. Always. Not politeness — 제사. You offer to the gods with both hands."', note: '자막: 두 손' },
+                    { time: '7-9초', label: '#2 고개 돌림', screen: '시연 — 고개 돌려 마시기 (측면)', subtitle: '"Turn away when drinking. My teacher never let us face her. Not even for water."', note: '자막: 고개 돌림' },
+                    { time: '9-11초', label: '#3 어른 먼저', screen: '시연 — 숟가락 대기 제스처', subtitle: '"Never eat first. This is 제사 order — sacred."', note: '자막: 어른 먼저' },
+                    { time: '11-13초', label: '#4 나이', screen: '대표님 정면', subtitle: '"\'How old are you?\' Not rude. Korean has two entire languages. Without age, you don\'t know which one to speak."', note: '자막: 나이' },
+                    { time: '13-15초', label: '#5 빈 잔', screen: '시연 — 상대방 잔 채우기', subtitle: '"Empty glass? Fill theirs. Never yours. Empty yourself first."', note: '자막: 빈 잔, 004 콜백' },
+                    { time: '15-20초', label: '의외성 + 캐치프레이즈', screen: '대표님 클로즈업 (정면 응시)', subtitle: '"These aren\'t tips you learn from a travel blog. Every single one comes from ancestral rituals that are a thousand years old. Koreans just forgot where they came from. A thousand years of love, disguised as manners. This is the real Korea."', note: '15-18초 의외성 → 18-20초 캐치프레이즈' },
                   ].map((scene) => (
                     <div key={scene.time} className="bg-white/[0.03] rounded-xl p-4 border-l-2 border-[#C4A052]/30">
                       <div className="flex items-center gap-2 mb-2">
@@ -196,20 +197,27 @@ export default function CXP005Page() {
               </div>
 
               <div>
-                <h4 className="text-xs font-semibold text-white/50 uppercase tracking-wider mb-3">인스타 릴스 버전 (30초) — 확장</h4>
-                <div className="bg-white/[0.03] rounded-xl p-4 space-y-2">
-                  <p className="text-sm text-white/50">
-                    <span className="text-white/30">[4-10초]</span> #1, #2 확장 — &quot;Both hands — because in 제사, you offer to the gods with two hands. Your grandmother? She deserves the same.&quot;
-                  </p>
-                  <p className="text-sm text-white/50">
-                    <span className="text-white/30">[10-16초]</span> #3, #4 확장 — &quot;The order matters. In ancestral rituals, 진설 dictates who eats first. That rule didn&apos;t stay at the altar — it moved to every dinner table.&quot;
-                  </p>
-                  <p className="text-sm text-white/50">
-                    <span className="text-white/30">[16-22초]</span> #5 확장 — &quot;You never fill your own glass. You fill theirs. They fill yours. It&apos;s not about the drink — it&apos;s about saying: I see you.&quot;
-                  </p>
-                  <p className="text-sm text-white/50">
-                    <span className="text-white/30">[22-30초]</span> 마무리 — 캐치프레이즈 + 여운 (슬로우 페이드)
-                  </p>
+                <h4 className="text-xs font-semibold text-white/50 uppercase tracking-wider mb-3">인스타 릴스 버전 (25초) — 확장</h4>
+                <div className="space-y-3">
+                  {[
+                    { time: '0-4초', label: '충격 후킹 + Authority Hook', text: '틱톡과 동일' },
+                    { time: '4-7초', label: '#1 두 손 (확장)', text: '"Both hands. Receiving, giving, pouring — always. Not politeness — 제사. You offer to the gods with both hands. To a Korean elder? Same reverence."' },
+                    { time: '7-10초', label: '#2 고개 돌림 (확장)', text: '"Drinking next to someone older? Turn away. In my training, we never faced our teacher. Not tea. Not water. Nothing. \'I won\'t be bold in your presence.\'"' },
+                    { time: '10-12초', label: '#3 어른 먼저', text: '"Never eat first. 제사 order — sacred. The sequence has been the same for centuries."' },
+                    { time: '12-15초', label: '#4 나이 (확장)', text: '"\'How old are you?\' Not rude. Essential. Korean has two entire languages — 존댓말 and 반말. Without knowing age, you don\'t know which one to speak."' },
+                    { time: '15-18초', label: '#5 빈 잔 (확장)', text: '"Empty glass? Fill theirs. Never yours. Pouring your own means nobody cares about you. So you care first. They care back. Empty yourself first."' },
+                    { time: '18-22초', label: '의외성 한 방', text: '"These aren\'t travel tips. Every single one comes from ancestral rituals that are a thousand years old. This is what Confucian love looks like at a dinner table."' },
+                    { time: '22-23초', label: '전문가 확인', text: '"My teacher taught me all five before she taught me a single note."' },
+                    { time: '23-25초', label: '캐치프레이즈', text: '"A thousand years of love, disguised as manners. This is the real Korea."' },
+                  ].map((scene) => (
+                    <div key={scene.time} className="bg-white/[0.03] rounded-xl p-4 border-l-2 border-white/[0.08]">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="text-[10px] font-mono text-white/50 bg-white/[0.06] px-1.5 py-0.5 rounded">{scene.time}</span>
+                        <span className="text-xs font-medium text-white/60">{scene.label}</span>
+                      </div>
+                      <p className="text-sm text-white/50 italic">{scene.text}</p>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>
@@ -230,11 +238,12 @@ export default function CXP005Page() {
                   </thead>
                   <tbody className="text-sm text-white/50">
                     {[
-                      { section: '후킹 (0-4초)', tone: '권위, 도전적', speed: '보통', emotion: '"3년을 25초로 압축"' },
-                      { section: '#1-#2 (4-12초)', tone: '리듬감, 빠르게', speed: '빠르게', emotion: '행동 → 잠깐 멈춤 → 뿌리 설명' },
-                      { section: '#3-#4 (12-18초)', tone: '설명적, 자연스러움', speed: '보통', emotion: '문화 맥락 전달' },
-                      { section: '#5 (18-21초)', tone: '개인적, 진솔', speed: '느리게', emotion: '004 콜백 — 여운' },
-                      { section: '캐치프레이즈 (21-25초)', tone: '단호 + 따뜻', speed: '천천히', emotion: '정면 응시, 확신' },
+                      { section: '충격 후킹 (0-2초)', tone: '도발적, 단호', speed: '보통', emotion: '"당신이 아는 건 표면"' },
+                      { section: 'Authority Hook (2-4초)', tone: '자신감 + 도전', speed: '보통', emotion: '"3년 vs 20초" 반전' },
+                      { section: '5가지 행동 (4-15초)', tone: '리듬감 + 권위', speed: '빠르게', emotion: '1.2초 컷, 박식한 에너지' },
+                      { section: '뿌리 설명', tone: '톤 변화 — 한 단계 깊어짐', speed: '잠깐 느려짐', emotion: '"이건 아무나 모르는 거야"' },
+                      { section: '의외성 (15-18초)', tone: '반전, 깊이', speed: '보통', emotion: '"한국인도 잊은 뿌리"' },
+                      { section: '캐치프레이즈 (18-20초)', tone: '단호 + 따뜻', speed: '천천히', emotion: '진심' },
                     ].map((row) => (
                       <tr key={row.section} className="border-b border-white/[0.03]">
                         <td className="py-2 px-2 text-white/60">{row.section}</td>
@@ -272,9 +281,9 @@ export default function CXP005Page() {
                 <h4 className="text-xs font-semibold text-white/50 uppercase tracking-wider mb-3">사전 준비</h4>
                 <div className="space-y-2">
                   {[
-                    '세미포멀 outfit 준비 (004와 톤 연결)',
-                    '소품: 컵/잔, 음료, 숟가락, 접시',
-                    '한식당 또는 좌식 테이블 촬영 장소 확보',
+                    '소품: 컵 2개, 음료, 숟가락/젓가락, 밥상 세팅',
+                    '의상: 세미포멀 (004의 한복과 대비 — 일상 적용 콘텐츠)',
+                    '촬영 장소: 한식당 또는 좌식 테이블 있는 한옥',
                     '5가지 행동 시연 리허설',
                     '004 콜백 대사 ("empty yourself first") 톤 확인',
                   ].map((item, i) => (
@@ -284,11 +293,34 @@ export default function CXP005Page() {
                     </label>
                   ))}
                 </div>
+                <p className="text-xs text-white/40 mt-3 italic">004(절의 철학) 촬영과 같은 날 연속 가능. 의상 톤 유지, 장소를 한식당/좌식으로 전환. 예상 약 40분.</p>
               </div>
 
               <div className="bg-white/[0.03] rounded-xl p-4">
-                <h4 className="text-xs font-semibold text-white/50 uppercase tracking-wider mb-2">대표님 단독 촬영</h4>
-                <p className="text-sm text-white/50">004(절의 철학) 촬영과 같은 날 연속 가능. 의상 톤 유지하되 장소를 한식당/좌식으로 전환하면 시각적 변화. 예상 소요 약 40분.</p>
+                <h4 className="text-xs font-semibold text-white/50 uppercase tracking-wider mb-2">촬영 순서</h4>
+                <div className="space-y-3 text-sm text-white/50">
+                  <div className="flex items-start gap-3 border-l-2 border-[#C4A052]/30 pl-3">
+                    <span className="text-xs font-mono text-[#C4A052] bg-[#C4A052]/10 px-1.5 py-0.5 rounded shrink-0">1</span>
+                    <div>
+                      <p className="text-white/60 font-medium">시연 컷 (15분)</p>
+                      <p className="text-xs text-white/40 mt-0.5">G2 → G3 → G4 → G6 (각 2-3회)</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3 border-l-2 border-[#C4A052]/30 pl-3">
+                    <span className="text-xs font-mono text-[#C4A052] bg-[#C4A052]/10 px-1.5 py-0.5 rounded shrink-0">2</span>
+                    <div>
+                      <p className="text-white/60 font-medium">멘트 (20분)</p>
+                      <p className="text-xs text-white/40 mt-0.5">전체 스크립트 통으로 3-4회 촬영 (리듬 유지)</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3 border-l-2 border-[#C4A052]/30 pl-3">
+                    <span className="text-xs font-mono text-[#C4A052] bg-[#C4A052]/10 px-1.5 py-0.5 rounded shrink-0">3</span>
+                    <div>
+                      <p className="text-white/60 font-medium">비하인드 (5분)</p>
+                      <p className="text-xs text-white/40 mt-0.5">5가지 스피드런 + 자연스러운 코멘트</p>
+                    </div>
+                  </div>
+                </div>
               </div>
 
               <div>
@@ -305,12 +337,12 @@ export default function CXP005Page() {
                     </thead>
                     <tbody className="text-sm text-white/50">
                       {[
-                        { cut: 'G1', content: '"3 years... 25 seconds" 후킹', frame: '미디엄', note: '권위 + 도전' },
-                        { cut: 'G2', content: '두 손으로 잔 건네기', frame: '손 클로즈업', note: '소품 활용' },
-                        { cut: 'G3', content: '고개 돌려 마시기', frame: '미디엄 → 옆모습', note: '동작 시연' },
-                        { cut: 'G4', content: '어른 먼저 — 식탁에서 기다림', frame: '테이블 위 풀샷', note: '한식당 세팅' },
-                        { cut: 'G5', content: '"How old are you?" 나이 질문', frame: '미디엄', note: '대화 톤' },
-                        { cut: 'G6', content: '빈 잔 채워주기', frame: '손 클로즈업', note: '004 콜백 킬링 컷' },
+                        { cut: 'G1', content: '후킹 멘트', frame: '미디엄, 정면', note: '자신감' },
+                        { cut: 'G2', content: '두 손 컵 건넴', frame: '핸드 클로즈업', note: '' },
+                        { cut: 'G3', content: '고개 돌려 마시기', frame: '미디엄, 측면', note: '킬링 동작' },
+                        { cut: 'G4', content: '숟가락 대기', frame: '미디엄, 정면', note: '밥상 앞' },
+                        { cut: 'G5', content: '나이/존댓말 멘트', frame: '미디엄, 정면', note: '표정으로 전달' },
+                        { cut: 'G6', content: '잔 채우기', frame: '핸드 클로즈업', note: '정성스럽게' },
                         { cut: 'G7', content: '캐치프레이즈', frame: '클로즈업', note: '정면 응시' },
                       ].map((row) => (
                         <tr key={row.cut} className="border-b border-white/[0.03]">
@@ -331,31 +363,32 @@ export default function CXP005Page() {
           <CollapsibleSection title="편집 가이드" icon={Scissors}>
             <div className="pt-4 space-y-5">
               <p className="text-sm text-white/50">
-                핵심: <span className="text-white/70">리스트형 리듬 편집</span>. 각 행동마다 &quot;동작 인서트 + 설명&quot; 교차. 빠른 컷과 느린 설명의 <span className="text-[#C4A052]">속도 대비</span>가 핵심.
+                핵심: <span className="text-white/70">리스트형이되, 매 항목에 &quot;깊이 레이어&quot; 전환</span>. 각 행동마다 &quot;표면(시연) → 깊이(뿌리)&quot; 교차. 이 전환이 반복되면서 시청자가 패턴을 인식하고 <span className="text-[#C4A052]">&quot;다음 뿌리는 뭘까?&quot;</span> 기대하며 완주.
               </p>
+
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-white/[0.06]">
                       <th className="text-left text-white/30 font-medium py-2 px-2">구간</th>
-                      <th className="text-left text-white/30 font-medium py-2 px-2">화면</th>
-                      <th className="text-left text-white/30 font-medium py-2 px-2">오디오</th>
+                      <th className="text-left text-white/30 font-medium py-2 px-2">표면 (시연)</th>
+                      <th className="text-left text-white/30 font-medium py-2 px-2">깊이 (뿌리)</th>
+                      <th className="text-left text-white/30 font-medium py-2 px-2">편집</th>
                     </tr>
                   </thead>
                   <tbody className="text-sm text-white/50">
                     {[
-                      { section: '0-4초', visual: '대표님 정면 (후킹)', audio: '음성 100%' },
-                      { section: '4-8초', visual: 'G2 손 클로즈업 ↔ 대표님 설명', audio: '음성 100%' },
-                      { section: '8-12초', visual: 'G3 고개 돌림 시연', audio: '음성 100%' },
-                      { section: '12-15초', visual: 'G4 식탁 세팅 + 기다림', audio: '음성 100%' },
-                      { section: '15-18초', visual: 'G5 대표님 정면 (대화 톤)', audio: '음성 100%' },
-                      { section: '18-21초', visual: 'G6 빈 잔 채우기 클로즈업', audio: '음성 100% → 약간 느림' },
-                      { section: '21-25초', visual: 'G7 클로즈업 → 여운', audio: '음성 100% → 페이드' },
+                      { section: '두 손', surface: '컵 건넴', depth: '"제사에서 신에게"', edit: '시연 → 톤 변화 + 0.3초 pause' },
+                      { section: '고개 돌림', surface: '돌려 마시기', depth: '"스승 앞에서"', edit: '시연 → 톤 변화' },
+                      { section: '어른 먼저', surface: '기다리기', depth: '"제사 순서"', edit: '시연 → 톤 변화' },
+                      { section: '나이', surface: '—', depth: '"두 개의 언어"', edit: '대표님 정면만' },
+                      { section: '빈 잔', surface: '채우기', depth: '"emptying yourself"', edit: '시연 → 004 콜백' },
                     ].map((row) => (
                       <tr key={row.section} className="border-b border-white/[0.03]">
                         <td className="py-2 px-2 text-white/60">{row.section}</td>
-                        <td className="py-2 px-2">{row.visual}</td>
-                        <td className="py-2 px-2 text-white/40">{row.audio}</td>
+                        <td className="py-2 px-2">{row.surface}</td>
+                        <td className="py-2 px-2 text-white/40">{row.depth}</td>
+                        <td className="py-2 px-2 text-white/40">{row.edit}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -363,12 +396,23 @@ export default function CXP005Page() {
               </div>
 
               <div className="bg-white/[0.03] rounded-xl p-4">
-                <h4 className="text-xs font-semibold text-white/50 uppercase tracking-wider mb-2">편집 포인트</h4>
+                <h4 className="text-xs font-semibold text-white/50 uppercase tracking-wider mb-2">틱톡 편집</h4>
                 <ul className="space-y-1.5 text-sm text-white/40">
-                  <li>— 각 행동 전환 시 숫자 텍스트 오버레이 (1, 2, 3, 4, 5) — 리스트 리듬 시각화</li>
-                  <li>— #5 빈 잔 장면에서 &quot;empty yourself first&quot; 텍스트 페이드인 — 004 콜백 강조</li>
-                  <li>— 행동 시연 컷은 빠르게(1-2초), 뿌리 설명은 약간 길게 — 속도 대비</li>
-                  <li>— 캐치프레이즈에서 배경음 드롭 → 음성만 남김</li>
+                  <li>— 번호 카운팅: 화면 한쪽에 1/5 ~ 5/5</li>
+                  <li>— 시연: 빠르게 (1.5초)</li>
+                  <li>— 뿌리 설명: 톤 변화 + 약간 느려짐 (0.5초 추가)</li>
+                  <li>— 한국어 키워드: 큰 폰트 팝업 (제사, 존댓말, 절)</li>
+                  <li>— BGM: 가볍되 전통 느낌 (가야금 잔잔한 배경 or 무음)</li>
+                </ul>
+              </div>
+
+              <div className="bg-white/[0.03] rounded-xl p-4">
+                <h4 className="text-xs font-semibold text-white/50 uppercase tracking-wider mb-2">인스타 릴스 편집</h4>
+                <ul className="space-y-1.5 text-sm text-white/40">
+                  <li>— 동일 구조, 각 항목에 1-2초 여유</li>
+                  <li>— 자막: 전체 영어 CC</li>
+                  <li>— 마지막 프레임: &quot;Korean Manners — The Real Story&quot; + 계정명</li>
+                  <li>— 커버: 두 손 시연 또는 고개 돌림 시연</li>
                 </ul>
               </div>
             </div>
@@ -383,18 +427,49 @@ export default function CXP005Page() {
                   <div>
                     <span className="text-[10px] text-white/30 uppercase">캡션</span>
                     <p className="text-xs text-white/60 mt-1 italic leading-relaxed">
-                      My teacher spent 3 years teaching me this. Here are 5 ways to make any Korean elder love you — and why each one goes back a thousand years.
+                      My teacher spent 3 years teaching me these.
+                      <br />
+                      Here&apos;s 25 seconds.
                       <br /><br />
-                      These aren&apos;t tips. These are a thousand years of love disguised as manners.
+                      In Korea, manners aren&apos;t tips — they&apos;re rituals.
+                      <br />
+                      Every one of these comes from 제사, 유교, and centuries of tradition.
                       <br /><br />
-                      This is the real Korea.
+                      1. 두 손 — both hands (from ancestral rituals)
+                      <br />
+                      2. 고개 돌림 — turn away when drinking (from arts training)
+                      <br />
+                      3. 어른 먼저 — elders eat first (from 제사 order)
+                      <br />
+                      4. 나이 — age decides your language (존댓말 vs 반말)
+                      <br />
+                      5. 빈 잔 — fill theirs, not yours (empty yourself first)
+                      <br /><br />
+                      These aren&apos;t tips. This is a thousand years of love.
                     </p>
                   </div>
                   <div className="flex flex-wrap gap-1.5">
-                    {['#koreanculture', '#koreanmanners', '#koreanetiquette', '#koreantradition', '#therealkorea', '#koreanelders', '#respectinkorea', '#jesa', '#koreanlanguage'].map((tag) => (
+                    {['#koreanculture', '#koreanmanners', '#koreanetiquette', '#jesa', '#koreanheritage', '#therealkorea', '#koreatips'].map((tag) => (
                       <span key={tag} className="text-[10px] text-[#C4A052]/60 bg-[#C4A052]/5 px-1.5 py-0.5 rounded">{tag}</span>
                     ))}
                   </div>
+                </div>
+              </div>
+
+              <div>
+                <h4 className="text-xs font-semibold text-white/50 uppercase tracking-wider mb-3">고정 댓글</h4>
+                <div className="bg-white/[0.03] rounded-xl p-4">
+                  <p className="text-xs text-white/60 italic leading-relaxed">
+                    #2 shocks everyone.
+                    <br />
+                    In Korean traditional arts training,
+                    <br />
+                    you never face your teacher while drinking. Not even water.
+                    <br /><br />
+                    It&apos;s not about the drink. It&apos;s about presence.
+                    <br />
+                    Which one surprised you? Drop the number.
+                  </p>
                 </div>
               </div>
 
@@ -404,24 +479,55 @@ export default function CXP005Page() {
                   <div>
                     <span className="text-[10px] text-white/30 uppercase">캡션</span>
                     <p className="text-xs text-white/60 mt-1 italic leading-relaxed">
-                      5 things that will make any Korean elder smile at you — and every single one traces back to ancestral rituals, Confucian philosophy, or years of traditional arts training.
+                      My teacher spent 3 years teaching me respect.
+                      <br />
+                      I&apos;ll show you in 30 seconds.
                       <br /><br />
-                      Both hands. Turn away. Wait. Ask. Fill their glass.
+                      But these aren&apos;t &quot;Korean tips.&quot;
+                      <br />
+                      Every single one has roots in 제사 (ancestral rituals),
+                      <br />
+                      유교 (Confucian philosophy), and centuries of practice.
                       <br /><br />
-                      These aren&apos;t travel tips. These are love, compressed into gestures. A thousand years of it.
+                      Both hands → from offering to ancestors.
+                      <br />
+                      Turn away → from facing your master.
+                      <br />
+                      Elders first → from ritual order.
+                      <br />
+                      Ask age → because Korean has two languages (존댓말 / 반말).
+                      <br />
+                      Fill their glass → because you empty yourself first.
+                      <br /><br />
+                      A thousand years of love, disguised as table manners.
+                      <br /><br />
+                      My teacher taught me all five
+                      <br />
+                      before she let me play a single note.
                     </p>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {['#koreanculture', '#koreanmanners', '#koreanheritage', '#therealkorea', '#jesa', '#koreanwisdom', '#koreanetiquette'].map((tag) => (
+                      <span key={tag} className="text-[10px] text-[#C4A052]/60 bg-[#C4A052]/5 px-1.5 py-0.5 rounded">{tag}</span>
+                    ))}
                   </div>
                 </div>
               </div>
 
               <div>
-                <h4 className="text-xs font-semibold text-white/50 uppercase tracking-wider mb-3">고정 댓글</h4>
-                <div className="bg-white/[0.03] rounded-xl p-4">
-                  <p className="text-xs text-white/60 italic leading-relaxed">
-                    #2 shocks everyone. In Korean traditional arts training, you never face your teacher while drinking. Not even water. It&apos;s not about the drink — it&apos;s about showing you know your place.
-                    <br /><br />
-                    Which one surprised you?
-                  </p>
+                <h4 className="text-xs font-semibold text-white/50 uppercase tracking-wider mb-3">스토리 시퀀스</h4>
+                <div className="space-y-2">
+                  {[
+                    { num: '1', content: '#2 — 고개 돌림 시연 3초 — "This shocks every foreigner."' },
+                    { num: '2', content: '투표 — "Did you know Korean has TWO entire speech systems? Yes / WHAT"' },
+                    { num: '3', content: '릴스 공유' },
+                    { num: '4', content: 'Q&A — "Which Korean custom do you want me to explain the roots of?"' },
+                  ].map((story) => (
+                    <div key={story.num} className="flex items-start gap-3 bg-white/[0.03] rounded-xl p-3">
+                      <span className="text-xs font-mono text-[#C4A052] bg-[#C4A052]/10 px-1.5 py-0.5 rounded shrink-0">S{story.num}</span>
+                      <p className="text-xs text-white/50">{story.content}</p>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>
@@ -441,10 +547,10 @@ export default function CXP005Page() {
                   </thead>
                   <tbody className="text-sm text-white/50">
                     {[
-                      { metric: '틱톡 조회수', target: '5,000+', note: '리스트형 = 높은 도달률' },
-                      { metric: '완주율', target: '50%+', note: '"5가지 다 보고 싶다" 구조' },
-                      { metric: '저장', target: '좋아요 대비 30%+', note: '"나중에 써먹어야지" 실용성' },
-                      { metric: '공유', target: '도달 대비 5%+', note: '가장 shareable 에피소드' },
+                      { metric: '틱톡 조회수', target: '5,000+', note: '리스트형 + 전문가 깊이' },
+                      { metric: '완주율', target: '50%+', note: '"다음 뿌리는 뭘까" 구조' },
+                      { metric: '저장', target: '좋아요 대비 30%+', note: '실용 + 깊이 = 저장 최강' },
+                      { metric: '공유', target: '도달 대비 3%+', note: '' },
                     ].map((row) => (
                       <tr key={row.metric} className="border-b border-white/[0.03]">
                         <td className="py-2 px-2">{row.metric}</td>
@@ -455,28 +561,35 @@ export default function CXP005Page() {
                   </tbody>
                 </table>
               </div>
+
               <div className="bg-white/[0.03] rounded-xl p-4">
-                <h4 className="text-xs font-semibold text-white/50 uppercase tracking-wider mb-2">시리즈 포지션</h4>
-                <p className="text-sm text-white/50">005는 시리즈의 <span className="text-[#C4A052]">&quot;확산(spread)&quot;</span> 에피소드 — 가장 공유 가능한 &quot;실용 + 깊이&quot; 콘텐츠. 004의 철학적 기반 위에 구체적 행동을 제시하여 시청자가 &quot;바로 써먹을 수 있는&quot; 가치 제공.</p>
+                <h4 className="text-xs font-semibold text-white/50 uppercase tracking-wider mb-2">004 → 005 크로스 전략</h4>
+                <ul className="space-y-1.5 text-sm text-white/50">
+                  <li className="flex items-start gap-2"><span className="text-[#C4A052] mt-0.5">—</span>004에서 철학을 본 사람 → &quot;구체적으로 어떻게?&quot; → 005</li>
+                  <li className="flex items-start gap-2"><span className="text-[#C4A052] mt-0.5">—</span>005에서 리스트를 본 사람 → &quot;왜 이렇게까지 하지?&quot; → 004</li>
+                  <li className="flex items-start gap-2"><span className="text-[#C4A052] mt-0.5">—</span>두 편이 서로의 유입 통로</li>
+                </ul>
               </div>
             </div>
           </CollapsibleSection>
 
           {/* 시리즈 위치 */}
-          <CollapsibleSection title="시리즈 위치 — 004 → 005 연결" icon={Layers}>
+          <CollapsibleSection title="시리즈 위치 — 5편 전체 라인업" icon={Layers}>
             <div className="pt-4">
               <div className="space-y-2">
                 {[
-                  { ep: '003', title: '한국의 사우나 문화', hook: '"Koreans get naked with strangers — and it\'s healing."' },
-                  { ep: '004', title: '절의 철학 — Emptying Yourself', hook: '"The deepest bow isn\'t about going low. It\'s about emptying yourself."', prerequisite: true },
-                  { ep: '005', title: '5 Korean Cheat Codes', hook: '"3 years of training in 25 seconds."', active: true },
-                  { ep: '006', title: '(다음 편)', hook: 'TBD' },
+                  { ep: '001', title: '한복 팩트체크', role: '발견', hook: '"재밌네"' },
+                  { ep: '002', title: '절 해독', role: '신뢰', hook: '"한국인 시선 신기하다"' },
+                  { ep: '003', title: '대취타', role: '트래픽', hook: 'BTS 팬덤 유입' },
+                  { ep: '004', title: '절의 철학', role: '전환', hook: '"이 사람 진짜다. 팔로우"', prerequisite: true },
+                  { ep: '005', title: '예절의 뿌리', role: '확산', hook: '"이거 친구한테 보내야 해"', active: true },
                 ].map((item) => (
                   <div key={item.ep} className={`flex items-center gap-3 rounded-lg p-3 ${item.active ? 'bg-[#C4A052]/10 border border-[#C4A052]/20' : item.prerequisite ? 'bg-white/[0.04] border border-white/[0.08]' : 'bg-white/[0.03]'}`}>
                     <span className={`text-[10px] font-mono w-8 h-5 rounded flex items-center justify-center ${item.active ? 'text-[#C4A052] bg-[#C4A052]/20' : item.prerequisite ? 'text-white/50 bg-white/[0.08]' : 'text-white/30 bg-white/[0.05]'}`}>
                       {item.ep}
                     </span>
                     <span className={`text-sm font-medium ${item.active ? 'text-[#C4A052]' : item.prerequisite ? 'text-white/70' : 'text-white/60'}`}>{item.title}</span>
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded ${item.active ? 'text-[#C4A052] bg-[#C4A052]/10' : 'text-white/30 bg-white/[0.05]'}`}>{item.role}</span>
                     {item.prerequisite && <span className="text-[10px] text-white/30 bg-white/[0.05] px-1.5 py-0.5 rounded">선행편</span>}
                     <span className="text-xs text-white/35 ml-auto italic">{item.hook}</span>
                   </div>
@@ -484,7 +597,7 @@ export default function CXP005Page() {
               </div>
               <div className="bg-white/[0.03] rounded-xl p-4 mt-4">
                 <p className="text-sm text-white/50">
-                  <span className="text-white/30">연결 구조:</span> 004에서 &quot;empty yourself&quot;의 철학을 제시 → 005에서 &quot;그 철학이 일상에서 어떤 행동으로 나타나는가&quot;를 5가지로 풀어냄. #5(빈 잔 채우기)가 004로의 직접 콜백.
+                  005는 가장 공유/저장이 높을 <span className="text-[#C4A052]">&quot;실용 + 깊이&quot;</span> 편. 004(감동)와 005(실용)가 짝을 이루어 팔로워를 고정시킨다.
                 </p>
               </div>
             </div>

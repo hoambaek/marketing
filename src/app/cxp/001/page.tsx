@@ -104,9 +104,9 @@ export default function CXP001Page() {
           {/* 메타 정보 카드 */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-6">
             {[
-              { label: '타깃 길이', value: 'TT 18초 / IG 23초', icon: Clock },
+              { label: '타깃 길이', value: 'TT 18초 / IG 22초', icon: Clock },
               { label: '언어', value: '영어 (한국어 믹스)', icon: Mic },
-              { label: '상태', value: '기획 완료', icon: Layers },
+              { label: '상태', value: '기획 완료 — 촬영 준비 필요', icon: Layers },
               { label: '타깃 장면', value: '환혼 시즌1', icon: Film },
             ].map((meta) => (
               <div
@@ -168,37 +168,36 @@ export default function CXP001Page() {
                 <div className="space-y-3">
                   {[
                     {
-                      time: '0-3초',
-                      label: '후킹',
+                      time: '0-2초',
+                      label: '충격 후킹',
                       screen: '환혼 드라마 장면 캡처 (한복 착장 클로즈업)',
-                      subtitle: '"600 million views on Netflix."',
-                      note: '드라마 원본 사운드 or 긴장감 있는 효과음',
+                      subtitle: '"If you saw this in a K-drama — you were lied to."',
+                      note: '텍스트 + 드라마 원본 사운드 (멘트 없음)',
                     },
                     {
-                      time: '3-5초',
-                      label: '문제 제기',
-                      screen: '드라마 장면에 빨간 원 표시 → 대표님 얼굴로 전환',
-                      subtitle: '"But this? This is not how you wear hanbok."',
+                      time: '2-4초',
+                      label: 'Authority Hook',
+                      screen: '대표님 정면 (한복, 확신에 찬 표정)',
+                      subtitle: '"I studied Korean traditional arts for 20 years. This is wrong."',
                     },
                     {
-                      time: '5-13초',
-                      label: '진짜 보여주기',
-                      screen: '대표님이 한복 착용 상태에서 고름 매는 과정 시연',
-                      subtitle: '"In real Joseon dynasty, the goreum — this ribbon — was tied like this. Tight. Precise. Every fold has meaning."',
-                      note: '핵심 키워드 텍스트 오버레이 (Goreum, Joseon, 500 years)',
+                      time: '4-12초',
+                      label: '해독 + 시연',
+                      screen: '드라마 빨간 원 표시 → 대표님 고름 시연 → 디테일 컷 교차',
+                      subtitle: '"The goreum — this ribbon — was tied like this. Tight. Precise."',
+                      note: '디테일 컷 1.2초씩: 손가락 극접사 → 천 질감 → 매듭 완성. 자막: GOREUM / JOSEON / 500 YEARS',
                     },
                     {
-                      time: '13-16초',
-                      label: '감성 마무리',
-                      screen: '완성된 한복 착장 풀샷 (정면, 자신감 있는 표정)',
-                      subtitle: '"A thousand years of detail."',
+                      time: '12-16초',
+                      label: '의외성 한 방',
+                      screen: '완성된 한복 착장 풀샷',
+                      subtitle: '"This ribbon isn\'t decoration. In Joseon dynasty, it showed your status, your family, and whether you were married."',
                     },
                     {
                       time: '16-18초',
-                      label: '캐치프레이즈 + CTA',
+                      label: '캐치프레이즈',
                       screen: '대표님 클로즈업',
                       subtitle: '"This is the real Korea."',
-                      note: 'Follow for more',
                     },
                   ].map((scene) => (
                     <div
@@ -223,18 +222,57 @@ export default function CXP001Page() {
                 </div>
               </div>
 
-              {/* 릴스 추가 구간 */}
+              {/* 릴스 버전 */}
               <div>
                 <h4 className="text-xs font-semibold text-white/50 uppercase tracking-wider mb-3">
-                  인스타 릴스 버전 (23초) — 추가 구간
+                  인스타 릴스 버전 (22초)
                 </h4>
-                <div className="bg-white/[0.03] rounded-xl p-4 space-y-2">
-                  <p className="text-sm text-white/50">
-                    <span className="text-white/30">[5-15초]</span> 진짜 보여주기 확장 — "Every fold carries 500 years of meaning. This isn't costume. This is identity."
-                  </p>
-                  <p className="text-sm text-white/50">
-                    <span className="text-white/30">[15-20초]</span> 감성 마무리 확장 — 완성된 착장 + 디테일 컷, "A thousand years of detail. And it's still here."
-                  </p>
+                <div className="space-y-3">
+                  {[
+                    {
+                      time: '0-2초',
+                      label: '충격 후킹',
+                      text: '(동일)',
+                    },
+                    {
+                      time: '2-4초',
+                      label: 'Authority Hook',
+                      text: '(동일)',
+                    },
+                    {
+                      time: '4-14초',
+                      label: '해독 + 시연 확장',
+                      text: '"The goreum — this ribbon — was tied like this. Tight. Precise. Every fold carries 500 years of meaning. This isn\'t costume. This is identity."',
+                    },
+                    {
+                      time: '14-18초',
+                      label: '의외성 확장',
+                      text: '"This ribbon isn\'t decoration. In Joseon dynasty, it told everyone your status, your family, your age. One look — Koreans knew everything."',
+                    },
+                    {
+                      time: '18-20초',
+                      label: '마무리',
+                      text: '"A thousand years of detail. And it\'s still here."',
+                    },
+                    {
+                      time: '20-22초',
+                      label: '캐치프레이즈',
+                      text: '"This is the real Korea."',
+                    },
+                  ].map((scene) => (
+                    <div
+                      key={scene.time}
+                      className="bg-white/[0.03] rounded-xl p-4 border-l-2 border-[#C4A052]/30"
+                    >
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="text-[10px] font-mono text-[#C4A052] bg-[#C4A052]/10 px-1.5 py-0.5 rounded">
+                          {scene.time}
+                        </span>
+                        <span className="text-xs font-medium text-white/60">{scene.label}</span>
+                      </div>
+                      <p className="text-sm text-white/70 italic">{scene.text}</p>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>
@@ -429,19 +467,21 @@ export default function CXP001Page() {
                   <div>
                     <span className="text-[10px] text-white/30 uppercase">캡션</span>
                     <p className="text-xs text-white/60 mt-1 italic leading-relaxed">
-                      "This is NOT how you wear hanbok."
+                      &ldquo;This is NOT how you wear hanbok.&rdquo;
                       <br /><br />
                       Every fold. Every knot. Every layer carries centuries of meaning.
+                      <br /><br />
                       Korean dramas show you the beauty — but sometimes miss the truth.
+                      I spent 20 years learning the real thing. Let me show you.
                       <br /><br />
                       What K-drama scene should I fact-check next? Drop it below.
                     </p>
                   </div>
                   <div className="grid grid-cols-2 gap-2 text-xs text-white/40">
                     <div>커버: A4 컷 풀샷</div>
-                    <div>위치: Seoul, South Korea</div>
+                    <div>위치: Seoul</div>
                     <div>시간: 수 EST 12:00</div>
-                    <div>스토리 동시 공유</div>
+                    <div>스토리 동시 공유 + 투표 스티커</div>
                   </div>
                 </div>
               </div>

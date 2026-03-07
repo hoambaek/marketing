@@ -82,7 +82,7 @@ export default function CXP003Page() {
             <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-[#C4A052]/10 text-[#C4A052] border border-[#C4A052]/20">
               #003
             </span>
-            <span className="text-sm text-white/40">축 3 — Korea meets the World</span>
+            <span className="text-sm text-white/40">축 3 — Korea meets the World (전통 x 현대)</span>
             <span className="text-white/20">·</span>
             <span className="flex items-center gap-1 text-xs text-white/40">
               <Film className="w-3 h-3" />
@@ -102,7 +102,7 @@ export default function CXP003Page() {
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-6">
             {[
-              { label: '타깃 길이', value: 'TT 22초 / IG 28초', icon: Clock },
+              { label: '타깃 길이', value: 'TT 18초 / IG 24초', icon: Clock },
               { label: '언어', value: '영어 (한국어 믹스)', icon: Mic },
               { label: '상태', value: '섭외 필요', icon: Layers },
               { label: '핵심 악기', value: '태평소 (Taepyeongso)', icon: Film },
@@ -193,14 +193,15 @@ export default function CXP003Page() {
           <CollapsibleSection title="스크립트" icon={Film}>
             <div className="pt-4 space-y-6">
               <div>
-                <h4 className="text-xs font-semibold text-white/50 uppercase tracking-wider mb-3">틱톡 버전 (22초)</h4>
+                <h4 className="text-xs font-semibold text-white/50 uppercase tracking-wider mb-3">틱톡 버전 (18초)</h4>
                 <div className="space-y-3">
                   {[
-                    { time: '0-3초', label: '후킹 — BTS 연결', screen: '슈가 "대취타" MV 인트로 캡처', subtitle: '"460 million views."', note: 'MV 오리지널 인트로 1-2초 → 컷' },
-                    { time: '3-5초', label: '전환', screen: '대표님 정면 (진지한 표정)', subtitle: '"But have you heard the real thing?"', note: '짧은 정적 (0.5초)' },
-                    { time: '5-10초', label: '진짜 대취타 공개', screen: '태평소 연주자가 실제 연주 시작 → 폭발적 소리', subtitle: '"Taepyeongso. 태평소."', note: '핵심 5초 — MV 믹싱 vs 원음 날것 파워' },
-                    { time: '10-18초', label: '스토리텔링', screen: '대표님 + 연주 장면 인서트 교차', subtitle: '"This is Daechwita. Not the song. The real thing. 600 years ago, when the King of Joseon walked out of the palace — this is what cleared the road. Blow hard. Strike hard. That\'s literally what Daechwita means."' },
-                    { time: '18-22초', label: '캐치프레이즈', screen: '태평소 연주 → 대표님 클로즈업', subtitle: '"Suga sampled a King\'s entrance. This is the real Korea."' },
+                    { time: '0-2초', label: '충격 후킹', screen: '슈가 "대취타" MV 인트로 캡처 (태평소 소리 시작 부분)', subtitle: '"You\'ve heard this song a hundred times. You have no idea what it really is."', note: 'MV 인트로 1초 → 컷, 멘트 없음 — 텍스트만' },
+                    { time: '2-4초', label: 'Authority Hook', screen: '대표님 정면 (진지한 표정)', subtitle: '"I studied this music for 20 years. This is the real thing."', note: '짧은 정적 (0.3초) → 컷' },
+                    { time: '4-10초', label: '진짜 대취타 공개', screen: '태평소 연주자가 실제 연주 시작 → 폭발적 소리', subtitle: '"Taepyeongso. 태평소."', note: '태평소 원음 100%, 1.2초 단위 디테일 컷: 서(reed) 극접사, 볼 바람, 벨 끝 소리, 손가락 운지' },
+                    { time: '10-14초', label: '스토리텔링', screen: '대표님 등장 (연주 장면 인서트 컷 교차)', subtitle: '"This is Daechwita. Not the song. 600 years ago, when the King of Joseon walked out of the palace — this cleared the road. Blow hard. Strike hard. That\'s what 대취타 means."' },
+                    { time: '14-16초', label: '의외성 한 방', screen: '태평소 외형 극접사 (손바닥보다 작은 악기) → 연주 순간', subtitle: '"This tiny thing? It\'s louder than everything else combined."' },
+                    { time: '16-18초', label: '캐치프레이즈', screen: '대표님 클로즈업', subtitle: '"Suga sampled a King\'s entrance. This is the real Korea."' },
                   ].map((scene) => (
                     <div key={scene.time} className="bg-white/[0.03] rounded-xl p-4 border-l-2 border-[#C4A052]/30">
                       <div className="flex items-center gap-2 mb-2">
@@ -216,20 +217,24 @@ export default function CXP003Page() {
               </div>
 
               <div>
-                <h4 className="text-xs font-semibold text-white/50 uppercase tracking-wider mb-3">인스타 릴스 버전 (28초) — 확장</h4>
-                <div className="bg-white/[0.03] rounded-xl p-4 space-y-2">
-                  <p className="text-sm text-white/50">
-                    <span className="text-white/30">[5-12초]</span> 공개 확장 — 태평소 솔로 → 다른 악기 합류, 앙상블 빌드업
-                  </p>
-                  <p className="text-sm text-white/50">
-                    <span className="text-white/30">[12-22초]</span> 스토리 확장 — &quot;대취타 — 크게 불고, 크게 치다. One small instrument leading an army of sound.&quot;
-                  </p>
-                  <p className="text-sm text-white/50">
-                    <span className="text-white/30">[22-26초]</span> 반전 — &quot;This tiny thing? It&apos;s louder than everything else combined.&quot;
-                  </p>
-                  <p className="text-sm text-white/50">
-                    <span className="text-white/30">[26-28초]</span> 캐치프레이즈 — &quot;Suga knew. Now you know. This is the real Korea.&quot;
-                  </p>
+                <h4 className="text-xs font-semibold text-white/50 uppercase tracking-wider mb-3">인스타 릴스 버전 (24초) — 확장</h4>
+                <div className="space-y-3">
+                  {[
+                    { time: '0-2초', label: '충격 후킹', desc: '틱톡과 동일' },
+                    { time: '2-4초', label: 'Authority Hook', desc: '틱톡과 동일' },
+                    { time: '4-12초', label: '공개 확장', desc: '태평소 솔로 → 다른 악기 합류, 앙상블 빌드업. "Taepyeongso. 태평소. The voice of Daechwita."' },
+                    { time: '12-18초', label: '스토리텔링', desc: '"This is Daechwita. Not the song. The original. 600 years ago... 대취타 — 크게 불고, 크게 치다. One small instrument leading an army of sound."' },
+                    { time: '18-22초', label: '의외성', desc: '"This tiny thing? Louder than everything else combined. The King\'s voice was this small."' },
+                    { time: '22-24초', label: '캐치프레이즈', desc: '"Suga knew. Now you know. This is the real Korea." (마지막 2초: 대취타 잔향)' },
+                  ].map((scene) => (
+                    <div key={scene.time} className="bg-white/[0.03] rounded-xl p-4 border-l-2 border-[#C4A052]/20">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="text-[10px] font-mono text-[#C4A052] bg-[#C4A052]/10 px-1.5 py-0.5 rounded">{scene.time}</span>
+                        <span className="text-xs font-medium text-white/60">{scene.label}</span>
+                      </div>
+                      <p className="text-sm text-white/50">{scene.desc}</p>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>
@@ -250,10 +255,12 @@ export default function CXP003Page() {
                   </thead>
                   <tbody className="text-sm text-white/50">
                     {[
-                      { section: '후킹 (0-5초)', tone: '도발적, 자신감', speed: '보통', emotion: '"진짜를 보여줄게"' },
-                      { section: '공개 (5-10초)', tone: '침묵 — 소리가 말함', speed: '—', emotion: '태평소에 압도당하게 둠' },
-                      { section: '스토리 (10-18초)', tone: '힘 있고 리드미컬', speed: '약간 빠르게', emotion: '군악의 에너지를 말투에' },
-                      { section: '캐치프레이즈', tone: '쿨하고 단호', speed: '천천히', emotion: '미소 + 여유' },
+                      { section: '충격 후킹 (0-2초)', tone: '— (텍스트)', speed: '—', emotion: '시각적 충격' },
+                      { section: 'Authority Hook (2-4초)', tone: '도발적, 자신감', speed: '보통', emotion: '"20년 전공자" 각인' },
+                      { section: '공개 (4-10초)', tone: '침묵 — 소리가 말함', speed: '—', emotion: '태평소에 압도당하게 둠' },
+                      { section: '스토리 (10-14초)', tone: '힘 있고 리드미컬', speed: '약간 빠르게', emotion: '군악의 에너지를 말투에 실음' },
+                      { section: '의외성 (14-16초)', tone: '반전, 놀라움', speed: '보통', emotion: '"이 작은 게?" 충격' },
+                      { section: '캐치프레이즈 (16-18초)', tone: '쿨하고 단호', speed: '천천히', emotion: '미소 + 여유' },
                     ].map((row) => (
                       <tr key={row.section} className="border-b border-white/[0.03]">
                         <td className="py-2 px-2 text-white/60">{row.section}</td>
@@ -270,7 +277,7 @@ export default function CXP003Page() {
                 <h4 className="text-sm font-medium text-white/50 mb-2">톤 차이 (다른 편 대비)</h4>
                 <ul className="space-y-1.5 text-sm text-white/40">
                   <li>001 한복: 교정형 (&quot;이건 틀렸어&quot;)</li>
-                  <li>002 절 해독: 분석형 (&quot;한국인은 이걸 읽었다&quot;)</li>
+                  <li>002 가야금: 감성형 (&quot;이 소리 들어봐&quot;)</li>
                   <li className="text-[#C4A052]">003 대취타: 에너지형 (&quot;이게 진짜야&quot;) — 군악의 파워를 말투에 반영</li>
                 </ul>
               </div>
@@ -343,9 +350,13 @@ export default function CXP003Page() {
                         { cut: 'C3', content: '태평소 파워 연주', frame: '미디엄~풀샷', note: '에너지' },
                         { cut: 'C4', content: '서(reed) 극접사', frame: '극접사', note: '소리의 원천' },
                         { cut: 'C5', content: '대취타 풀 연주 (앙상블)', frame: '와이드', note: '스케일감' },
+                        { cut: 'C6', content: '용고 치는 장면 (앙상블)', frame: '미디엄', note: '리듬 임팩트' },
                         { cut: 'C7', content: '"the real thing?" 멘트', frame: '미디엄', note: '도발적' },
                         { cut: 'C8', content: '스토리텔링 본문', frame: '미디엄', note: '에너지 톤' },
                         { cut: 'C9', content: '"Suga sampled..." 펀치라인', frame: '클로즈업', note: '쿨한 미소' },
+                        { cut: 'C10', content: '캐치프레이즈', frame: '클로즈업', note: '정면 응시' },
+                        { cut: 'C11', content: '태평소 크기 비교 (릴스 확장용)', frame: '미디엄', note: '반전 강조' },
+                        { cut: 'C12', content: '비하인드 — 대표님 + 연주자 대화', frame: '와이드', note: '스토리용' },
                       ].map((row) => (
                         <tr key={row.cut} className="border-b border-white/[0.03]">
                           <td className="py-2 px-2 font-mono text-[#C4A052]">{row.cut}</td>
@@ -356,6 +367,57 @@ export default function CXP003Page() {
                       ))}
                     </tbody>
                   </table>
+                </div>
+              </div>
+
+              <div>
+                <h4 className="text-xs font-semibold text-white/50 uppercase tracking-wider mb-3">촬영 장소 옵션</h4>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-white/[0.06]">
+                        <th className="text-left text-white/30 font-medium py-2 px-2">순위</th>
+                        <th className="text-left text-white/30 font-medium py-2 px-2">장소</th>
+                        <th className="text-left text-white/30 font-medium py-2 px-2">장점</th>
+                        <th className="text-left text-white/30 font-medium py-2 px-2">주의점</th>
+                      </tr>
+                    </thead>
+                    <tbody className="text-sm text-white/50">
+                      {[
+                        { rank: '1', place: '궁궐 앞/궁궐 담장 배경 (야외)', pros: '대취타 본래 맥락과 완벽 일치', cons: '촬영 허가, 소음' },
+                        { rank: '2', place: '넓은 한옥 마당', pros: '소리 울림 + 한국적 배경', cons: '야외 소음' },
+                        { rank: '3', place: '국악원 야외 공연장', pros: '공간 확보 용이', cons: '허가 필요' },
+                        { rank: '4', place: '넓은 실내 (국악원 대연습실 등)', pros: '날씨 무관, 소리 통제', cons: '시각적 임팩트 약함' },
+                      ].map((row) => (
+                        <tr key={row.rank} className="border-b border-white/[0.03]">
+                          <td className="py-2 px-2 font-mono text-[#C4A052]">{row.rank}</td>
+                          <td className="py-2 px-2">{row.place}</td>
+                          <td className="py-2 px-2 text-white/40">{row.pros}</td>
+                          <td className="py-2 px-2 text-white/30">{row.cons}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <p className="text-xs text-[#C4A052]/70 mt-2">태평소는 음량이 매우 큼 — 야외 촬영 강력 추천.</p>
+              </div>
+
+              <div className="bg-white/[0.03] rounded-xl p-4">
+                <h4 className="text-xs font-semibold text-white/50 uppercase tracking-wider mb-2">촬영 장비</h4>
+                <ul className="space-y-1.5 text-sm text-white/40">
+                  <li>— 스마트폰 (세로 9:16) + 삼각대 2개 (연주자 + 대표님)</li>
+                  <li>— 외장 마이크 필수 — 태평소는 음량이 극도로 큼 → 게인 낮게 세팅</li>
+                  <li>— 숏건 마이크 (악기에서 1m+) + 핀마이크 (대표님)</li>
+                  <li>— 자연광 (야외) / 앙상블 촬영 시 광각 렌즈</li>
+                </ul>
+              </div>
+
+              <div className="bg-white/[0.03] rounded-xl p-4">
+                <h4 className="text-xs font-semibold text-white/50 uppercase tracking-wider mb-2">촬영 순서</h4>
+                <div className="space-y-2 text-sm text-white/40">
+                  <p><span className="text-white/60">1단계 (40분):</span> 연주 촬영 — C2→C3→C4→C1 (3-4회), 앙상블 가능 시 C5→C6</p>
+                  <p><span className="text-white/60">2단계 (20분):</span> 멘트 — C7→C8→C9→C10 (각 3-4회)</p>
+                  <p><span className="text-white/60">3단계 (15분):</span> 보조 컷 — C11 크기 비교, C12 비하인드</p>
                 </div>
               </div>
             </div>
@@ -379,11 +441,12 @@ export default function CXP003Page() {
                   </thead>
                   <tbody className="text-sm text-white/50">
                     {[
-                      { s: '0-3초 (MV)', audio: 'MV 오디오 50%', visual: 'MV 캡처' },
-                      { s: '3-5초 (전환)', audio: '정적 0.5초 → 음성', visual: '대표님 정면' },
-                      { s: '5-10초 (원음)', audio: '태평소 원음 100% — 볼륨 터지게', visual: '연주 장면' },
-                      { s: '10-18초 (스토리)', audio: '대취타 배경 15%, 음성 100%', visual: '대표님 + 인서트' },
-                      { s: '18-22초 (마무리)', audio: '대취타 잔향 20%, 음성 100%', visual: '연주 → 대표님' },
+                      { s: '0-2초 (MV)', audio: 'MV 오디오 50%', visual: 'MV 캡처 + 충격 텍스트' },
+                      { s: '2-4초 (Authority)', audio: '정적 0.3초 → 대표님 음성', visual: '대표님 정면' },
+                      { s: '4-10초 (원음 공개)', audio: '태평소 원음 100% — 볼륨 터지게', visual: '연주 장면, 1.2초 컷' },
+                      { s: '10-14초 (스토리)', audio: '대취타 배경 15%, 음성 100%', visual: '대표님 + 인서트' },
+                      { s: '14-16초 (의외성)', audio: '정적 → 원음 폭발', visual: '외형 극접사 → 연주' },
+                      { s: '16-18초 (마무리)', audio: '대취타 잔향 20%, 음성 100%', visual: '대표님 클로즈업' },
                     ].map((row) => (
                       <tr key={row.s} className="border-b border-white/[0.03]">
                         <td className="py-2 px-2 text-white/60">{row.s}</td>
@@ -427,14 +490,19 @@ export default function CXP003Page() {
                   <div>
                     <span className="text-[10px] text-white/30 uppercase">캡션</span>
                     <p className="text-xs text-white/60 mt-1 italic leading-relaxed">
-                      BTS Suga&apos;s Daechwita has 460 million views. But have you heard the REAL Daechwita?
+                      BTS Suga&apos;s Daechwita has 460 million views.
+                      <br />
+                      But have you heard the REAL Daechwita?
                       <br /><br />
                       This tiny instrument — taepyeongso — led the King&apos;s procession 600 years ago.
+                      <br />
                       대취타: &quot;Blow hard. Strike hard.&quot; That&apos;s what it means.
+                      <br /><br />
+                      Suga sampled a King&apos;s entrance. Now you know.
                     </p>
                   </div>
                   <div className="flex flex-wrap gap-1.5">
-                    {['#daechwita', '#bts', '#suga', '#agustd', '#taepyeongso', '#koreanmusic', '#army', '#kpop'].map((tag) => (
+                    {['#daechwita', '#bts', '#suga', '#agustd', '#taepyeongso', '#koreanmusic', '#traditionalmusic', '#koreanculture', '#kpop', '#army'].map((tag) => (
                       <span key={tag} className="text-[10px] text-[#C4A052]/60 bg-[#C4A052]/5 px-1.5 py-0.5 rounded">{tag}</span>
                     ))}
                   </div>
@@ -447,8 +515,59 @@ export default function CXP003Page() {
                   <p className="text-xs text-white/60 italic leading-relaxed">
                     Suga didn&apos;t just sample a beat. He sampled 600 years of Korean royal history.
                     <br /><br />
-                    Which BTS song uses Korean tradition next? I&apos;ll break it down. Drop your picks below.
+                    Which BTS song uses Korean tradition next? I&apos;ll break it down.
+                    <br />
+                    Drop your picks below.
                   </p>
+                </div>
+              </div>
+
+              <div>
+                <h4 className="text-xs font-semibold text-white/50 uppercase tracking-wider mb-3">인스타 릴스</h4>
+                <div className="bg-white/[0.03] rounded-xl p-4 space-y-3">
+                  <div>
+                    <span className="text-[10px] text-white/30 uppercase">캡션</span>
+                    <p className="text-xs text-white/60 mt-1 italic leading-relaxed">
+                      460 million views. But nobody showed you the original.
+                      <br /><br />
+                      BTS Suga&apos;s &quot;Daechwita&quot; sampled one of Korea&apos;s oldest military traditions.
+                      <br />
+                      대취타 — it literally means &quot;blow hard, strike hard.&quot;
+                      <br /><br />
+                      When the King of Joseon walked out of the palace,
+                      <br />
+                      this music cleared every road ahead of him.
+                      <br />
+                      Not a playlist. Not background music.
+                      <br />
+                      A wall of sound that said: the King is coming.
+                      <br /><br />
+                      And this tiny instrument — the taepyeongso (태평소) — is the voice that leads it all.
+                      <br />
+                      Smaller than your forearm. Louder than everything else combined.
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {['#daechwita', '#taepyeongso', '#bts', '#suga', '#agustd', '#koreanheritage', '#therealkorea', '#koreanmusic', '#army'].map((tag) => (
+                      <span key={tag} className="text-[10px] text-[#C4A052]/60 bg-[#C4A052]/5 px-1.5 py-0.5 rounded">{tag}</span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <h4 className="text-xs font-semibold text-white/50 uppercase tracking-wider mb-3">스토리 시퀀스</h4>
+                <div className="space-y-2">
+                  {[
+                    '스토리 1: 대취타 MV 스크린샷 + "Everyone heard this song."',
+                    '스토리 2: 태평소 실물 사진 — "But have you seen THIS?"',
+                    '스토리 3: 태평소 원음 3초 — 볼륨업 스티커 + "Turn it UP."',
+                    '스토리 4: 릴스 공유 — "Full breakdown here."',
+                    '스토리 5: 투표 — "Did you know Daechwita was real music? Yes / Mind blown"',
+                    '스토리 6: Q&A — "Which K-pop song should I trace back to Korean tradition?"',
+                  ].map((story, i) => (
+                    <p key={i} className="text-xs text-white/50">{story}</p>
+                  ))}
                 </div>
               </div>
 
@@ -479,7 +598,7 @@ export default function CXP003Page() {
                   <tbody className="text-sm text-white/50">
                     {[
                       { metric: '틱톡 조회수', target: '10,000+', note: 'BTS 태그 유입' },
-                      { metric: '완주율', target: '40%+', note: '22초로 약간 김' },
+                      { metric: '완주율', target: '40%+', note: '18초, 짧지만 정보 밀도 높음' },
                       { metric: '저장', target: '좋아요 대비 20%+', note: '교육적 가치' },
                       { metric: '공유(Sends)', target: '도달 대비 5%+', note: 'ARMY 공유 문화' },
                       { metric: '댓글', target: '15건+', note: 'ARMY 유입 기대' },
@@ -497,6 +616,27 @@ export default function CXP003Page() {
               <div className="bg-white/[0.03] rounded-xl p-4">
                 <h4 className="text-xs font-semibold text-white/50 uppercase tracking-wider mb-2">핵심 지표: 공유(Sends)</h4>
                 <p className="text-sm text-white/50">ARMY는 공유 문화가 극도로 강한 팬덤. &quot;슈가 관련 새로운 콘텐츠&quot; → 팬덤 내 자발적 확산. 공유율 5% 이상이면 팬덤 유입 성공.</p>
+              </div>
+
+              <div className="bg-white/[0.03] rounded-xl p-4">
+                <h4 className="text-xs font-semibold text-white/50 uppercase tracking-wider mb-2">001, 002, 003 크로스 비교</h4>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-white/[0.06]">
+                        <th className="text-left text-white/30 font-medium py-2 px-2"></th>
+                        <th className="text-left text-white/30 font-medium py-2 px-2">001 한복</th>
+                        <th className="text-left text-white/30 font-medium py-2 px-2">002 가야금</th>
+                        <th className="text-left text-white/30 font-medium py-2 px-2">003 대취타</th>
+                      </tr>
+                    </thead>
+                    <tbody className="text-sm text-white/50">
+                      <tr className="border-b border-white/[0.03]"><td className="py-2 px-2">유입 경로</td><td className="py-2 px-2">K-드라마 검색</td><td className="py-2 px-2">가야금 커버 검색</td><td className="py-2 px-2 text-[#C4A052]">BTS/ARMY 팬덤</td></tr>
+                      <tr className="border-b border-white/[0.03]"><td className="py-2 px-2">강점 지표</td><td className="py-2 px-2">댓글/반응</td><td className="py-2 px-2">저장/공유</td><td className="py-2 px-2 text-[#C4A052]">공유/조회수</td></tr>
+                      <tr className="border-b border-white/[0.03]"><td className="py-2 px-2">포지셔닝</td><td className="py-2 px-2">교정자</td><td className="py-2 px-2">번역자</td><td className="py-2 px-2 text-[#C4A052]">연결자</td></tr>
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
           </CollapsibleSection>
@@ -527,6 +667,33 @@ export default function CXP003Page() {
                   </div>
                 ))}
               </div>
+            </div>
+          </CollapsibleSection>
+
+          {/* 캐러셀 후속편 */}
+          <CollapsibleSection title="캐러셀 후속편 (인스타 전용)" icon={Layers}>
+            <div className="pt-4 space-y-4">
+              <p className="text-sm text-white/50">
+                릴스 업로드 다음 주 토요일: <span className="text-[#C4A052]">&quot;Daechwita: The King&apos;s Music That BTS Made Famous&quot;</span>
+              </p>
+              <div className="space-y-2">
+                {[
+                  { slide: '1 (커버)', content: '대취타 연주 장면 + "Daechwita 101"' },
+                  { slide: '2', content: '대취타란? — 조선 왕의 행차 음악, 600년 역사' },
+                  { slide: '3', content: '악기 구성 — 태평소, 나발, 나각, 용고, 징, 자바라' },
+                  { slide: '4', content: '"Why Suga?" — 슈가가 대취타를 선택한 맥락' },
+                  { slide: '5', content: 'MV vs 원본 — 사운드 비교' },
+                  { slide: '6', content: '"대취타" 한자 풀이 — 大吹打 = 크게 불고 크게 치다' },
+                  { slide: '7', content: '지금도 볼 수 있는 곳 — 경복궁 수문장 교대식, 국립국악원' },
+                  { slide: '8 (CTA)', content: '"Share this with an ARMY who needs to know."' },
+                ].map((item) => (
+                  <div key={item.slide} className="flex items-start gap-3 bg-white/[0.03] rounded-lg p-3">
+                    <span className="text-[10px] font-mono text-[#C4A052] bg-[#C4A052]/10 px-1.5 py-0.5 rounded shrink-0">{item.slide}</span>
+                    <span className="text-sm text-white/50">{item.content}</span>
+                  </div>
+                ))}
+              </div>
+              <p className="text-xs text-white/40">ARMY의 저장 + 공유 극대화 타깃. &quot;팬으로서 알아야 할 배경지식&quot; 포지셔닝.</p>
             </div>
           </CollapsibleSection>
 
