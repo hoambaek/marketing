@@ -6,7 +6,7 @@ import SupabaseInitializer from '@/components/SupabaseInitializer';
 import { ClerkWrapper } from '@/components/ClerkWrapper';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import Toast from '@/components/Toast';
-import AiChat from '@/components/AiChat';
+
 
 const cormorant = Cormorant_Garamond({
   subsets: ['latin'],
@@ -84,8 +84,6 @@ export default function RootLayout({
           {/* Toast Notifications */}
           <Toast />
 
-          {/* AI Chat Assistant */}
-          <AiChat />
         </body>
       </html>
     </ClerkWrapper>
