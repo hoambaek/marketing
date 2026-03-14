@@ -1043,6 +1043,58 @@ export default function HowItWorksPage() {
               월별 해양 프로파일(Sea Lab)도 AI 프롬프트에 주입되어 계절 환경을 반영한 풍미를 판단합니다.
             </p>
           </div>
+
+          {/* 타임라인 마커 시스템 */}
+          <div className="rounded-xl bg-[#C4A052]/[0.03] border border-[#C4A052]/10 p-4">
+            <p className="text-[10px] text-[#C4A052]/60 uppercase tracking-wider font-medium mb-3">Timeline Markers — 3중 의사결정 지원</p>
+            <div className="space-y-3">
+              <div className="flex items-start gap-3">
+                <div className="w-3 h-3 rounded-full bg-emerald-400 shrink-0 mt-0.5" />
+                <div>
+                  <span className="text-xs font-medium text-emerald-400/80">추천 (효율 최적점)</span>
+                  <p className="text-[11px] text-white/25 mt-0.5">피크 점수에서 4점 이내에 <strong className="text-white/40">처음 도달하는 시점</strong>. 오래 숙성할수록 비용이 올라가므로, 큰 품질 차이가 아니면 빠른 인양이 경제적입니다.</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <div className="w-3 h-3 rounded-full bg-[#C4A052] shrink-0 mt-0.5" />
+                <div>
+                  <span className="text-xs font-medium text-[#C4A052]/80">Peak (이론적 최고점)</span>
+                  <p className="text-[11px] text-white/25 mt-0.5">36개월 내 종합 품질이 가장 높은 시점. 질감·향·기포·환원취의 균형이 최적인 순간입니다.</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <div className="w-3 h-3 rounded-full bg-cyan-400 shrink-0 mt-0.5" />
+                <div>
+                  <span className="text-xs font-medium text-cyan-400/80">계획 기간 (예정 숙성 기간)</span>
+                  <p className="text-[11px] text-white/25 mt-0.5">제품 등록 시 설정한 예정 숙성 기간. Peak가 이 기간 밖에 있으면 계획 기간 내 최적 시점도 함께 표시합니다.</p>
+                </div>
+              </div>
+            </div>
+            <p className="text-[10px] text-white/15 mt-3">
+              예: Krug Grande Cuvée(투하 전 7년 숙성)는 해저에서 7개월만에 추천 도달. 반면 Moët NV(투하 전 3년)는 15개월 이상 필요.
+              제품의 지상 숙성 기간(baseAgingYears)이 타임라인 곡선 형태를 결정합니다.
+            </p>
+          </div>
+
+          {/* v4.0 환원취 계절 의존성 */}
+          <div className="rounded-xl bg-red-400/[0.03] border border-red-400/10 p-4">
+            <p className="text-[10px] text-red-400/60 uppercase tracking-wider font-medium mb-2">v4.0 — 환원취 계절 의존성</p>
+            <p className="text-[11px] text-white/25 leading-relaxed">
+              환원취(Off-flavor) 리스크에 Sea Lab 월별 수온이 반영됩니다. 기준 수온 10°C에서 ±1°C당 ±3% 보정.
+              여름 고수온(14~16°C) 구간에서 환원취 리스크가 최대 15% 가속되고, 겨울 저수온(7~9°C)에서는 억제됩니다.
+              이를 통해 <strong className="text-white/40">투입 시기에 따른 환원취 차이</strong>가 타임라인에 반영됩니다.
+            </p>
+          </div>
+
+          {/* Conservative Cap 제거 */}
+          <div className="rounded-xl bg-white/[0.02] border border-white/[0.06] p-4">
+            <p className="text-[10px] text-white/40 uppercase tracking-wider font-medium mb-2">v4.0 — Conservative Cap 제거</p>
+            <p className="text-[11px] text-white/25 leading-relaxed">
+              기존에는 종합 품질에 ±20점 하드 캡을 적용하여 과대 예측을 방지했으나, 이로 인해 타임라인이 일직선으로 수렴하는 문제가 있었습니다.
+              v4.0에서는 종합 캡을 제거하고 <strong className="text-white/40">개별 점수에 물리적 상한</strong>(질감/기포 max 95, 향 min 15)을 적용하여
+              자연스러운 곡선을 유지하면서도 비현실적인 값을 방지합니다.
+            </p>
+          </div>
         </motion.div>
       </section>
 
