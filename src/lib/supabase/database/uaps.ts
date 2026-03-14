@@ -420,7 +420,7 @@ export async function fetchWineTerrestrialDataCount(): Promise<number> {
     .select('*', { count: 'exact', head: true });
 
   if (error) {
-    dbLogger.error('UAPS: 지상 데이터 카운트 실패:', error);
+    // RLS 정책 또는 권한 문제로 실패할 수 있음 — 조용히 0 반환
     return 0;
   }
 

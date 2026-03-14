@@ -1002,7 +1002,7 @@ export default function HowItWorksPage() {
           {/* v4.0 향 모델 */}
           <div className="rounded-xl bg-amber-400/[0.03] border border-amber-400/10 p-4">
             <p className="text-[10px] text-amber-400/60 uppercase tracking-wider font-medium mb-2">v4.0 — 3단계 비선형 향 감쇠 모델</p>
-            <div className="flex items-center gap-2 text-[11px] text-white/35">
+            <div className="flex items-center gap-2 text-[11px] text-white/35 flex-wrap">
               <span className="px-2 py-1 rounded bg-red-400/10 text-red-400/70">0~6개월: 급감</span>
               <ArrowRight className="w-3 h-3 text-white/15" />
               <span className="px-2 py-1 rounded bg-emerald-400/10 text-emerald-400/70">6~18개월: 안정</span>
@@ -1011,6 +1011,36 @@ export default function HowItWorksPage() {
             </div>
             <p className="text-[11px] text-white/25 mt-2">
               신선 과일향 손실 → 숙성향(브리오슈, 견과류) 전환기 → 산화 누적에 의한 향 피로. 기존 단순 지수 감쇠 모델에서 실제 와인 숙성 패턴에 가까운 3단계 모델로 개선.
+            </p>
+          </div>
+
+          {/* AI → 타임라인 연결 */}
+          <div className="rounded-xl bg-cyan-400/[0.03] border border-cyan-400/10 p-4">
+            <p className="text-[10px] text-cyan-400/60 uppercase tracking-wider font-medium mb-2">AI 예측 → 숙성 타임라인 연동</p>
+            <p className="text-[11px] text-white/30 leading-relaxed mb-3">
+              AI 예측(Gemini) 실행 시, 풍미 프로파일(6축)뿐 아니라 <strong className="text-cyan-400/60">agingFactors</strong>와 <strong className="text-cyan-400/60">qualityWeights</strong>를 추론합니다.
+              이 값이 숙성 타임라인 엔진에 주입되어 그래프가 제품별로 다르게 그려집니다.
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
+              <div className="rounded-lg bg-white/[0.02] px-3 py-2">
+                <span className="text-cyan-400/50 font-medium">agingFactors</span>
+                <p className="text-white/25 mt-0.5">textureMult (질감 가속), aromaDecay (향 감쇠), riskMult (환원취), kineticFactor (해류 효과)</p>
+              </div>
+              <div className="rounded-lg bg-white/[0.02] px-3 py-2">
+                <span className="text-cyan-400/50 font-medium">qualityWeights</span>
+                <p className="text-white/25 mt-0.5">texture (질감 비중), aroma (향 비중), bubble (기포 비중), risk (환원취 비중) — 합계 1.0</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 mt-3 text-[11px] text-white/25">
+              <span className="px-2 py-1 rounded bg-violet-400/10 text-violet-400/60">AI 예측 실행</span>
+              <ArrowRight className="w-3 h-3 text-white/15" />
+              <span className="px-2 py-1 rounded bg-cyan-400/10 text-cyan-400/60">agingFactors 추론</span>
+              <ArrowRight className="w-3 h-3 text-white/15" />
+              <span className="px-2 py-1 rounded bg-emerald-400/10 text-emerald-400/60">타임라인 그래프 반영</span>
+            </div>
+            <p className="text-[10px] text-white/20 mt-2">
+              AI 예측 전에는 기본값(DEFAULT_AGING_FACTORS)으로 타임라인이 그려지며, 예측 후에는 AI가 추론한 제품별 맞춤 계수로 업데이트됩니다.
+              월별 해양 프로파일(Sea Lab)도 AI 프롬프트에 주입되어 계절 환경을 반영한 풍미를 판단합니다.
             </p>
           </div>
         </motion.div>

@@ -284,25 +284,29 @@ export default function UAPSPage() {
     return new Date().getMonth() + 1;
   }, [selectedProduct]);
 
+  // AI 예측의 agingFactors/qualityWeights가 있으면 타임라인에 주입
+  const aiAgingFactors = latestPrediction?.agingFactorsJson ?? undefined;
+  const aiQualityWeights = latestPrediction?.qualityWeightsJson ?? undefined;
+
   const timelineData = useMemo(() => {
     if (!selectedProduct) return [];
     return generateTimelineData(
       selectedProduct, config,
-      undefined, undefined,
+      aiAgingFactors, aiQualityWeights,
       monthlyOceanProfiles ?? undefined,
       immersionMonth
     );
-  }, [selectedProduct, config, monthlyOceanProfiles, immersionMonth]);
+  }, [selectedProduct, config, aiAgingFactors, aiQualityWeights, monthlyOceanProfiles, immersionMonth]);
 
   const harvestWindow = useMemo(() => {
     if (!selectedProduct) return null;
     return calculateOptimalHarvestWindow(
       selectedProduct, config,
-      undefined, undefined,
+      aiAgingFactors, aiQualityWeights,
       monthlyOceanProfiles ?? undefined,
       immersionMonth
     );
-  }, [selectedProduct, config, monthlyOceanProfiles, immersionMonth]);
+  }, [selectedProduct, config, aiAgingFactors, aiQualityWeights, monthlyOceanProfiles, immersionMonth]);
 
   const beforeProfile = useMemo(() => {
     // 제품 미선택 시 null → FlavorRadar에서 ZERO_PROFILE 사용
@@ -900,7 +904,7 @@ export default function UAPSPage() {
         <SectionWrapper title="숙성 타임라인" icon={Gauge} iconColor="#C4A052" delay={0.35}>
           <div className="h-[220px] sm:h-[300px]">
             {timelineData.length > 0 ? (
-              <TimelineChart data={timelineData} harvestWindow={harvestWindow} />
+              <TimelineChart data={timelineData} harvestWindow={harvestWindow} plannedMonths={selectedProduct?.plannedDurationMonths ?? null} />
             ) : (
               <div className="h-full flex items-center justify-center">
                 <p className="text-xs text-white/20">제품을 선택하면 숙성 타임라인이 표시됩니다</p>
@@ -910,18 +914,53 @@ export default function UAPSPage() {
           {harvestWindow ? (
             <div className="mt-1.5 space-y-1.5">
               <div className="flex items-center gap-1.5 flex-wrap">
+                {/* 효율 최적점 (초록, 피크보다 빠를 때만) */}
+                {(() => {
+                  const threshold = harvestWindow.peakScore - 4;
+                  const eff = timelineData.find(d => (d.compositeQuality ?? 0) >= threshold);
+                  if (eff && eff.month < harvestWindow.peakMonth) {
+                    return (
+                      <div className="flex items-center gap-1.5 bg-emerald-400/[0.08] border border-emerald-400/[0.20] rounded-lg px-3 py-2" title="피크 대비 4점 이내에 처음 도달하는 시점 — 비용 효율 최적">
+                        <span className="text-[9px] text-emerald-400/70 uppercase tracking-wider font-medium">추천</span>
+                        <span className="text-sm font-medium text-emerald-400">
+                          {eff.month}<span className="text-[10px] text-emerald-400/50 ml-px">개월</span>
+                        </span>
+                        <span className="text-[9px] text-emerald-400/40">{Math.round(eff.compositeQuality ?? 0)}점</span>
+                      </div>
+                    );
+                  }
+                  return null;
+                })()}
+                {/* 이론적 피크 (금색) */}
                 <div className="flex items-center gap-1.5 bg-[#C4A052]/[0.10] border border-[#C4A052]/[0.25] rounded-lg px-3 py-2 shadow-[0_0_12px_rgba(196,160,82,0.08)]">
                   <span className="text-[9px] text-[#C4A052]/70 uppercase tracking-wider font-medium">Peak</span>
-                  <span className="text-sm font-medium text-[#C4A052]" style={{ fontFamily: "var(--font-cormorant), 'Cormorant Garamond', serif" }}>
+                  <span className="text-sm font-medium text-[#C4A052]">
                     {harvestWindow.peakMonth}<span className="text-[10px] text-[#C4A052]/50 ml-px">개월</span>
                   </span>
                 </div>
                 <div className="flex items-center gap-1.5 bg-white/[0.02] border border-white/[0.06] rounded-lg px-2.5 py-1.5" title="질감·향·환원취·기포를 종합한 품질 점수 (0~100)">
                   <span className="text-[9px] text-white/25 uppercase tracking-wider">품질</span>
-                  <span className="text-sm font-light text-white/60" style={{ fontFamily: "var(--font-cormorant), 'Cormorant Garamond', serif" }}>
+                  <span className="text-sm font-light text-white/60">
                     {Math.round(harvestWindow.peakScore)}<span className="text-[10px] text-white/20 ml-px">/100</span>
                   </span>
                 </div>
+                {/* 계획 기간 내 피크 (시안, 이론적과 다를 때만) */}
+                {selectedProduct?.plannedDurationMonths && harvestWindow.peakMonth > selectedProduct.plannedDurationMonths && (
+                  <>
+                    <span className="text-white/10 text-[8px]">|</span>
+                    <div className="flex items-center gap-1.5 bg-cyan-400/[0.06] border border-cyan-400/[0.15] rounded-lg px-2.5 py-1.5">
+                      <span className="text-[9px] text-cyan-400/60 uppercase tracking-wider font-medium">{selectedProduct.plannedDurationMonths}개월 내</span>
+                      <span className="text-sm font-light text-cyan-400/80">
+                        {(() => {
+                          const planned = timelineData.filter(d => d.month <= (selectedProduct.plannedDurationMonths ?? 12));
+                          if (planned.length === 0) return '—';
+                          const best = planned.reduce((a, b) => (b.compositeQuality ?? 0) > (a.compositeQuality ?? 0) ? b : a);
+                          return `${best.month}개월 · ${Math.round(best.compositeQuality ?? 0)}점`;
+                        })()}
+                      </span>
+                    </div>
+                  </>
+                )}
               </div>
               <div className="flex flex-wrap items-center gap-x-2.5 sm:gap-x-3 gap-y-1.5">
                 <div className="flex items-center gap-1">
@@ -946,6 +985,19 @@ export default function UAPSPage() {
                   <div className="w-3 h-px border-t border-dashed border-red-400/30" />
                   <span className="text-[9px] text-red-400/30">환원취</span>
                 </div>
+                <span className="text-white/10 text-[8px] hidden sm:inline">|</span>
+                <div className="flex items-center gap-1">
+                  <div className="w-2 h-2 rounded-full bg-emerald-400/60" />
+                  <span className="text-[9px] text-emerald-400/30">추천 (±4점)</span>
+                </div>
+                {selectedProduct?.plannedDurationMonths && (
+                  <>
+                    <div className="flex items-center gap-1">
+                      <div className="w-3 h-px border-t border-dashed border-cyan-400/40" />
+                      <span className="text-[9px] text-cyan-400/30">계획 기간</span>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           ) : (
@@ -1769,12 +1821,33 @@ function FlavorRadar({
 function TimelineChart({
   data,
   harvestWindow,
+  plannedMonths,
 }: {
   data: { month: number; textureMaturity: number; aromaFreshness: number; offFlavorRisk: number; bubbleRefinement: number; compositeQuality?: number; gainScore?: number; lossScore?: number; netBenefit?: number }[];
   harvestWindow: { startMonths: number; endMonths: number; peakMonth: number; peakScore: number; recommendation: string } | null;
+  plannedMonths?: number | null;
 }) {
   const peakPoint = harvestWindow
     ? data.find((d) => d.month === harvestWindow.peakMonth)
+    : null;
+
+  // 계획 기간 내 피크 (이론적 피크와 다를 수 있음)
+  const plannedPeakPoint = plannedMonths
+    ? (() => {
+        const planned = data.filter(d => d.month <= plannedMonths);
+        if (planned.length === 0) return null;
+        return planned.reduce((best, d) =>
+          (d.compositeQuality ?? 0) > (best.compositeQuality ?? 0) ? d : best
+        );
+      })()
+    : null;
+
+  // 효율 최적점: 피크 점수에서 4점 이내에 처음 도달하는 시점
+  const efficientPoint = harvestWindow
+    ? (() => {
+        const threshold = harvestWindow.peakScore - 4;
+        return data.find(d => (d.compositeQuality ?? 0) >= threshold) ?? null;
+      })()
     : null;
 
   // 커스텀 툴팁
@@ -1883,7 +1956,19 @@ function TimelineChart({
           legendType="none"
         />
 
-        {/* 피크 수직선 */}
+        {/* 계획 기간 수직선 (점선, 시안) */}
+        {plannedMonths && (
+          <ReferenceLine
+            x={plannedMonths}
+            stroke="#22d3ee"
+            strokeWidth={1}
+            strokeDasharray="4 4"
+            strokeOpacity={0.3}
+            label={{ value: `${plannedMonths}개월`, position: 'top', fill: 'rgba(34,211,238,0.5)', fontSize: 9 }}
+          />
+        )}
+
+        {/* 이론적 피크 수직선 (금색) */}
         {harvestWindow && (
           <ReferenceLine
             x={harvestWindow.peakMonth}
@@ -1894,19 +1979,57 @@ function TimelineChart({
           />
         )}
 
-        {/* 골든 윈도우 경계선 제거됨 */}
-
-        {/* 피크 마커 */}
-        {harvestWindow && peakPoint && (
+        {/* 계획 기간 내 피크 마커 (시안, 이론적 피크와 다를 때만) */}
+        {plannedMonths && plannedPeakPoint && harvestWindow && plannedPeakPoint.month !== harvestWindow.peakMonth && (
           <ReferenceDot
-            x={harvestWindow.peakMonth}
-            y={peakPoint.compositeQuality ?? 0}
-            r={5}
-            fill="#C4A052"
-            stroke="rgba(255,255,255,0.9)"
-            strokeWidth={2}
-            filter="url(#peakGlow)"
+            x={plannedPeakPoint.month}
+            y={plannedPeakPoint.compositeQuality ?? 0}
+            r={4}
+            fill="#22d3ee"
+            stroke="rgba(255,255,255,0.6)"
+            strokeWidth={1.5}
           />
+        )}
+
+        {/* 효율 최적점 마커 + 라벨 (초록) */}
+        {efficientPoint && harvestWindow && efficientPoint.month < harvestWindow.peakMonth && (
+          <>
+            <ReferenceDot
+              x={efficientPoint.month}
+              y={efficientPoint.compositeQuality ?? 0}
+              r={4}
+              fill="#34d399"
+              stroke="rgba(255,255,255,0.6)"
+              strokeWidth={1.5}
+            />
+            <ReferenceDot
+              x={efficientPoint.month}
+              y={(efficientPoint.compositeQuality ?? 0) + 6}
+              r={0}
+              label={{ value: '추천', fill: '#34d399', fontSize: 9, fontWeight: 600 }}
+            />
+          </>
+        )}
+
+        {/* 이론적 피크 마커 + 라벨 (금색) */}
+        {harvestWindow && peakPoint && (
+          <>
+            <ReferenceDot
+              x={harvestWindow.peakMonth}
+              y={peakPoint.compositeQuality ?? 0}
+              r={5}
+              fill="#C4A052"
+              stroke="rgba(255,255,255,0.9)"
+              strokeWidth={2}
+              filter="url(#peakGlow)"
+            />
+            <ReferenceDot
+              x={harvestWindow.peakMonth}
+              y={(peakPoint.compositeQuality ?? 0) + 6}
+              r={0}
+              label={{ value: 'Peak', fill: '#C4A052', fontSize: 9, fontWeight: 600 }}
+            />
+          </>
         )}
       </ComposedChart>
     </ResponsiveContainer>
