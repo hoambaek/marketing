@@ -64,7 +64,7 @@ someAction: async (data) => {
 - `/inventory` - Wine bottle inventory management
 - `/budget` - Budget and expense tracking
 - `/issues` - Issue/risk management
-- `/data-log` - Ocean aging data visualization
+- `/data-log` - Sea Lab (해양 실측 데이터 대시보드, KHOA + Open-Meteo 하이브리드)
 - `/cost-calculator` - Product cost calculation
 - `/video-generator` - AI video generation (Google Veo)
 - `/uaps` - UAPS 해저 숙성 예측 대시보드
@@ -88,7 +88,9 @@ someAction: async (data) => {
 **API Routes** (`src/app/api/`):
 - `/api/ai-assistant` - Gemini AI with function calling (authenticated)
 - `/api/upload` - S3 presigned URL file uploads (up to 50MB)
-- `/api/ocean-data` - Ocean data fetching from Open-Meteo
+- `/api/ocean-data` - Ocean data (KHOA 실측 + Open-Meteo 하이브리드)
+- `/api/ocean-data/khoa` - KHOA 전용 엔드포인트
+- `/api/uaps/product-info` - AI 제품 정보 찾기 (Gemini 3 Flash + Google Search)
 - `/api/video-generator` - Google Veo video generation
 - `/api/video-generator/download` - Video file download proxy
 - `/api/uaps/predict` - UAPS AI 예측 (Gemini Layer 2)
@@ -140,7 +142,7 @@ When Clerk env vars are missing, middleware passes through (useful for local dev
 **Inventory**: `numbered_bottles`, `inventory_batches`, `inventory_transactions`, `custom_products`
 **Budget**: `budget_items`, `expense_items`
 **Issues**: `issues`
-**Ocean Data**: `ocean_data_daily`, `salinity_records`
+**Ocean Data**: `ocean_data_daily` (KHOA 실측 + tide_level + tidal_current + data_source), `salinity_records`
 **Cost Calculator**: `cost_calculator_settings`
 **UAPS**: `wine_terrestrial_data`, `terrestrial_model`, `aging_products`, `aging_predictions`, `uaps_config`, `flavor_dictionary`
 
@@ -163,9 +165,13 @@ This project uses a **Deep Sea** theme:
 해저 숙성 풍미 예측 시스템. 2-Layer Hybrid AI 아키텍처.
 
 ### 핵심 파일
-- `src/lib/utils/uaps-engine.ts` - Layer 1 통계 엔진 (질감/향/기포/환원취 계산, 복합 품질, 골든 윈도우)
-- `src/lib/utils/uaps-ai-predictor.ts` - Layer 2 Gemini AI 추론 (전문가 프로파일, TCI/FRI/BRI 보정)
+- `src/lib/utils/uaps-engine.ts` - Layer 1 통계 엔진 v4.0 (3단계 비선형 향 감쇠, 환원취 수온 의존성, 개별 물리적 상한)
+- `src/lib/utils/uaps-ai-predictor.ts` - Layer 2 Gemini AI 추론 (전문가 프로파일, 월별 해양 프로파일 주입)
+- `src/lib/utils/uaps-ocean-profile.ts` - 월별 해양 프로파일 (MonthlyOceanProfile, 깊이 보정)
+- `src/lib/utils/uaps-live-coefficients.ts` - 실시간 보정계수 (FRI/BRI/K-TCI/TSI)
+- `src/lib/utils/khoa-api.ts` - KHOA 국립해양조사원 API (11개)
 - `src/lib/store/uaps-store.ts` - Zustand 상태 관리
+- `src/lib/store/ocean-data-store.ts` - 해양 데이터 (KHOA + Open-Meteo 하이브리드)
 - `src/lib/supabase/database/uaps.ts` - DB CRUD
 - `src/lib/types/uaps.ts` - 타입 + 상수 (FLAVOR_AXES, WINE_TYPE_LABELS 등)
 - `docs/uaps/UAPS_MASTER_PLAN.md` - 마스터 플랜
@@ -196,14 +202,25 @@ TS 키: `fruity`, `floralMineral`, `yeastyAutolytic`, `acidityFreshness`, `bodyT
 | `vinegar` | 식초 | ~702 | `finished_vinegar` |
 | `whisky` | 위스키 | ~435 | `whisky` |
 
-### 보정 계수
+### 보정 계수 (v4.0)
 - **TCI** (Temperature-Pressure Coefficient): 기본값 0.40, 가설적 추정
-- **FRI** (Flavor Retention Index): 기본값 0.56, 아레니우스 방정식 기반
-- **BRI** (Bubble Retention Index): 기본값 0.72, Henry의 법칙 기반
+- **FRI** (Flavor Retention Index): 월별 수온 기반 동적 계산 (아레니우스), 3단계 비선형 향 감쇠
+- **BRI** (Bubble Retention Index): 월별 수온+수심 기반 동적 계산 (헨리의 법칙)
+- **K-TCI** (Kinetic Texture Coefficient): 조류 유속 기반 kf 0.6~1.8 (제곱근 스케일)
+- **TSI** (Temperature Stability Index): 표준편차 기반 + 수심 보정
+
+### KHOA 해양 데이터 (Sea Lab)
+- 관측소: 완도 DT_0027 (수온/염분/기압/조위) + 완도항 부이 TW_0078 (유속)
+- 14개월 백필 완료 (2025-01 ~ 2026-03, 390일)
+- 40m 깊이 보정: blending ratio 모델 (estimateBottomTemperature)
+- 데이터 흐름: KHOA API → ocean_data_daily → 월별 프로파일 → 엔진 주입
 
 ### 데이터 수집 도구
-- `data/scripts/nlp_extract_ollama.mjs` - Ollama LLM 6축 NLP 추출 (현재 진행 중)
+- `data/scripts/nlp_extract_ollama.mjs` - Ollama LLM 6축 NLP 추출 (완료)
+- `data/scripts/backfill_khoa_ocean_data.mjs` - KHOA 해양 데이터 백필
+- `data/scripts/backfill_tidal_current.mjs` - 조류 유속 백필 (TW_0078)
 - `docs/uaps/NLP_EXTRACTION_GUIDE.md` - NLP 추출 원격 실행 가이드
+- `docs/uaps/UAPS_Technical_Paper.html` - 기술 논문 v4.0
 - `data/cellartracker/upload_csv.mjs` - CSV → Supabase 업로드
 - `data/cellartracker/upload_notes.mjs` - JSON → Supabase 업로드
 
@@ -226,4 +243,9 @@ AWS_ACCESS_KEY_ID=
 AWS_SECRET_ACCESS_KEY=
 AWS_REGION=
 AWS_S3_BUCKET=
+
+# KHOA 국립해양조사원 (data.go.kr)
+KHOA_API_KEY=
+KHOA_OBS_CODE=DT_0027
+KHOA_TIDAL_OBS_CODE=20LTC03
 ```
