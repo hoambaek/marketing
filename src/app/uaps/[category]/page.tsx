@@ -79,6 +79,7 @@ import {
 import { applyAgingAdjustments } from '@/lib/utils/uaps-ai-predictor';
 import { useOceanDataStore } from '@/lib/store/ocean-data-store';
 import { OceanConditionsCard, OptimalDepthCard, EnvironmentalImpactCard } from '../components/OceanCardsV3';
+import { calculateProductOceanStats } from '@/lib/utils/uaps-ocean-profile';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // 카테고리 목록 (드롭다운용)
@@ -342,6 +343,7 @@ export default function CategoryUAPSPage() {
   const {
     currentConditions: oceanCurrentConditions,
     historicalOceanStats,
+    dailyData,
     fetchCurrentConditions: loadOceanConditions,
     loadHistoricalOceanStats,
   } = useOceanDataStore();
@@ -411,6 +413,14 @@ export default function CategoryUAPSPage() {
     if (localFri !== config.fri) await updateCoefficient('fri_coefficient', localFri);
     if (localBri !== config.bri) await updateCoefficient('bri_coefficient', localBri);
   }, [localTci, localFri, localBri, config.tci, config.fri, config.bri, updateCoefficient]);
+
+  // 제품 투입일 기반 수심 보정 환경 통계
+  const productOceanStats = useMemo(() => {
+    if (!selectedProduct || !dailyData || dailyData.length === 0) return null;
+    const immersionDate = selectedProduct.immersionDate;
+    if (!immersionDate) return null;
+    return calculateProductOceanStats(dailyData, immersionDate, selectedProduct.agingDepth || 30);
+  }, [selectedProduct, dailyData]);
 
   return (
     <div className="min-h-screen pb-20">
@@ -984,7 +994,14 @@ export default function CategoryUAPSPage() {
             product={selectedProduct}
             config={config}
             months={selectedProduct?.plannedDurationMonths ?? 12}
-            oceanConditions={historicalOceanStats ? {
+            oceanConditions={productOceanStats ? {
+              seaTemperature: productOceanStats.seaTemperature,
+              currentVelocity: productOceanStats.currentVelocity,
+              waveHeight: productOceanStats.waveHeight,
+              wavePeriod: productOceanStats.wavePeriod,
+              waterPressure: productOceanStats.waterPressure,
+              salinity: productOceanStats.salinity,
+            } : historicalOceanStats ? {
               seaTemperature: historicalOceanStats.seaTemperature,
               currentVelocity: historicalOceanStats.currentVelocity,
               waveHeight: historicalOceanStats.waveHeight,
@@ -995,7 +1012,14 @@ export default function CategoryUAPSPage() {
             accentColor={theme.accent}
           />
           <EnvironmentalImpactCard
-            oceanConditions={historicalOceanStats ? {
+            oceanConditions={productOceanStats ? {
+              seaTemperature: productOceanStats.seaTemperature,
+              currentVelocity: productOceanStats.currentVelocity,
+              waveHeight: productOceanStats.waveHeight,
+              wavePeriod: productOceanStats.wavePeriod,
+              waterPressure: productOceanStats.waterPressure,
+              salinity: productOceanStats.salinity,
+            } : historicalOceanStats ? {
               seaTemperature: historicalOceanStats.seaTemperature,
               currentVelocity: historicalOceanStats.currentVelocity,
               waveHeight: historicalOceanStats.waveHeight,
@@ -1003,6 +1027,13 @@ export default function CategoryUAPSPage() {
               waterPressure: historicalOceanStats.waterPressure,
               salinity: historicalOceanStats.salinity,
             } : null}
+            depthInfo={productOceanStats ? {
+              depth: productOceanStats.correctionDepth,
+              depthCorrected: productOceanStats.depthCorrected,
+              dataPoints: productOceanStats.dataPoints,
+              periodStart: productOceanStats.periodStart,
+              periodEnd: productOceanStats.periodEnd,
+            } : undefined}
             accentColor={theme.accent}
           />
         </div>

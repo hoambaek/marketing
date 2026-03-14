@@ -3,7 +3,8 @@ import { auth } from '@clerk/nextjs/server';
 import { apiLogger } from '@/lib/logger';
 import {
   fetchOpenMeteoRawData,
-  formatCombinedResponse,
+  fetchKhoaHybridData,
+  formatHybridResponse,
 } from '@/lib/utils/ocean-api';
 
 export async function GET(request: Request) {
@@ -26,10 +27,26 @@ export async function GET(request: Request) {
     const start = startDate || today;
     const end = endDate || today;
 
-    const { marine, weather } = await fetchOpenMeteoRawData(start, end);
-    const combinedData = formatCombinedResponse(marine, weather);
+    // 1. KHOA + Open-Meteo 동시 호출 (KHOA 실패 시 null 반환)
+    const [openMeteoResult, khoaResult] = await Promise.all([
+      fetchOpenMeteoRawData(start, end),
+      fetchKhoaHybridData(),
+    ]);
 
-    return NextResponse.json(combinedData);
+    // 2. 세 소스 병합하여 하이브리드 응답 구성
+    const hybridData = formatHybridResponse(
+      openMeteoResult.marine,
+      openMeteoResult.weather,
+      khoaResult,
+    );
+
+    if (khoaResult) {
+      apiLogger.info(`하이브리드 응답: KHOA(${khoaResult.khoaData.station}) + Open-Meteo`);
+    } else {
+      apiLogger.info('Open-Meteo 단독 응답 (KHOA 미사용)');
+    }
+
+    return NextResponse.json(hybridData);
   } catch (error) {
     apiLogger.error('Ocean Data API Error:', error);
     return NextResponse.json(

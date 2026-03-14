@@ -15,6 +15,7 @@ import {
   Legend,
   ComposedChart,
   Bar,
+  BarChart,
 } from 'recharts';
 import {
   Waves,
@@ -26,11 +27,13 @@ import {
   Activity,
   Calendar,
   RefreshCw,
-  Plus,
+  ChevronLeft,
+  ChevronRight,
   ChevronDown,
   Anchor,
   ArrowDown,
   Timer,
+  TrendingUp,
 } from 'lucide-react';
 import { useOceanDataStore } from '@/lib/store/ocean-data-store';
 import {
@@ -43,6 +46,18 @@ import {
   getDirectionLabel,
   formatDateKR,
 } from '@/lib/utils/ocean-calculations';
+import {
+  calculateLiveFRI,
+  calculateLiveBRI,
+  calculateLiveKTCI,
+  calculateLiveTSI,
+  calculateOverallScore,
+  getFRILabel,
+  getBRILabel,
+  getKTCILabel,
+  getTSILabel,
+  getOverallLabel,
+} from '@/lib/utils/uaps-live-coefficients';
 
 // View options
 const VIEW_OPTIONS: { value: OceanDataView; label: string; days: string }[] = [
@@ -80,12 +95,14 @@ function OceanParticles() {
   );
 }
 
-// Depth gauge visualization
-function DepthGauge({ depth, maxDepth = 30 }: { depth: number; maxDepth?: number }) {
-  const percentage = (depth / maxDepth) * 100;
+// Depth gauge visualization (0~60m, 투입 지점 마킹)
+const DEPLOYED_DEPTHS = [30, 40, 50]; // 실제 투입 수심
+
+function DepthGauge({ depth, maxDepth = 60 }: { depth: number; maxDepth?: number }) {
+  const percentage = Math.min(100, (depth / maxDepth) * 100);
 
   return (
-    <div className="relative h-full w-12 flex flex-col items-center">
+    <div className="relative h-full w-14 flex flex-col items-center">
       {/* Gauge track */}
       <div className="relative flex-1 w-3 bg-white/5 rounded-full overflow-hidden">
         <motion.div
@@ -94,18 +111,34 @@ function DepthGauge({ depth, maxDepth = 30 }: { depth: number; maxDepth?: number
           animate={{ height: `${percentage}%` }}
           transition={{ duration: 1.5, ease: 'easeOut' }}
         />
-        {/* Depth markers */}
-        {[0, 10, 20, 30].map((mark) => (
+        {/* Depth markers (0~60m, 10m 간격) */}
+        {[0, 10, 20, 30, 40, 50, 60].map((mark) => (
           <div
             key={mark}
-            className="absolute w-full h-px bg-white/20"
+            className="absolute w-full h-px bg-white/10"
             style={{ bottom: `${(mark / maxDepth) * 100}%` }}
           />
         ))}
+        {/* 투입 지점 마킹 */}
+        {DEPLOYED_DEPTHS.map((d) => (
+          <div
+            key={`deployed-${d}`}
+            className="absolute -left-1 w-5 flex items-center"
+            style={{ bottom: `${(d / maxDepth) * 100}%`, transform: 'translateY(50%)' }}
+          >
+            <div className="w-2 h-2 rounded-full bg-[#C4A052] border border-[#C4A052]/50 shadow-[0_0_4px_rgba(196,160,82,0.4)]" />
+          </div>
+        ))}
+      </div>
+      {/* 수심 라벨 */}
+      <div className="absolute left-[3.2rem] top-0 bottom-6 flex flex-col justify-between text-[9px] text-white/25 font-mono">
+        <span>0</span>
+        <span>30</span>
+        <span>60</span>
       </div>
       {/* Current depth indicator */}
       <motion.div
-        className="absolute right-6 flex items-center gap-1"
+        className="absolute right-7 flex items-center gap-1"
         initial={{ bottom: 0 }}
         animate={{ bottom: `${percentage}%` }}
         transition={{ duration: 1.5, ease: 'easeOut' }}
@@ -198,14 +231,17 @@ function DataCard({
 function ChartWrapper({
   title,
   icon: Icon,
+  iconColor,
   children,
   delay = 0,
 }: {
   title: string;
-  icon: React.ComponentType<{ className?: string }>;
+  icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>;
+  iconColor?: string;
   children: React.ReactNode;
   delay?: number;
 }) {
+  const color = iconColor || '#22d3ee';
   return (
     <motion.div
       initial={{ opacity: 0, y: 30 }}
@@ -217,8 +253,8 @@ function ChartWrapper({
       <div className="relative bg-[#0d1421]/60 backdrop-blur-xl border border-white/[0.06] rounded-3xl p-6">
         {/* Header */}
         <div className="flex items-center gap-3 mb-6">
-          <div className="p-2 bg-cyan-500/10 rounded-xl">
-            <Icon className="w-5 h-5 text-cyan-400" />
+          <div className="p-2 rounded-xl" style={{ backgroundColor: `${color}15` }}>
+            <Icon className="w-5 h-5" style={{ color }} />
           </div>
           <h3 className="text-lg font-medium text-white/90">{title}</h3>
         </div>
@@ -230,105 +266,77 @@ function ChartWrapper({
   );
 }
 
-// Salinity input modal
-function SalinityModal({
-  isOpen,
-  onClose,
-  onSubmit,
+// UAPS Coefficient Gauge component
+function CoefficientGauge({
+  label,
+  value,
+  rawValue,
+  description,
+  statusLabel,
+  color,
+  delay = 0,
 }: {
-  isOpen: boolean;
-  onClose: () => void;
-  onSubmit: (salinity: number, notes?: string) => void;
+  label: string;
+  value: number | null;
+  rawValue: string;
+  description: string;
+  statusLabel: { text: string; color: string };
+  color: string;
+  delay?: number;
 }) {
-  const [salinity, setSalinity] = useState('');
-  const [notes, setNotes] = useState('');
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const value = parseFloat(salinity);
-    if (!isNaN(value) && value >= 0 && value <= 50) {
-      onSubmit(value, notes || undefined);
-      setSalinity('');
-      setNotes('');
-      onClose();
-    }
-  };
+  const percentage = value !== null ? Math.round(value * 100) : 0;
 
   return (
-    <AnimatePresence>
-      {isOpen && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md"
-          onClick={onClose}
-        >
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5, delay }}
+      className="relative group"
+    >
+      <div className="absolute inset-0 bg-gradient-to-br from-white/[0.06] to-transparent rounded-2xl blur-xl group-hover:from-white/[0.10] transition-all" />
+      <div className="relative bg-[#0d1421]/70 backdrop-blur-xl border border-white/[0.06] rounded-2xl p-5 hover:border-white/[0.12] transition-all">
+        {/* Top glow */}
+        <div
+          className="absolute top-0 left-1/2 -translate-x-1/2 w-1/2 h-px"
+          style={{
+            background: `linear-gradient(90deg, transparent, ${color}50, transparent)`,
+          }}
+        />
+
+        {/* Label and value */}
+        <div className="flex items-center justify-between mb-3">
+          <h4 className="text-sm font-medium text-white/80">{label}</h4>
+          <span className="text-xl font-light tracking-tight" style={{ color }}>
+            {rawValue}
+          </span>
+        </div>
+
+        {/* Progress bar */}
+        <div className="relative h-2 bg-white/[0.06] rounded-full overflow-hidden mb-3">
           <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: 20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            className="bg-[#0d1421] border border-white/[0.08] rounded-2xl p-6 w-full max-w-md shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
+            className="absolute inset-y-0 left-0 rounded-full"
+            style={{ backgroundColor: color }}
+            initial={{ width: 0 }}
+            animate={{ width: `${percentage}%` }}
+            transition={{ duration: 1.2, delay: delay + 0.2, ease: 'easeOut' }}
+          />
+        </div>
+
+        {/* Status and description */}
+        <div className="flex items-center justify-between">
+          <span
+            className="text-xs font-medium px-2 py-0.5 rounded-full"
+            style={{
+              color: statusLabel.color,
+              backgroundColor: `${statusLabel.color}20`,
+            }}
           >
-            <div className="flex items-center gap-3 mb-6">
-              <div className="p-2 bg-teal-500/10 rounded-xl">
-                <Droplets className="w-5 h-5 text-teal-400" />
-              </div>
-              <h2 className="text-xl font-medium text-white">염도 기록</h2>
-            </div>
-
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="block text-sm text-white/50 mb-2">
-                  염도 (‰)
-                </label>
-                <input
-                  type="number"
-                  step="0.1"
-                  min="0"
-                  max="50"
-                  value={salinity}
-                  onChange={(e) => setSalinity(e.target.value)}
-                  placeholder="예: 34.5"
-                  className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-white/30 focus:outline-none focus:border-teal-500/50 transition-colors"
-                  autoFocus
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm text-white/50 mb-2">
-                  메모 (선택)
-                </label>
-                <textarea
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  placeholder="측정 조건, 위치 등"
-                  rows={3}
-                  className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-white/30 focus:outline-none focus:border-teal-500/50 transition-colors resize-none"
-                />
-              </div>
-
-              <div className="flex gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={onClose}
-                  className="flex-1 px-4 py-3 border border-white/10 rounded-xl text-white/60 hover:bg-white/5 transition-colors"
-                >
-                  취소
-                </button>
-                <button
-                  type="submit"
-                  className="flex-1 px-4 py-3 bg-teal-500 rounded-xl text-white font-medium hover:bg-teal-400 transition-colors"
-                >
-                  저장
-                </button>
-              </div>
-            </form>
-          </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
+            {statusLabel.text}
+          </span>
+          <span className="text-[11px] text-white/30">{description}</span>
+        </div>
+      </div>
+    </motion.div>
   );
 }
 
@@ -350,7 +358,9 @@ function CustomTooltip({ active, payload, label }: {
             style={{ backgroundColor: item.color }}
           />
           <span className="text-sm text-white/80">{item.name}:</span>
-          <span className="text-sm font-medium text-white">{item.value}</span>
+          <span className="text-sm font-medium text-white">
+            {typeof item.value === 'number' ? item.value.toFixed(2) : item.value}
+          </span>
         </div>
       ))}
     </div>
@@ -370,35 +380,77 @@ export default function DataLogPage() {
     error,
     fetchOceanData,
     fetchCurrentConditions,
-    addSalinityRecord,
     clearError,
   } = useOceanDataStore();
 
-  const [showSalinityModal, setShowSalinityModal] = useState(false);
   const [showViewDropdown, setShowViewDropdown] = useState(false);
+  // 3개월 단위 기간 오프셋 (0=현재, 1=3개월 전, 2=6개월 전, ...)
+  const [periodOffset, setPeriodOffset] = useState(0);
 
-  const { loadSalinityRecords } = useOceanDataStore();
+  // 기간 범위 계산
+  const periodRange = useMemo(() => {
+    const end = new Date();
+    end.setDate(end.getDate() - periodOffset * 90);
+    const start = new Date(end);
+    start.setDate(start.getDate() - 90);
+    return {
+      startDate: start.toISOString().split('T')[0],
+      endDate: end.toISOString().split('T')[0],
+      label: `${start.toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })} ~ ${end.toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })}`,
+      isLatest: periodOffset === 0,
+    };
+  }, [periodOffset]);
 
   // Initial data fetch
   useEffect(() => {
-    loadSalinityRecords();
     fetchCurrentConditions();
     fetchOceanData();
-  }, [loadSalinityRecords, fetchCurrentConditions, fetchOceanData]);
+  }, [fetchCurrentConditions, fetchOceanData]);
+
+  // UAPS coefficients calculation
+  const uapsCoeffs = useMemo(() => {
+    if (!currentConditions?.seaTemperature) return null;
+    const fri = calculateLiveFRI(currentConditions.seaTemperature);
+    const bri = calculateLiveBRI(
+      currentConditions.seaTemperature,
+      currentConditions.waterPressure || 4
+    );
+    const kTci = calculateLiveKTCI(currentConditions.tidalCurrentSpeed || 0);
+    // TSI: 최근 30일 수온 데이터 필요
+    const recentTemps = dailyData
+      .slice(0, 30)
+      .map((d) => d.seaTemperatureAvg)
+      .filter((v): v is number => v !== null);
+    const tsi = calculateLiveTSI(recentTemps, 50);
+    const overallScore = calculateOverallScore(fri, bri, kTci, tsi);
+    return { fri, bri, kTci, tsi, overallScore };
+  }, [currentConditions, dailyData]);
 
   // Prepare chart data
   const chartData = useMemo(() => {
-    return dailyData.map((day) => ({
+    return [...dailyData].reverse().map((day) => ({
       date: day.date.slice(5), // MM-DD format
       fullDate: day.date,
       수온: day.seaTemperatureAvg,
+      염분: day.salinity,
+      조위: day.tideLevelAvg,
+      조류유속: day.tidalCurrentSpeed,
       해류속도: day.currentVelocityAvg,
       파고: day.waveHeightAvg,
       파주기: day.wavePeriodAvg,
       기압: day.surfacePressureAvg,
       수압: calculateWaterPressure(day.depth, day.surfacePressureAvg || undefined),
-      염도: day.salinity,
-    })).reverse(); // Chronological order
+      FRI: day.seaTemperatureAvg
+        ? calculateLiveFRI(day.seaTemperatureAvg)
+        : null,
+      BRI:
+        day.seaTemperatureAvg
+          ? calculateLiveBRI(
+              day.seaTemperatureAvg,
+              calculateWaterPressure(day.depth, day.surfacePressureAvg || undefined)
+            )
+          : null,
+    }));
   }, [dailyData]);
 
   const handleRefresh = () => {
@@ -406,15 +458,24 @@ export default function DataLogPage() {
     fetchOceanData();
   };
 
-  const handleSalinitySubmit = (salinity: number, notes?: string) => {
-    addSalinityRecord(salinity, agingDepth, notes);
-  };
-
   const currentViewOption = VIEW_OPTIONS.find((v) => v.value === currentView);
+
+  // 데이터 소스 상태 표시
+  const dataSourceLabel = useMemo(() => {
+    const latestSource = dailyData[0]?.dataSource;
+    const lastUpdated = currentConditions?.lastUpdated;
+    let timeStr = '';
+    if (lastUpdated) {
+      // "2026-03-14 13:00" or ISO → 시:분 추출
+      const match = lastUpdated.match(/(\d{2}):(\d{2})/);
+      timeStr = match ? `${match[1]}:${match[2]}` : '';
+    }
+    return { latestSource, timeStr };
+  }, [dailyData, currentConditions]);
 
   return (
     <div className="min-h-screen pb-20">
-      {/* Ambient Background - Same as other pages */}
+      {/* Ambient Background */}
       <div className="fixed inset-0 -z-10">
         <div className="absolute inset-0 bg-gradient-to-b from-[#0a0f1a] via-[#0d1525] to-[#0a0f1a]" />
         <div
@@ -433,7 +494,7 @@ export default function DataLogPage() {
         />
       </div>
 
-      {/* Hero Section - Same style as other pages */}
+      {/* Hero Section */}
       <section className="relative pt-8 sm:pt-16 pb-6 sm:pb-12 px-4 sm:px-6 lg:px-12">
         <div className="max-w-6xl mx-auto">
           <motion.div
@@ -442,7 +503,7 @@ export default function DataLogPage() {
             transition={{ duration: 1, ease: [0.25, 0.46, 0.45, 0.94] }}
             className="relative"
           >
-            {/* Decorative Line - Hidden on Mobile */}
+            {/* Decorative Line */}
             <motion.div
               initial={{ scaleX: 0 }}
               animate={{ scaleX: 1 }}
@@ -480,86 +541,126 @@ export default function DataLogPage() {
                   <span className="inline-block w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
                   {WANDO_COORDINATES.name} ({WANDO_COORDINATES.latitude}°N, {WANDO_COORDINATES.longitude}°E)
                 </motion.p>
+
+                {/* 데이터 소스 상태 표시 */}
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 1, delay: 1.0 }}
+                  className="mt-2 flex items-center gap-3 text-[11px] text-white/30 font-mono"
+                >
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400/80" />
+                    KHOA 완도(DT_0027)
+                    {dataSourceLabel.latestSource === 'hybrid' || dataSourceLabel.latestSource === 'khoa'
+                      ? ' 실시간'
+                      : ''}
+                  </span>
+                  <span className="text-white/15">|</span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-cyan-400/60" />
+                    Open-Meteo 보조
+                  </span>
+                  {dataSourceLabel.timeStr && (
+                    <>
+                      <span className="text-white/15">|</span>
+                      <span>마지막 갱신: {dataSourceLabel.timeStr}</span>
+                    </>
+                  )}
+                </motion.div>
               </div>
 
               <div className="flex items-center gap-3">
-              {/* View selector */}
-              <div className="relative">
+                {/* View selector */}
+                <div className="relative">
+                  <button
+                    onClick={() => setShowViewDropdown(!showViewDropdown)}
+                    className="flex items-center gap-2 px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl hover:bg-white/[0.08] transition-colors"
+                  >
+                    <Calendar className="w-4 h-4 text-white/50" />
+                    <span className="text-sm text-white/80">{currentViewOption?.label}</span>
+                    <span className="text-xs text-white/40">({currentViewOption?.days})</span>
+                    <ChevronDown className="w-4 h-4 text-white/40" />
+                  </button>
+
+                  <AnimatePresence>
+                    {showViewDropdown && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: 8 }}
+                        className="absolute top-full mt-2 left-0 sm:left-auto sm:right-0 w-48 bg-[#0d1421] border border-white/10 rounded-xl overflow-hidden shadow-2xl z-10"
+                      >
+                        {VIEW_OPTIONS.map((option) => (
+                          <button
+                            key={option.value}
+                            onClick={() => {
+                              setCurrentView(option.value);
+                              setShowViewDropdown(false);
+                            }}
+                            className={`w-full px-4 py-3 text-left text-sm hover:bg-white/5 transition-colors flex justify-between items-center ${
+                              currentView === option.value
+                                ? 'text-cyan-400 bg-cyan-500/10'
+                                : 'text-white/70'
+                            }`}
+                          >
+                            <span>{option.label}</span>
+                            <span className="text-white/30 text-xs">{option.days}</span>
+                          </button>
+                        ))}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+
+                {/* Period navigation (3개월 단위 이동) */}
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => setPeriodOffset((p) => p + 1)}
+                    className="p-2.5 bg-white/5 border border-white/10 rounded-xl hover:bg-white/[0.08] transition-colors"
+                    title="이전 3개월"
+                  >
+                    <ChevronLeft className="w-4 h-4 text-white/50" />
+                  </button>
+                  <span className="text-xs text-white/40 px-2 min-w-[140px] text-center">
+                    {periodRange.label}
+                  </span>
+                  <button
+                    onClick={() => setPeriodOffset((p) => Math.max(0, p - 1))}
+                    disabled={periodRange.isLatest}
+                    className="p-2.5 bg-white/5 border border-white/10 rounded-xl hover:bg-white/[0.08] transition-colors disabled:opacity-30"
+                    title="다음 3개월"
+                  >
+                    <ChevronRight className="w-4 h-4 text-white/50" />
+                  </button>
+                </div>
+
+                {/* Refresh button */}
                 <button
-                  onClick={() => setShowViewDropdown(!showViewDropdown)}
-                  className="flex items-center gap-2 px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl hover:bg-white/[0.08] transition-colors"
+                  onClick={handleRefresh}
+                  disabled={isLoading}
+                  className="p-2.5 bg-white/5 border border-white/10 rounded-xl hover:bg-white/[0.08] transition-colors disabled:opacity-50"
                 >
-                  <Calendar className="w-4 h-4 text-white/50" />
-                  <span className="text-sm text-white/80">{currentViewOption?.label}</span>
-                  <span className="text-xs text-white/40">({currentViewOption?.days})</span>
-                  <ChevronDown className="w-4 h-4 text-white/40" />
+                  <RefreshCw
+                    className={`w-4 h-4 text-white/50 ${isLoading ? 'animate-spin' : ''}`}
+                  />
                 </button>
-
-                <AnimatePresence>
-                  {showViewDropdown && (
-                    <motion.div
-                      initial={{ opacity: 0, y: 8 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: 8 }}
-                      className="absolute top-full mt-2 left-0 sm:left-auto sm:right-0 w-48 bg-[#0d1421] border border-white/10 rounded-xl overflow-hidden shadow-2xl z-10"
-                    >
-                      {VIEW_OPTIONS.map((option) => (
-                        <button
-                          key={option.value}
-                          onClick={() => {
-                            setCurrentView(option.value);
-                            setShowViewDropdown(false);
-                          }}
-                          className={`w-full px-4 py-3 text-left text-sm hover:bg-white/5 transition-colors flex justify-between items-center ${
-                            currentView === option.value
-                              ? 'text-cyan-400 bg-cyan-500/10'
-                              : 'text-white/70'
-                          }`}
-                        >
-                          <span>{option.label}</span>
-                          <span className="text-white/30 text-xs">{option.days}</span>
-                        </button>
-                      ))}
-                    </motion.div>
-                  )}
-                </AnimatePresence>
               </div>
-
-              {/* Salinity input button */}
-              <button
-                onClick={() => setShowSalinityModal(true)}
-                className="flex items-center gap-2 px-4 py-2.5 bg-teal-500/10 border border-teal-500/30 rounded-xl text-teal-400 hover:bg-teal-500/20 transition-colors"
-              >
-                <Plus className="w-4 h-4" />
-                <span className="text-sm">염도 기록</span>
-              </button>
-
-              {/* Refresh button */}
-              <button
-                onClick={handleRefresh}
-                disabled={isLoading}
-                className="p-2.5 bg-white/5 border border-white/10 rounded-xl hover:bg-white/[0.08] transition-colors disabled:opacity-50"
-              >
-                <RefreshCw
-                  className={`w-4 h-4 text-white/50 ${isLoading ? 'animate-spin' : ''}`}
-                />
-              </button>
             </div>
-          </div>
 
-          {/* Error display */}
-          {error && (
-            <motion.div
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="mb-4 px-4 py-3 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400 text-sm flex items-center justify-between"
-            >
-              <span>{error}</span>
-              <button onClick={clearError} className="text-red-400/60 hover:text-red-400">
-                ✕
-              </button>
-            </motion.div>
-          )}
+            {/* Error display */}
+            {error && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mb-4 px-4 py-3 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400 text-sm flex items-center justify-between"
+              >
+                <span>{error}</span>
+                <button onClick={clearError} className="text-red-400/60 hover:text-red-400">
+                  ✕
+                </button>
+              </motion.div>
+            )}
           </motion.div>
         </div>
       </section>
@@ -567,309 +668,392 @@ export default function DataLogPage() {
       {/* Main Content Section */}
       <section className="px-4 sm:px-6 lg:px-8">
         <div className="max-w-6xl mx-auto">
-        {/* Current Conditions Grid */}
-        <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 mb-10">
-          {/* Mobile Depth indicator */}
+
+          {/* ── 실시간 상태 카드 (9개) ── */}
+          <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 mb-10">
+            {/* Mobile Depth indicator */}
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5 }}
+              className="sm:hidden bg-[#0d1421]/60 backdrop-blur-xl border border-white/[0.06] rounded-xl p-3"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="p-1.5 bg-cyan-500/10 rounded-lg">
+                    <Anchor className="w-4 h-4 text-cyan-400" />
+                  </div>
+                  <span className="text-xs text-white/50 uppercase tracking-wider">숙성 깊이</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-24 h-2 bg-white/5 rounded-full overflow-hidden">
+                    <motion.div
+                      className="h-full bg-gradient-to-r from-cyan-500 to-teal-400 rounded-full"
+                      initial={{ width: 0 }}
+                      animate={{ width: `${(agingDepth / 60) * 100}%` }}
+                      transition={{ duration: 1, ease: 'easeOut' }}
+                    />
+                  </div>
+                  <span className="text-lg font-light text-cyan-400 font-mono">{agingDepth}m</span>
+                </div>
+              </div>
+            </motion.div>
+
+            {/* Desktop Depth gauge */}
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.5 }}
+              className="hidden sm:flex bg-[#0d1421]/60 backdrop-blur-xl border border-white/[0.06] rounded-2xl p-4"
+            >
+              <DepthGauge depth={Math.max(...DEPLOYED_DEPTHS)} />
+            </motion.div>
+
+            {/* Data cards grid — 9개 */}
+            <div className="flex-1 grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-3">
+              <DataCard
+                icon={Thermometer}
+                label="수온"
+                value={currentConditions?.seaTemperature?.toFixed(1) ?? null}
+                unit="°C"
+                color="#22d3ee"
+                delay={0.1}
+              />
+              <DataCard
+                icon={Droplets}
+                label="염분"
+                value={currentConditions?.salinity?.toFixed(1) ?? null}
+                unit="psu"
+                color="#34d399"
+                delay={0.15}
+              />
+              <DataCard
+                icon={Anchor}
+                label="조위"
+                value={currentConditions?.tideLevel?.toFixed(0) ?? null}
+                unit="cm"
+                color="#818cf8"
+                delay={0.2}
+              />
+              <DataCard
+                icon={Gauge}
+                label="기압"
+                value={currentConditions?.surfacePressure?.toFixed(0) ?? null}
+                unit="hPa"
+                color="#f472b6"
+                delay={0.25}
+              />
+              <DataCard
+                icon={Activity}
+                label="수압"
+                value={currentConditions?.waterPressure?.toFixed(2) ?? null}
+                unit="atm"
+                color="#fb923c"
+                delay={0.3}
+              />
+              <DataCard
+                icon={Navigation2}
+                label="조류 유속"
+                value={currentConditions?.tidalCurrentSpeed?.toFixed(1) ?? null}
+                unit="cm/s"
+                color="#c084fc"
+                delay={0.35}
+              />
+              <DataCard
+                icon={Waves}
+                label="파고"
+                value={currentConditions?.waveHeight?.toFixed(1) ?? null}
+                unit="m"
+                color="#60a5fa"
+                delay={0.4}
+              />
+              <DataCard
+                icon={Timer}
+                label="파주기"
+                value={currentConditions?.wavePeriod?.toFixed(1) ?? null}
+                unit="s"
+                color="#fbbf24"
+                delay={0.45}
+              />
+              <DataCard
+                icon={TrendingUp}
+                label="숙성 점수"
+                value={uapsCoeffs?.overallScore ?? null}
+                unit="/100"
+                color="#C4A052"
+                delay={0.5}
+              />
+            </div>
+          </div>
+
+          {/* ── UAPS 숙성 보정계수 (4개 게이지) ── */}
           <motion.div
-            initial={{ opacity: 0, y: -10 }}
+            initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-            className="sm:hidden bg-[#0d1421]/60 backdrop-blur-xl border border-white/[0.06] rounded-xl p-3"
+            transition={{ duration: 0.6, delay: 0.5 }}
+            className="mb-10"
           >
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="p-1.5 bg-cyan-500/10 rounded-lg">
-                  <Anchor className="w-4 h-4 text-cyan-400" />
-                </div>
-                <span className="text-xs text-white/50 uppercase tracking-wider">숙성 깊이</span>
+            <div className="flex items-center gap-3 mb-5">
+              <div className="p-2 bg-[#C4A052]/10 rounded-xl">
+                <TrendingUp className="w-5 h-5 text-[#C4A052]" />
               </div>
-              <div className="flex items-center gap-2">
-                <div className="w-24 h-2 bg-white/5 rounded-full overflow-hidden">
-                  <motion.div
-                    className="h-full bg-gradient-to-r from-cyan-500 to-teal-400 rounded-full"
-                    initial={{ width: 0 }}
-                    animate={{ width: `${(agingDepth / 30) * 100}%` }}
-                    transition={{ duration: 1, ease: 'easeOut' }}
-                  />
-                </div>
-                <span className="text-lg font-light text-cyan-400 font-mono">{agingDepth}m</span>
-              </div>
+              <h2 className="text-lg font-medium text-white/90">UAPS 숙성 보정계수</h2>
+              {uapsCoeffs && (
+                <span
+                  className="ml-auto text-sm font-medium px-3 py-1 rounded-full"
+                  style={{
+                    color: getOverallLabel(uapsCoeffs.overallScore).color,
+                    backgroundColor: `${getOverallLabel(uapsCoeffs.overallScore).color}20`,
+                  }}
+                >
+                  종합 {uapsCoeffs.overallScore}/100 {getOverallLabel(uapsCoeffs.overallScore).text}
+                </span>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              <CoefficientGauge
+                label="FRI 향 보존"
+                value={uapsCoeffs?.fri ?? null}
+                rawValue={uapsCoeffs?.fri !== undefined ? (uapsCoeffs?.fri ?? 0).toFixed(2) : '—'}
+                description={
+                  currentConditions?.seaTemperature
+                    ? `수온 ${currentConditions.seaTemperature.toFixed(1)}°C 기반`
+                    : '데이터 없음'
+                }
+                statusLabel={getFRILabel(uapsCoeffs?.fri ?? NaN)}
+                color="#22d3ee"
+                delay={0.55}
+              />
+              <CoefficientGauge
+                label="BRI 기포 보존"
+                value={uapsCoeffs?.bri ?? null}
+                rawValue={uapsCoeffs?.bri !== undefined ? (uapsCoeffs?.bri ?? 0).toFixed(2) : '—'}
+                description={
+                  currentConditions?.waterPressure
+                    ? `수압 ${currentConditions.waterPressure.toFixed(1)}atm 기반`
+                    : '데이터 없음'
+                }
+                statusLabel={getBRILabel(uapsCoeffs?.bri ?? NaN)}
+                color="#60a5fa"
+                delay={0.6}
+              />
+              <CoefficientGauge
+                label="K-TCI 질감"
+                value={uapsCoeffs?.kTci ?? null}
+                rawValue={uapsCoeffs?.kTci !== undefined ? (uapsCoeffs?.kTci ?? 0).toFixed(2) : '—'}
+                description={
+                  currentConditions?.tidalCurrentSpeed != null
+                    ? `조류 ${currentConditions.tidalCurrentSpeed.toFixed(1)}cm/s 기반`
+                    : '데이터 없음'
+                }
+                statusLabel={getKTCILabel(uapsCoeffs?.kTci ?? NaN)}
+                color="#c084fc"
+                delay={0.65}
+              />
+              <CoefficientGauge
+                label="TSI 온도 안정성"
+                value={uapsCoeffs?.tsi ?? null}
+                rawValue={uapsCoeffs?.tsi !== undefined ? (uapsCoeffs?.tsi ?? 0).toFixed(2) : '—'}
+                description={`최근 ${Math.min(dailyData.length, 30)}일 기준`}
+                statusLabel={getTSILabel(uapsCoeffs?.tsi ?? NaN)}
+                color="#34d399"
+                delay={0.7}
+              />
             </div>
           </motion.div>
 
-          {/* Desktop Depth gauge */}
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.5 }}
-            className="hidden sm:flex bg-[#0d1421]/60 backdrop-blur-xl border border-white/[0.06] rounded-2xl p-4"
-          >
-            <DepthGauge depth={agingDepth} />
-          </motion.div>
+          {/* ── 시계열 차트 (8개) ── */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-          {/* Data cards */}
-          <div className="flex-1 grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
-            <DataCard
-              icon={Thermometer}
-              label="수온"
-              value={currentConditions?.seaTemperature?.toFixed(1) ?? null}
-              unit="°C"
-              color={OCEAN_DATA_LABELS.seaTemperature.color}
-              delay={0.1}
-            />
-            <DataCard
-              icon={Wind}
-              label="해류 속도"
-              value={currentConditions?.currentVelocity?.toFixed(2) ?? null}
-              unit="m/s"
-              color={OCEAN_DATA_LABELS.currentVelocity.color}
-              delay={0.15}
-            />
-            <DataCard
-              icon={Waves}
-              label="파고"
-              value={currentConditions?.waveHeight?.toFixed(1) ?? null}
-              unit="m"
-              color={OCEAN_DATA_LABELS.waveHeight.color}
-              delay={0.2}
-            />
-            <DataCard
-              icon={Timer}
-              label="파주기"
-              value={currentConditions?.wavePeriod?.toFixed(1) ?? null}
-              unit="s"
-              color={OCEAN_DATA_LABELS.wavePeriod.color}
-              delay={0.22}
-            />
-            <DataCard
-              icon={Gauge}
-              label="기압"
-              value={currentConditions?.surfacePressure?.toFixed(0) ?? null}
-              unit="hPa"
-              color={OCEAN_DATA_LABELS.surfacePressure.color}
-              delay={0.25}
-            />
-            <DataCard
-              icon={Activity}
-              label="수압"
-              value={currentConditions?.waterPressure?.toFixed(2) ?? null}
-              unit="atm"
-              color={OCEAN_DATA_LABELS.waterPressure.color}
-              delay={0.3}
-            />
-            <DataCard
-              icon={Droplets}
-              label="염도"
-              value={currentConditions?.salinity?.toFixed(1) ?? null}
-              unit="‰"
-              color={OCEAN_DATA_LABELS.salinity.color}
-              delay={0.35}
-            />
+            {/* 1. 수온 변화 */}
+            <ChartWrapper title="수온 변화" icon={Thermometer} iconColor="#22d3ee" delay={0.4}>
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={chartData}>
+                  <defs>
+                    <linearGradient id="tempGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#22d3ee" stopOpacity={0.3} />
+                      <stop offset="100%" stopColor="#22d3ee" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" />
+                  <XAxis dataKey="date" stroke="#ffffff30" tick={{ fill: '#ffffff50', fontSize: 11 }} />
+                  <YAxis stroke="#ffffff30" tick={{ fill: '#ffffff50', fontSize: 11 }} domain={['auto', 'auto']} />
+                  <Tooltip content={<CustomTooltip />} />
+                  <Area type="monotone" dataKey="수온" stroke="#22d3ee" strokeWidth={2} fill="url(#tempGradient)" />
+                </AreaChart>
+              </ResponsiveContainer>
+            </ChartWrapper>
+
+            {/* 2. 염분 변화 */}
+            <ChartWrapper title="염분 변화" icon={Droplets} iconColor="#34d399" delay={0.45}>
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={chartData}>
+                  <defs>
+                    <linearGradient id="salinityGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#34d399" stopOpacity={0.3} />
+                      <stop offset="100%" stopColor="#34d399" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" />
+                  <XAxis dataKey="date" stroke="#ffffff30" tick={{ fill: '#ffffff50', fontSize: 11 }} />
+                  <YAxis stroke="#ffffff30" tick={{ fill: '#ffffff50', fontSize: 11 }} domain={['auto', 'auto']} />
+                  <Tooltip content={<CustomTooltip />} />
+                  <Area type="monotone" dataKey="염분" stroke="#34d399" strokeWidth={2} fill="url(#salinityGradient)" />
+                </AreaChart>
+              </ResponsiveContainer>
+            </ChartWrapper>
+
+            {/* 3. 조위 변화 */}
+            <ChartWrapper title="조위 변화" icon={Anchor} iconColor="#818cf8" delay={0.5}>
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={chartData}>
+                  <defs>
+                    <linearGradient id="tideGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#818cf8" stopOpacity={0.3} />
+                      <stop offset="100%" stopColor="#818cf8" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" />
+                  <XAxis dataKey="date" stroke="#ffffff30" tick={{ fill: '#ffffff50', fontSize: 11 }} />
+                  <YAxis stroke="#ffffff30" tick={{ fill: '#ffffff50', fontSize: 11 }} domain={['auto', 'auto']} />
+                  <Tooltip content={<CustomTooltip />} />
+                  <Area type="monotone" dataKey="조위" stroke="#818cf8" strokeWidth={2} fill="url(#tideGradient)" />
+                </AreaChart>
+              </ResponsiveContainer>
+            </ChartWrapper>
+
+            {/* 4. 조류 유속 */}
+            <ChartWrapper title="조류 유속" icon={Navigation2} iconColor="#c084fc" delay={0.55}>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={chartData}>
+                  <defs>
+                    <linearGradient id="tidalCurrentGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#c084fc" stopOpacity={0.5} />
+                      <stop offset="100%" stopColor="#c084fc" stopOpacity={0.1} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" />
+                  <XAxis dataKey="date" stroke="#ffffff30" tick={{ fill: '#ffffff50', fontSize: 11 }} />
+                  <YAxis stroke="#ffffff30" tick={{ fill: '#ffffff50', fontSize: 11 }} />
+                  <Tooltip content={<CustomTooltip />} />
+                  <Bar
+                    dataKey="조류유속"
+                    fill="url(#tidalCurrentGradient)"
+                    stroke="#c084fc"
+                    strokeWidth={1}
+                    radius={[4, 4, 0, 0]}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            </ChartWrapper>
+
+            {/* 5. 기압 / 수압 */}
+            <ChartWrapper title="기압 / 수압" icon={Gauge} iconColor="#f472b6" delay={0.6}>
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={chartData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" />
+                  <XAxis dataKey="date" stroke="#ffffff30" tick={{ fill: '#ffffff50', fontSize: 11 }} />
+                  <YAxis
+                    yAxisId="left"
+                    stroke="#ffffff30"
+                    tick={{ fill: '#ffffff50', fontSize: 11 }}
+                    domain={['auto', 'auto']}
+                  />
+                  <YAxis
+                    yAxisId="right"
+                    orientation="right"
+                    stroke="#ffffff30"
+                    tick={{ fill: '#ffffff50', fontSize: 11 }}
+                    domain={['auto', 'auto']}
+                  />
+                  <Tooltip content={<CustomTooltip />} />
+                  <Legend
+                    wrapperStyle={{ paddingTop: 10 }}
+                    formatter={(value: string) => (
+                      <span className="text-white/60 text-xs">{value}</span>
+                    )}
+                  />
+                  <Line yAxisId="left" type="monotone" dataKey="기압" stroke="#f472b6" strokeWidth={2} dot={false} />
+                  <Line yAxisId="right" type="monotone" dataKey="수압" stroke="#fb923c" strokeWidth={2} dot={false} />
+                </LineChart>
+              </ResponsiveContainer>
+            </ChartWrapper>
+
+            {/* 6. 파고 변화 */}
+            <ChartWrapper title="파고 변화" icon={Waves} iconColor="#60a5fa" delay={0.65}>
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={chartData}>
+                  <defs>
+                    <linearGradient id="waveGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#60a5fa" stopOpacity={0.3} />
+                      <stop offset="100%" stopColor="#60a5fa" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" />
+                  <XAxis dataKey="date" stroke="#ffffff30" tick={{ fill: '#ffffff50', fontSize: 11 }} />
+                  <YAxis stroke="#ffffff30" tick={{ fill: '#ffffff50', fontSize: 11 }} />
+                  <Tooltip content={<CustomTooltip />} />
+                  <Area type="monotone" dataKey="파고" stroke="#60a5fa" strokeWidth={2} fill="url(#waveGradient)" />
+                </AreaChart>
+              </ResponsiveContainer>
+            </ChartWrapper>
+
+            {/* 7. 파주기 변화 */}
+            <ChartWrapper title="파주기 변화" icon={Timer} iconColor="#fbbf24" delay={0.7}>
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={chartData}>
+                  <defs>
+                    <linearGradient id="wavePeriodGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#fbbf24" stopOpacity={0.3} />
+                      <stop offset="100%" stopColor="#fbbf24" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" />
+                  <XAxis dataKey="date" stroke="#ffffff30" tick={{ fill: '#ffffff50', fontSize: 11 }} />
+                  <YAxis stroke="#ffffff30" tick={{ fill: '#ffffff50', fontSize: 11 }} />
+                  <Tooltip content={<CustomTooltip />} />
+                  <Area type="monotone" dataKey="파주기" stroke="#fbbf24" strokeWidth={2} fill="url(#wavePeriodGradient)" />
+                </AreaChart>
+              </ResponsiveContainer>
+            </ChartWrapper>
+
+            {/* 8. FRI/BRI 추이 */}
+            <ChartWrapper title="FRI / BRI 추이" icon={TrendingUp} iconColor="#C4A052" delay={0.75}>
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={chartData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" />
+                  <XAxis dataKey="date" stroke="#ffffff30" tick={{ fill: '#ffffff50', fontSize: 11 }} />
+                  <YAxis stroke="#ffffff30" tick={{ fill: '#ffffff50', fontSize: 11 }} domain={[0, 1]} />
+                  <Tooltip content={<CustomTooltip />} />
+                  <Legend
+                    wrapperStyle={{ paddingTop: 10 }}
+                    formatter={(value: string) => (
+                      <span className="text-white/60 text-xs">{value}</span>
+                    )}
+                  />
+                  <Line type="monotone" dataKey="FRI" stroke="#22d3ee" strokeWidth={2} dot={false} />
+                  <Line type="monotone" dataKey="BRI" stroke="#60a5fa" strokeWidth={2} dot={false} />
+                </LineChart>
+              </ResponsiveContainer>
+            </ChartWrapper>
+
           </div>
-        </div>
 
-        {/* Charts Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Temperature Chart */}
-          <ChartWrapper title="수온 변화" icon={Thermometer} delay={0.4}>
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={chartData}>
-                <defs>
-                  <linearGradient id="tempGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#22d3ee" stopOpacity={0.3} />
-                    <stop offset="100%" stopColor="#22d3ee" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" />
-                <XAxis
-                  dataKey="date"
-                  stroke="#ffffff30"
-                  tick={{ fill: '#ffffff50', fontSize: 11 }}
-                />
-                <YAxis
-                  stroke="#ffffff30"
-                  tick={{ fill: '#ffffff50', fontSize: 11 }}
-                  domain={['auto', 'auto']}
-                />
-                <Tooltip content={<CustomTooltip />} />
-                <Area
-                  type="monotone"
-                  dataKey="수온"
-                  stroke="#22d3ee"
-                  strokeWidth={2}
-                  fill="url(#tempGradient)"
-                />
-              </AreaChart>
-            </ResponsiveContainer>
-          </ChartWrapper>
-
-          {/* Current Velocity Chart */}
-          <ChartWrapper title="해류 속도" icon={Wind} delay={0.5}>
-            <ResponsiveContainer width="100%" height="100%">
-              <ComposedChart data={chartData}>
-                <defs>
-                  <linearGradient id="currentGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#a78bfa" stopOpacity={0.4} />
-                    <stop offset="100%" stopColor="#a78bfa" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" />
-                <XAxis
-                  dataKey="date"
-                  stroke="#ffffff30"
-                  tick={{ fill: '#ffffff50', fontSize: 11 }}
-                />
-                <YAxis
-                  stroke="#ffffff30"
-                  tick={{ fill: '#ffffff50', fontSize: 11 }}
-                />
-                <Tooltip content={<CustomTooltip />} />
-                <Bar
-                  dataKey="해류속도"
-                  fill="url(#currentGradient)"
-                  stroke="#a78bfa"
-                  strokeWidth={1}
-                  radius={[4, 4, 0, 0]}
-                />
-              </ComposedChart>
-            </ResponsiveContainer>
-          </ChartWrapper>
-
-          {/* Wave Height Chart */}
-          <ChartWrapper title="파고 변화" icon={Waves} delay={0.6}>
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={chartData}>
-                <defs>
-                  <linearGradient id="waveGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#60a5fa" stopOpacity={0.3} />
-                    <stop offset="100%" stopColor="#60a5fa" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" />
-                <XAxis
-                  dataKey="date"
-                  stroke="#ffffff30"
-                  tick={{ fill: '#ffffff50', fontSize: 11 }}
-                />
-                <YAxis
-                  stroke="#ffffff30"
-                  tick={{ fill: '#ffffff50', fontSize: 11 }}
-                />
-                <Tooltip content={<CustomTooltip />} />
-                <Area
-                  type="monotone"
-                  dataKey="파고"
-                  stroke="#60a5fa"
-                  strokeWidth={2}
-                  fill="url(#waveGradient)"
-                />
-              </AreaChart>
-            </ResponsiveContainer>
-          </ChartWrapper>
-
-          {/* Wave Period Chart */}
-          <ChartWrapper title="파주기 변화" icon={Timer} delay={0.65}>
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={chartData}>
-                <defs>
-                  <linearGradient id="wavePeriodGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#fbbf24" stopOpacity={0.3} />
-                    <stop offset="100%" stopColor="#fbbf24" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" />
-                <XAxis
-                  dataKey="date"
-                  stroke="#ffffff30"
-                  tick={{ fill: '#ffffff50', fontSize: 11 }}
-                />
-                <YAxis
-                  stroke="#ffffff30"
-                  tick={{ fill: '#ffffff50', fontSize: 11 }}
-                />
-                <Tooltip content={<CustomTooltip />} />
-                <Area
-                  type="monotone"
-                  dataKey="파주기"
-                  stroke="#fbbf24"
-                  strokeWidth={2}
-                  fill="url(#wavePeriodGradient)"
-                />
-              </AreaChart>
-            </ResponsiveContainer>
-          </ChartWrapper>
-
-          {/* Pressure Chart */}
-          <ChartWrapper title="기압 / 수압" icon={Gauge} delay={0.7}>
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" />
-                <XAxis
-                  dataKey="date"
-                  stroke="#ffffff30"
-                  tick={{ fill: '#ffffff50', fontSize: 11 }}
-                />
-                <YAxis
-                  yAxisId="left"
-                  stroke="#ffffff30"
-                  tick={{ fill: '#ffffff50', fontSize: 11 }}
-                  domain={['auto', 'auto']}
-                />
-                <YAxis
-                  yAxisId="right"
-                  orientation="right"
-                  stroke="#ffffff30"
-                  tick={{ fill: '#ffffff50', fontSize: 11 }}
-                  domain={['auto', 'auto']}
-                />
-                <Tooltip content={<CustomTooltip />} />
-                <Legend
-                  wrapperStyle={{ paddingTop: 10 }}
-                  formatter={(value) => (
-                    <span className="text-white/60 text-xs">{value}</span>
-                  )}
-                />
-                <Line
-                  yAxisId="left"
-                  type="monotone"
-                  dataKey="기압"
-                  stroke="#f472b6"
-                  strokeWidth={2}
-                  dot={false}
-                />
-                <Line
-                  yAxisId="right"
-                  type="monotone"
-                  dataKey="수압"
-                  stroke="#fb923c"
-                  strokeWidth={2}
-                  dot={false}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </ChartWrapper>
-        </div>
-
-        {/* Location info */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.5, delay: 0.8 }}
-          className="mt-10 text-center"
-        >
-          <p className="text-xs text-white/20 font-mono">
-            DATA SOURCE: OPEN-METEO MARINE API • REFRESH INTERVAL: MANUAL • DEPTH: {agingDepth}M
-          </p>
-        </motion.div>
+          {/* Location info */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.5, delay: 0.8 }}
+            className="mt-10 text-center"
+          >
+            <p className="text-xs text-white/20 font-mono">
+              DATA SOURCE: KHOA + OPEN-METEO MARINE API | REFRESH: MANUAL | DEPTH: {agingDepth}M
+            </p>
+          </motion.div>
         </div>
       </section>
 
-      {/* Salinity Modal */}
-      <SalinityModal
-        isOpen={showSalinityModal}
-        onClose={() => setShowSalinityModal(false)}
-        onSubmit={handleSalinitySubmit}
-      />
     </div>
   );
 }

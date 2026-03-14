@@ -24,6 +24,7 @@ import type {
   ClosureType,
   OceanConditionsForPrediction,
   DepthSimulationResult,
+  OptimalImmersionResult,
 } from '@/lib/types/uaps';
 import {
   DEFAULT_COEFFICIENTS,
@@ -35,6 +36,8 @@ import {
   CONSERVATIVE_CAP,
   MIN_EFFECTIVE_TCI,
 } from '@/lib/types/uaps';
+import { type MonthlyOceanProfile, getMonthlyProfile } from '@/lib/utils/uaps-ocean-profile';
+import { calculateLiveTSI } from '@/lib/utils/uaps-live-coefficients';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // 과학적 계수 계산
@@ -637,7 +640,8 @@ export function calculateCompositeQuality(
   bubble: number,
   risk: number,
   _wineType: string | null,
-  qualityWeights?: QualityWeights
+  qualityWeights?: QualityWeights,
+  tsiScore?: number
 ): number {
   const w = qualityWeights || DEFAULT_QUALITY_WEIGHTS;
   const riskScore = Math.max(0, 100 - risk);
@@ -662,7 +666,15 @@ export function calculateCompositeQuality(
     synergyBonus = 15 * avgFactor * harmonyFactor;
   }
 
-  return Math.round(Math.min(100, base + synergyBonus) * 10) / 10;
+  let quality = Math.min(100, base + synergyBonus);
+
+  // TSI 보정: 온도 안정성이 품질에 미치는 영향
+  if (tsiScore !== undefined) {
+    if (tsiScore >= 0.7) quality += 3;       // 안정 보너스
+    else if (tsiScore < 0.4) quality -= 3;   // 불안정 페널티
+  }
+
+  return Math.round(Math.min(100, Math.max(0, quality)) * 10) / 10;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -680,7 +692,9 @@ export function calculateOptimalHarvestWindow(
   product: AgingProduct,
   config: ParsedUAPSConfig,
   agingFactors?: AgingFactors,
-  qualityWeights?: QualityWeights
+  qualityWeights?: QualityWeights,
+  monthlyOceanProfiles?: MonthlyOceanProfile[],
+  immersionMonth?: number
 ): { startMonths: number; endMonths: number; peakMonth: number; peakScore: number; recommendation: string } {
   const reductionPotential = product.reductionPotential || 'low';
   const af = agingFactors || DEFAULT_AGING_FACTORS;
@@ -690,14 +704,46 @@ export function calculateOptimalHarvestWindow(
 
   // 6-36개월 각 월별 복합 품질 계산
   const kf = af.kineticFactor ?? 1.0;
+
+  // TSI 계산: monthlyOceanProfiles가 있으면 12개월 수온으로 산출
+  let tsiScore: number | undefined;
+  if (monthlyOceanProfiles && monthlyOceanProfiles.length > 0) {
+    const tempArray = monthlyOceanProfiles.map(p => p.seaTemperatureAvg);
+    tsiScore = calculateLiveTSI(tempArray, product.agingDepth ?? 50);
+  }
+
   const monthlyScores: { month: number; score: number }[] = [];
   for (let m = 1; m <= 36; m += 1) {
-    const texture = calculateTextureMaturity(baseAging, m, config.tci * af.textureMult, kf);
-    const aroma = calculateAromaFreshness(baseAging, m, config.fri * af.aromaDecay);
-    const bubble = calculateBubbleRefinement(m, product.agingDepth, config.bri);
+    // 동적 해양 프로파일 기반 계수 (옵셔널)
+    let dynamicFri = config.fri;
+    let dynamicBri = config.bri;
+    let dynamicKf = kf;
+
+    if (monthlyOceanProfiles && monthlyOceanProfiles.length > 0 && immersionMonth) {
+      const calendarMonth = ((immersionMonth - 1 + m - 1) % 12) + 1;
+      const profile = getMonthlyProfile(monthlyOceanProfiles, calendarMonth);
+
+      // FRI/BRI 동적 재계산 (해당 월 수온 기반)
+      const monthTemp = profile.seaTemperatureAvg;
+      const category = (product.productCategory || 'champagne') as string;
+      const eaEntry = CATEGORY_EA_MAP[category];
+      const ea = eaEntry ? eaEntry.ea * 1000 : 47000;
+      dynamicFri = calculateArrheniusFRI(monthTemp, 12, ea, product.closureType, product.agingDepth).value;
+      dynamicBri = calculateHenryBRI(product.agingDepth ?? 30, monthTemp).value;
+
+      // K-TCI: 조류 유속 기반 kineticFactor (cm/s → m/s 변환)
+      if (profile.tidalCurrentSpeedAvg !== null) {
+        const velocityMs = profile.tidalCurrentSpeedAvg / 100;
+        dynamicKf = deriveKineticFactorFromOcean(velocityMs, profile.waveHeightAvg, null);
+      }
+    }
+
+    const texture = calculateTextureMaturity(baseAging, m, config.tci * af.textureMult, dynamicKf);
+    const aroma = calculateAromaFreshness(baseAging, m, dynamicFri * af.aromaDecay);
+    const bubble = calculateBubbleRefinement(m, product.agingDepth, dynamicBri);
     const risk = calculateOffFlavorRisk(reductionPotential, m, texture) * af.riskMult;
 
-    const score = calculateCompositeQuality(texture, aroma, bubble, risk, product.wineType, qualityWeights);
+    const score = calculateCompositeQuality(texture, aroma, bubble, risk, product.wineType, qualityWeights, tsiScore);
     monthlyScores.push({ month: m, score });
   }
 
@@ -775,7 +821,9 @@ export function generateTimelineData(
   product: AgingProduct,
   config: ParsedUAPSConfig,
   agingFactors?: AgingFactors,
-  qualityWeights?: QualityWeights
+  qualityWeights?: QualityWeights,
+  monthlyOceanProfiles?: MonthlyOceanProfile[],
+  immersionMonth?: number
 ): (TimelineDataPoint & { compositeQuality: number; gainScore: number; lossScore: number; netBenefit: number })[] {
   const reductionPotential = product.reductionPotential || 'low';
   const af = agingFactors || DEFAULT_AGING_FACTORS;
@@ -786,6 +834,13 @@ export function generateTimelineData(
     : af.baseAgingYears;
   const points: (TimelineDataPoint & { compositeQuality: number; gainScore: number; lossScore: number; netBenefit: number })[] = [];
 
+  // TSI 계산: monthlyOceanProfiles가 있으면 12개월 수온으로 산출
+  let tsiScore: number | undefined;
+  if (monthlyOceanProfiles && monthlyOceanProfiles.length > 0) {
+    const tempArray = monthlyOceanProfiles.map(p => p.seaTemperatureAvg);
+    tsiScore = calculateLiveTSI(tempArray, product.agingDepth ?? 50);
+  }
+
   // v3.0 Conservative Cap: 지상 기준 품질(m=0) 계산
   const landTexture = calculateTextureMaturity(baseAging, 0, 1.0, 1.0); // 지상 TCI=1, kf=1
   const landAroma = calculateAromaFreshness(baseAging, 0, 1.0);
@@ -794,13 +849,37 @@ export function generateTimelineData(
   const landBaseline = calculateCompositeQuality(landTexture, landAroma, landBubble, landRisk, product.wineType, w);
 
   for (let m = 1; m <= 36; m += 1) {
-    const textureMaturity = calculateTextureMaturity(baseAging, m, config.tci * af.textureMult, kf);
-    const aromaFreshness = calculateAromaFreshness(baseAging, m, config.fri * af.aromaDecay);
+    // 동적 해양 프로파일 기반 계수 (옵셔널)
+    let dynamicFri = config.fri;
+    let dynamicBri = config.bri;
+    let dynamicKf = kf;
+
+    if (monthlyOceanProfiles && monthlyOceanProfiles.length > 0 && immersionMonth) {
+      const calendarMonth = ((immersionMonth - 1 + m - 1) % 12) + 1;
+      const profile = getMonthlyProfile(monthlyOceanProfiles, calendarMonth);
+
+      // FRI/BRI 동적 재계산 (해당 월 수온 기반)
+      const monthTemp = profile.seaTemperatureAvg;
+      const category = (product.productCategory || 'champagne') as string;
+      const eaEntry = CATEGORY_EA_MAP[category];
+      const ea = eaEntry ? eaEntry.ea * 1000 : 47000;
+      dynamicFri = calculateArrheniusFRI(monthTemp, 12, ea, product.closureType, product.agingDepth).value;
+      dynamicBri = calculateHenryBRI(product.agingDepth ?? 30, monthTemp).value;
+
+      // K-TCI: 조류 유속 기반 kineticFactor (cm/s → m/s 변환)
+      if (profile.tidalCurrentSpeedAvg !== null) {
+        const velocityMs = profile.tidalCurrentSpeedAvg / 100;
+        dynamicKf = deriveKineticFactorFromOcean(velocityMs, profile.waveHeightAvg, null);
+      }
+    }
+
+    const textureMaturity = calculateTextureMaturity(baseAging, m, config.tci * af.textureMult, dynamicKf);
+    const aromaFreshness = calculateAromaFreshness(baseAging, m, dynamicFri * af.aromaDecay);
     const offFlavorRisk = calculateOffFlavorRisk(reductionPotential, m, textureMaturity) * af.riskMult;
-    const bubbleRefinement = calculateBubbleRefinement(m, product.agingDepth, config.bri);
+    const bubbleRefinement = calculateBubbleRefinement(m, product.agingDepth, dynamicBri);
 
     let compositeQuality = calculateCompositeQuality(
-      textureMaturity, aromaFreshness, bubbleRefinement, offFlavorRisk, product.wineType, w
+      textureMaturity, aromaFreshness, bubbleRefinement, offFlavorRisk, product.wineType, w, tsiScore
     );
 
     // v3.0 Conservative Cap: 해저/지상 차이를 ±20점 이내로 제한
@@ -1196,4 +1275,151 @@ export function simulateDepthQualities(
   }
 
   return results;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 최적 투입 월 추천 (Autoresearch H07)
+// ═══════════════════════════════════════════════════════════════════════════
+
+const MONTH_LABELS = ['1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', '9월', '10월', '11월', '12월'];
+
+/**
+ * 12개 투입 월 시뮬레이션으로 최적 투입 시기 추천
+ *
+ * 각 월(1~12)을 immersionMonth로 설정하여 generateTimelineData()를 호출하고,
+ * compositeQuality 기반으로 최적 투입 월을 결정한다.
+ *
+ * @param product 숙성 제품 정보
+ * @param config UAPS 설정 (TCI/FRI/BRI 등)
+ * @param monthlyOceanProfiles 12개월 해양 프로파일
+ * @param options 추가 옵션 (maxMonths, agingFactors, qualityWeights 등)
+ */
+export function simulateOptimalImmersionMonth(
+  product: AgingProduct,
+  config: ParsedUAPSConfig,
+  monthlyOceanProfiles: MonthlyOceanProfile[],
+  options?: {
+    maxMonths?: number;
+    agingFactors?: AgingFactors;
+    qualityWeights?: QualityWeights;
+  }
+): OptimalImmersionResult {
+  const maxMonths = options?.maxMonths ?? 24;
+  const af = options?.agingFactors;
+  const qw = options?.qualityWeights;
+
+  const monthlyScores: OptimalImmersionResult['monthlyScores'] = [];
+
+  for (let immMonth = 1; immMonth <= 12; immMonth++) {
+    // generateTimelineData()는 1~36개월 고정 생성 → maxMonths까지만 사용
+    const timeline = generateTimelineData(
+      product,
+      config,
+      af,
+      qw,
+      monthlyOceanProfiles,
+      immMonth
+    );
+
+    // maxMonths까지만 잘라서 분석
+    const trimmed = timeline.slice(0, maxMonths);
+
+    if (trimmed.length === 0) {
+      monthlyScores.push({
+        immersionMonth: immMonth,
+        immersionMonthLabel: MONTH_LABELS[immMonth - 1],
+        peakQuality: 0,
+        peakAtMonth: 0,
+        goldenWindowStart: 0,
+        goldenWindowEnd: 0,
+        avgFri: 0,
+        avgBri: 0,
+        avgKf: 0,
+      });
+      continue;
+    }
+
+    // peakQuality & peakAtMonth
+    let peakQuality = -Infinity;
+    let peakAtMonth = 1;
+    for (const pt of trimmed) {
+      if (pt.compositeQuality > peakQuality) {
+        peakQuality = pt.compositeQuality;
+        peakAtMonth = pt.month;
+      }
+    }
+    peakQuality = Math.round(peakQuality * 10) / 10;
+
+    // goldenWindow: compositeQuality >= peak * 0.9 인 연속 구간
+    const threshold = peakQuality * 0.9;
+    let gwStart = 0;
+    let gwEnd = 0;
+    for (const pt of trimmed) {
+      if (pt.compositeQuality >= threshold) {
+        if (gwStart === 0) gwStart = pt.month;
+        gwEnd = pt.month;
+      }
+    }
+
+    // 평균 FRI/BRI/Kf 계산: 월별 해양 프로파일에서 직접 계산
+    let sumFri = 0;
+    let sumBri = 0;
+    let sumKf = 0;
+    const category = (product.productCategory || 'champagne') as string;
+    const eaEntry = CATEGORY_EA_MAP[category];
+    const ea = eaEntry ? eaEntry.ea * 1000 : 47000;
+    const depth = product.agingDepth ?? 50;
+    const closureType = product.closureType || 'cork_natural';
+    const usedAf = af || DEFAULT_AGING_FACTORS;
+
+    for (let m = 1; m <= trimmed.length; m++) {
+      const calendarMonth = ((immMonth - 1 + m - 1) % 12) + 1;
+      const profile = getMonthlyProfile(monthlyOceanProfiles, calendarMonth);
+      const monthTemp = profile.seaTemperatureAvg;
+
+      const friVal = calculateArrheniusFRI(monthTemp, 12, ea, closureType, depth).value;
+      const briVal = calculateHenryBRI(depth, monthTemp).value;
+
+      let kfVal = usedAf.kineticFactor ?? 1.0;
+      if (profile.tidalCurrentSpeedAvg !== null) {
+        const velocityMs = profile.tidalCurrentSpeedAvg / 100;
+        kfVal = deriveKineticFactorFromOcean(velocityMs, profile.waveHeightAvg, null);
+      }
+
+      sumFri += friVal;
+      sumBri += briVal;
+      sumKf += kfVal;
+    }
+
+    const count = trimmed.length;
+    monthlyScores.push({
+      immersionMonth: immMonth,
+      immersionMonthLabel: MONTH_LABELS[immMonth - 1],
+      peakQuality,
+      peakAtMonth,
+      goldenWindowStart: gwStart,
+      goldenWindowEnd: gwEnd,
+      avgFri: Math.round((sumFri / count) * 1000) / 1000,
+      avgBri: Math.round((sumBri / count) * 1000) / 1000,
+      avgKf: Math.round((sumKf / count) * 1000) / 1000,
+    });
+  }
+
+  // peakQuality 기준 정렬 (내림차순)
+  const sorted = [...monthlyScores].sort((a, b) => b.peakQuality - a.peakQuality);
+  const best = sorted[0];
+
+  // 추천 문구 생성
+  const recommendation =
+    `${best.immersionMonthLabel} 투입 추천 — 초기 3개월 저온(FRI ${best.avgFri.toFixed(2)})으로 ` +
+    `보존 극대화, ${best.peakAtMonth}개월차 피크(${best.peakQuality}점) 예상`;
+
+  return {
+    bestMonth: best.immersionMonth,
+    bestMonthLabel: best.immersionMonthLabel,
+    peakScore: best.peakQuality,
+    peakAtMonth: best.peakAtMonth,
+    monthlyScores,
+    recommendation,
+  };
 }

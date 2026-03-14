@@ -51,6 +51,15 @@ export interface OceanDataDaily {
   humidityAvg: number | null;
   // 수동 입력
   salinity: number | null;
+  // 조위 (KHOA)
+  tideLevelAvg: number | null;
+  tideLevelMin: number | null;
+  tideLevelMax: number | null;
+  // 조류 (KHOA)
+  tidalCurrentSpeed: number | null;
+  tidalCurrentDirection: number | null;
+  // 데이터 소스
+  dataSource: string;
   // 메타데이터
   depth: number;
   createdAt: string;
@@ -77,6 +86,9 @@ export interface CurrentOceanConditions {
   surfacePressure: number | null;
   waterPressure: number | null; // 계산값
   salinity: number | null; // 최근 수동 입력값
+  tideLevel: number | null; // KHOA 조위
+  tidalCurrentSpeed: number | null; // KHOA 조류 유속
+  tidalCurrentDirection: number | null; // KHOA 조류 방향
   lastUpdated: string;
 }
 
@@ -136,4 +148,6 @@ export const OCEAN_DATA_LABELS: Record<string, { name: string; unit: string; col
   waterPressure: { name: '수압', unit: '기압', color: '#fb923c' },
   wavePeriod: { name: '파주기', unit: 's', color: '#fbbf24' },
   salinity: { name: '염도', unit: '‰', color: '#34d399' },
+  tideLevel: { name: '조위', unit: 'cm', color: '#818cf8' },
+  tidalCurrentSpeed: { name: '조류 유속', unit: 'cm/s', color: '#c084fc' },
 };

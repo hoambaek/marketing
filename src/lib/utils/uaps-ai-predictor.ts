@@ -18,6 +18,7 @@ import type {
   ProductCategory,
   OceanConditionsForPrediction,
 } from '@/lib/types/uaps';
+import type { MonthlyOceanProfile } from './uaps-ocean-profile';
 import type { ClusterMatch } from './uaps-engine';
 import {
   calculateTextureMaturity,
@@ -303,6 +304,7 @@ function buildPredictionPrompt(
   expertProfile?: Record<string, number> | null,
   expertSources?: string[] | null,
   oceanConditions?: OceanConditionsForPrediction | null,
+  monthlyOceanProfiles?: MonthlyOceanProfile[] | null,
 ): string {
   const clusterContext = clusters.slice(0, 3).map((c) => {
     const fp = c.model.flavorProfileJson as Record<string, { mean: number; stdDev: number }>;
@@ -345,6 +347,19 @@ function buildPredictionPrompt(
 → 파주기가 짧을수록(< 6s) K-TCI(운동학적 질감 보정)가 강화됩니다. E_orbital ∝ H²/T.
 ` : '';
 
+  // v3.2: 월별 해양 프로파일 (서버사이드 구축)
+  const monthlyProfileSection = monthlyOceanProfiles && monthlyOceanProfiles.length > 0 ? `
+## 월별 해양 환경 프로파일 (KHOA 실측 데이터 기반, 12개월)
+| 월 | 평균수온(°C) | 최저수온 | 최고수온 | 편차 | 염도(‰) | 조류(m/s) | 파고(m) |
+|---|---|---|---|---|---|---|---|
+${monthlyOceanProfiles.map(p =>
+  `| ${p.month}월 | ${p.seaTemperatureAvg.toFixed(1)} | ${p.seaTemperatureMin.toFixed(1)} | ${p.seaTemperatureMax.toFixed(1)} | ${p.seaTemperatureStdDev.toFixed(2)} | ${p.salinityAvg !== null ? p.salinityAvg.toFixed(1) : '-'} | ${p.tidalCurrentSpeedAvg !== null ? p.tidalCurrentSpeedAvg.toFixed(3) : '-'} | ${p.waveHeightAvg !== null ? p.waveHeightAvg.toFixed(2) : '-'} |`
+).join('\n')}
+→ 이 월별 프로파일로 계절별 숙성 속도 차이를 반영하세요.
+→ 여름(7~9월) 고수온 구간: 숙성 가속 + 환원취 리스크 증가, 겨울(12~2월) 저수온: 안정 숙성 + 향 보존.
+→ 연간 수온 편차(max-min)가 클수록 계절적 숙성 복합성이 높아집니다.
+` : '';
+
   return `당신은 식음 숙성 과학 전문가입니다.
 아래 데이터를 기반으로 해저 숙성 후 풍미를 예측해주세요.
 
@@ -365,8 +380,7 @@ ${JSON.stringify(clusterContext, null, 2)}
 - BRI (기포 안정화): ${config.bri} (95% CI: ${config.briMeta.lower95}-${config.briMeta.upper95})
   근거: ${config.briMeta.sourceDescription}
   효과: 외부 수압이 CO₂ 손실 구동력 감소 → 용존 CO₂ 안정화 → 기포 핵 균질화 → 기포가 작고 조밀해짐
-${oceanSection}
-## 예측 대상 제품
+${oceanSection}${monthlyProfileSection}## 예측 대상 제품
 - 제품명: ${product.productName}
 - 카테고리: ${categoryLabel} (${category})
 - 서브타입: ${product.wineType ? (WINE_TYPE_LABELS[product.wineType] || product.wineType) : category} (${product.wineType ?? 'N/A'})
@@ -442,8 +456,9 @@ export async function runAIPrediction(
   expertSources?: string[] | null,
   allModels?: TerrestrialModel[],
   oceanConditions?: OceanConditionsForPrediction | null,
+  monthlyOceanProfiles?: MonthlyOceanProfile[] | null,
 ): Promise<AIPredictionResponse> {
-  const prompt = buildPredictionPrompt(product, clusters, underseaMonths, config, expertProfile, expertSources, oceanConditions);
+  const prompt = buildPredictionPrompt(product, clusters, underseaMonths, config, expertProfile, expertSources, oceanConditions, monthlyOceanProfiles);
 
   // 모델 우선순위: Gemini 3 Flash → 2.5 Flash → 2.5 Flash Lite
   const GEMINI_MODELS = ['gemini-3-flash-preview', 'gemini-2.5-flash', 'gemini-2.5-flash-lite'];

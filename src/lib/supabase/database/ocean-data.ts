@@ -26,6 +26,12 @@ interface DBOceanDataDaily {
   air_temperature_avg: number | null;
   humidity_avg: number | null;
   salinity: number | null;
+  tide_level_avg: number | null;
+  tide_level_min: number | null;
+  tide_level_max: number | null;
+  tidal_current_speed: number | null;
+  tidal_current_direction: number | null;
+  data_source: string | null;
   depth: number;
   location_name: string;
   latitude: number;
@@ -113,6 +119,12 @@ export async function upsertOceanDataDaily(
       air_temperature_avg: oceanData.airTemperatureAvg,
       humidity_avg: oceanData.humidityAvg,
       salinity: oceanData.salinity,
+      tide_level_avg: oceanData.tideLevelAvg,
+      tide_level_min: oceanData.tideLevelMin,
+      tide_level_max: oceanData.tideLevelMax,
+      tidal_current_speed: oceanData.tidalCurrentSpeed,
+      tidal_current_direction: oceanData.tidalCurrentDirection,
+      data_source: oceanData.dataSource,
       depth: oceanData.depth,
     }, {
       onConflict: 'date',
@@ -147,6 +159,12 @@ export async function bulkUpsertOceanDataDaily(
     air_temperature_avg: r.airTemperatureAvg,
     humidity_avg: r.humidityAvg,
     salinity: r.salinity,
+    tide_level_avg: r.tideLevelAvg,
+    tide_level_min: r.tideLevelMin,
+    tide_level_max: r.tideLevelMax,
+    tidal_current_speed: r.tidalCurrentSpeed,
+    tidal_current_direction: r.tidalCurrentDirection,
+    data_source: r.dataSource,
     depth: r.depth,
   }));
 
@@ -313,6 +331,12 @@ function mapDbOceanDataToOceanData(db: DBOceanDataDaily): OceanDataDaily {
     airTemperatureAvg: db.air_temperature_avg,
     humidityAvg: db.humidity_avg,
     salinity: db.salinity,
+    tideLevelAvg: db.tide_level_avg,
+    tideLevelMin: db.tide_level_min,
+    tideLevelMax: db.tide_level_max,
+    tidalCurrentSpeed: db.tidal_current_speed,
+    tidalCurrentDirection: db.tidal_current_direction,
+    dataSource: db.data_source ?? 'open-meteo',
     depth: db.depth,
     createdAt: db.created_at,
     updatedAt: db.updated_at,

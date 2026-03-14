@@ -702,3 +702,23 @@ export interface DepthSimulationResult {
   bubble: number;
   risk: number;
 }
+
+// 최적 투하 시기 분석 결과 (Task 5)
+export interface OptimalImmersionResult {
+  bestMonth: number;
+  bestMonthLabel: string;
+  peakScore: number;
+  peakAtMonth: number;
+  monthlyScores: {
+    immersionMonth: number;
+    immersionMonthLabel: string;
+    peakQuality: number;
+    peakAtMonth: number;
+    goldenWindowStart: number;
+    goldenWindowEnd: number;
+    avgFri: number;
+    avgBri: number;
+    avgKf: number;
+  }[];
+  recommendation: string;
+}

@@ -14,8 +14,10 @@ import {
   fetchUAPSConfig,
   createAgingPrediction,
 } from '@/lib/supabase/database/uaps';
+import { fetchOceanDataDaily } from '@/lib/supabase/database';
 import { findSimilarClusters, parseUAPSConfig } from '@/lib/utils/uaps-engine';
 import { runAIPrediction, buildPredictionResult, generateExpertProfile } from '@/lib/utils/uaps-ai-predictor';
+import { buildMonthlyOceanProfiles, type MonthlyOceanProfile } from '@/lib/utils/uaps-ocean-profile';
 
 export async function POST(request: NextRequest) {
   try {
@@ -55,7 +57,19 @@ export async function POST(request: NextRequest) {
 
     apiLogger.log('UAPS: 매칭 클러스터', clusters.length, '개');
 
-    // 3.5. 전문가 프로파일 생성 (Google Search grounding)
+    // 3.5. 해양 프로파일 서버사이드 구축
+    let monthlyOceanProfiles: MonthlyOceanProfile[] | null = null;
+    try {
+      const oceanData = await fetchOceanDataDaily();
+      if (oceanData && oceanData.length > 0) {
+        monthlyOceanProfiles = buildMonthlyOceanProfiles(oceanData);
+        apiLogger.log('UAPS: 월별 해양 프로파일 구축 완료 —', oceanData.length, '일 →', monthlyOceanProfiles.length, '개월');
+      }
+    } catch (e) {
+      apiLogger.warn('UAPS: 해양 프로파일 구축 실패, 기본값으로 진행:', e);
+    }
+
+    // 3.6. 전문가 프로파일 생성 (Google Search grounding)
     let expertProfile: Record<string, number> | null = null;
     let expertSources: string[] | null = null;
     try {
@@ -79,6 +93,7 @@ export async function POST(request: NextRequest) {
       expertSources,
       models || [],
       oceanConditions || null,
+      monthlyOceanProfiles,
     );
 
     // 5. 결과 통합 (앙상블 + Pseudo-cohort t=0 앵커)
@@ -107,6 +122,8 @@ export async function POST(request: NextRequest) {
       prediction: saved,
       matchedClusters: clusters.length,
       modelUsed: clusters.length > 0 ? 'hybrid' : 'statistical_fallback',
+      oceanProfileUsed: monthlyOceanProfiles !== null,
+      monthlyProfileCount: monthlyOceanProfiles?.length || 0,
     });
   } catch (error) {
     apiLogger.error('UAPS 예측 API 오류:', error);

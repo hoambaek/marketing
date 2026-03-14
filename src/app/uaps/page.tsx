@@ -110,7 +110,12 @@ import {
 } from '@/lib/utils/uaps-engine';
 import { applyAgingAdjustments } from '@/lib/utils/uaps-ai-predictor';
 import { useOceanDataStore } from '@/lib/store/ocean-data-store';
-import { OceanConditionsCard, OptimalDepthCard, EnvironmentalImpactCard } from './components/OceanCardsV3';
+import {
+  OceanConditionsCard, OptimalDepthCard, EnvironmentalImpactCard,
+  MonthlyProfileCard, OptimalImmersionCard,
+} from './components/OceanCardsV3';
+import { simulateOptimalImmersionMonth } from '@/lib/utils/uaps-engine';
+import { calculateProductOceanStats } from '@/lib/utils/uaps-ocean-profile';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // 공통 컴포넌트
@@ -233,6 +238,9 @@ export default function UAPSPage() {
   const {
     currentConditions: oceanCurrentConditions,
     historicalOceanStats,
+    monthlyOceanProfiles,
+    annualOceanProfile,
+    dailyData,
     fetchCurrentConditions: loadOceanConditions,
     loadHistoricalOceanStats,
   } = useOceanDataStore();
@@ -312,6 +320,28 @@ export default function UAPSPage() {
     if (localFri !== config.fri) await updateCoefficient('fri_coefficient', localFri);
     if (localBri !== config.bri) await updateCoefficient('bri_coefficient', localBri);
   }, [localTci, localFri, localBri, config.tci, config.fri, config.bri, updateCoefficient]);
+
+  // 오늘 날짜의 데이터 소스 (KHOA / Open-Meteo / hybrid)
+  const todayDataSource = useMemo(() => {
+    if (!dailyData || dailyData.length === 0) return null;
+    const today = new Date().toISOString().split('T')[0];
+    const todayRecord = dailyData.find((d) => d.date === today);
+    return todayRecord?.dataSource ?? dailyData[0]?.dataSource ?? null;
+  }, [dailyData]);
+
+  // 최적 투입 월 시뮬레이션
+  const optimalImmersion = useMemo(() => {
+    if (!selectedProduct || !monthlyOceanProfiles || monthlyOceanProfiles.length === 0) return null;
+    return simulateOptimalImmersionMonth(selectedProduct, config, monthlyOceanProfiles);
+  }, [selectedProduct, config, monthlyOceanProfiles]);
+
+  // 제품 투입일 기반 수심 보정 환경 통계
+  const productOceanStats = useMemo(() => {
+    if (!selectedProduct || !dailyData || dailyData.length === 0) return null;
+    const immersionDate = selectedProduct.immersionDate;
+    if (!immersionDate) return null;
+    return calculateProductOceanStats(dailyData, immersionDate, selectedProduct.agingDepth || 30);
+  }, [selectedProduct, dailyData]);
 
   return (
     <div className="min-h-screen pb-20">
@@ -893,13 +923,22 @@ export default function UAPSPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           <OceanConditionsCard
             currentConditions={oceanCurrentConditions}
+            dataSource={todayDataSource}
+            tsiScore={annualOceanProfile?.tsiScore ?? null}
             accentColor="#22d3ee"
           />
           <OptimalDepthCard
             product={selectedProduct}
             config={config}
             months={selectedProduct?.plannedDurationMonths ?? 12}
-            oceanConditions={historicalOceanStats ? {
+            oceanConditions={productOceanStats ? {
+              seaTemperature: productOceanStats.seaTemperature,
+              currentVelocity: productOceanStats.currentVelocity,
+              waveHeight: productOceanStats.waveHeight,
+              wavePeriod: productOceanStats.wavePeriod,
+              waterPressure: productOceanStats.waterPressure,
+              salinity: productOceanStats.salinity,
+            } : historicalOceanStats ? {
               seaTemperature: historicalOceanStats.seaTemperature,
               currentVelocity: historicalOceanStats.currentVelocity,
               waveHeight: historicalOceanStats.waveHeight,
@@ -910,7 +949,14 @@ export default function UAPSPage() {
             accentColor="#C4A052"
           />
           <EnvironmentalImpactCard
-            oceanConditions={historicalOceanStats ? {
+            oceanConditions={productOceanStats ? {
+              seaTemperature: productOceanStats.seaTemperature,
+              currentVelocity: productOceanStats.currentVelocity,
+              waveHeight: productOceanStats.waveHeight,
+              wavePeriod: productOceanStats.wavePeriod,
+              waterPressure: productOceanStats.waterPressure,
+              salinity: productOceanStats.salinity,
+            } : historicalOceanStats ? {
               seaTemperature: historicalOceanStats.seaTemperature,
               currentVelocity: historicalOceanStats.currentVelocity,
               waveHeight: historicalOceanStats.waveHeight,
@@ -918,9 +964,32 @@ export default function UAPSPage() {
               waterPressure: historicalOceanStats.waterPressure,
               salinity: historicalOceanStats.salinity,
             } : null}
+            depthInfo={productOceanStats ? {
+              depth: productOceanStats.correctionDepth,
+              depthCorrected: productOceanStats.depthCorrected,
+              dataPoints: productOceanStats.dataPoints,
+              periodStart: productOceanStats.periodStart,
+              periodEnd: productOceanStats.periodEnd,
+            } : undefined}
             accentColor="#B76E79"
           />
         </div>
+
+        {/* ═══════════════════════════════════════════════════════════ */}
+        {/* v3.1: 월별 수온 + 최적 투입 월 */}
+        {/* ═══════════════════════════════════════════════════════════ */}
+        {(monthlyOceanProfiles || optimalImmersion) && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <MonthlyProfileCard
+              monthlyProfiles={monthlyOceanProfiles}
+              accentColor="#22d3ee"
+            />
+            <OptimalImmersionCard
+              immersionResult={optimalImmersion}
+              accentColor="#C4A052"
+            />
+          </div>
+        )}
 
         {/* ═══════════════════════════════════════════════════════════ */}
         {/* 모델 상태 */}

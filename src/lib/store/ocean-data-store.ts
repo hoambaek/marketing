@@ -16,6 +16,8 @@ import {
   calculateDominantDirection,
   getDateRange,
 } from '@/lib/utils/ocean-calculations';
+import { buildMonthlyOceanProfiles, buildAnnualOceanProfile, type MonthlyOceanProfile, type AnnualOceanProfile } from '@/lib/utils/uaps-ocean-profile';
+import { estimateBottomTemperature } from '@/lib/utils/uaps-ocean-profile';
 import {
   fetchOceanDataDaily,
   upsertOceanDataDaily,
@@ -32,9 +34,20 @@ export interface HistoricalOceanStats {
   wavePeriod: number | null;
   waterPressure: number | null;
   salinity: number | null;
+  tideLevel: number | null;
+  tidalCurrentSpeed: number | null;
   dataPoints: number;
   periodStart: string | null;
   periodEnd: string | null;
+}
+
+// UAPS 실시간 보정 계수 (Task 3에서 계산 로직 구현 예정)
+export interface UAPSLiveCoefficients {
+  fri: number | null;
+  bri: number | null;
+  kTci: number | null;
+  tsi: number | null;
+  overallScore: number | null;
 }
 
 interface OceanDataState {
@@ -50,6 +63,9 @@ interface OceanDataState {
   salinityRecords: SalinityRecord[];
   currentConditions: CurrentOceanConditions | null;
   historicalOceanStats: HistoricalOceanStats | null;
+  monthlyOceanProfiles: MonthlyOceanProfile[] | null;
+  annualOceanProfile: AnnualOceanProfile | null;
+  uapsCoefficients: UAPSLiveCoefficients | null;
 
   // Loading State
   isLoading: boolean;
@@ -75,7 +91,7 @@ interface OceanDataState {
 
 export const useOceanDataStore = create<OceanDataState>((set, get) => ({
   // Initial State
-  currentView: 'daily',
+  currentView: 'full_cycle',
   selectedDate: null,
   agingDepth: DEFAULT_AGING_DEPTH,
   useSupabase: true,
@@ -85,6 +101,9 @@ export const useOceanDataStore = create<OceanDataState>((set, get) => ({
   salinityRecords: [],
   currentConditions: null,
   historicalOceanStats: null,
+  monthlyOceanProfiles: null,
+  annualOceanProfile: null,
+  uapsCoefficients: null,
 
   isLoading: false,
   isSaving: false,
@@ -159,18 +178,57 @@ export const useOceanDataStore = create<OceanDataState>((set, get) => ({
         dailyMap.set(date, existing);
       }
 
-      // Load existing data from Supabase to preserve salinity values
+      // Load existing data from Supabase to preserve KHOA fields (salinity, tide, current)
       const { useSupabase } = get();
-      let existingSalinityMap = new Map<string, number | null>();
+      const existingDataMap = new Map<string, OceanDataDaily>();
 
       if (useSupabase) {
         const savedData = await fetchOceanDataDaily(startDate, endDate);
         if (savedData) {
           savedData.forEach((d) => {
-            existingSalinityMap.set(d.date, d.salinity);
+            existingDataMap.set(d.date, d);
           });
         }
       }
+
+      // KHOA 데이터 일별 집계 준비
+      interface KhoaItem {
+        obsrvnDt: string;
+        wtem: number | null;
+        slntQty: number | null;
+        atmpr: number | null;
+        bscTdlvHgt: number | null;
+        crsp: number | null;
+        crdir: number | null;
+      }
+      const khoaItems: KhoaItem[] = data.khoa?.items ?? [];
+      const khoaDailyMap = new Map<string, KhoaItem[]>();
+      for (const item of khoaItems) {
+        const date = item.obsrvnDt?.split(' ')[0];
+        if (!date) continue;
+        const existing = khoaDailyMap.get(date) || [];
+        existing.push(item);
+        khoaDailyMap.set(date, existing);
+      }
+
+      // KHOA 조류예보 + 부이 실측 유속
+      const khoaTidalCurrent = data.khoa?.tidalCurrent as {
+        speed: number; direction: number; type: string; time: string;
+      } | null;
+      const buoyCurrent = data.khoa?.buoyCurrent as {
+        speed: number; direction: number;
+      } | null;
+
+      // 데이터 소스 정보
+      const sources = data.sources as {
+        temperature?: string;
+        salinity?: string | null;
+        pressure?: string;
+        tideLevel?: string | null;
+        tidalCurrent?: string | null;
+      } | null;
+
+      const hasKhoa = khoaItems.length > 0;
 
       const dailyData: OceanDataDaily[] = [];
       const { agingDepth } = get();
@@ -193,24 +251,101 @@ export const useOceanDataStore = create<OceanDataState>((set, get) => ({
         const airTempStats = calculateDailyAverages(airTemps);
         const humidityStats = calculateDailyAverages(humidities);
 
-        // Preserve existing salinity if available
-        const existingSalinity = existingSalinityMap.get(date) ?? null;
+        // KHOA 일별 데이터 집계 (해당 날짜)
+        const khoaDayItems = khoaDailyMap.get(date) || [];
+        const khoaTemps = khoaDayItems.map(i => i.wtem).filter((v): v is number => v !== null);
+        const khoaSalinities = khoaDayItems.map(i => i.slntQty).filter((v): v is number => v !== null);
+        const khoaPressures = khoaDayItems.map(i => i.atmpr).filter((v): v is number => v !== null);
+        const khoaTides = khoaDayItems.map(i => i.bscTdlvHgt).filter((v): v is number => v !== null);
+
+        // KHOA 수온 우선 → Open-Meteo 폴백 + 40m 깊이 보정
+        const month = parseInt(date.split('-')[1], 10) || 1;
+        const surfaceTempAvg = khoaTemps.length > 0
+          ? khoaTemps.reduce((s, v) => s + v, 0) / khoaTemps.length
+          : tempStats.avg;
+        const surfaceTempMin = khoaTemps.length > 0
+          ? Math.min(...khoaTemps)
+          : tempStats.min;
+        const surfaceTempMax = khoaTemps.length > 0
+          ? Math.max(...khoaTemps)
+          : tempStats.max;
+
+        const finalTempAvg = surfaceTempAvg !== null ? estimateBottomTemperature(surfaceTempAvg, 40, month) : null;
+        const finalTempMin = surfaceTempMin !== null ? estimateBottomTemperature(surfaceTempMin, 40, month) : null;
+        const finalTempMax = surfaceTempMax !== null ? estimateBottomTemperature(surfaceTempMax, 40, month) : null;
+
+        // KHOA 기압 우선 → Open-Meteo 폴백
+        const finalPressureAvg = khoaPressures.length > 0
+          ? khoaPressures.reduce((s, v) => s + v, 0) / khoaPressures.length
+          : pressureStats.avg;
+
+        // 염분: KHOA 실측 우선 → 기존 Supabase 저장값 → null
+        const khoaSalinityAvg = khoaSalinities.length > 0
+          ? khoaSalinities.reduce((s, v) => s + v, 0) / khoaSalinities.length
+          : null;
+        const existingDay = existingDataMap.get(date);
+        const finalSalinity = khoaSalinityAvg ?? existingDay?.salinity ?? null;
+
+        // 조위 집계: KHOA 실측 우선 → Supabase 저장값 폴백
+        const tideLevelAvg = khoaTides.length > 0
+          ? khoaTides.reduce((s, v) => s + v, 0) / khoaTides.length
+          : existingDay?.tideLevelAvg ?? null;
+        const tideLevelMin = khoaTides.length > 0
+          ? Math.min(...khoaTides)
+          : existingDay?.tideLevelMin ?? null;
+        const tideLevelMax = khoaTides.length > 0
+          ? Math.max(...khoaTides)
+          : existingDay?.tideLevelMax ?? null;
+
+        // 조류: 조류예보(외해, 당일) → 부이 실측(당일) → KHOA 관측 → Supabase 폴백
+        const today = new Date().toISOString().split('T')[0];
+        let tidalCurrentSpeed: number | null = null;
+        let tidalCurrentDirection: number | null = null;
+
+        if (date === today && khoaTidalCurrent) {
+          tidalCurrentSpeed = khoaTidalCurrent.speed;
+          tidalCurrentDirection = khoaTidalCurrent.direction;
+        } else if (date === today && buoyCurrent) {
+          tidalCurrentSpeed = buoyCurrent.speed;
+          tidalCurrentDirection = buoyCurrent.direction;
+        } else {
+          const khoaSpeeds = khoaDayItems.map(i => i.crsp).filter((v): v is number => v !== null);
+          const khoaDirs = khoaDayItems.map(i => i.crdir).filter((v): v is number => v !== null);
+          tidalCurrentSpeed = khoaSpeeds.length > 0
+            ? khoaSpeeds.reduce((s, v) => s + v, 0) / khoaSpeeds.length
+            : existingDay?.tidalCurrentSpeed ?? null;
+          tidalCurrentDirection = khoaDirs.length > 0
+            ? calculateDominantDirection(khoaDirs.map(d => d as number | null))
+            : existingDay?.tidalCurrentDirection ?? null;
+        }
+
+        // 데이터 소스 결정
+        let dataSource: string = 'open-meteo';
+        if (hasKhoa && khoaDayItems.length > 0) {
+          dataSource = tempStats.avg !== null ? 'hybrid' : 'khoa';
+        }
 
         dailyData.push({
           id: `local-${date}`,
           date,
-          seaTemperatureAvg: tempStats.avg,
-          seaTemperatureMin: tempStats.min,
-          seaTemperatureMax: tempStats.max,
+          seaTemperatureAvg: finalTempAvg,
+          seaTemperatureMin: finalTempMin,
+          seaTemperatureMax: finalTempMax,
           currentVelocityAvg: velocityStats.avg,
           currentDirectionDominant: calculateDominantDirection(directions),
           waveHeightAvg: waveStats.avg,
           waveHeightMax: waveStats.max,
           wavePeriodAvg: wavePeriodStats.avg,
-          surfacePressureAvg: pressureStats.avg,
+          surfacePressureAvg: finalPressureAvg,
           airTemperatureAvg: airTempStats.avg,
           humidityAvg: humidityStats.avg,
-          salinity: existingSalinity,
+          salinity: finalSalinity,
+          tideLevelAvg,
+          tideLevelMin,
+          tideLevelMax,
+          tidalCurrentSpeed,
+          tidalCurrentDirection,
+          dataSource,
           depth: agingDepth,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
@@ -260,23 +395,74 @@ export const useOceanDataStore = create<OceanDataState>((set, get) => ({
         return;
       }
 
-      // Get the most recent data point
+      // Get the most recent data point (Open-Meteo)
       const lastIndex = marineHourly.time.length - 1;
-      const surfacePressure = weatherHourly?.surface_pressure?.[lastIndex] ?? null;
+      const omSurfacePressure = weatherHourly?.surface_pressure?.[lastIndex] ?? null;
+      const omSeaTemp = marineHourly.sea_surface_temperature?.[lastIndex] ?? null;
 
-      // Get latest salinity from records
+      // KHOA 데이터에서 최신값 추출
+      const khoaItems: Array<{
+        obsrvnDt: string;
+        wtem: number | null;
+        slntQty: number | null;
+        atmpr: number | null;
+        bscTdlvHgt: number | null;
+        crsp: number | null;
+        crdir: number | null;
+      }> = data.khoa?.items ?? [];
+      const khoaTidalCurrent = data.khoa?.tidalCurrent as {
+        speed: number; direction: number; type: string; time: string;
+      } | null;
+
+      // KHOA 최신 관측 항목 (시간 내림차순이면 0번, 아니면 마지막)
+      const latestKhoa = khoaItems.length > 0 ? khoaItems[khoaItems.length - 1] : null;
+
+      // 수온: KHOA 우선 + 40m 깊이 보정
+      const surfaceTemp = latestKhoa?.wtem ?? omSeaTemp;
+      const currentMonth = new Date().getMonth() + 1;
+      const seaTemperature = surfaceTemp !== null
+        ? estimateBottomTemperature(surfaceTemp, 40, currentMonth)
+        : null;
+
+      // 기압: KHOA 우선
+      const surfacePressure = latestKhoa?.atmpr ?? omSurfacePressure;
+
+      // 염분: KHOA 실측 우선 → salinity_records → null
       const latestSalinity = salinityRecords.length > 0 ? salinityRecords[0].salinity : null;
+      const salinity = latestKhoa?.slntQty ?? latestSalinity;
+
+      // 조위: KHOA
+      const tideLevel = latestKhoa?.bscTdlvHgt ?? null;
+
+      // 조류: 조류예보(외해) 우선 → 부이 실측(항내) → KHOA 관측 → null
+      // 조류예보가 외해 기준이라 숙성 환경에 더 적합
+      const buoyCurrent = data.khoa?.buoyCurrent as { speed: number; direction: number } | null;
+      let tidalCurrentSpeed: number | null = null;
+      let tidalCurrentDirection: number | null = null;
+      if (khoaTidalCurrent) {
+        tidalCurrentSpeed = khoaTidalCurrent.speed;
+        tidalCurrentDirection = khoaTidalCurrent.direction;
+      } else if (buoyCurrent) {
+        tidalCurrentSpeed = buoyCurrent.speed;
+        tidalCurrentDirection = buoyCurrent.direction;
+      } else if (latestKhoa) {
+        tidalCurrentSpeed = latestKhoa.crsp;
+        tidalCurrentDirection = latestKhoa.crdir;
+      }
 
       const currentConditions: CurrentOceanConditions = {
-        seaTemperature: marineHourly.sea_surface_temperature?.[lastIndex] ?? null,
+        seaTemperature,
         currentVelocity: marineHourly.ocean_current_velocity?.[lastIndex] ?? null,
         currentDirection: marineHourly.ocean_current_direction?.[lastIndex] ?? null,
         waveHeight: marineHourly.wave_height?.[lastIndex] ?? null,
         wavePeriod: marineHourly.wave_period?.[lastIndex] ?? null,
         surfacePressure,
         waterPressure: calculateWaterPressure(agingDepth, surfacePressure || undefined),
-        salinity: latestSalinity,
-        lastUpdated: marineHourly.time[lastIndex],
+        salinity,
+        tideLevel,
+        tidalCurrentSpeed,
+        tidalCurrentDirection,
+        lastUpdated: latestKhoa?.obsrvnDt ?? marineHourly.time[lastIndex],
       };
 
       set({ currentConditions, isLoading: false });
@@ -392,6 +578,12 @@ export const useOceanDataStore = create<OceanDataState>((set, get) => ({
           airTemperatureAvg: day.airTemperatureAvg,
           humidityAvg: day.humidityAvg,
           salinity: day.salinity,
+          tideLevelAvg: day.tideLevelAvg,
+          tideLevelMin: day.tideLevelMin,
+          tideLevelMax: day.tideLevelMax,
+          tidalCurrentSpeed: day.tidalCurrentSpeed,
+          tidalCurrentDirection: day.tidalCurrentDirection,
+          dataSource: day.dataSource,
           depth: day.depth,
         });
       }
@@ -411,12 +603,20 @@ export const useOceanDataStore = create<OceanDataState>((set, get) => ({
       const allData = await fetchOceanDataDaily();
       if (!allData || allData.length === 0) return;
 
-      // 유효값만 추출하여 평균 계산
-      const validTemps = allData.map(d => d.seaTemperatureAvg).filter((v): v is number => v !== null);
+      // 유효값만 추출하여 평균 계산 (수온은 40m 깊이 보정 적용)
+      const validTemps = allData
+        .map(d => {
+          if (d.seaTemperatureAvg === null) return null;
+          const month = parseInt(d.date.split('-')[1], 10) || 1;
+          return estimateBottomTemperature(d.seaTemperatureAvg, 40, month);
+        })
+        .filter((v): v is number => v !== null);
       const validVelocities = allData.map(d => d.currentVelocityAvg).filter((v): v is number => v !== null);
       const validWaveHeights = allData.map(d => d.waveHeightAvg).filter((v): v is number => v !== null);
       const validWavePeriods = allData.map(d => d.wavePeriodAvg).filter((v): v is number => v !== null);
       const validSalinities = allData.map(d => d.salinity).filter((v): v is number => v !== null);
+      const validTideLevels = allData.map(d => d.tideLevelAvg).filter((v): v is number => v !== null);
+      const validTidalSpeeds = allData.map(d => d.tidalCurrentSpeed).filter((v): v is number => v !== null);
 
       const avg = (arr: number[]) => arr.length > 0 ? arr.reduce((s, v) => s + v, 0) / arr.length : null;
 
@@ -424,6 +624,10 @@ export const useOceanDataStore = create<OceanDataState>((set, get) => ({
       const avgPressure = calculateWaterPressure(agingDepth);
 
       const dates = allData.map(d => d.date).sort();
+
+      // 월별/연간 해양 프로파일 구축
+      const monthlyProfiles = buildMonthlyOceanProfiles(allData);
+      const annualProfile = buildAnnualOceanProfile(monthlyProfiles, agingDepth);
 
       set({
         historicalOceanStats: {
@@ -433,10 +637,14 @@ export const useOceanDataStore = create<OceanDataState>((set, get) => ({
           wavePeriod: avg(validWavePeriods) !== null ? Math.round(avg(validWavePeriods)! * 100) / 100 : null,
           waterPressure: avgPressure,
           salinity: avg(validSalinities) !== null ? Math.round(avg(validSalinities)! * 10) / 10 : null,
+          tideLevel: avg(validTideLevels) !== null ? Math.round(avg(validTideLevels)! * 10) / 10 : null,
+          tidalCurrentSpeed: avg(validTidalSpeeds) !== null ? Math.round(avg(validTidalSpeeds)! * 1000) / 1000 : null,
           dataPoints: allData.length,
           periodStart: dates[0] || null,
           periodEnd: dates[dates.length - 1] || null,
         },
+        monthlyOceanProfiles: monthlyProfiles,
+        annualOceanProfile: annualProfile,
       });
 
       storeLogger.log(`Historical ocean stats loaded: ${allData.length} days (${dates[0]} ~ ${dates[dates.length - 1]})`);
