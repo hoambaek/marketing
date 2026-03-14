@@ -73,7 +73,7 @@ export async function POST(request: NextRequest) {
     let expertProfile: Record<string, number> | null = null;
     let expertSources: string[] | null = null;
     try {
-      const expertResult = await generateExpertProfile(product);
+      const expertResult = await generateExpertProfile(product, monthlyOceanProfiles);
       if (expertResult) {
         expertProfile = expertResult.profile;
         expertSources = expertResult.sources;

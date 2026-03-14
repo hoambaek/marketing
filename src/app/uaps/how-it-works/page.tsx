@@ -916,6 +916,106 @@ export default function HowItWorksPage() {
         </motion.div>
       </section>
 
+      {/* ─── Sea Lab 해양 데이터 활용 ──────────────────────────────── */}
+      <section className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-12 pt-16 sm:pt-24">
+        <motion.div initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }} transition={{ duration: 0.5 }}
+          className="flex items-center gap-2 mb-8">
+          <div className="w-1.5 h-1.5 rounded-full bg-cyan-400/60" />
+          <h2 className="text-xs sm:text-sm text-white/40 tracking-widest uppercase">Sea Lab — Ocean Data Integration</h2>
+        </motion.div>
+
+        <motion.div initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.6 }}
+          className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-6 sm:p-8 space-y-6">
+
+          <div>
+            <h3 className="text-lg text-white/85 mb-2" style={{ fontFamily: 'Cormorant Garamond, serif' }}>
+              실측 해양 데이터가 예측에 미치는 영향
+            </h3>
+            <p className="text-xs text-white/35 leading-relaxed">
+              KHOA 국립해양조사원의 실측 데이터(완도 DT_0027 + 완도항 부이 TW_0078)를 수집하여 Sea Lab에 저장합니다.
+              이 데이터는 14개월치 일별 기록으로, UAPS 예측 엔진의 보정 계수를 고정값 대신 <strong className="text-cyan-400/70">월별 동적 값</strong>으로 계산하는 데 사용됩니다.
+            </p>
+          </div>
+
+          {/* 데이터 흐름 */}
+          <div className="space-y-3">
+            <p className="text-[10px] text-white/25 uppercase tracking-wider font-medium">Data Flow</p>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="rounded-xl bg-cyan-400/[0.04] border border-cyan-400/10 p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <Waves className="w-3.5 h-3.5 text-cyan-400/60" />
+                  <span className="text-xs font-medium text-cyan-400/80">수집</span>
+                </div>
+                <p className="text-[11px] text-white/30 leading-relaxed">
+                  KHOA API → 수온, 염분, 조위, 기압 (1시간 간격)<br />
+                  완도항 부이 → 조류 유향·유속 (실측)<br />
+                  조류예보 → 외모군도 창낙조 (예보)
+                </p>
+              </div>
+              <div className="rounded-xl bg-violet-400/[0.04] border border-violet-400/10 p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <Database className="w-3.5 h-3.5 text-violet-400/60" />
+                  <span className="text-xs font-medium text-violet-400/80">가공</span>
+                </div>
+                <p className="text-[11px] text-white/30 leading-relaxed">
+                  표층 수온 → 40m 깊이 보정 (blending ratio 모델)<br />
+                  일별 데이터 → 월별 해양 프로파일 집계<br />
+                  12개월 수온 → TSI(온도 안정성 지수) 산출
+                </p>
+              </div>
+              <div className="rounded-xl bg-emerald-400/[0.04] border border-emerald-400/10 p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <Target className="w-3.5 h-3.5 text-emerald-400/60" />
+                  <span className="text-xs font-medium text-emerald-400/80">적용</span>
+                </div>
+                <p className="text-[11px] text-white/30 leading-relaxed">
+                  월별 수온 → FRI/BRI 동적 계산 (계절 변동 반영)<br />
+                  월별 유속 → K-TCI kineticFactor 동적 산출<br />
+                  환원취 모델에 수온 의존성 (여름↑ 겨울↓)
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* 6개 지표 활용 매핑 */}
+          <div className="space-y-3">
+            <p className="text-[10px] text-white/25 uppercase tracking-wider font-medium">Sea Lab 지표 → 예측 계수 매핑</p>
+            <div className="space-y-2">
+              {[
+                { label: '수온', target: 'FRI (향 보존) + BRI (기포)', impact: '핵심', desc: '아레니우스 방정식으로 월별 산화 속도 동적 계산. 겨울 저온 시 FRI↓ → 향 보존 극대화', color: '#22d3ee', impactColor: '#34d399' },
+                { label: '조류 유속', target: 'K-TCI (질감 가속)', impact: '핵심', desc: '해류가 병을 자연적으로 흔들어 리무아주(침전물 교반) 효과. 유속 기반 kineticFactor 동적 산출', color: '#c084fc', impactColor: '#34d399' },
+                { label: '조위 (수압)', target: 'BRI (기포 보존)', impact: '핵심', desc: '수심 + 조위로 실제 수압 계산. 고압일수록 CO₂ 용해 안정 → 기포 미세화 가속', color: '#818cf8', impactColor: '#34d399' },
+                { label: '염분', target: '환경 모니터링', impact: 'Watch', desc: '30~34 psu 정상 범위 확인. Sechenov 효과(CO₂ 용해도 보정)는 미미하여 직접 반영 보류', color: '#34d399', impactColor: '#fbbf24' },
+                { label: '수온 변동', target: 'TSI (온도 안정성)', impact: '보조', desc: '표층 대비 해저의 수온 안정성 평가. TSI ≥ 0.7이면 종합 품질 +3점 보너스', color: '#fb923c', impactColor: '#60a5fa' },
+                { label: '파고/파주기', target: '참고 (30m 감쇠)', impact: '미사용', desc: '수심 30m에서 96.5% 감쇠. AI 프롬프트 참고용으로만 제공, 직접 계산에 미반영', color: '#f472b6', impactColor: 'rgba(255,255,255,0.3)' },
+              ].map(item => (
+                <div key={item.label} className="flex items-center gap-3 rounded-lg bg-white/[0.02] px-3 py-2.5">
+                  <span className="text-xs font-medium w-20 shrink-0" style={{ color: item.color }}>{item.label}</span>
+                  <ArrowRight className="w-3 h-3 text-white/15 shrink-0" />
+                  <span className="text-[11px] text-white/40 flex-1">{item.target}</span>
+                  <span className="text-[9px] font-medium px-1.5 py-0.5 rounded-full shrink-0" style={{ backgroundColor: `${item.impactColor}15`, color: item.impactColor }}>{item.impact}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* v4.0 향 모델 */}
+          <div className="rounded-xl bg-amber-400/[0.03] border border-amber-400/10 p-4">
+            <p className="text-[10px] text-amber-400/60 uppercase tracking-wider font-medium mb-2">v4.0 — 3단계 비선형 향 감쇠 모델</p>
+            <div className="flex items-center gap-2 text-[11px] text-white/35">
+              <span className="px-2 py-1 rounded bg-red-400/10 text-red-400/70">0~6개월: 급감</span>
+              <ArrowRight className="w-3 h-3 text-white/15" />
+              <span className="px-2 py-1 rounded bg-emerald-400/10 text-emerald-400/70">6~18개월: 안정</span>
+              <ArrowRight className="w-3 h-3 text-white/15" />
+              <span className="px-2 py-1 rounded bg-red-400/10 text-red-400/70">18~36개월: 후기 급감</span>
+            </div>
+            <p className="text-[11px] text-white/25 mt-2">
+              신선 과일향 손실 → 숙성향(브리오슈, 견과류) 전환기 → 산화 누적에 의한 향 피로. 기존 단순 지수 감쇠 모델에서 실제 와인 숙성 패턴에 가까운 3단계 모델로 개선.
+            </p>
+          </div>
+        </motion.div>
+      </section>
+
       {/* ─── 한계 & 로드맵 ──────────────────────────────────────────── */}
       <section className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-12 pt-16 sm:pt-24">
         <motion.div initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }} transition={{ duration: 0.5 }}

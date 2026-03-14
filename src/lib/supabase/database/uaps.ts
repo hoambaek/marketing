@@ -221,7 +221,7 @@ export async function createAgingProduct(
     .single();
 
   if (error) {
-    dbLogger.error('UAPS: 제품 생성 실패:', error);
+    dbLogger.error('UAPS: 제품 생성 실패:', error.message, 'Code:', error.code, 'Details:', error.details, 'Hint:', error.hint);
     return null;
   }
 

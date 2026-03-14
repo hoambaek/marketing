@@ -544,20 +544,39 @@ export function calculateTextureMaturity(
 }
 
 /**
- * 향 신선도 계산 (FRI 적용)
- * 해저에서 산화 진행이 FRI배 속도 (0.5 = 50% 감속)
+ * 향 신선도 계산 (FRI 적용) — v4.0 3단계 비선형 모델
+ *
+ * 단계 1 (0~6개월): 급감 — 신선 과일향 손실, 산화 시작
+ * 단계 2 (6~18개월): 안정 — 숙성향 전환, 복합미 발달 (감쇠율 1/3로 둔화)
+ * 단계 3 (18~36개월): 후기 급감 — 산화 누적, 향 피로
+ *
+ * 각 단계의 경계에서 연속성 보장 (값이 점프하지 않음)
  */
 export function calculateAromaFreshness(
   landAgingYears: number,
   underseaMonths: number,
   fri: number = DEFAULT_COEFFICIENTS.fri
 ): number {
-  // 해저 숙성의 산화 환산: underseaMonths * fri / 12
   const totalOxidationYears = landAgingYears + (underseaMonths * fri / 12);
 
-  // 감소 곡선: 100에서 시작, 연수에 따라 점진 감소
-  // 3y = ~74, 5y = ~61, 10y = ~37 — 36개월에서 50-60대 하락
-  const score = 100 * Math.exp(-0.10 * totalOxidationYears);
+  // 3단계 비선형 감쇠
+  let score: number;
+
+  if (totalOxidationYears <= 2.0) {
+    // 단계 1: 급감 (rate = 0.15)
+    score = 100 * Math.exp(-0.15 * totalOxidationYears);
+  } else if (totalOxidationYears <= 3.5) {
+    // 단계 2: 안정 구간 (rate = 0.05) — 숙성향 전환기
+    const phase1End = 100 * Math.exp(-0.15 * 2.0); // ~74.1
+    const phaseYears = totalOxidationYears - 2.0;
+    score = phase1End * Math.exp(-0.05 * phaseYears);
+  } else {
+    // 단계 3: 후기 급감 (rate = 0.12)
+    const phase1End = 100 * Math.exp(-0.15 * 2.0); // ~74.1
+    const phase2End = phase1End * Math.exp(-0.05 * 1.5); // ~68.7
+    const phaseYears = totalOxidationYears - 3.5;
+    score = phase2End * Math.exp(-0.12 * phaseYears);
+  }
 
   return Math.round(Math.min(100, Math.max(0, score)) * 10) / 10;
 }
@@ -596,14 +615,16 @@ export function calculateBubbleRefinement(
 }
 
 /**
- * Off-flavor 리스크 계산
+ * Off-flavor 리스크 계산 — v4.0 계절 의존성 추가
+ *
+ * @param seaTemperature 해당 월의 해저 수온 (°C, 옵셔널) — 고온일수록 환원취 가속
  */
 export function calculateOffFlavorRisk(
   reductionPotential: ReductionPotential,
   underseaMonths: number,
-  textureScore: number
+  textureScore: number,
+  seaTemperature?: number
 ): number {
-  // 기본 환원 리스크 (투하 직후부터 존재)
   const baseRisk: Record<ReductionPotential, number> = {
     low: 5,
     medium: 10,
@@ -611,16 +632,22 @@ export function calculateOffFlavorRisk(
   };
   let risk = baseRisk[reductionPotential];
 
-  // 시간 경과에 따른 점진적 리스크 증가 (1개월부터)
-  // 시그모이드 기반: 초기 완만 → 변곡점 이후 가속
+  // 시간 경과에 따른 리스크 증가
   const maxAdditional = reductionPotential === 'high' ? 40 : reductionPotential === 'medium' ? 30 : 20;
   const inflection = reductionPotential === 'high' ? 15 : reductionPotential === 'medium' ? 18 : 22;
   const rate = 0.2;
   risk += maxAdditional / (1 + Math.exp(-rate * (underseaMonths - inflection)));
 
-  // 질감 성숙도 보정: 성숙한 와인은 환원 결함 감소
+  // v4.0 계절 의존성: 수온이 높으면 환원취 가속, 낮으면 억제
+  // 기준 수온 10°C, ±1°C당 ±3% 보정
+  if (seaTemperature !== undefined) {
+    const tempFactor = 1 + (seaTemperature - 10) * 0.03;
+    risk *= Math.max(0.7, Math.min(1.5, tempFactor));
+  }
+
+  // 질감 성숙도 보정
   if (textureScore > 70) {
-    risk *= 1 - (textureScore - 70) / 200; // 최대 15% 감소
+    risk *= 1 - (textureScore - 70) / 200;
   }
 
   return Math.round(Math.min(100, Math.max(0, risk)) * 10) / 10;
@@ -738,20 +765,29 @@ export function calculateOptimalHarvestWindow(
       }
     }
 
-    const texture = calculateTextureMaturity(baseAging, m, config.tci * af.textureMult, dynamicKf);
-    const aroma = calculateAromaFreshness(baseAging, m, dynamicFri * af.aromaDecay);
-    const bubble = calculateBubbleRefinement(m, product.agingDepth, dynamicBri);
-    const risk = calculateOffFlavorRisk(reductionPotential, m, texture) * af.riskMult;
+    // v4.0: 개별 물리적 상한 + 계절 수온 전달
+    const texture = Math.min(95, calculateTextureMaturity(baseAging, m, config.tci * af.textureMult, dynamicKf));
+    const aroma = Math.max(15, calculateAromaFreshness(baseAging, m, dynamicFri * af.aromaDecay));
+    const bubble = Math.min(95, calculateBubbleRefinement(m, product.agingDepth, dynamicBri));
+
+    let monthTemp: number | undefined;
+    if (monthlyOceanProfiles && monthlyOceanProfiles.length > 0 && immersionMonth) {
+      const calMonth = ((immersionMonth - 1 + m - 1) % 12) + 1;
+      monthTemp = getMonthlyProfile(monthlyOceanProfiles, calMonth).seaTemperatureAvg;
+    }
+    const risk = calculateOffFlavorRisk(reductionPotential, m, texture, monthTemp) * af.riskMult;
 
     const score = calculateCompositeQuality(texture, aroma, bubble, risk, product.wineType, qualityWeights, tsiScore);
     monthlyScores.push({ month: m, score });
   }
 
-  // 피크 월 찾기
-  let peakMonth = 12;
+  // 피크 월 찾기 — 동일 점수면 가장 빠른 시점 선택 (반올림 후 비교)
+  let peakMonth = 1;
   let peakScore = 0;
   for (const { month, score } of monthlyScores) {
-    if (score > peakScore) {
+    const rounded = Math.round(score * 10) / 10;
+    const peakRounded = Math.round(peakScore * 10) / 10;
+    if (rounded > peakRounded) {
       peakScore = score;
       peakMonth = month;
     }
@@ -873,22 +909,24 @@ export function generateTimelineData(
       }
     }
 
-    const textureMaturity = calculateTextureMaturity(baseAging, m, config.tci * af.textureMult, dynamicKf);
-    const aromaFreshness = calculateAromaFreshness(baseAging, m, dynamicFri * af.aromaDecay);
-    const offFlavorRisk = calculateOffFlavorRisk(reductionPotential, m, textureMaturity) * af.riskMult;
-    const bubbleRefinement = calculateBubbleRefinement(m, product.agingDepth, dynamicBri);
+    // v4.0: 개별 점수에 물리적 상한 적용 (종합 캡 제거)
+    const textureMaturity = Math.min(95, calculateTextureMaturity(baseAging, m, config.tci * af.textureMult, dynamicKf));
+    const aromaFreshness = Math.max(15, calculateAromaFreshness(baseAging, m, dynamicFri * af.aromaDecay));
 
-    let compositeQuality = calculateCompositeQuality(
+    // 환원취: 해당 월 수온 전달 (계절 의존성)
+    let monthTemp: number | undefined;
+    if (monthlyOceanProfiles && monthlyOceanProfiles.length > 0 && immersionMonth) {
+      const calendarMonth = ((immersionMonth - 1 + m - 1) % 12) + 1;
+      const profile = getMonthlyProfile(monthlyOceanProfiles, calendarMonth);
+      monthTemp = profile.seaTemperatureAvg;
+    }
+    const offFlavorRisk = calculateOffFlavorRisk(reductionPotential, m, textureMaturity, monthTemp) * af.riskMult;
+    const bubbleRefinement = Math.min(95, calculateBubbleRefinement(m, product.agingDepth, dynamicBri));
+
+    // v4.0: 종합 캡 제거 — 개별 상한으로 자연스러운 곡선 보장
+    const compositeQuality = calculateCompositeQuality(
       textureMaturity, aromaFreshness, bubbleRefinement, offFlavorRisk, product.wineType, w, tsiScore
     );
-
-    // v3.0 Conservative Cap: 해저/지상 차이를 ±20점 이내로 제한
-    const delta = compositeQuality - landBaseline;
-    const cap = CONSERVATIVE_CAP.compositeQualityDelta;
-    if (Math.abs(delta) > cap) {
-      compositeQuality = landBaseline + Math.sign(delta) * cap;
-      compositeQuality = Math.min(100, Math.max(0, compositeQuality));
-    }
 
     // 이득: 시간이 지나면 좋아지는 요소 (질감 + 기포)의 가중 평균
     const gainScore = Math.round(

@@ -55,14 +55,15 @@ interface ExpertProfileResult {
  * Google Search grounding으로 전문가 테이스팅 노트 기반 프로파일 생성
  */
 export async function generateExpertProfile(
-  product: AgingProduct
+  product: AgingProduct,
+  monthlyOceanProfiles?: MonthlyOceanProfile[] | null
 ): Promise<ExpertProfileResult | null> {
   const { GoogleGenAI } = await import('@google/genai');
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) return null;
 
   const ai = new GoogleGenAI({ apiKey });
-  const prompt = buildExpertProfilePrompt(product);
+  const prompt = buildExpertProfilePrompt(product, monthlyOceanProfiles);
 
   const EXPERT_TIMEOUT_MS = 45_000;
   const GROUNDING_MODELS = ['gemini-3-flash-preview', 'gemini-2.5-flash', 'gemini-2.5-flash-lite'];
@@ -119,7 +120,7 @@ export async function generateExpertProfile(
   return null;
 }
 
-function buildExpertProfilePrompt(product: AgingProduct): string {
+function buildExpertProfilePrompt(product: AgingProduct, monthlyOceanProfiles?: MonthlyOceanProfile[] | null): string {
   const vintageStr = product.vintage ? ` ${product.vintage}` : '';
   const searchQuery = `${product.productName}${vintageStr}`;
   const category = (product.productCategory || 'champagne') as ProductCategory;
@@ -189,7 +190,21 @@ JSON만 응답:
   "sources": ["검색에서 참조한 리뷰 출처 1-3개"],
   "confidence": 0-1,
   "summary": "한 줄 요약 (한국어)"
-}`;
+}${monthlyOceanProfiles && monthlyOceanProfiles.length > 0 ? `
+
+## 해저 숙성 환경 (KHOA 실측 월별 해양 프로파일)
+이 제품은 완도 해역 40m 수심에서 해저 숙성됩니다.
+| 월 | 수온(°C) | 염도(‰) | 조류(cm/s) |
+|---|---|---|---|
+${monthlyOceanProfiles.map(p =>
+  `| ${p.month}월 | ${p.seaTemperatureAvg.toFixed(1)} | ${p.salinityAvg !== null ? p.salinityAvg.toFixed(1) : '-'} | ${p.tidalCurrentSpeedAvg !== null ? p.tidalCurrentSpeedAvg.toFixed(1) : '-'} |`
+).join('\n')}
+
+풍미 프로파일 평가 시 아래 해저 숙성 효과를 반영하세요:
+- 겨울(12~2월) 저수온(7~9°C): 산화 억제 → 향 보존 극대화, FRI 유리
+- 여름(7~9월) 고수온(14~16°C): 산화 가속 → 숙성 빠름, 환원취 리스크
+- 조류에 의한 자연 리무아주: 질감(bodyTexture) 가속 발달
+- 40m 수압(4.9atm): 기포 미세화, CO₂ 안정` : ''}`;
 }
 
 function parseExpertProfileResponse(text: string): ExpertProfileResult | null {

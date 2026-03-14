@@ -275,23 +275,44 @@ export default function UAPSPage() {
     setLocalBri(config.bri);
   }, [config.tci, config.fri, config.bri]);
 
+  // 투입 월 추출 (immersionDate에서, 없으면 현재 월)
+  const immersionMonth = useMemo(() => {
+    if (selectedProduct?.immersionDate) {
+      const m = parseInt(selectedProduct.immersionDate.split('-')[1], 10);
+      return isNaN(m) ? new Date().getMonth() + 1 : m;
+    }
+    return new Date().getMonth() + 1;
+  }, [selectedProduct]);
+
   const timelineData = useMemo(() => {
     if (!selectedProduct) return [];
-    return generateTimelineData(selectedProduct, config);
-  }, [selectedProduct, config]);
+    return generateTimelineData(
+      selectedProduct, config,
+      undefined, undefined,
+      monthlyOceanProfiles ?? undefined,
+      immersionMonth
+    );
+  }, [selectedProduct, config, monthlyOceanProfiles, immersionMonth]);
 
   const harvestWindow = useMemo(() => {
     if (!selectedProduct) return null;
-    return calculateOptimalHarvestWindow(selectedProduct, config);
-  }, [selectedProduct, config]);
+    return calculateOptimalHarvestWindow(
+      selectedProduct, config,
+      undefined, undefined,
+      monthlyOceanProfiles ?? undefined,
+      immersionMonth
+    );
+  }, [selectedProduct, config, monthlyOceanProfiles, immersionMonth]);
 
   const beforeProfile = useMemo(() => {
+    // 제품 미선택 시 null → FlavorRadar에서 ZERO_PROFILE 사용
+    if (!selectedProduct) return null;
     // 1순위: AI 예측에서 생성된 전문가 프로파일
     if (latestPrediction?.expertProfileJson) {
       return latestPrediction.expertProfileJson;
     }
     // 2순위: 기존 통계 기반
-    if (!selectedProduct || terrestrialModels.length === 0) return null;
+    if (terrestrialModels.length === 0) return null;
     const clusters = findSimilarClusters(selectedProduct, terrestrialModels);
     if (clusters.length === 0) return null;
     return predictFlavorProfileStatistical(clusters, 0, config, selectedProduct);
@@ -811,7 +832,7 @@ export default function UAPSPage() {
                             </div>
                             <div className="min-w-0">
                               <span className="text-[9px] text-cyan-400/40 uppercase tracking-wider">Before</span>
-                              <p className="text-[11px] text-white/50 leading-relaxed mt-0.5">
+                              <p className="text-[11px] text-white/50 leading-relaxed mt-0.5 line-clamp-3">
                                 {latestPrediction.aiInsightText.split('\n')[0]}
                               </p>
                             </div>
@@ -823,7 +844,7 @@ export default function UAPSPage() {
                             </div>
                             <div className="min-w-0">
                               <span className="text-[9px] text-[#B76E79]/40 uppercase tracking-wider">After</span>
-                              <p className="text-[11px] text-white/50 leading-relaxed mt-0.5">
+                              <p className="text-[11px] text-white/50 leading-relaxed mt-0.5 line-clamp-3">
                                 {latestPrediction.aiInsightText.split('\n').slice(1).join(' ')}
                               </p>
                             </div>
@@ -834,7 +855,7 @@ export default function UAPSPage() {
                           <div className="p-1.5 rounded-lg bg-[#B76E79]/[0.08] shrink-0 mt-0.5">
                             <Sparkles className="w-3.5 h-3.5 text-[#B76E79]" />
                           </div>
-                          <p className="text-[11px] text-white/50 leading-relaxed">
+                          <p className="text-[11px] text-white/50 leading-relaxed line-clamp-3">
                             {latestPrediction.aiInsightText}
                           </p>
                         </div>
@@ -872,63 +893,79 @@ export default function UAPSPage() {
         {/* ═══════════════════════════════════════════════════════════ */}
         {/* 차트 (풍미 레이더 + 타임라인) */}
         {/* ═══════════════════════════════════════════════════════════ */}
-        {(beforeProfile || afterProfile) && (
-          <SectionWrapper title="풍미 프로파일" icon={BarChart3} iconColor="#B76E79" delay={0.3}>
-            <FlavorRadar beforeProfile={beforeProfile} afterProfile={afterProfile} />
-          </SectionWrapper>
-        )}
+        <SectionWrapper title="풍미 프로파일" icon={BarChart3} iconColor="#B76E79" delay={0.3}>
+          <FlavorRadar beforeProfile={beforeProfile} afterProfile={afterProfile} />
+        </SectionWrapper>
 
-        {selectedProduct && timelineData.length > 0 && (
-          <SectionWrapper title="숙성 타임라인" icon={Gauge} iconColor="#C4A052" delay={0.35}>
-            <div className="h-[220px] sm:h-[300px]">
+        <SectionWrapper title="숙성 타임라인" icon={Gauge} iconColor="#C4A052" delay={0.35}>
+          <div className="h-[220px] sm:h-[300px]">
+            {timelineData.length > 0 ? (
               <TimelineChart data={timelineData} harvestWindow={harvestWindow} />
-            </div>
-            {harvestWindow && (
-              <div className="mt-1.5 space-y-1.5">
-                {/* 핵심 지표 — 컴팩트 인라인 */}
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  <div className="flex items-center gap-1.5 bg-[#C4A052]/[0.10] border border-[#C4A052]/[0.25] rounded-lg px-3 py-2 shadow-[0_0_12px_rgba(196,160,82,0.08)]">
-                    <span className="text-[9px] text-[#C4A052]/70 uppercase tracking-wider font-medium">Peak</span>
-                    <span className="text-sm font-medium text-[#C4A052]" style={{ fontFamily: "var(--font-cormorant), 'Cormorant Garamond', serif" }}>
-                      {harvestWindow.peakMonth}<span className="text-[10px] text-[#C4A052]/50 ml-px">개월</span>
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-1.5 bg-white/[0.02] border border-white/[0.06] rounded-lg px-2.5 py-1.5" title="질감·향·환원취·기포를 종합한 품질 점수 (0~100)">
-                    <span className="text-[9px] text-white/25 uppercase tracking-wider">품질</span>
-                    <span className="text-sm font-light text-white/60" style={{ fontFamily: "var(--font-cormorant), 'Cormorant Garamond', serif" }}>
-                      {Math.round(harvestWindow.peakScore)}<span className="text-[10px] text-white/20 ml-px">/100</span>
-                    </span>
-                  </div>
-                </div>
-                {/* 범례 — 고스트 라인 포함 */}
-                <div className="flex flex-wrap items-center gap-x-2.5 sm:gap-x-3 gap-y-1.5">
-                  <div className="flex items-center gap-1">
-                    <div className="w-3 h-0.5 rounded-full bg-[#C4A052]" />
-                    <span className="text-[9px] text-white/30">종합 품질</span>
-                  </div>
-                  <span className="text-white/10 text-[8px] hidden sm:inline">|</span>
-                  <div className="flex items-center gap-1">
-                    <div className="w-3 h-px bg-emerald-400/40" />
-                    <span className="text-[9px] text-emerald-400/30">질감</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <div className="w-3 h-px border-t border-dashed border-emerald-400/30" />
-                    <span className="text-[9px] text-emerald-400/30">기포</span>
-                  </div>
-                  <span className="text-white/10 text-[8px] hidden sm:inline">|</span>
-                  <div className="flex items-center gap-1">
-                    <div className="w-3 h-px bg-red-400/35" />
-                    <span className="text-[9px] text-red-400/30">향 감쇠</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <div className="w-3 h-px border-t border-dashed border-red-400/30" />
-                    <span className="text-[9px] text-red-400/30">환원취</span>
-                  </div>
-                </div>
+            ) : (
+              <div className="h-full flex items-center justify-center">
+                <p className="text-xs text-white/20">제품을 선택하면 숙성 타임라인이 표시됩니다</p>
               </div>
             )}
-          </SectionWrapper>
-        )}
+          </div>
+          {harvestWindow ? (
+            <div className="mt-1.5 space-y-1.5">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <div className="flex items-center gap-1.5 bg-[#C4A052]/[0.10] border border-[#C4A052]/[0.25] rounded-lg px-3 py-2 shadow-[0_0_12px_rgba(196,160,82,0.08)]">
+                  <span className="text-[9px] text-[#C4A052]/70 uppercase tracking-wider font-medium">Peak</span>
+                  <span className="text-sm font-medium text-[#C4A052]" style={{ fontFamily: "var(--font-cormorant), 'Cormorant Garamond', serif" }}>
+                    {harvestWindow.peakMonth}<span className="text-[10px] text-[#C4A052]/50 ml-px">개월</span>
+                  </span>
+                </div>
+                <div className="flex items-center gap-1.5 bg-white/[0.02] border border-white/[0.06] rounded-lg px-2.5 py-1.5" title="질감·향·환원취·기포를 종합한 품질 점수 (0~100)">
+                  <span className="text-[9px] text-white/25 uppercase tracking-wider">품질</span>
+                  <span className="text-sm font-light text-white/60" style={{ fontFamily: "var(--font-cormorant), 'Cormorant Garamond', serif" }}>
+                    {Math.round(harvestWindow.peakScore)}<span className="text-[10px] text-white/20 ml-px">/100</span>
+                  </span>
+                </div>
+              </div>
+              <div className="flex flex-wrap items-center gap-x-2.5 sm:gap-x-3 gap-y-1.5">
+                <div className="flex items-center gap-1">
+                  <div className="w-3 h-0.5 rounded-full bg-[#C4A052]" />
+                  <span className="text-[9px] text-white/30">종합 품질</span>
+                </div>
+                <span className="text-white/10 text-[8px] hidden sm:inline">|</span>
+                <div className="flex items-center gap-1">
+                  <div className="w-3 h-px bg-emerald-400/40" />
+                  <span className="text-[9px] text-emerald-400/30">질감</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <div className="w-3 h-px border-t border-dashed border-emerald-400/30" />
+                  <span className="text-[9px] text-emerald-400/30">기포</span>
+                </div>
+                <span className="text-white/10 text-[8px] hidden sm:inline">|</span>
+                <div className="flex items-center gap-1">
+                  <div className="w-3 h-px bg-red-400/35" />
+                  <span className="text-[9px] text-red-400/30">향 감쇠</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <div className="w-3 h-px border-t border-dashed border-red-400/30" />
+                  <span className="text-[9px] text-red-400/30">환원취</span>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="mt-1.5 flex flex-wrap items-center gap-x-2.5 sm:gap-x-3 gap-y-1.5">
+              <div className="flex items-center gap-1">
+                <div className="w-3 h-0.5 rounded-full bg-[#C4A052]/30" />
+                <span className="text-[9px] text-white/20">종합 품질</span>
+              </div>
+              <span className="text-white/10 text-[8px] hidden sm:inline">|</span>
+              <div className="flex items-center gap-1">
+                <div className="w-3 h-px bg-emerald-400/20" />
+                <span className="text-[9px] text-white/20">질감</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <div className="w-3 h-px bg-red-400/20" />
+                <span className="text-[9px] text-white/20">향 감쇠</span>
+              </div>
+            </div>
+          )}
+        </SectionWrapper>
 
         {/* ═══════════════════════════════════════════════════════════ */}
         {/* v3.0: 해양 환경 현황 + 최적 깊이 (2열) */}
@@ -1196,6 +1233,69 @@ function ProductModal({
   const [agingDepth, setAgingDepth] = useState<string>(initialData?.agingDepth?.toString() ?? '30');
   const [notes, setNotes] = useState(initialData?.notes ?? '');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isAISearching, setIsAISearching] = useState(false);
+
+  const handleAISearch = async () => {
+    if (!productName.trim()) return;
+    setIsAISearching(true);
+    try {
+      const res = await fetch('/api/uaps/product-info', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ productName: productName.trim(), productCategory }),
+      });
+      if (!res.ok) throw new Error('AI 조회 실패');
+      const info = await res.json();
+
+      // 필드 자동 채우기 (기존 값이 비어있을 때만)
+      if (info.subtype) {
+        const match = subtypeOptions.find(
+          (opt: { value: string; label: string }) =>
+            opt.value.toLowerCase() === info.subtype.toLowerCase() ||
+            opt.label.toLowerCase().includes(info.subtype.toLowerCase())
+        );
+        if (match) setSubtype(match.value);
+      }
+      if (info.vintage && !vintage) setVintage(String(info.vintage));
+      if (info.ph && !ph) setPh(String(info.ph));
+      if (info.dosage && !dosage) setDosage(String(info.dosage));
+      if (info.alcohol && !alcohol) setAlcohol(String(info.alcohol));
+      if (info.closureType) {
+        const validClosures = Object.keys(CLOSURE_TYPE_LABELS);
+        if (validClosures.includes(info.closureType)) setClosureType(info.closureType);
+      }
+      if (info.terrestrialAgingYears && !terrestrialAgingYears) {
+        setTerrestrialAgingYears(String(info.terrestrialAgingYears));
+      }
+      if (info.notes && !notes) setNotes(info.notes);
+
+      // 환원 성향 체크리스트: AI가 직접 체크한 항목 반영
+      if (info.reductionChecks && typeof info.reductionChecks === 'object') {
+        const newChecks: Record<string, boolean> = {};
+        reductionChecklist.forEach((item) => { newChecks[item.id] = false; });
+
+        // AI 응답의 체크 항목 반영
+        for (const [id, val] of Object.entries(info.reductionChecks)) {
+          if (val === true && reductionChecklist.some(item => item.id === id)) {
+            // 그룹 체크: 같은 그룹 내 다른 항목은 false
+            const checkItem = reductionChecklist.find(item => item.id === id);
+            if (checkItem?.group) {
+              reductionChecklist.forEach(item => {
+                if (item.group === checkItem.group) newChecks[item.id] = false;
+              });
+            }
+            newChecks[id] = true;
+          }
+        }
+
+        setReductionChecks(newChecks);
+      }
+    } catch {
+      // 실패 시 무시
+    } finally {
+      setIsAISearching(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1270,17 +1370,32 @@ function ProductModal({
             </select>
           </div>
 
-          {/* 제품명 */}
+          {/* 제품명 + AI 정보 찾기 */}
           <div>
             <label className={labelClass}>제품명 *</label>
-            <input
-              type="text"
-              value={productName}
-              onChange={(e) => setProductName(e.target.value)}
-              placeholder="제품명을 입력하세요"
-              className={inputClass}
-              required
-            />
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={productName}
+                onChange={(e) => setProductName(e.target.value)}
+                placeholder="제품명을 입력하세요"
+                className={inputClass + ' flex-1'}
+                required
+              />
+              <button
+                type="button"
+                onClick={handleAISearch}
+                disabled={!productName.trim() || isAISearching}
+                className="shrink-0 px-3 py-2.5 bg-[#C4A052]/10 hover:bg-[#C4A052]/20 border border-[#C4A052]/20 text-[#C4A052] text-xs rounded-xl transition-all disabled:opacity-30 disabled:cursor-not-allowed flex items-center gap-1.5"
+              >
+                {isAISearching ? (
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                ) : (
+                  <Sparkles className="w-3 h-3" />
+                )}
+                {isAISearching ? 'AI 검색 중...' : 'AI 정보 찾기'}
+              </button>
+            </div>
           </div>
 
           {/* 서브타입 + 빈티지 (동적) */}
@@ -1520,13 +1635,14 @@ function FlavorRadar({
   beforeProfile: Record<string, number> | null;
   afterProfile: Record<string, number> | null;
 }) {
-  const before = beforeProfile || FALLBACK_PROFILES.blend;
+  const ZERO_PROFILE: Record<string, number> = { fruity: 0, floralMineral: 0, yeastyAutolytic: 0, acidityFreshness: 0, bodyTexture: 0, finishComplexity: 0 };
+  const before = beforeProfile || ZERO_PROFILE;
   const after = afterProfile || before;
 
   const radarData = FLAVOR_AXES.map((axis) => ({
     axis: axis.label,
-    before: Math.round(Math.min(100, Math.max(5, before[axis.key] ?? 50))),
-    after: Math.round(Math.min(100, Math.max(5, after[axis.key] ?? 50))),
+    before: Math.round(Math.min(100, Math.max(0, before[axis.key] ?? 0))),
+    after: Math.round(Math.min(100, Math.max(0, after[axis.key] ?? 0))),
   }));
 
   const changes = radarData.map((d) => ({

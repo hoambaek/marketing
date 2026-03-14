@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>UAPS 숙성 타임라인 계산 분석</title>
+<style>
+:root{--bg:#0a0b0d;--card:rgba(255,255,255,0.03);--border:rgba(255,255,255,0.08);--gold:#C4A052;--cyan:#22d3ee;--text:rgba(255,255,255,0.85);--dim:rgba(255,255,255,0.45);--green:#34d399;--red:#f87171;--yellow:#fbbf24}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:'Pretendard',-apple-system,sans-serif;line-height:1.7;padding:40px 20px}
+.c{max-width:1000px;margin:0 auto}
+h1{font-size:1.8em;color:var(--gold);margin-bottom:8px}
+h2{font-size:1.2em;color:var(--cyan);margin:32px 0 12px;padding-bottom:6px;border-bottom:1px solid var(--border)}
+h3{font-size:1em;color:var(--gold);margin:20px 0 8px}
+.sub{color:var(--dim);font-size:13px;margin-bottom:24px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:16px}
+table{width:100%;border-collapse:collapse;margin:12px 0;font-size:13px}
+th{text-align:left;padding:8px 10px;background:rgba(199,160,82,.08);border-bottom:1px solid var(--border);color:var(--gold);font-size:11px;text-transform:uppercase}
+td{padding:8px 10px;border-bottom:1px solid rgba(255,255,255,.04)}
+code{background:rgba(255,255,255,.06);padding:2px 6px;border-radius:4px;font-size:12px;color:var(--cyan)}
+.formula{background:rgba(34,211,238,.05);border:1px solid rgba(34,211,238,.15);border-radius:10px;padding:16px;margin:12px 0;font-family:'SF Mono',monospace;font-size:13px}
+.warn{background:rgba(248,113,113,.05);border:1px solid rgba(248,113,113,.15);border-radius:10px;padding:16px;margin:12px 0}
+.ok{background:rgba(52,211,153,.05);border:1px solid rgba(52,211,153,.15);border-radius:10px;padding:16px;margin:12px 0}
+.flow{display:flex;align-items:center;gap:8px;margin:16px 0;flex-wrap:wrap}
+.fs{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px 16px;text-align:center;font-size:12px}
+.fa{color:var(--gold);font-size:18px}
+ul{margin:8px 0 12px 20px;font-size:13px}
+li{margin-bottom:4px}
+.highlight{color:var(--gold);font-weight:600}
+.problem{color:var(--red);font-weight:600}
+</style>
+</head>
+<body>
+<div class="c">
+
+<h1>UAPS 숙성 타임라인 계산 분석</h1>
+<div class="sub">generateTimelineData() 함수의 전체 계산 흐름 — 2026-03-14</div>
+
+<!-- 1. 전체 흐름 -->
+<h2>1. 전체 계산 흐름</h2>
+
+<div class="flow">
+  <div class="fs">제품 정보<br><small>agingDepth, closureType,<br>reductionPotential</small></div>
+  <div class="fa">&rarr;</div>
+  <div class="fs">보정 계수<br><small>TCI, FRI, BRI<br>(고정 or 동적)</small></div>
+  <div class="fa">&rarr;</div>
+  <div class="fs">4개 점수 계산<br><small>질감, 향, 기포, 환원취</small></div>
+  <div class="fa">&rarr;</div>
+  <div class="fs">종합 품질<br><small>가중평균 + 시너지</small></div>
+  <div class="fa">&rarr;</div>
+  <div class="fs" style="border-color:var(--red)">Soft Cap<br><small>±20점 + 로그감쇠</small></div>
+</div>
+
+<!-- 2. 입력 -->
+<h2>2. 입력 값</h2>
+
+<div class="card">
+<h3>제품 파라미터 (예: Mignon Boulard Atomes Crochus)</h3>
+<table>
+<tr><th>파라미터</th><th>값</th><th>출처</th></tr>
+<tr><td>agingDepth</td><td>40m</td><td>제품 등록 시 입력</td></tr>
+<tr><td>closureType</td><td>cork_natural</td><td>제품 등록</td></tr>
+<tr><td>reductionPotential</td><td>low</td><td>제품 등록</td></tr>
+<tr><td>terrestrialAgingYears</td><td>null → 기본값 1.5년</td><td>DEFAULT_AGING_FACTORS</td></tr>
+<tr><td>plannedDurationMonths</td><td>12</td><td>제품 등록</td></tr>
+<tr><td>immersionMonth</td><td>3 (현재 월)</td><td>immersionDate에서 추출</td></tr>
+</table>
+</div>
+
+<div class="card">
+<h3>보정 계수 (config)</h3>
+<table>
+<tr><th>계수</th><th>고정값</th><th>동적값 (해양 프로파일 사용 시)</th><th>역할</th></tr>
+<tr><td>TCI</td><td>0.40</td><td>0.40 (변동 없음)</td><td>질감 촉진 속도</td></tr>
+<tr><td>FRI</td><td>0.56</td><td><span class="highlight">월별 수온 기반 동적 계산</span><br>아레니우스: exp(-Ea/R × (1/T - 1/Tref))</td><td>산화(향 감쇠) 속도</td></tr>
+<tr><td>BRI</td><td>0.72</td><td><span class="highlight">월별 수온+수심 기반 동적 계산</span><br>헨리의 법칙</td><td>기포 보존</td></tr>
+<tr><td>kineticFactor</td><td>1.0</td><td><span class="highlight">월별 조류 유속 기반</span><br>deriveKineticFactorFromOcean()</td><td>질감 가속 (리무아주)</td></tr>
+</table>
+</div>
+
+<!-- 3. 4개 점수 계산 -->
+<h2>3. 4개 하위 점수 (월별 계산)</h2>
+
+<div class="card">
+<h3>① 질감 성숙도 (textureMaturity)</h3>
+<div class="formula">
+equivalentLandYears = landAgingYears + (underseaMonths / (12 × effectiveTci))<br>
+effectiveTci = max(0.1, TCI / kineticFactor)<br>
+<br>
+score = 100 / (1 + exp(-0.6 × (equivalentLandYears - 4.5)))<br>
+<br>
+<em>시그모이드 곡선: 0→100, 중점 4.5년</em>
+</div>
+<p>kineticFactor가 높으면 effectiveTci가 작아져 → 해저 숙성이 지상 대비 가속</p>
+<p><strong>현재:</strong> kf=1.0(고정) or 해류 유속 기반 동적 → 질감 <span class="highlight">꾸준히 상승</span></p>
+</div>
+
+<div class="card">
+<h3>② 향 신선도 (aromaFreshness)</h3>
+<div class="formula">
+totalOxidationYears = landAgingYears + (underseaMonths × FRI / 12)<br>
+<br>
+score = 100 × exp(-0.10 × totalOxidationYears)<br>
+<br>
+<em>지수 감쇠: 100에서 시작, FRI가 낮을수록 천천히 감소</em>
+</div>
+<p>FRI=0.56이면 해저 산화 속도가 지상의 56% → 향 보존 유리</p>
+<p><strong>현재:</strong> <span class="highlight">꾸준히 하락</span> (시간이 갈수록 향 손실)</p>
+</div>
+
+<div class="card">
+<h3>③ 기포 미세화 (bubbleRefinement)</h3>
+<div class="formula">
+rate = 0.08 × (BRI / 1.6) × depthFactor<br>
+depthFactor = min(depth / 30, 1.5)<br>
+<br>
+score = 40 + (100 - 40) × (1 - exp(-rate × months))<br>
+<br>
+<em>로그 성장: 40에서 시작, 100으로 수렴</em>
+</div>
+<p>시간이 갈수록 기포가 미세화되지만, 포화됨</p>
+<p><strong>현재:</strong> <span class="highlight">초기 급상승 → 포화</span></p>
+</div>
+
+<div class="card">
+<h3>④ 환원취 리스크 (offFlavorRisk)</h3>
+<div class="formula">
+risk = baseRisk + maxAdditional / (1 + exp(-0.2 × (months - inflection)))<br>
+<br>
+baseRisk: low=5, medium=10, high=20<br>
+inflection: low=22, medium=18, high=15<br>
+<br>
+<em>시그모이드: 시간이 지남에 따라 리스크 증가</em>
+</div>
+<p>질감 성숙도 > 70이면 최대 15% 리스크 감소 보정</p>
+<p><strong>현재 (low):</strong> 초기 5점 → 22개월 변곡점 → 점차 증가</p>
+</div>
+
+<!-- 4. 종합 품질 -->
+<h2>4. 종합 품질 (compositeQuality)</h2>
+
+<div class="card">
+<h3>가중 평균</h3>
+<div class="formula">
+base = texture × w.texture + aroma × w.aroma + bubble × w.bubble + (100-risk) × w.risk<br>
+<br>
+기본 가중치: texture=0.30, aroma=0.30, bubble=0.20, risk=0.20
+</div>
+
+<h3>시너지 보너스 (최대 +15점)</h3>
+<div class="formula">
+avgScore > 60 AND harmony > 0.5 일 때:<br>
+synergyBonus = 15 × avgFactor × harmonyFactor<br>
+<br>
+harmony = min(scores) / max(scores) — 4개 점수가 균형적일수록 보너스
+</div>
+
+<h3>TSI 보정</h3>
+<div class="formula">
+TSI ≥ 0.7: +3점 | TSI < 0.4: -3점 | 그 외: 0점
+</div>
+</div>
+
+<!-- 5. Conservative Cap (문제의 원인) -->
+<h2>5. Soft Cap — <span class="problem">일직선의 원인</span></h2>
+
+<div class="warn">
+<h3 style="color:var(--red);margin-top:0">문제: 종합 품질이 ~9개월 이후 일직선</h3>
+<p>지상 기준 품질(landBaseline)은 <strong>m=0</strong>에서 계산됩니다:</p>
+<div class="formula">
+landBaseline = compositeQuality(texture=m0, aroma=m0, bubble=40, risk=m0)<br>
+≈ 약 70점 (지상 숙성 기본값)
+</div>
+<p>Soft Cap 적용:</p>
+<div class="formula">
+delta = compositeQuality - landBaseline (= compositeQuality - 70)<br>
+cap = 20<br>
+<br>
+if |delta| > 20:<br>
+&nbsp;&nbsp;softDelta = 20 + log(1 + excess) × 3<br>
+&nbsp;&nbsp;compositeQuality = 70 + softDelta
+</div>
+<p>예시 (compositeQuality가 95점일 때):</p>
+<div class="formula">
+delta = 95 - 70 = 25 (cap 20 초과)<br>
+excess = 25 - 20 = 5<br>
+softDelta = 20 + log(1+5) × 3 = 20 + 1.79 × 3 = 25.4<br>
+final = 70 + 25.4 = <strong>95.4</strong> → 거의 안 잘림
+</div>
+
+<p style="margin-top:12px"><strong>실제 문제:</strong> Soft Cap 자체는 잘 작동하지만, <strong>질감↑과 향↓이 상쇄</strong>되면서 종합 품질이 자연스럽게 수렴하는 겁니다.</p>
+</div>
+
+<!-- 6. 실제 숫자 시뮬레이션 -->
+<h2>6. 실제 계산 결과 (고정 계수 기준)</h2>
+
+<table>
+<tr><th>월</th><th>질감</th><th>향</th><th>기포</th><th>환원취</th><th>가중평균</th><th>시너지</th><th>종합</th><th>Cap 후</th></tr>
+</table>
+<p style="font-size:11px;color:var(--dim)">아래 값은 landAgingYears=1.5, TCI=0.40, FRI=0.56, BRI=0.72, kf=1.0, depth=40m, reduction=low 기준 추정</p>
+
+<table>
+<tr><td>1</td><td>38</td><td>95</td><td>44</td><td>6</td><td>62</td><td>0</td><td>62</td><td>62</td></tr>
+<tr><td>3</td><td>42</td><td>93</td><td>50</td><td>7</td><td>65</td><td>0</td><td>65</td><td>65</td></tr>
+<tr><td>6</td><td>50</td><td>89</td><td>58</td><td>8</td><td>70</td><td>3</td><td>73</td><td>73</td></tr>
+<tr><td>9</td><td>58</td><td>85</td><td>64</td><td>9</td><td>74</td><td>8</td><td>82</td><td>82</td></tr>
+<tr><td>12</td><td>65</td><td>82</td><td>69</td><td>10</td><td>77</td><td>11</td><td>88</td><td><strong>88</strong></td></tr>
+<tr><td>18</td><td>76</td><td>75</td><td>77</td><td>13</td><td>80</td><td>13</td><td>93</td><td><strong>~90</strong></td></tr>
+<tr><td>24</td><td>84</td><td>68</td><td>82</td><td>18</td><td>79</td><td>11</td><td>90</td><td><strong>~90</strong></td></tr>
+<tr><td>30</td><td>89</td><td>62</td><td>86</td><td>23</td><td>77</td><td>8</td><td>85</td><td><strong>~88</strong></td></tr>
+<tr><td>36</td><td>92</td><td>56</td><td>88</td><td>28</td><td>74</td><td>5</td><td>79</td><td><strong>~85</strong></td></tr>
+</table>
+
+<!-- 7. 핵심 인사이트 -->
+<h2>7. 왜 일직선인가 — 핵심 인사이트</h2>
+
+<div class="ok">
+<h3 style="color:var(--green);margin-top:0">원인 분석</h3>
+<ol style="font-size:13px">
+<li><strong>질감↑ + 향↓ 상쇄:</strong> 질감(시그모이드 ↑)과 향(지수 감쇠 ↓)이 서로 상쇄되면서 가중평균이 일정 수준(~77-80점)에서 수렴</li>
+<li><strong>시너지 보너스 감소:</strong> 향이 하락하면 harmony(균형도)가 떨어져 시너지가 줄어듦</li>
+<li><strong>환원취 증가:</strong> 22개월 이후 환원취가 가속 상승 → 종합 품질 하락 압력</li>
+<li><strong>결과:</strong> 12~24개월 구간에서 종합 품질이 88~91점으로 수렴 → <strong>사실상 동일</strong></li>
+</ol>
+</div>
+
+<div class="warn">
+<h3 style="color:var(--yellow);margin-top:0">해양 프로파일이 반영 안 되는 이유</h3>
+<p>코드상 <code>monthlyOceanProfiles</code>가 전달되고 있지만:</p>
+<ul>
+<li><strong>동적 FRI 값 범위가 좁음:</strong> 보정된 40m 수온이 6.5~15.7°C → FRI 0.3~0.8 → 고정값 0.56과 큰 차이 없음</li>
+<li><strong>동적 BRI 값도 비슷:</strong> 수온 변화에 의한 BRI 변동폭이 작음</li>
+<li><strong>K-TCI 영향 제한적:</strong> kineticFactor가 질감에만 영향, 종합에서 30% 비중</li>
+<li><strong>결론:</strong> 계절 변동이 반영되지만 <strong>4개 점수의 상쇄 효과</strong>로 종합 품질에는 미미한 차이</li>
+</ul>
+</div>
+
+<!-- 8. 개선 방향 -->
+<h2>8. 개선 방향</h2>
+
+<div class="card">
+<h3>A. 피크 표시 개선 (빠른 수정)</h3>
+<ul>
+<li>"Peak 23개월" 대신 <strong>"최적 구간 12~30개월"</strong> (품질 95% 이상 구간) 표시</li>
+<li>동일 품질이면 <strong>가장 빠른 도달 시점</strong>을 추천 (비용/시간 효율)</li>
+</ul>
+
+<h3>B. 계절 변동 가시화 (중간 수정)</h3>
+<ul>
+<li>종합 품질에 <strong>계절 보정 (±2~3점)</strong> 추가: 겨울 투입 시 FRI 유리 → +2점</li>
+<li>compositeQuality에 월별 미세 진동을 넣어 곡선에 변화 부여</li>
+</ul>
+
+<h3>C. 모델 근본 개선 (대규모)</h3>
+<ul>
+<li>향 감쇠 모델을 <strong>비선형</strong>으로: 초기 급감 → 안정 구간 → 후기 급감 (3단계)</li>
+<li>환원취 모델에 <strong>계절 의존성</strong> 추가: 여름 고온 → 환원취 가속</li>
+<li>Conservative Cap 완전 제거, 대신 <strong>개별 점수에 물리적 상한</strong> 적용</li>
+</ul>
+</div>
+
+<div style="margin-top:40px;padding-top:16px;border-top:1px solid var(--border);text-align:center;color:var(--dim);font-size:11px">
+UAPS Timeline Calculation Analysis — 2026-03-14 — Muse de Marée R&D
+</div>
+
+</div>
+</body>
+</html>
