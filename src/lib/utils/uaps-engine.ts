@@ -1294,6 +1294,12 @@ const MONTH_LABELS = ['1월', '2월', '3월', '4월', '5월', '6월', '7월', '8
  * @param monthlyOceanProfiles 12개월 해양 프로파일
  * @param options 추가 옵션 (maxMonths, agingFactors, qualityWeights 등)
  */
+/**
+ * 최적 숙성 기간 시뮬레이션
+ *
+ * 현재 시점부터 12개월 내 각 투입 시점에서, 제품의 plannedDurationMonths 기간 동안
+ * 숙성 품질을 시뮬레이션하여 최적 투입→인양 기간을 추천.
+ */
 export function simulateOptimalImmersionMonth(
   product: AgingProduct,
   config: ParsedUAPSConfig,
@@ -1304,37 +1310,48 @@ export function simulateOptimalImmersionMonth(
     qualityWeights?: QualityWeights;
   }
 ): OptimalImmersionResult {
-  const maxMonths = options?.maxMonths ?? 24;
+  // 제품의 예정 숙성 기간 사용 (없으면 12개월)
+  const durationMonths = product.plannedDurationMonths ?? 12;
+  const maxMonths = options?.maxMonths ?? durationMonths;
   const af = options?.agingFactors;
   const qw = options?.qualityWeights;
 
+  // 현재 날짜 기준
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth() + 1; // 1~12
+
   const monthlyScores: OptimalImmersionResult['monthlyScores'] = [];
 
-  for (let immMonth = 1; immMonth <= 12; immMonth++) {
-    // generateTimelineData()는 1~36개월 고정 생성 → maxMonths까지만 사용
-    const timeline = generateTimelineData(
-      product,
-      config,
-      af,
-      qw,
-      monthlyOceanProfiles,
-      immMonth
-    );
+  // 앞으로 12개월 각각을 투입 시점으로 시뮬레이션
+  for (let offset = 0; offset < 12; offset++) {
+    const immMonth = ((currentMonth - 1 + offset) % 12) + 1;
+    const immYear = currentYear + Math.floor((currentMonth - 1 + offset) / 12);
 
-    // maxMonths까지만 잘라서 분석
+    // 인양 시점 계산
+    const endOffset = offset + durationMonths;
+    const endMonth = ((currentMonth - 1 + endOffset) % 12) + 1;
+    const endYear = currentYear + Math.floor((currentMonth - 1 + endOffset) / 12);
+
+    const startDate = `${immYear}-${String(immMonth).padStart(2, '0')}`;
+    const endDate = `${endYear}-${String(endMonth).padStart(2, '0')}`;
+    const startLabel = `${immYear}년 ${immMonth}월`;
+    const endLabel = `${endYear}년 ${endMonth}월`;
+
+    // 타임라인 시뮬레이션
+    const timeline = generateTimelineData(
+      product, config, af, qw,
+      monthlyOceanProfiles, immMonth
+    );
     const trimmed = timeline.slice(0, maxMonths);
 
     if (trimmed.length === 0) {
       monthlyScores.push({
+        startDate, endDate, startLabel, endLabel,
         immersionMonth: immMonth,
-        immersionMonthLabel: MONTH_LABELS[immMonth - 1],
-        peakQuality: 0,
-        peakAtMonth: 0,
-        goldenWindowStart: 0,
-        goldenWindowEnd: 0,
-        avgFri: 0,
-        avgBri: 0,
-        avgKf: 0,
+        peakQuality: 0, peakAtMonth: 0,
+        goldenWindowStart: 0, goldenWindowEnd: 0,
+        avgFri: 0, avgBri: 0, avgKf: 0,
       });
       continue;
     }
@@ -1350,10 +1367,9 @@ export function simulateOptimalImmersionMonth(
     }
     peakQuality = Math.round(peakQuality * 10) / 10;
 
-    // goldenWindow: compositeQuality >= peak * 0.9 인 연속 구간
+    // goldenWindow
     const threshold = peakQuality * 0.9;
-    let gwStart = 0;
-    let gwEnd = 0;
+    let gwStart = 0, gwEnd = 0;
     for (const pt of trimmed) {
       if (pt.compositeQuality >= threshold) {
         if (gwStart === 0) gwStart = pt.month;
@@ -1361,10 +1377,8 @@ export function simulateOptimalImmersionMonth(
       }
     }
 
-    // 평균 FRI/BRI/Kf 계산: 월별 해양 프로파일에서 직접 계산
-    let sumFri = 0;
-    let sumBri = 0;
-    let sumKf = 0;
+    // 평균 FRI/BRI/Kf
+    let sumFri = 0, sumBri = 0, sumKf = 0;
     const category = (product.productCategory || 'champagne') as string;
     const eaEntry = CATEGORY_EA_MAP[category];
     const ea = eaEntry ? eaEntry.ea * 1000 : 47000;
@@ -1376,47 +1390,41 @@ export function simulateOptimalImmersionMonth(
       const calendarMonth = ((immMonth - 1 + m - 1) % 12) + 1;
       const profile = getMonthlyProfile(monthlyOceanProfiles, calendarMonth);
       const monthTemp = profile.seaTemperatureAvg;
-
-      const friVal = calculateArrheniusFRI(monthTemp, 12, ea, closureType, depth).value;
-      const briVal = calculateHenryBRI(depth, monthTemp).value;
-
+      sumFri += calculateArrheniusFRI(monthTemp, 12, ea, closureType, depth).value;
+      sumBri += calculateHenryBRI(depth, monthTemp).value;
       let kfVal = usedAf.kineticFactor ?? 1.0;
       if (profile.tidalCurrentSpeedAvg !== null) {
-        const velocityMs = profile.tidalCurrentSpeedAvg / 100;
-        kfVal = deriveKineticFactorFromOcean(velocityMs, profile.waveHeightAvg, null);
+        kfVal = deriveKineticFactorFromOcean(profile.tidalCurrentSpeedAvg / 100, profile.waveHeightAvg, null);
       }
-
-      sumFri += friVal;
-      sumBri += briVal;
       sumKf += kfVal;
     }
 
     const count = trimmed.length;
     monthlyScores.push({
+      startDate, endDate, startLabel, endLabel,
       immersionMonth: immMonth,
-      immersionMonthLabel: MONTH_LABELS[immMonth - 1],
-      peakQuality,
-      peakAtMonth,
-      goldenWindowStart: gwStart,
-      goldenWindowEnd: gwEnd,
+      peakQuality, peakAtMonth,
+      goldenWindowStart: gwStart, goldenWindowEnd: gwEnd,
       avgFri: Math.round((sumFri / count) * 1000) / 1000,
       avgBri: Math.round((sumBri / count) * 1000) / 1000,
       avgKf: Math.round((sumKf / count) * 1000) / 1000,
     });
   }
 
-  // peakQuality 기준 정렬 (내림차순)
+  // peakQuality 기준 최적 선택
   const sorted = [...monthlyScores].sort((a, b) => b.peakQuality - a.peakQuality);
   const best = sorted[0];
 
-  // 추천 문구 생성
   const recommendation =
-    `${best.immersionMonthLabel} 투입 추천 — 초기 3개월 저온(FRI ${best.avgFri.toFixed(2)})으로 ` +
-    `보존 극대화, ${best.peakAtMonth}개월차 피크(${best.peakQuality}점) 예상`;
+    `${best.startLabel} ~ ${best.endLabel} (${durationMonths}개월) 추천 — ` +
+    `평균 FRI ${best.avgFri.toFixed(2)}, ${best.peakAtMonth}개월차 피크(${best.peakQuality}점)`;
 
   return {
-    bestMonth: best.immersionMonth,
-    bestMonthLabel: best.immersionMonthLabel,
+    bestStartDate: best.startDate,
+    bestEndDate: best.endDate,
+    bestStartLabel: best.startLabel,
+    bestEndLabel: best.endLabel,
+    durationMonths,
     peakScore: best.peakQuality,
     peakAtMonth: best.peakAtMonth,
     monthlyScores,

@@ -531,9 +531,9 @@ export function MonthlyProfileCard({
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      className="bg-white/[0.02] border border-white/[0.06] rounded-2xl p-5"
+      className="bg-white/[0.02] border border-white/[0.06] rounded-2xl p-5 flex flex-col"
     >
-      <div className="flex items-center justify-between mb-3">
+      <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Calendar className="w-4 h-4" style={{ color: accentColor }} />
           <h3 className="text-sm font-medium text-white/80">월별 수온 프로파일</h3>
@@ -545,16 +545,16 @@ export function MonthlyProfileCard({
         </div>
       </div>
 
-      {/* Recharts 미니 라인 차트 */}
-      <div className="h-[120px] w-full">
-        <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={chartData} margin={{ top: 8, right: 12, bottom: 0, left: -20 }}>
+      {/* Recharts 라인 차트 — 카드 중앙 배치 */}
+      <div className="flex-1 flex items-end justify-center min-h-[260px] pb-2">
+        <ResponsiveContainer width="100%" height={240}>
+          <LineChart data={chartData} margin={{ top: 8, right: 16, bottom: 8, left: -8 }}>
             <XAxis
               dataKey="name"
-              tick={{ fill: 'rgba(255,255,255,0.3)', fontSize: 9 }}
+              tick={{ fill: 'rgba(255,255,255,0.3)', fontSize: 10 }}
               axisLine={false}
               tickLine={false}
-              interval={1}
+              interval={0}
             />
             <YAxis
               tick={{ fill: 'rgba(255,255,255,0.2)', fontSize: 9 }}
@@ -597,7 +597,7 @@ export function MonthlyProfileCard({
       </div>
 
       {highlights.current && (
-        <p className="text-[10px] text-white/30 mt-1.5 text-center">
+        <p className="text-[10px] text-white/30 text-center">
           현재 ({highlights.current.name}): {highlights.current.temp}°C
         </p>
       )}
@@ -606,7 +606,7 @@ export function MonthlyProfileCard({
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// 카드 5: 최적 투입 월 추천
+// 카드 5: 최적 숙성 기간 추천
 // ═══════════════════════════════════════════════════════════════════════════
 
 interface OptimalImmersionCardProps {
@@ -622,8 +622,11 @@ export function OptimalImmersionCard({
     return null;
   }
 
-  const { bestMonthLabel, peakScore, peakAtMonth, monthlyScores, recommendation } = immersionResult;
+  const { bestStartLabel, bestEndLabel, durationMonths, peakScore, peakAtMonth, monthlyScores, recommendation } = immersionResult;
   const maxPeak = Math.max(...monthlyScores.map((s) => s.peakQuality), 1);
+
+  // 최적 시나리오의 startDate로 비교
+  const bestStartDate = immersionResult.bestStartDate;
 
   return (
     <motion.div
@@ -634,37 +637,30 @@ export function OptimalImmersionCard({
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <Target className="w-4 h-4" style={{ color: accentColor }} />
-          <h3 className="text-sm font-medium text-white/80">최적 투입 월</h3>
+          <h3 className="text-sm font-medium text-white/80">최적 숙성 기간</h3>
         </div>
-        <span className="text-[10px] text-white/25">{peakAtMonth}개월차 피크</span>
+        <span className="text-[10px] text-white/25">{durationMonths}개월 숙성</span>
       </div>
 
-      {/* 추천 월 강조 */}
-      <div className="flex items-center gap-4 mb-4">
-        <div
-          className="flex items-center justify-center w-16 h-16 rounded-2xl"
-          style={{ backgroundColor: `${accentColor}15`, border: `1px solid ${accentColor}30` }}
-        >
-          <span className="text-2xl font-light" style={{ color: accentColor }}>
-            {bestMonthLabel}
-          </span>
-        </div>
-        <div>
-          <p className="text-xs text-white/50 mb-0.5">투입 추천</p>
-          <p className="text-sm font-medium" style={{ color: accentColor }}>
-            피크 {peakScore}점
-          </p>
-        </div>
+      {/* 추천 기간 강조 */}
+      <div className="mb-4 p-3 rounded-xl" style={{ backgroundColor: `${accentColor}08`, border: `1px solid ${accentColor}20` }}>
+        <p className="text-[10px] text-white/40 mb-1">추천 기간</p>
+        <p className="text-lg font-light" style={{ color: accentColor }}>
+          {bestStartLabel} → {bestEndLabel}
+        </p>
+        <p className="text-xs text-white/50 mt-1">
+          {peakAtMonth}개월차 피크 · {peakScore}점
+        </p>
       </div>
 
-      {/* 12개월 peakQuality 미니 바 차트 */}
+      {/* 12개 시나리오 바 차트 */}
       <div className="flex items-end gap-1 h-14 mb-3">
         {monthlyScores.map((s) => {
           const heightPct = Math.max(8, (s.peakQuality / maxPeak) * 100);
-          const isBest = s.immersionMonth === immersionResult.bestMonth;
+          const isBest = s.startDate === bestStartDate;
           return (
             <div
-              key={s.immersionMonth}
+              key={s.startDate}
               className="flex-1 flex flex-col items-center gap-0.5"
             >
               <motion.div
@@ -677,31 +673,26 @@ export function OptimalImmersionCard({
                   opacity: isBest ? 0.9 : 0.5,
                   minHeight: '3px',
                 }}
-                title={`${s.immersionMonthLabel}: ${s.peakQuality}점`}
+                title={`${s.startLabel}~${s.endLabel}: ${s.peakQuality}점`}
               />
             </div>
           );
         })}
       </div>
       <div className="flex gap-1 mb-3">
-        {monthlyScores.map((s) => (
-          <div key={s.immersionMonth} className="flex-1 text-center">
-            <span
-              className={`text-[8px] ${
-                s.immersionMonth === immersionResult.bestMonth
-                  ? 'font-medium'
-                  : 'text-white/25'
-              }`}
-              style={
-                s.immersionMonth === immersionResult.bestMonth
-                  ? { color: accentColor }
-                  : undefined
-              }
-            >
-              {s.immersionMonth}
-            </span>
-          </div>
-        ))}
+        {monthlyScores.map((s) => {
+          const isBest = s.startDate === bestStartDate;
+          return (
+            <div key={s.startDate} className="flex-1 text-center">
+              <span
+                className={`text-[8px] ${isBest ? 'font-medium' : 'text-white/25'}`}
+                style={isBest ? { color: accentColor } : undefined}
+              >
+                {s.startDate.slice(5)}
+              </span>
+            </div>
+          );
+        })}
       </div>
 
       {/* 추천 문구 */}

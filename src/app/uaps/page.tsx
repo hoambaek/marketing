@@ -112,9 +112,8 @@ import { applyAgingAdjustments } from '@/lib/utils/uaps-ai-predictor';
 import { useOceanDataStore } from '@/lib/store/ocean-data-store';
 import {
   OceanConditionsCard, OptimalDepthCard, EnvironmentalImpactCard,
-  MonthlyProfileCard, OptimalImmersionCard,
+  MonthlyProfileCard,
 } from './components/OceanCardsV3';
-import { simulateOptimalImmersionMonth } from '@/lib/utils/uaps-engine';
 import { calculateProductOceanStats } from '@/lib/utils/uaps-ocean-profile';
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -184,8 +183,8 @@ function SectionWrapper({
       className="relative"
     >
       <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/[0.02] to-transparent rounded-3xl" />
-      <div className="relative bg-[#0d1421]/40 backdrop-blur-xl border border-white/[0.06] rounded-3xl p-5 sm:p-6">
-        <div className="flex items-center justify-between mb-5">
+      <div className="relative bg-[#0d1421]/40 backdrop-blur-xl border border-white/[0.06] rounded-2xl p-4 sm:p-5">
+        <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-xl" style={{ backgroundColor: `${iconColor}15` }}>
               <Icon className="w-5 h-5" style={{ color: iconColor }} />
@@ -328,12 +327,6 @@ export default function UAPSPage() {
     const todayRecord = dailyData.find((d) => d.date === today);
     return todayRecord?.dataSource ?? dailyData[0]?.dataSource ?? null;
   }, [dailyData]);
-
-  // 최적 투입 월 시뮬레이션
-  const optimalImmersion = useMemo(() => {
-    if (!selectedProduct || !monthlyOceanProfiles || monthlyOceanProfiles.length === 0) return null;
-    return simulateOptimalImmersionMonth(selectedProduct, config, monthlyOceanProfiles);
-  }, [selectedProduct, config, monthlyOceanProfiles]);
 
   // 제품 투입일 기반 수심 보정 환경 통계
   const productOceanStats = useMemo(() => {
@@ -486,13 +479,33 @@ export default function UAPSPage() {
                   </AnimatePresence>
                 </div>
 
-                <Link
-                  href="/uaps/how-it-works"
-                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border border-cyan-400/20 text-cyan-400/60 text-xs hover:bg-cyan-400/[0.06] hover:border-cyan-400/30 hover:text-cyan-400/80 transition-all duration-300"
-                >
-                  <Info className="w-3 h-3" />
-                  작동 원리
-                </Link>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Link
+                    href="/uaps/how-it-works"
+                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border border-cyan-400/20 text-cyan-400/60 text-xs hover:bg-cyan-400/[0.06] hover:border-cyan-400/30 hover:text-cyan-400/80 transition-all duration-300"
+                  >
+                    <Info className="w-3 h-3" />
+                    작동 원리
+                  </Link>
+                  <button
+                    onClick={trainModel}
+                    disabled={isTraining}
+                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border border-[#C4A052]/20 text-[#C4A052]/60 text-xs hover:bg-[#C4A052]/[0.06] hover:border-[#C4A052]/30 hover:text-[#C4A052]/80 transition-all duration-300 disabled:opacity-50"
+                  >
+                    {isTraining ? (
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                    ) : (
+                      <RefreshCw className="w-3 h-3" />
+                    )}
+                    {isTraining ? '학습 중...' : '모델 재학습'}
+                  </button>
+                  <span className="hidden sm:inline-flex items-center gap-1.5 text-[10px] text-white/25">
+                    <span className={`w-1.5 h-1.5 rounded-full ${modelStatus === 'trained' ? 'bg-emerald-400' : modelStatus === 'training' ? 'bg-amber-400' : 'bg-white/30'}`} />
+                    {MODEL_STATUS_LABELS[modelStatus]}
+                    {modelLastTrained && <span>· {new Date(modelLastTrained).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })}</span>}
+                    <span>· {modelDataCount.toLocaleString()}건</span>
+                  </span>
+                </div>
               </motion.div>
             </div>
           </motion.div>
@@ -867,11 +880,11 @@ export default function UAPSPage() {
 
         {selectedProduct && timelineData.length > 0 && (
           <SectionWrapper title="숙성 타임라인" icon={Gauge} iconColor="#C4A052" delay={0.35}>
-            <div className="h-[280px] sm:h-[400px]">
+            <div className="h-[220px] sm:h-[300px]">
               <TimelineChart data={timelineData} harvestWindow={harvestWindow} />
             </div>
             {harvestWindow && (
-              <div className="mt-2.5 space-y-2">
+              <div className="mt-1.5 space-y-1.5">
                 {/* 핵심 지표 — 컴팩트 인라인 */}
                 <div className="flex items-center gap-1.5 flex-wrap">
                   <div className="flex items-center gap-1.5 bg-[#C4A052]/[0.10] border border-[#C4A052]/[0.25] rounded-lg px-3 py-2 shadow-[0_0_12px_rgba(196,160,82,0.08)]">
@@ -918,9 +931,9 @@ export default function UAPSPage() {
         )}
 
         {/* ═══════════════════════════════════════════════════════════ */}
-        {/* v3.0: 해양 환경 카드 3종 */}
+        {/* v3.0: 해양 환경 현황 + 최적 깊이 (2열) */}
         {/* ═══════════════════════════════════════════════════════════ */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <OceanConditionsCard
             currentConditions={oceanCurrentConditions}
             dataSource={todayDataSource}
@@ -948,6 +961,16 @@ export default function UAPSPage() {
             } : null}
             accentColor="#C4A052"
           />
+        </div>
+
+        {/* ═══════════════════════════════════════════════════════════ */}
+        {/* v3.1: 월별 수온 + 환경 영향도 (2열) */}
+        {/* ═══════════════════════════════════════════════════════════ */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <MonthlyProfileCard
+            monthlyProfiles={monthlyOceanProfiles}
+            accentColor="#22d3ee"
+          />
           <EnvironmentalImpactCard
             oceanConditions={productOceanStats ? {
               seaTemperature: productOceanStats.seaTemperature,
@@ -974,67 +997,6 @@ export default function UAPSPage() {
             accentColor="#B76E79"
           />
         </div>
-
-        {/* ═══════════════════════════════════════════════════════════ */}
-        {/* v3.1: 월별 수온 + 최적 투입 월 */}
-        {/* ═══════════════════════════════════════════════════════════ */}
-        {(monthlyOceanProfiles || optimalImmersion) && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <MonthlyProfileCard
-              monthlyProfiles={monthlyOceanProfiles}
-              accentColor="#22d3ee"
-            />
-            <OptimalImmersionCard
-              immersionResult={optimalImmersion}
-              accentColor="#C4A052"
-            />
-          </div>
-        )}
-
-        {/* ═══════════════════════════════════════════════════════════ */}
-        {/* 모델 상태 */}
-        {/* ═══════════════════════════════════════════════════════════ */}
-        <SectionWrapper title="모델 상태" icon={Settings2} iconColor="#C4A052" delay={0.4}>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-5">
-            {[
-              { label: '상태', value: MODEL_STATUS_LABELS[modelStatus], badge: true },
-              { label: '최종 학습일', value: modelLastTrained ? new Date(modelLastTrained).toLocaleDateString('ko-KR') : '—' },
-              { label: '학습 데이터', value: `${modelDataCount.toLocaleString()}건` },
-              { label: '모델 그룹', value: `${modelGroupCount}개` },
-            ].map((row) => (
-              <div key={row.label} className="text-center sm:text-left">
-                <span className="text-[10px] text-white/30 uppercase tracking-wider block mb-1">{row.label}</span>
-                {row.badge ? (
-                  <span
-                    className={`text-xs font-medium px-2.5 py-0.5 rounded-full ${
-                      modelStatus === 'trained'
-                        ? 'bg-emerald-500/15 text-emerald-400'
-                        : modelStatus === 'training'
-                          ? 'bg-amber-500/15 text-amber-400'
-                          : 'bg-white/[0.06] text-white/40'
-                    }`}
-                  >
-                    {row.value}
-                  </span>
-                ) : (
-                  <span className="text-sm text-white/60 font-mono">{row.value}</span>
-                )}
-              </div>
-            ))}
-          </div>
-          <button
-            onClick={trainModel}
-            disabled={isTraining}
-            className="w-full flex items-center justify-center gap-2 bg-[#C4A052]/15 hover:bg-[#C4A052]/25 border border-[#C4A052]/20 text-[#C4A052] font-medium rounded-xl px-4 py-2.5 text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isTraining ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <RefreshCw className="w-4 h-4" />
-            )}
-            {isTraining ? '학습 진행 중...' : '모델 재학습'}
-          </button>
-        </SectionWrapper>
 
         {/* 보정 계수 다이얼로그 */}
         <AnimatePresence>
@@ -1577,9 +1539,9 @@ function FlavorRadar({
   return (
     <div className="flex flex-col lg:flex-row gap-4 lg:gap-0">
       {/* 레이더 차트 — 좌측, 크게 */}
-      <div className="flex-1 h-[300px] sm:h-[380px] lg:h-[420px] relative">
+      <div className="flex-1 h-[280px] sm:h-[320px] lg:h-[360px] relative">
         <ResponsiveContainer width="100%" height="100%">
-          <RadarChart data={radarData} cx="50%" cy="50%" outerRadius="78%">
+          <RadarChart data={radarData} cx="50%" cy="50%" outerRadius="88%">
             <defs>
               <radialGradient id="radarBeforeFill" cx="50%" cy="50%" r="50%">
                 <stop offset="0%" stopColor="#22d3ee" stopOpacity={0.10} />

@@ -703,15 +703,23 @@ export interface DepthSimulationResult {
   risk: number;
 }
 
-// 최적 투하 시기 분석 결과 (Task 5)
+// 최적 숙성 기간 분석 결과
 export interface OptimalImmersionResult {
-  bestMonth: number;
-  bestMonthLabel: string;
-  peakScore: number;
-  peakAtMonth: number;
+  // 최적 기간
+  bestStartDate: string;        // "2026-11" (YYYY-MM)
+  bestEndDate: string;           // "2027-05"
+  bestStartLabel: string;        // "2026년 11월"
+  bestEndLabel: string;          // "2027년 5월"
+  durationMonths: number;        // 제품의 plannedDurationMonths
+  peakScore: number;             // 최적 기간의 피크 품질
+  peakAtMonth: number;           // 피크 도달 시점 (투입 후 몇 개월)
+  // 12개 시나리오
   monthlyScores: {
-    immersionMonth: number;
-    immersionMonthLabel: string;
+    startDate: string;           // "2026-04"
+    endDate: string;             // "2026-10"
+    startLabel: string;          // "2026년 4월"
+    endLabel: string;            // "2026년 10월"
+    immersionMonth: number;      // 달력 월 (1~12)
     peakQuality: number;
     peakAtMonth: number;
     goldenWindowStart: number;
