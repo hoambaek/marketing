@@ -250,17 +250,17 @@ function ChartWrapper({
       className="relative"
     >
       <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/[0.03] to-transparent rounded-3xl" />
-      <div className="relative bg-[#0d1421]/60 backdrop-blur-xl border border-white/[0.06] rounded-3xl p-6">
+      <div className="relative bg-[#0d1421]/60 backdrop-blur-xl border border-white/[0.06] rounded-3xl p-3 sm:p-6">
         {/* Header */}
-        <div className="flex items-center gap-3 mb-6">
-          <div className="p-2 rounded-xl" style={{ backgroundColor: `${color}15` }}>
-            <Icon className="w-5 h-5" style={{ color }} />
+        <div className="flex items-center gap-2 sm:gap-3 mb-4 sm:mb-6">
+          <div className="p-1.5 sm:p-2 rounded-xl" style={{ backgroundColor: `${color}15` }}>
+            <Icon className="w-4 h-4 sm:w-5 sm:h-5" style={{ color }} />
           </div>
-          <h3 className="text-lg font-medium text-white/90">{title}</h3>
+          <h3 className="text-sm sm:text-lg font-medium text-white/90">{title}</h3>
         </div>
 
         {/* Chart */}
-        <div className="h-64">{children}</div>
+        <div className="h-52 sm:h-64 -ml-2 sm:ml-0">{children}</div>
       </div>
     </motion.div>
   );
@@ -386,6 +386,17 @@ export default function DataLogPage() {
   const [showViewDropdown, setShowViewDropdown] = useState(false);
   // 3개월 단위 기간 오프셋 (0=현재, 1=3개월 전, 2=6개월 전, ...)
   const [periodOffset, setPeriodOffset] = useState(0);
+
+  // 모바일 감지 (차트 YAxis 너비 조정용)
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 640);
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  }, []);
+  const yAxisWidth = isMobile ? 35 : 55;
+  const chartFontSize = isMobile ? 9 : 11;
 
   // 기간 범위 계산
   const periodRange = useMemo(() => {
@@ -877,8 +888,8 @@ export default function DataLogPage() {
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" />
-                  <XAxis dataKey="date" stroke="#ffffff30" tick={{ fill: '#ffffff50', fontSize: 11 }} />
-                  <YAxis stroke="#ffffff30" tick={{ fill: '#ffffff50', fontSize: 11 }} domain={['auto', 'auto']} />
+                  <XAxis dataKey="date" stroke="#ffffff30" tick={{ fill: '#ffffff50', fontSize: chartFontSize }} />
+                  <YAxis width={yAxisWidth} stroke="#ffffff30" tick={{ fill: '#ffffff50', fontSize: chartFontSize }} domain={['auto', 'auto']} />
                   <Tooltip content={<CustomTooltip />} />
                   <Area type="monotone" dataKey="수온" stroke="#22d3ee" strokeWidth={2} fill="url(#tempGradient)" />
                 </AreaChart>
@@ -896,8 +907,8 @@ export default function DataLogPage() {
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" />
-                  <XAxis dataKey="date" stroke="#ffffff30" tick={{ fill: '#ffffff50', fontSize: 11 }} />
-                  <YAxis stroke="#ffffff30" tick={{ fill: '#ffffff50', fontSize: 11 }} domain={['auto', 'auto']} />
+                  <XAxis dataKey="date" stroke="#ffffff30" tick={{ fill: '#ffffff50', fontSize: chartFontSize }} />
+                  <YAxis width={yAxisWidth} stroke="#ffffff30" tick={{ fill: '#ffffff50', fontSize: chartFontSize }} domain={['auto', 'auto']} />
                   <Tooltip content={<CustomTooltip />} />
                   <Area type="monotone" dataKey="염분" stroke="#34d399" strokeWidth={2} fill="url(#salinityGradient)" />
                 </AreaChart>
@@ -915,8 +926,8 @@ export default function DataLogPage() {
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" />
-                  <XAxis dataKey="date" stroke="#ffffff30" tick={{ fill: '#ffffff50', fontSize: 11 }} />
-                  <YAxis stroke="#ffffff30" tick={{ fill: '#ffffff50', fontSize: 11 }} domain={['auto', 'auto']} />
+                  <XAxis dataKey="date" stroke="#ffffff30" tick={{ fill: '#ffffff50', fontSize: chartFontSize }} />
+                  <YAxis width={yAxisWidth} stroke="#ffffff30" tick={{ fill: '#ffffff50', fontSize: chartFontSize }} domain={['auto', 'auto']} />
                   <Tooltip content={<CustomTooltip />} />
                   <Area type="monotone" dataKey="조위" stroke="#818cf8" strokeWidth={2} fill="url(#tideGradient)" />
                 </AreaChart>
@@ -934,8 +945,8 @@ export default function DataLogPage() {
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" />
-                  <XAxis dataKey="date" stroke="#ffffff30" tick={{ fill: '#ffffff50', fontSize: 11 }} />
-                  <YAxis stroke="#ffffff30" tick={{ fill: '#ffffff50', fontSize: 11 }} />
+                  <XAxis dataKey="date" stroke="#ffffff30" tick={{ fill: '#ffffff50', fontSize: chartFontSize }} />
+                  <YAxis width={yAxisWidth} stroke="#ffffff30" tick={{ fill: '#ffffff50', fontSize: chartFontSize }} />
                   <Tooltip content={<CustomTooltip />} />
                   <Bar
                     dataKey="조류유속"
@@ -953,18 +964,20 @@ export default function DataLogPage() {
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={chartData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" />
-                  <XAxis dataKey="date" stroke="#ffffff30" tick={{ fill: '#ffffff50', fontSize: 11 }} />
+                  <XAxis dataKey="date" stroke="#ffffff30" tick={{ fill: '#ffffff50', fontSize: chartFontSize }} />
                   <YAxis
                     yAxisId="left"
+                    width={yAxisWidth}
                     stroke="#ffffff30"
-                    tick={{ fill: '#ffffff50', fontSize: 11 }}
+                    tick={{ fill: '#ffffff50', fontSize: chartFontSize }}
                     domain={['auto', 'auto']}
                   />
                   <YAxis
                     yAxisId="right"
                     orientation="right"
+                    width={yAxisWidth}
                     stroke="#ffffff30"
-                    tick={{ fill: '#ffffff50', fontSize: 11 }}
+                    tick={{ fill: '#ffffff50', fontSize: chartFontSize }}
                     domain={['auto', 'auto']}
                   />
                   <Tooltip content={<CustomTooltip />} />
@@ -991,8 +1004,8 @@ export default function DataLogPage() {
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" />
-                  <XAxis dataKey="date" stroke="#ffffff30" tick={{ fill: '#ffffff50', fontSize: 11 }} />
-                  <YAxis stroke="#ffffff30" tick={{ fill: '#ffffff50', fontSize: 11 }} />
+                  <XAxis dataKey="date" stroke="#ffffff30" tick={{ fill: '#ffffff50', fontSize: chartFontSize }} />
+                  <YAxis width={yAxisWidth} stroke="#ffffff30" tick={{ fill: '#ffffff50', fontSize: chartFontSize }} />
                   <Tooltip content={<CustomTooltip />} />
                   <Area type="monotone" dataKey="파고" stroke="#60a5fa" strokeWidth={2} fill="url(#waveGradient)" />
                 </AreaChart>
@@ -1010,8 +1023,8 @@ export default function DataLogPage() {
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" />
-                  <XAxis dataKey="date" stroke="#ffffff30" tick={{ fill: '#ffffff50', fontSize: 11 }} />
-                  <YAxis stroke="#ffffff30" tick={{ fill: '#ffffff50', fontSize: 11 }} />
+                  <XAxis dataKey="date" stroke="#ffffff30" tick={{ fill: '#ffffff50', fontSize: chartFontSize }} />
+                  <YAxis width={yAxisWidth} stroke="#ffffff30" tick={{ fill: '#ffffff50', fontSize: chartFontSize }} />
                   <Tooltip content={<CustomTooltip />} />
                   <Area type="monotone" dataKey="파주기" stroke="#fbbf24" strokeWidth={2} fill="url(#wavePeriodGradient)" />
                 </AreaChart>
@@ -1023,8 +1036,8 @@ export default function DataLogPage() {
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={chartData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" />
-                  <XAxis dataKey="date" stroke="#ffffff30" tick={{ fill: '#ffffff50', fontSize: 11 }} />
-                  <YAxis stroke="#ffffff30" tick={{ fill: '#ffffff50', fontSize: 11 }} domain={[0, 1]} />
+                  <XAxis dataKey="date" stroke="#ffffff30" tick={{ fill: '#ffffff50', fontSize: chartFontSize }} />
+                  <YAxis width={yAxisWidth} stroke="#ffffff30" tick={{ fill: '#ffffff50', fontSize: chartFontSize }} domain={[0, 1]} />
                   <Tooltip content={<CustomTooltip />} />
                   <Legend
                     wrapperStyle={{ paddingTop: 10 }}
