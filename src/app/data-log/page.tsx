@@ -474,7 +474,7 @@ export default function DataLogPage() {
   }, [dailyData, currentConditions]);
 
   return (
-    <div className="min-h-screen pb-20">
+    <div className="min-h-screen pb-20 overflow-x-hidden">
       {/* Ambient Background */}
       <div className="fixed inset-0 -z-10">
         <div className="absolute inset-0 bg-gradient-to-b from-[#0a0f1a] via-[#0d1525] to-[#0a0f1a]" />
@@ -536,7 +536,7 @@ export default function DataLogPage() {
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   transition={{ duration: 1, delay: 0.8 }}
-                  className="text-white/40 text-sm sm:text-lg max-w-md font-light leading-relaxed flex items-center gap-2"
+                  className="text-white/40 text-xs sm:text-lg max-w-md font-light leading-relaxed flex items-center gap-2 flex-wrap"
                 >
                   <span className="inline-block w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
                   {WANDO_COORDINATES.name} ({WANDO_COORDINATES.latitude}°N, {WANDO_COORDINATES.longitude}°E)
@@ -547,7 +547,7 @@ export default function DataLogPage() {
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   transition={{ duration: 1, delay: 1.0 }}
-                  className="mt-2 flex items-center gap-3 text-[11px] text-white/30 font-mono"
+                  className="mt-2 flex items-center gap-2 sm:gap-3 flex-wrap text-[10px] sm:text-[11px] text-white/30 font-mono"
                 >
                   <span className="flex items-center gap-1.5">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-400/80" />
@@ -570,7 +570,7 @@ export default function DataLogPage() {
                 </motion.div>
               </div>
 
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
                 {/* View selector */}
                 <div className="relative">
                   <button
@@ -622,7 +622,7 @@ export default function DataLogPage() {
                   >
                     <ChevronLeft className="w-4 h-4 text-white/50" />
                   </button>
-                  <span className="text-xs text-white/40 px-2 min-w-[140px] text-center">
+                  <span className="text-xs text-white/40 px-1 sm:px-2 min-w-[100px] sm:min-w-[140px] text-center">
                     {periodRange.label}
                   </span>
                   <button
@@ -710,7 +710,7 @@ export default function DataLogPage() {
             </motion.div>
 
             {/* Data cards grid — 9개 */}
-            <div className="flex-1 grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-3">
+            <div className="flex-1 grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-3">
               <DataCard
                 icon={Thermometer}
                 label="수온"
@@ -793,14 +793,14 @@ export default function DataLogPage() {
             transition={{ duration: 0.6, delay: 0.5 }}
             className="mb-10"
           >
-            <div className="flex items-center gap-3 mb-5">
+            <div className="flex items-center gap-3 mb-5 flex-wrap">
               <div className="p-2 bg-[#C4A052]/10 rounded-xl">
                 <TrendingUp className="w-5 h-5 text-[#C4A052]" />
               </div>
-              <h2 className="text-lg font-medium text-white/90">UAPS 숙성 보정계수</h2>
+              <h2 className="text-sm sm:text-lg font-medium text-white/90">UAPS 숙성 보정계수</h2>
               {uapsCoeffs && (
                 <span
-                  className="ml-auto text-sm font-medium px-3 py-1 rounded-full"
+                  className="ml-auto text-xs sm:text-sm font-medium px-2 sm:px-3 py-1 rounded-full"
                   style={{
                     color: getOverallLabel(uapsCoeffs.overallScore).color,
                     backgroundColor: `${getOverallLabel(uapsCoeffs.overallScore).color}20`,
