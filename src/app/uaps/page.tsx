@@ -1451,7 +1451,19 @@ function RetrievalInputModal({
               <label className={labelClass} style={{ marginBottom: 0 }}>
                 {isTerrestrial ? '지상 보관 시음 결과' : '해저 숙성 시음 결과'}
               </label>
-              <span className="text-[10px] text-[#C4A052]/50">AI 예측 참고</span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const empty = { fruity: '', floralMineral: '', yeastyAutolytic: '', acidityFreshness: '', bodyTexture: '', finishComplexity: '', overallQuality: '' };
+                    if (isTerrestrial) setTerrestrial(empty); else setUndersea(empty);
+                  }}
+                  className="text-[10px] text-white/30 hover:text-red-400 transition-colors px-1.5 py-0.5 rounded border border-white/10 hover:border-red-400/30"
+                >
+                  초기화
+                </button>
+                <span className="text-[10px] text-[#C4A052]/50">AI 예측 참고</span>
+              </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
               {TASTING_FIELDS.map(f => {
