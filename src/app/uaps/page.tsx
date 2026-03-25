@@ -1242,6 +1242,44 @@ function RetrievalInputModal({
   const [terrestrial, setTerrestrial] = useState<TastingScores>({ fruity: '', floralMineral: '', yeastyAutolytic: '', acidityFreshness: '', bodyTexture: '', finishComplexity: '', overallQuality: '' });
   const [undersea, setUndersea] = useState<TastingScores>({ fruity: '', floralMineral: '', yeastyAutolytic: '', acidityFreshness: '', bodyTexture: '', finishComplexity: '', overallQuality: '' });
   const [saving, setSaving] = useState(false);
+  const [existingId, setExistingId] = useState<string | null>(null);
+
+  // 기존 저장 데이터 로드
+  useEffect(() => {
+    (async () => {
+      const { fetchRetrievalResults } = await import('@/lib/supabase/database/uaps');
+      const results = await fetchRetrievalResults(product.id);
+      if (!results || results.length === 0) return;
+      const latest = results[0];
+      setExistingId(latest.id);
+      const str = (v: number | null) => v !== null ? String(v) : '';
+      setTerrestrial({
+        fruity: str(latest.terrestrialFruity),
+        floralMineral: str(latest.terrestrialFloralMineral),
+        yeastyAutolytic: str(latest.terrestrialYeastyAutolytic),
+        acidityFreshness: str(latest.terrestrialAcidityFreshness),
+        bodyTexture: str(latest.terrestrialBodyTexture),
+        finishComplexity: str(latest.terrestrialFinishComplexity),
+        overallQuality: str(latest.terrestrialOverallQuality),
+      });
+      setUndersea({
+        fruity: str(latest.actualFruity),
+        floralMineral: str(latest.actualFloralMineral),
+        yeastyAutolytic: str(latest.actualYeastyAutolytic),
+        acidityFreshness: str(latest.actualAcidityFreshness),
+        bodyTexture: str(latest.actualBodyTexture),
+        finishComplexity: str(latest.actualFinishComplexity),
+        overallQuality: str(latest.actualOverallQuality),
+      });
+      setMeta(m => ({
+        ...m,
+        retrievalDate: latest.retrievalDate || m.retrievalDate,
+        actualDurationMonths: latest.actualDurationMonths ?? m.actualDurationMonths,
+        tastingPanelSize: String(latest.tastingPanelSize ?? 1),
+        tastingNotes: latest.tastingNotes || '',
+      }));
+    })();
+  }, [product.id]);
 
   // 해저 숙성 예측값
   const underseaPredMap: Record<string, number | null> = {
@@ -1269,12 +1307,10 @@ function RetrievalInputModal({
 
   const handleSave = async () => {
     setSaving(true);
-    const { createRetrievalResult } = await import('@/lib/supabase/database/uaps');
-    await createRetrievalResult({
+    const payload = {
       productId: product.id,
       retrievalDate: meta.retrievalDate,
       actualDurationMonths: meta.actualDurationMonths,
-      // 해저 숙성
       actualFruity: num(undersea.fruity),
       actualFloralMineral: num(undersea.floralMineral),
       actualYeastyAutolytic: num(undersea.yeastyAutolytic),
@@ -1282,7 +1318,6 @@ function RetrievalInputModal({
       actualBodyTexture: num(undersea.bodyTexture),
       actualFinishComplexity: num(undersea.finishComplexity),
       actualOverallQuality: num(undersea.overallQuality),
-      // 지상 보관 대조군
       terrestrialFruity: num(terrestrial.fruity),
       terrestrialFloralMineral: num(terrestrial.floralMineral),
       terrestrialYeastyAutolytic: num(terrestrial.yeastyAutolytic),
@@ -1294,7 +1329,15 @@ function RetrievalInputModal({
       tastingNotes: meta.tastingNotes || null,
       isSimulated: false,
       predictionId: prediction.id,
-    });
+    };
+
+    if (existingId) {
+      const { updateRetrievalResult } = await import('@/lib/supabase/database/uaps');
+      await updateRetrievalResult(existingId, payload);
+    } else {
+      const { createRetrievalResult } = await import('@/lib/supabase/database/uaps');
+      await createRetrievalResult(payload);
+    }
     setSaving(false);
     onSaved();
   };
