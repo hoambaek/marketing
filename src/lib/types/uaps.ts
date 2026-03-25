@@ -162,6 +162,7 @@ export interface AgingPrediction {
   optimalHarvestEndMonths: number | null;
   harvestRecommendation: string | null;
   // AI 인사이트
+  aiReasoningText: string | null;
   aiInsightText: string | null;
   aiRiskWarning: string | null;
   // 전문가 프로파일 (Google Search grounding)
@@ -176,6 +177,36 @@ export interface AgingPrediction {
   agingFactorsJson: AgingFactors | null;
   qualityWeightsJson: QualityWeights | null;
   // 메타
+  createdAt: string;
+}
+
+// 인양 비교 시음 데이터 (v5.0)
+export interface RetrievalResult {
+  id: string;
+  productId: string;
+  retrievalDate: string;
+  actualDurationMonths: number;
+  // 해저 숙성 시음 결과
+  actualFruity: number | null;
+  actualFloralMineral: number | null;
+  actualYeastyAutolytic: number | null;
+  actualAcidityFreshness: number | null;
+  actualBodyTexture: number | null;
+  actualFinishComplexity: number | null;
+  actualOverallQuality: number | null;
+  // 지상 보관 대조군 시음 결과
+  terrestrialFruity: number | null;
+  terrestrialFloralMineral: number | null;
+  terrestrialYeastyAutolytic: number | null;
+  terrestrialAcidityFreshness: number | null;
+  terrestrialBodyTexture: number | null;
+  terrestrialFinishComplexity: number | null;
+  terrestrialOverallQuality: number | null;
+  // 메타
+  tastingPanelSize: number;
+  tastingNotes: string | null;
+  isSimulated: boolean;
+  predictionId: string | null;
   createdAt: string;
 }
 

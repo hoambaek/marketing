@@ -13,6 +13,7 @@ import type {
   TerrestrialModel,
   FlavorDictionary,
   UAPSConfig,
+  RetrievalResult,
   TerrestrialDataFilters,
   ProductInput,
   ProductCategory,
@@ -73,6 +74,7 @@ interface DBAgingPrediction {
   optimal_harvest_start_months: number | null;
   optimal_harvest_end_months: number | null;
   harvest_recommendation: string | null;
+  ai_reasoning_text: string | null;
   ai_insight_text: string | null;
   ai_risk_warning: string | null;
   expert_profile_json: Record<string, number> | null;
@@ -345,6 +347,7 @@ export async function createAgingPrediction(
       optimal_harvest_start_months: prediction.optimalHarvestStartMonths,
       optimal_harvest_end_months: prediction.optimalHarvestEndMonths,
       harvest_recommendation: prediction.harvestRecommendation,
+      ai_reasoning_text: prediction.aiReasoningText,
       ai_insight_text: prediction.aiInsightText,
       ai_risk_warning: prediction.aiRiskWarning,
       expert_profile_json: prediction.expertProfileJson,
@@ -675,6 +678,7 @@ function mapDbAgingPrediction(db: DBAgingPrediction): AgingPrediction {
     optimalHarvestStartMonths: db.optimal_harvest_start_months,
     optimalHarvestEndMonths: db.optimal_harvest_end_months,
     harvestRecommendation: db.harvest_recommendation,
+    aiReasoningText: db.ai_reasoning_text ?? null,
     aiInsightText: db.ai_insight_text,
     aiRiskWarning: db.ai_risk_warning,
     expertProfileJson: db.expert_profile_json,
@@ -795,4 +799,149 @@ export async function bulkInsertTerrestrialData(
 
   dbLogger.info(`UAPS: 벌크 인서트 완료 - 삽입: ${totalInserted}, 에러: ${totalErrors}`);
   return { inserted: totalInserted, errors: totalErrors };
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Retrieval Results CRUD (v5.0 인양 실측 데이터)
+// ═══════════════════════════════════════════════════════════════════════════
+
+interface DBRetrievalResult {
+  id: string;
+  product_id: string;
+  retrieval_date: string;
+  actual_duration_months: number;
+  actual_fruity: number | null;
+  actual_floral_mineral: number | null;
+  actual_yeasty_autolytic: number | null;
+  actual_acidity_freshness: number | null;
+  actual_body_texture: number | null;
+  actual_finish_complexity: number | null;
+  actual_overall_quality: number | null;
+  terrestrial_fruity: number | null;
+  terrestrial_floral_mineral: number | null;
+  terrestrial_yeasty_autolytic: number | null;
+  terrestrial_acidity_freshness: number | null;
+  terrestrial_body_texture: number | null;
+  terrestrial_finish_complexity: number | null;
+  terrestrial_overall_quality: number | null;
+  tasting_panel_size: number;
+  tasting_notes: string | null;
+  is_simulated: boolean;
+  prediction_id: string | null;
+  created_at: string;
+}
+
+function mapDbRetrievalResult(db: DBRetrievalResult): RetrievalResult {
+  return {
+    id: db.id,
+    productId: db.product_id,
+    retrievalDate: db.retrieval_date,
+    actualDurationMonths: db.actual_duration_months,
+    actualFruity: db.actual_fruity,
+    actualFloralMineral: db.actual_floral_mineral,
+    actualYeastyAutolytic: db.actual_yeasty_autolytic,
+    actualAcidityFreshness: db.actual_acidity_freshness,
+    actualBodyTexture: db.actual_body_texture,
+    actualFinishComplexity: db.actual_finish_complexity,
+    actualOverallQuality: db.actual_overall_quality,
+    terrestrialFruity: db.terrestrial_fruity,
+    terrestrialFloralMineral: db.terrestrial_floral_mineral,
+    terrestrialYeastyAutolytic: db.terrestrial_yeasty_autolytic,
+    terrestrialAcidityFreshness: db.terrestrial_acidity_freshness,
+    terrestrialBodyTexture: db.terrestrial_body_texture,
+    terrestrialFinishComplexity: db.terrestrial_finish_complexity,
+    terrestrialOverallQuality: db.terrestrial_overall_quality,
+    tastingPanelSize: db.tasting_panel_size,
+    tastingNotes: db.tasting_notes,
+    isSimulated: db.is_simulated,
+    predictionId: db.prediction_id,
+    createdAt: db.created_at,
+  };
+}
+
+export async function createRetrievalResult(
+  input: Omit<RetrievalResult, 'id' | 'createdAt'>
+): Promise<RetrievalResult | null> {
+  if (!isSupabaseConfigured()) return null;
+
+  const { data, error } = await supabase!
+    .from('retrieval_results')
+    .insert({
+      product_id: input.productId,
+      retrieval_date: input.retrievalDate,
+      actual_duration_months: input.actualDurationMonths,
+      actual_fruity: input.actualFruity,
+      actual_floral_mineral: input.actualFloralMineral,
+      actual_yeasty_autolytic: input.actualYeastyAutolytic,
+      actual_acidity_freshness: input.actualAcidityFreshness,
+      actual_body_texture: input.actualBodyTexture,
+      actual_finish_complexity: input.actualFinishComplexity,
+      actual_overall_quality: input.actualOverallQuality,
+      terrestrial_fruity: input.terrestrialFruity,
+      terrestrial_floral_mineral: input.terrestrialFloralMineral,
+      terrestrial_yeasty_autolytic: input.terrestrialYeastyAutolytic,
+      terrestrial_acidity_freshness: input.terrestrialAcidityFreshness,
+      terrestrial_body_texture: input.terrestrialBodyTexture,
+      terrestrial_finish_complexity: input.terrestrialFinishComplexity,
+      terrestrial_overall_quality: input.terrestrialOverallQuality,
+      tasting_panel_size: input.tastingPanelSize,
+      tasting_notes: input.tastingNotes,
+      is_simulated: input.isSimulated,
+      prediction_id: input.predictionId,
+    })
+    .select()
+    .single();
+
+  if (error) {
+    dbLogger.error('UAPS: 인양 결과 저장 실패:', error);
+    return null;
+  }
+
+  return mapDbRetrievalResult(data);
+}
+
+export async function fetchRetrievalResults(
+  productId?: string
+): Promise<RetrievalResult[] | null> {
+  if (!isSupabaseConfigured()) return null;
+
+  let query = supabase!
+    .from('retrieval_results')
+    .select('*')
+    .order('created_at', { ascending: false });
+
+  if (productId) {
+    query = query.eq('product_id', productId);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    dbLogger.error('UAPS: 인양 결과 조회 실패:', error);
+    return null;
+  }
+
+  return data?.map(mapDbRetrievalResult) || [];
+}
+
+export async function fetchRetrievalResultsWithPredictions(
+  productId: string
+): Promise<{ retrieval: RetrievalResult; prediction: AgingPrediction | null }[] | null> {
+  if (!isSupabaseConfigured()) return null;
+
+  const [retrievals, predictions] = await Promise.all([
+    fetchRetrievalResults(productId),
+    fetchAgingPredictions(productId, 100),
+  ]);
+
+  if (!retrievals) return null;
+
+  const predictionMap = new Map(
+    (predictions || []).map(p => [p.id, p])
+  );
+
+  return retrievals.map(r => ({
+    retrieval: r,
+    prediction: r.predictionId ? predictionMap.get(r.predictionId) ?? null : null,
+  }));
 }

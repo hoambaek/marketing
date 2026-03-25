@@ -20,6 +20,7 @@ import type {
 } from '@/lib/types/uaps';
 import type { MonthlyOceanProfile } from './uaps-ocean-profile';
 import type { ClusterMatch } from './uaps-engine';
+import type { MLPredictionResult } from './uaps-ml-predictor';
 import {
   calculateTextureMaturity,
   calculateAromaFreshness,
@@ -299,12 +300,117 @@ interface AIPredictionResponse {
     startMonths: number;
     endMonths: number;
   };
+  reasoning: string | null;
   insight: string;
   beforeCharacter: string;
   afterPrediction: string;
   riskWarning: string | null;
   agingFactors?: AgingFactors;
   qualityWeights?: QualityWeights;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// v5.0 프롬프트 템플릿 시스템
+// ═══════════════════════════════════════════════════════════════════════════
+
+/** 카테고리별 전문가 역할 */
+const EXPERT_ROLES: Record<string, string> = {
+  champagne: '샴페인/스파클링 와인 숙성 과학 전문가이자 WSET Diploma Holder',
+  red_wine: '레드 와인 숙성 과학 전문가이자 Master of Wine 후보',
+  white_wine: '화이트 와인 숙성 과학 전문가',
+  coldbrew: '커피 숙성 과학 전문가 (SCA Q-Grader)',
+  sake: '사케 숙성 과학 전문가 (唎酒師)',
+  whisky: '위스키 숙성 과학 전문가 (Master of Whisky)',
+  spirits: '전통주/발효 과학 전문가',
+  puer: '보이차/생차 숙성 과학 전문가 (茶藝師)',
+  soy_sauce: '발효 식품 숙성 과학 전문가',
+  vinegar: '식초/발효 식품 숙성 과학 전문가',
+};
+
+/** Chain-of-Thought 분석 절차 템플릿 */
+const CHAIN_OF_THOUGHT_TEMPLATE = `
+## 분석 절차 (반드시 이 순서를 따르세요)
+
+Step 1 — 제품 특성 분석:
+카테고리, 서브타입, pH, dosage, closure 기반으로 이 제품의 현재(투하 전) 풍미 프로파일을 파악하세요.
+전문가 프로파일이 제공되었으면 그것을 앵커로, 없으면 학습 클러스터를 앵커로 활용하세요.
+
+Step 2 — 지상 숙성 기준점 설정:
+Layer 1 통계 클러스터 매칭 결과를 참고하여 기준 풍미를 확립하세요.
+sample_count가 높고 confidence가 높은 클러스터에 더 큰 가중치를 두세요.
+
+Step 3 — 해저 환경 보정 계산:
+월별 수온 프로파일(FRI), 수압(BRI), 조류(K-TCI) 보정을 적용하세요.
+- 겨울(12~2월) 저수온 → FRI 유리(향 보존), 숙성 감속
+- 여름(7~9월) 고수온 → FRI 불리(산화 가속), 숙성 가속, 환원취 리스크
+- 조류 진동 → K-TCI 질감 가속 (자연 리무아주 효과)
+
+Step 4 — 시간 경과 예측:
+3단계 비선형 향 감쇠를 고려하세요:
+- 0~2년: 급격한 1차 향 감소
+- 2~3.5년: 안정기 (2차/3차 향 발달)
+- 3.5년+: 후기 급감 (과숙 리스크)
+질감은 시그모이드 성장 패턴을 따릅니다.
+
+Step 5 — 최종 판단:
+6축 풍미 점수, 4개 품질 점수, 최적 인양 윈도우를 도출하세요.
+인양 윈도우는 품질이 피크의 95% 이상을 유지하는 구간입니다.
+`;
+
+/** Few-shot 예시 (카테고리별 대표 사례) */
+const FEW_SHOT_EXAMPLES: Record<string, string> = {
+  champagne: `
+### 참고 사례 1: Dom Pérignon 2012 Vintage (30m, 12개월)
+입력: pH 3.10, dosage 4g/L, cork_natural, 환원성향 low
+전문가 프로파일: fruity=68, floralMineral=62, yeastyAutolytic=78, acidityFreshness=72, bodyTexture=70, finishComplexity=75
+해저환경: 연평균 수온 11.2°C, 조류 0.15m/s
+결과: fruity=58, floralMineral=68, yeastyAutolytic=88, acidityFreshness=65, bodyTexture=82, finishComplexity=85
+품질: textureMaturity=84, aromaFreshness=72, offFlavorRisk=12, overallQuality=88
+reasoning: "빈티지 특유의 높은 효모향 기반(78→88), 12개월 해저에서 자가분해 가속. 과실향은 FRI 보정으로 14% 감소(68→58). 조류 0.15m/s로 K-TCI 중간 수준, 질감 가속 뚜렷(70→82). 환원취 리스크 낮음(low + 12개월). 인양 윈도우 10~18개월."
+
+### 참고 사례 2: Krug Grande Cuvée NV (40m, 18개월)
+입력: pH 3.05, dosage 5g/L, crown_cap, 환원성향 medium
+전문가 프로파일: fruity=55, floralMineral=58, yeastyAutolytic=90, acidityFreshness=68, bodyTexture=82, finishComplexity=88
+해저환경: 연평균 수온 10.8°C, 조류 0.12m/s
+결과: fruity=42, floralMineral=70, yeastyAutolytic=95, acidityFreshness=58, bodyTexture=92, finishComplexity=94
+품질: textureMaturity=92, aromaFreshness=62, offFlavorRisk=18, overallQuality=91
+reasoning: "NV 7년 앙금 접촉으로 이미 극도로 높은 효모향(90). 18개월 해저에서 질감 극대화(82→92). 과실향 23% 감소(55→42, 장기숙성 감쇠). crown_cap OTR=0으로 산화 최소. 40m 수압으로 BRI 유리. 환원성향 medium이나 18개월에서 리스크 18%로 관리 가능."`,
+
+  red_wine: `
+### 참고 사례: Château Margaux 2015 (30m, 12개월)
+입력: pH 3.65, alcohol 13.5%, cork_natural, 환원성향 low
+전문가 프로파일: fruity=72, floralMineral=55, yeastyAutolytic=35, acidityFreshness=68, bodyTexture=78, finishComplexity=82
+결과: fruity=62, floralMineral=65, yeastyAutolytic=48, acidityFreshness=60, bodyTexture=86, finishComplexity=88
+품질: textureMaturity=82, aromaFreshness=68, offFlavorRisk=10, overallQuality=85
+reasoning: "보르도 1등급의 구조감(bodyTexture 78) 기반, 해저 수압+저온에서 타닌 중합 가속(78→86). 과실향 14% 감소, 3차 향(미네랄, 복합미) 발달. cork_natural OTR=1.2로 미세 산화 허용 → 복합미 증가."`,
+
+  whisky: `
+### 참고 사례: Highland Single Malt 12Y (30m, 18개월)
+입력: alcohol 46%, cork_natural, 환원성향 low
+전문가 프로파일: fruity=55, floralMineral=40, yeastyAutolytic=25, acidityFreshness=45, bodyTexture=72, finishComplexity=70
+결과: fruity=48, floralMineral=52, yeastyAutolytic=35, acidityFreshness=38, bodyTexture=82, finishComplexity=80
+품질: textureMaturity=80, aromaFreshness=55, offFlavorRisk=8, overallQuality=78
+reasoning: "위스키 Ea=60kJ/mol로 반응 속도가 느려 18개월에도 변화 완만. 해저 저온+고압에서 에스테르화 반응 천천히 진행 → 복합미 증가. 높은 알코올(46%)이 환원취 억제."`,
+};
+
+/** 기본 Few-shot (카테고리 매칭 안 될 때) */
+const DEFAULT_FEW_SHOT = FEW_SHOT_EXAMPLES.champagne;
+
+/** ML 학습 데이터 수 (프롬프트 표시용) */
+let cachedSampleCount: string | null = null;
+
+/** 피처 중요도 상위 3개를 포맷 */
+function formatTopFeatures(importance: Record<string, number>): string {
+  return Object.entries(importance)
+    .sort(([, a], [, b]) => b - a)
+    .slice(0, 3)
+    .map(([k, v]) => `${k} ${Math.round(v * 100)}%`)
+    .join(', ');
+}
+
+/** ML 메타데이터에서 학습 샘플 수 설정 */
+export function setMLSampleCount(count: number): void {
+  cachedSampleCount = count > 1000 ? `${Math.round(count / 1000)}K` : String(count);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -320,6 +426,7 @@ function buildPredictionPrompt(
   expertSources?: string[] | null,
   oceanConditions?: OceanConditionsForPrediction | null,
   monthlyOceanProfiles?: MonthlyOceanProfile[] | null,
+  mlResult?: MLPredictionResult | null,
 ): string {
   const clusterContext = clusters.slice(0, 3).map((c) => {
     const fp = c.model.flavorProfileJson as Record<string, { mean: number; stdDev: number }>;
@@ -375,8 +482,14 @@ ${monthlyOceanProfiles.map(p =>
 → 연간 수온 편차(max-min)가 클수록 계절적 숙성 복합성이 높아집니다.
 ` : '';
 
-  return `당신은 식음 숙성 과학 전문가입니다.
-아래 데이터를 기반으로 해저 숙성 후 풍미를 예측해주세요.
+  // v5.0: 카테고리별 전문가 역할
+  const expertRole = EXPERT_ROLES[category] || '식음 숙성 과학 전문가';
+
+  // v5.0: Few-shot 예시
+  const fewShot = FEW_SHOT_EXAMPLES[category] || DEFAULT_FEW_SHOT;
+
+  return `당신은 ${expertRole}이며, 해저 숙성 과학의 전문가입니다.
+아래 데이터와 분석 절차를 기반으로 해저 숙성 후 풍미를 예측해주세요.
 
 ## 학습된 지상 숙성 패턴 (매칭 클러스터 상위 3개)
 ${JSON.stringify(clusterContext, null, 2)}
@@ -410,17 +523,32 @@ ${expertProfile ? `## 전문가 테이스팅 기반 투하 전 프로파일 (Goo
 ${expertSources?.length ? `- 출처: ${expertSources.join(', ')}` : ''}
 → 이 프로파일을 투하 전 기준으로 사용하여 해저 숙성 변화를 예측하세요.
 
-` : ''}## 요청
+` : ''}${mlResult ? `## ML 모델 예측 (XGBoost, ${cachedSampleCount ?? '112K'}건 학습, 신뢰도 ${Math.round(mlResult.confidence * 100)}%)
+- 과실향: ${mlResult.fruity}${mlResult.featureImportance?.fruity ? ` (중요 피처: ${formatTopFeatures(mlResult.featureImportance.fruity)})` : ''}
+- 플로럴·미네랄: ${mlResult.floralMineral}
+- 효모·숙성향: ${mlResult.yeastyAutolytic}
+- 산도·상쾌함: ${mlResult.acidityFreshness}
+- 바디감·질감: ${mlResult.bodyTexture}
+- 여운·복합미: ${mlResult.finishComplexity}
+→ 이 ML 예측을 참고하되, 전문가 지식과 해저 환경 보정으로 최종 판단하세요.
+→ ML은 지상 숙성 패턴 기반이므로, 해저 보정(TCI/FRI/BRI)은 별도 적용 필요.
+
+` : ''}## 유사 제품 예측 사례 (Few-shot 참고)
+${fewShot}
+${CHAIN_OF_THOUGHT_TEMPLATE}
+## 응답 형식
+JSON 응답 전에 "reasoning" 필드에 위 5단계 분석 과정을 간결하게 기술하세요.
 다음 JSON 형식으로만 응답해주세요. 추가 텍스트 없이 JSON만:
 
 {
+  "reasoning": "Step 1~5 분석 과정 요약 (한국어, 3~5문장)",
   "flavorProfile": {
-    "fruity": 0-100,           // 과실향 (감귤류, 과일, 열대과일)
-    "floralMineral": 0-100,    // 플로럴·미네랄 (꽃향, 백악, 부싯돌)
-    "yeastyAutolytic": 0-100,  // 효모·숙성향 (브리오슈, 자가분해)
-    "acidityFreshness": 0-100, // 산도·상쾌함 (산미, 크리스피)
-    "bodyTexture": 0-100,      // 바디감·질감 (크리미, 무스, 풍부함)
-    "finishComplexity": 0-100  // 여운·복합미 (깊이, 레이어)
+    "fruity": 0-100,
+    "floralMineral": 0-100,
+    "yeastyAutolytic": 0-100,
+    "acidityFreshness": 0-100,
+    "bodyTexture": 0-100,
+    "finishComplexity": 0-100
   },
   "qualityScores": {
     "textureMaturity": 0-100,
@@ -433,19 +561,19 @@ ${expertSources?.length ? `- 출처: ${expertSources.join(', ')}` : ''}
     "endMonths": 종료월
   },
   "agingFactors": {
-    "baseAgingYears": 숫자,  // 이 카테고리 제품의 투하 전 평균 숙성 기간(년). 와인:2.0, 커피:0.5, 사케:1.0, 위스키:5.0 등
-    "textureMult": 0.3~1.5,  // 질감 가속 배수. 높을수록 해저에서 질감이 빨리 변함. 예: 위스키 1.3, 식초 0.5
-    "aromaDecay": 0.3~1.5,   // 향 감소 속도 배수. 높을수록 향이 빨리 감소. 예: 커피 1.4, 보이차 0.4
-    "riskMult": 0.3~2.0,     // 환원/결함 리스크 배수. 예: 와인 1.0, 간장 0.5
-    "kineticFactor": 0.5~2.0 // K-TCI 운동학적 인자. 해류 진동이 강할수록 높게. 기본 1.0
+    "baseAgingYears": 숫자,
+    "textureMult": 0.3~1.5,
+    "aromaDecay": 0.3~1.5,
+    "riskMult": 0.3~2.0,
+    "kineticFactor": 0.5~2.0
   },
   "qualityWeights": {
-    "texture": 0~1,   // 질감 가중치 (합계 1.0)
-    "aroma": 0~1,     // 향 가중치
-    "bubble": 0~1,    // 기포/탄산 가중치 (기포 없는 제품은 0 또는 매우 낮게)
-    "risk": 0~1       // 리스크 가중치
+    "texture": 0~1,
+    "aroma": 0~1,
+    "bubble": 0~1,
+    "risk": 0~1
   },
-  "beforeCharacter": "투하 전 이 제품의 원래 특징 (한국어, 2-3문장)",
+  "beforeCharacter": "투하 전 특징 (한국어, 2-3문장)",
   "afterPrediction": "해저 숙성 후 예상 변화 (한국어, 2-3문장)",
   "riskWarning": "리스크 경고 (한국어) 또는 null"
 }`;
@@ -472,8 +600,9 @@ export async function runAIPrediction(
   allModels?: TerrestrialModel[],
   oceanConditions?: OceanConditionsForPrediction | null,
   monthlyOceanProfiles?: MonthlyOceanProfile[] | null,
+  mlResult?: MLPredictionResult | null,
 ): Promise<AIPredictionResponse> {
-  const prompt = buildPredictionPrompt(product, clusters, underseaMonths, config, expertProfile, expertSources, oceanConditions, monthlyOceanProfiles);
+  const prompt = buildPredictionPrompt(product, clusters, underseaMonths, config, expertProfile, expertSources, oceanConditions, monthlyOceanProfiles, mlResult);
 
   // 모델 우선순위: Gemini 3 Flash → 2.5 Flash → 2.5 Flash Lite
   const GEMINI_MODELS = ['gemini-3-flash-preview', 'gemini-2.5-flash', 'gemini-2.5-flash-lite'];
@@ -596,6 +725,7 @@ export function buildPredictionResult(
     optimalHarvestStartMonths: aiResponse.harvestWindow.startMonths || startMonths,
     optimalHarvestEndMonths: aiResponse.harvestWindow.endMonths || endMonths,
     harvestRecommendation: recommendation,
+    aiReasoningText: aiResponse.reasoning || null,
     aiInsightText: [aiResponse.beforeCharacter, aiResponse.afterPrediction].filter(Boolean).join('\n') || aiResponse.insight,
     aiRiskWarning: aiResponse.riskWarning,
     expertProfileJson: expertProfile || null,
@@ -669,6 +799,7 @@ function clampPredictionValues(response: AIPredictionResponse): AIPredictionResp
       startMonths: response.harvestWindow?.startMonths ?? 12,
       endMonths: response.harvestWindow?.endMonths ?? 18,
     },
+    reasoning: response.reasoning || null,
     insight: response.insight || '예측 데이터가 충분하지 않아 통계 기반으로 분석했습니다.',
     beforeCharacter: response.beforeCharacter || '',
     afterPrediction: response.afterPrediction || '',
@@ -718,6 +849,7 @@ function buildStatisticalFallback(
       overallQuality,
     },
     harvestWindow: { startMonths, endMonths },
+    reasoning: null,
     insight: `${categoryLabel} 카테고리의 통계 패턴을 기반으로 예측했습니다.`,
     beforeCharacter: `${categoryLabel} 카테고리의 일반적 풍미 패턴을 기반으로 분석했습니다. 전문가 리뷰 데이터가 없어 통계 기반 프로파일을 사용합니다.`,
     afterPrediction: `${underseaMonths}개월 해저 숙성 시 질감 성숙도 ${textureMaturity}점, 향 신선도 ${aromaFreshness}점으로 예상됩니다. 효모·숙성향과 바디감이 강화되고 과실향은 일부 감소합니다.`,

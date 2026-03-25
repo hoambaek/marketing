@@ -13,11 +13,13 @@ import {
   fetchTerrestrialModels,
   fetchUAPSConfig,
   createAgingPrediction,
+  fetchRetrievalResults,
 } from '@/lib/supabase/database/uaps';
 import { fetchOceanDataDaily } from '@/lib/supabase/database';
 import { findSimilarClusters, parseUAPSConfig } from '@/lib/utils/uaps-engine';
 import { runAIPrediction, buildPredictionResult, generateExpertProfile } from '@/lib/utils/uaps-ai-predictor';
 import { buildMonthlyOceanProfiles, type MonthlyOceanProfile } from '@/lib/utils/uaps-ocean-profile';
+import { predictWithXGBoost, type MLPredictionResult } from '@/lib/utils/uaps-ml-predictor';
 
 export async function POST(request: NextRequest) {
   try {
@@ -83,7 +85,58 @@ export async function POST(request: NextRequest) {
       apiLogger.warn('UAPS: 전문가 프로파일 생성 실패, 통계 기반 사용:', e);
     }
 
-    // 4. Layer 2: AI 예측 실행 (전문가 프로파일 + 전체 모델 + 해양 데이터 전달)
+    // 3.7. v5.0: 비교 시음 데이터로 전문가 프로파일 보정
+    try {
+      const retrievals = await fetchRetrievalResults(productId);
+      const latestWithTerrestrial = retrievals?.find(r =>
+        !r.isSimulated && r.terrestrialFruity != null
+      );
+      if (latestWithTerrestrial) {
+        // 지상 시음 데이터가 있으면 전문가 프로파일과 블렌딩 (시음 70% + AI 30%)
+        const tasting: Record<string, number> = {
+          fruity: latestWithTerrestrial.terrestrialFruity ?? 0,
+          floralMineral: latestWithTerrestrial.terrestrialFloralMineral ?? 0,
+          yeastyAutolytic: latestWithTerrestrial.terrestrialYeastyAutolytic ?? 0,
+          acidityFreshness: latestWithTerrestrial.terrestrialAcidityFreshness ?? 0,
+          bodyTexture: latestWithTerrestrial.terrestrialBodyTexture ?? 0,
+          finishComplexity: latestWithTerrestrial.terrestrialFinishComplexity ?? 0,
+        };
+        if (expertProfile) {
+          // 시음 70% + AI 전문가 30% 블렌딩
+          for (const key of Object.keys(tasting)) {
+            expertProfile[key] = Math.round(tasting[key] * 0.7 + (expertProfile[key] ?? tasting[key]) * 0.3);
+          }
+        } else {
+          expertProfile = tasting;
+        }
+        expertSources = [...(expertSources || []), '비교 시음 실측'];
+        apiLogger.log('UAPS: 비교 시음 데이터로 전문가 프로파일 보정 (시음 70% + AI 30%)');
+      }
+    } catch (e) {
+      apiLogger.warn('UAPS: 비교 시음 데이터 조회 실패:', e);
+    }
+
+    // 3.8. v5.0: ML 예측 (XGBoost, 모델 파일 있을 때만)
+    let mlResult: MLPredictionResult | null = null;
+    try {
+      mlResult = await predictWithXGBoost({
+        productCategory: product.productCategory || 'champagne',
+        agingStage: 'developing', // 기본값, 클러스터에서 추론 가능
+        pH: product.ph,
+        dosage: product.dosage,
+        alcohol: product.alcohol,
+        acidity: product.acidity,
+        reductionPotential: product.reductionPotential || 'low',
+        agingYears: product.terrestrialAgingYears,
+      });
+      if (mlResult) {
+        apiLogger.log('UAPS: XGBoost ML 예측 성공 (신뢰도:', mlResult.confidence, ')');
+      }
+    } catch (e) {
+      apiLogger.warn('UAPS: ML 예측 실패, 통계 기반 사용:', e);
+    }
+
+    // 4. Layer 2: AI 예측 실행 (전문가 프로파일 + ML 결과 + 전체 모델 + 해양 데이터 전달)
     const aiResponse = await runAIPrediction(
       product,
       clusters,
@@ -94,6 +147,7 @@ export async function POST(request: NextRequest) {
       models || [],
       oceanConditions || null,
       monthlyOceanProfiles,
+      mlResult,
     );
 
     // 5. 결과 통합 (앙상블 + Pseudo-cohort t=0 앵커)
@@ -122,6 +176,8 @@ export async function POST(request: NextRequest) {
       prediction: saved,
       matchedClusters: clusters.length,
       modelUsed: clusters.length > 0 ? 'hybrid' : 'statistical_fallback',
+      mlModelUsed: mlResult !== null,
+      mlConfidence: mlResult?.confidence ?? null,
       oceanProfileUsed: monthlyOceanProfiles !== null,
       monthlyProfileCount: monthlyOceanProfiles?.length || 0,
     });

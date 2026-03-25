@@ -45,6 +45,7 @@ import {
   Info,
   LayoutGrid,
   ChevronDown,
+  ClipboardCheck,
 } from 'lucide-react';
 
 // 카테고리 목록
@@ -78,6 +79,7 @@ const UAPS_CATEGORY_DB: Record<string, string> = {
 import { useUAPSStore } from '@/lib/store/uaps-store';
 import type {
   AgingProduct,
+  AgingPrediction,
   ProductInput,
   WineType,
   ReductionPotential,
@@ -261,6 +263,7 @@ export default function UAPSPage() {
   const [showModal, setShowModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState<AgingProduct | null>(null);
   const [showCoefficientDialog, setShowCoefficientDialog] = useState(false);
+  const [showRetrievalModal, setShowRetrievalModal] = useState(false);
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
   const [listCategory, setListCategory] = useState('champagne');
   // predictionMonths는 제품의 plannedDurationMonths 사용
@@ -784,6 +787,15 @@ export default function UAPSPage() {
                     <Settings2 className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
                   </button>
                   <button
+                    onClick={() => setShowRetrievalModal(true)}
+                    disabled={!latestPrediction}
+                    className="flex items-center gap-1.5 bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 rounded-lg px-3 py-2 sm:py-1.5 text-xs font-medium text-emerald-400 transition-all disabled:opacity-30 shrink-0"
+                    title={!latestPrediction ? '예측을 먼저 실행하세요' : '비교 시음 결과 입력'}
+                  >
+                    <ClipboardCheck className="w-3 h-3" />
+                    비교 시음
+                  </button>
+                  <button
                     onClick={() => runPrediction(selectedProductId, selectedProduct.plannedDurationMonths || 18)}
                     disabled={isPredicting || !selectedProduct.plannedDurationMonths}
                     className="flex items-center gap-1.5 bg-gradient-to-r from-cyan-500/90 to-cyan-400/90 text-black font-medium rounded-lg px-3.5 py-2 sm:py-1.5 text-xs hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
@@ -950,12 +962,12 @@ export default function UAPSPage() {
                     <span className="text-white/10 text-[8px]">|</span>
                     <div className="flex items-center gap-1.5 bg-cyan-400/[0.06] border border-cyan-400/[0.15] rounded-lg px-2.5 py-1.5">
                       <span className="text-[9px] text-cyan-400/60 uppercase tracking-wider font-medium">{selectedProduct.plannedDurationMonths}개월 내</span>
-                      <span className="text-sm font-light text-cyan-400/80">
+                      <span className="font-light text-cyan-400/80">
                         {(() => {
                           const planned = timelineData.filter(d => d.month <= (selectedProduct.plannedDurationMonths ?? 12));
                           if (planned.length === 0) return '—';
                           const best = planned.reduce((a, b) => (b.compositeQuality ?? 0) > (a.compositeQuality ?? 0) ? b : a);
-                          return `${best.month}개월 · ${Math.round(best.compositeQuality ?? 0)}점`;
+                          return <><span className="text-sm font-mono">{best.month}</span><span className="text-[9px]">개월 · </span><span className="text-sm font-mono">{Math.round(best.compositeQuality ?? 0)}</span><span className="text-[9px]">점</span></>;
                         })()}
                       </span>
                     </div>
@@ -1175,8 +1187,278 @@ export default function UAPSPage() {
             </motion.div>
           )}
         </AnimatePresence>
+
+        {/* v5.0: 인양 실측 입력 모달 */}
+        {showRetrievalModal && selectedProduct && latestPrediction && typeof document !== 'undefined' && createPortal(
+          <RetrievalInputModal
+            product={selectedProduct}
+            prediction={latestPrediction}
+            beforeProfile={beforeProfile}
+            onClose={() => setShowRetrievalModal(false)}
+            onSaved={() => setShowRetrievalModal(false)}
+          />,
+          document.body
+        )}
       </div>
     </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 비교 시음 입력 모달 (v5.0)
+// ═══════════════════════════════════════════════════════════════════════════
+
+const TASTING_FIELDS = [
+  { key: 'fruity', label: '과실향' },
+  { key: 'floralMineral', label: '플로럴·미네랄' },
+  { key: 'yeastyAutolytic', label: '효모·숙성향' },
+  { key: 'acidityFreshness', label: '산도·상쾌함' },
+  { key: 'bodyTexture', label: '바디감·질감' },
+  { key: 'finishComplexity', label: '여운·복합미' },
+] as const;
+
+type TastingScores = Record<string, string>;
+
+function RetrievalInputModal({
+  product,
+  prediction,
+  beforeProfile: aiBeforeProfile,
+  onClose,
+  onSaved,
+}: {
+  product: AgingProduct;
+  prediction: AgingPrediction;
+  beforeProfile: Record<string, number> | null;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [tab, setTab] = useState<'terrestrial' | 'undersea'>('terrestrial');
+  const [meta, setMeta] = useState({
+    retrievalDate: new Date().toISOString().split('T')[0],
+    actualDurationMonths: prediction.underseaDurationMonths ?? 12,
+    tastingPanelSize: '1',
+    tastingNotes: '',
+  });
+  const [terrestrial, setTerrestrial] = useState<TastingScores>({ fruity: '', floralMineral: '', yeastyAutolytic: '', acidityFreshness: '', bodyTexture: '', finishComplexity: '', overallQuality: '' });
+  const [undersea, setUndersea] = useState<TastingScores>({ fruity: '', floralMineral: '', yeastyAutolytic: '', acidityFreshness: '', bodyTexture: '', finishComplexity: '', overallQuality: '' });
+  const [saving, setSaving] = useState(false);
+
+  // 해저 숙성 예측값
+  const underseaPredMap: Record<string, number | null> = {
+    fruity: prediction.predictedFruity,
+    floralMineral: prediction.predictedFloralMineral,
+    yeastyAutolytic: prediction.predictedYeastyAutolytic,
+    acidityFreshness: prediction.predictedAcidityFreshness,
+    bodyTexture: prediction.predictedBodyTexture,
+    finishComplexity: prediction.predictedFinishComplexity,
+    overallQuality: prediction.overallQualityScore,
+  };
+
+  // 지상 보관 예측값 (투하 전 프로파일)
+  const terrestrialPredMap: Record<string, number | null> = {
+    fruity: aiBeforeProfile?.fruity ?? null,
+    floralMineral: aiBeforeProfile?.floralMineral ?? null,
+    yeastyAutolytic: aiBeforeProfile?.yeastyAutolytic ?? null,
+    acidityFreshness: aiBeforeProfile?.acidityFreshness ?? null,
+    bodyTexture: aiBeforeProfile?.bodyTexture ?? null,
+    finishComplexity: aiBeforeProfile?.finishComplexity ?? null,
+    overallQuality: null,
+  };
+
+  const num = (v: string) => v ? Number(v) : null;
+
+  const handleSave = async () => {
+    setSaving(true);
+    const { createRetrievalResult } = await import('@/lib/supabase/database/uaps');
+    await createRetrievalResult({
+      productId: product.id,
+      retrievalDate: meta.retrievalDate,
+      actualDurationMonths: meta.actualDurationMonths,
+      // 해저 숙성
+      actualFruity: num(undersea.fruity),
+      actualFloralMineral: num(undersea.floralMineral),
+      actualYeastyAutolytic: num(undersea.yeastyAutolytic),
+      actualAcidityFreshness: num(undersea.acidityFreshness),
+      actualBodyTexture: num(undersea.bodyTexture),
+      actualFinishComplexity: num(undersea.finishComplexity),
+      actualOverallQuality: num(undersea.overallQuality),
+      // 지상 보관 대조군
+      terrestrialFruity: num(terrestrial.fruity),
+      terrestrialFloralMineral: num(terrestrial.floralMineral),
+      terrestrialYeastyAutolytic: num(terrestrial.yeastyAutolytic),
+      terrestrialAcidityFreshness: num(terrestrial.acidityFreshness),
+      terrestrialBodyTexture: num(terrestrial.bodyTexture),
+      terrestrialFinishComplexity: num(terrestrial.finishComplexity),
+      terrestrialOverallQuality: num(terrestrial.overallQuality),
+      tastingPanelSize: Number(meta.tastingPanelSize) || 1,
+      tastingNotes: meta.tastingNotes || null,
+      isSimulated: false,
+      predictionId: prediction.id,
+    });
+    setSaving(false);
+    onSaved();
+  };
+
+  const scores = tab === 'terrestrial' ? terrestrial : undersea;
+  const setScores = tab === 'terrestrial' ? setTerrestrial : setUndersea;
+  const isTerrestrial = tab === 'terrestrial';
+
+  // 입력 완료 상태 표시
+  const terrestrialFilled = Object.values(terrestrial).some(v => v !== '');
+  const underseaFilled = Object.values(undersea).some(v => v !== '');
+
+  const inputClass = 'w-full px-3 py-2.5 bg-white/[0.04] border border-white/[0.08] rounded-xl text-sm text-white placeholder:text-white/20 focus:outline-none focus:border-cyan-400/40 transition-colors';
+  const labelClass = 'block text-xs text-white/50 mb-1.5';
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md"
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: 20 }}
+        className="bg-[#0d1421] border border-white/[0.08] rounded-2xl w-full max-w-lg max-h-[85vh] overflow-y-auto shadow-2xl"
+      >
+        {/* 헤더 — ProductModal과 동일 */}
+        <div className="flex items-center gap-3 p-5 border-b border-white/[0.06]">
+          <div className="p-2 bg-emerald-500/10 rounded-xl">
+            <ClipboardCheck className="w-5 h-5 text-emerald-400" />
+          </div>
+          <div className="flex-1">
+            <h2 className="text-lg font-medium text-white">비교 시음 입력</h2>
+            <p className="text-[11px] text-white/30 mt-0.5">{product.productName} · {product.producer}</p>
+          </div>
+          <button onClick={onClose} className="text-white/40 hover:text-white transition-colors">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="p-5 space-y-4">
+          {/* 예측 요약 */}
+          <div className="bg-[#C4A052]/[0.06] border border-[#C4A052]/[0.15] rounded-xl px-4 py-3">
+            <div className="flex items-center gap-4 text-xs">
+              <div>
+                <span className="text-white/30">AI 예측 품질</span>
+                <span className="text-[#C4A052] font-mono font-medium ml-1.5">{Math.round(prediction.overallQualityScore ?? 0)}점</span>
+              </div>
+              <div>
+                <span className="text-white/30">숙성 예측</span>
+                <span className="text-white/50 font-mono ml-1.5">{prediction.underseaDurationMonths}개월</span>
+              </div>
+              {product.vintage && (
+                <div>
+                  <span className="text-white/30">빈티지</span>
+                  <span className="text-white/50 font-mono ml-1.5">{product.vintage}</span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* 기본 정보 */}
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <label className={labelClass}>시음 날짜</label>
+              <input type="date" value={meta.retrievalDate} onChange={e => setMeta(f => ({ ...f, retrievalDate: e.target.value }))}
+                className={inputClass} />
+            </div>
+            <div>
+              <label className={labelClass}>숙성 기간 (개월)</label>
+              <input type="number" value={meta.actualDurationMonths} onChange={e => setMeta(f => ({ ...f, actualDurationMonths: Number(e.target.value) }))}
+                className={inputClass} />
+            </div>
+            <div>
+              <label className={labelClass}>시음 패널 수</label>
+              <input type="number" min={1} value={meta.tastingPanelSize} onChange={e => setMeta(f => ({ ...f, tastingPanelSize: e.target.value }))}
+                className={inputClass} />
+            </div>
+          </div>
+
+          {/* 탭: 지상 보관 vs 해저 숙성 */}
+          <div className="flex rounded-xl bg-white/[0.03] border border-white/[0.06] p-1">
+            <button
+              onClick={() => setTab('terrestrial')}
+              className={`flex-1 flex items-center justify-center gap-2 rounded-lg py-2.5 text-xs font-medium transition-all ${
+                isTerrestrial ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/25 shadow-sm' : 'text-white/35 hover:text-white/55 border border-transparent'
+              }`}
+            >
+              <Wine className="w-3.5 h-3.5" />
+              지상 보관 (대조군)
+              {terrestrialFilled && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />}
+            </button>
+            <button
+              onClick={() => setTab('undersea')}
+              className={`flex-1 flex items-center justify-center gap-2 rounded-lg py-2.5 text-xs font-medium transition-all ${
+                !isTerrestrial ? 'bg-cyan-500/15 text-cyan-400 border border-cyan-500/25 shadow-sm' : 'text-white/35 hover:text-white/55 border border-transparent'
+              }`}
+            >
+              <Anchor className="w-3.5 h-3.5" />
+              해저 숙성
+              {underseaFilled && <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" />}
+            </button>
+          </div>
+
+          {/* 풍미 6축 입력 */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <label className={labelClass} style={{ marginBottom: 0 }}>
+                {isTerrestrial ? '지상 보관 시음 결과' : '해저 숙성 시음 결과'}
+              </label>
+              <span className="text-[10px] text-[#C4A052]/50">AI 예측 참고</span>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              {TASTING_FIELDS.map(f => {
+                const activePredMap = isTerrestrial ? terrestrialPredMap : underseaPredMap;
+                const predVal = activePredMap[f.key];
+                const predStr = predVal != null ? String(Math.round(predVal)) : '';
+                return (
+                  <div key={f.key}>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-[11px] text-white/40">{f.label}</label>
+                      {predStr && <span className="text-[10px] text-[#C4A052]/35 font-mono">{predStr}</span>}
+                    </div>
+                    <input type="number" min={0} max={100} value={scores[f.key] || ''}
+                      onChange={e => setScores(prev => ({ ...prev, [f.key]: e.target.value }))}
+                      placeholder={predStr || '0~100'}
+                      className={inputClass} />
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* 종합 품질 */}
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className={labelClass} style={{ marginBottom: 0 }}>종합 품질 (0~100)</label>
+              {!isTerrestrial && <span className="text-[10px] text-[#C4A052]/35 font-mono">{Math.round(prediction.overallQualityScore ?? 0)}</span>}
+            </div>
+            <input type="number" min={0} max={100} value={scores.overallQuality || ''}
+              onChange={e => setScores(prev => ({ ...prev, overallQuality: e.target.value }))}
+              placeholder={isTerrestrial ? '0~100' : String(Math.round(prediction.overallQualityScore ?? 0))}
+              className={inputClass} />
+          </div>
+
+          {/* 시음 노트 */}
+          <div>
+            <label className={labelClass}>시음 노트</label>
+            <textarea value={meta.tastingNotes} onChange={e => setMeta(f => ({ ...f, tastingNotes: e.target.value }))}
+              rows={2} className={inputClass + ' resize-none'} placeholder="특이사항, 비교 소감 등" />
+          </div>
+
+          {/* 저장 */}
+          <button onClick={handleSave} disabled={saving || (!terrestrialFilled && !underseaFilled)}
+            className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-cyan-500/90 to-cyan-400/90 text-black font-medium rounded-xl py-2.5 text-sm hover:opacity-90 transition-opacity disabled:opacity-40">
+            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+            비교 시음 저장
+          </button>
+        </div>
+      </motion.div>
+    </motion.div>
   );
 }
 

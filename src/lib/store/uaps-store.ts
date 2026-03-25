@@ -284,10 +284,15 @@ export const useUAPSStore = create<UAPSState>((set, get) => ({
           )
         : null;
 
+      // dataCount가 0이면 모델의 sampleCount 합산으로 폴백
+      const effectiveCount = dataCount > 0
+        ? dataCount
+        : modelList.reduce((sum, m) => sum + m.sampleCount, 0);
+
       set({
         modelStatus: hasModels ? 'trained' : 'untrained',
         modelLastTrained: lastTrained,
-        modelDataCount: dataCount,
+        modelDataCount: effectiveCount,
         modelGroupCount: modelList.length,
         terrestrialModels: modelList,
       });
