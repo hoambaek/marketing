@@ -83,6 +83,7 @@ export async function generateExpertProfile(
           config: {
             tools: [{ googleSearch: {} }],
             responseMimeType: 'application/json',
+            temperature: 0.1, // 전문가 프로파일은 사실 기반이므로 매우 낮게
             abortSignal: controller.signal,
           },
         });
@@ -93,6 +94,7 @@ export async function generateExpertProfile(
           contents: prompt,
           config: {
             tools: [{ googleSearch: {} }],
+            temperature: 0.1,
             abortSignal: controller.signal,
           },
         });
@@ -631,6 +633,7 @@ export async function runAIPrediction(
           contents: prompt,
           config: {
             responseMimeType: 'application/json',
+            temperature: 0.2, // 낮은 temperature로 예측 일관성 확보
             // Gemini 3: thinking 수준 low로 속도 최적화
             ...(modelName.startsWith('gemini-3') && {
               thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },

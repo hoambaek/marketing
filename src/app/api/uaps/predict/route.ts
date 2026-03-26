@@ -20,6 +20,8 @@ import { findSimilarClusters, parseUAPSConfig } from '@/lib/utils/uaps-engine';
 import { runAIPrediction, buildPredictionResult, generateExpertProfile } from '@/lib/utils/uaps-ai-predictor';
 import { buildMonthlyOceanProfiles, type MonthlyOceanProfile } from '@/lib/utils/uaps-ocean-profile';
 import { predictWithXGBoost, type MLPredictionResult } from '@/lib/utils/uaps-ml-predictor';
+import { updateAllCoefficients, type BayesianUpdateResult } from '@/lib/utils/uaps-bayesian';
+import { fetchAgingPredictions } from '@/lib/supabase/database/uaps';
 
 export async function POST(request: NextRequest) {
   try {
@@ -116,7 +118,37 @@ export async function POST(request: NextRequest) {
       apiLogger.warn('UAPS: 비교 시음 데이터 조회 실패:', e);
     }
 
-    // 3.8. v5.0: ML 예측 (XGBoost, 모델 파일 있을 때만)
+    // 3.8. v5.0: 베이지안 계수 업데이트 (해저 숙성 시음 데이터가 있을 때)
+    let bayesianResult: BayesianUpdateResult | null = null;
+    try {
+      const retrievals = await fetchRetrievalResults(productId);
+      const withActual = retrievals?.filter(r =>
+        !r.isSimulated && r.actualBodyTexture != null
+      ) || [];
+
+      if (withActual.length > 0) {
+        const predictions = await fetchAgingPredictions(productId, 100);
+        if (predictions && predictions.length > 0) {
+          bayesianResult = updateAllCoefficients(withActual, predictions);
+
+          // 사후분포로 config 보정 계수 업데이트
+          config.tci = bayesianResult.tci.posterior;
+          config.fri = bayesianResult.fri.posterior;
+          config.bri = bayesianResult.bri.posterior;
+
+          apiLogger.log(
+            `UAPS: 베이지안 업데이트 적용 (${withActual.length}건) — ` +
+            `TCI: ${bayesianResult.tci.prior}→${bayesianResult.tci.posterior}, ` +
+            `FRI: ${bayesianResult.fri.prior}→${bayesianResult.fri.posterior}, ` +
+            `BRI: ${bayesianResult.bri.prior}→${bayesianResult.bri.posterior}`
+          );
+        }
+      }
+    } catch (e) {
+      apiLogger.warn('UAPS: 베이지안 업데이트 실패, 기본 계수 사용:', e);
+    }
+
+    // 3.9. v5.0: ML 예측 (XGBoost, 모델 파일 있을 때만)
     let mlResult: MLPredictionResult | null = null;
     try {
       mlResult = await predictWithXGBoost({
@@ -180,6 +212,15 @@ export async function POST(request: NextRequest) {
       mlConfidence: mlResult?.confidence ?? null,
       oceanProfileUsed: monthlyOceanProfiles !== null,
       monthlyProfileCount: monthlyOceanProfiles?.length || 0,
+      bayesianUpdate: bayesianResult ? {
+        applied: true,
+        sampleCount: bayesianResult.sampleCount,
+        tci: bayesianResult.tci,
+        fri: bayesianResult.fri,
+        bri: bayesianResult.bri,
+        rmse: bayesianResult.overallRMSE,
+        mae: bayesianResult.overallMAE,
+      } : { applied: false },
     });
   } catch (error) {
     apiLogger.error('UAPS 예측 API 오류:', error);
