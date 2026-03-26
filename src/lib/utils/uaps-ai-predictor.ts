@@ -702,8 +702,22 @@ export function buildPredictionResult(
     finishComplexity: blend(aiFlavors.finishComplexity, statisticalFlavors.finishComplexity),
   };
 
-  // 신뢰도 = 매칭 클러스터 수 기반
-  const predictionConfidence = Math.min(clusters.length / 5, 1.0);
+  // 신뢰도 = 다중 요소 가중 합산 (0~1)
+  const clusterScore = Math.min(clusters.length / 5, 1.0); // 클러스터 매칭 (최대 5개)
+  const dataScore = clusters.length > 0
+    ? Math.min((clusters.reduce((s, c) => s + (c.model?.sampleCount || 0), 0) / clusters.length) / 200, 1.0)
+    : 0; // 학습 데이터 규모
+  const expertScore = expertProfile ? 0.9 : 0.4; // 전문가 프로파일 유무
+  const tastingScore = (expertSources || []).includes('비교 시음 실측') ? 1.0 : 0.3; // 비교시음 데이터
+  const aiFactorScore = aiResponse.agingFactors ? 0.85 : 0.5; // AI 보정 계수 추론 성공
+
+  const predictionConfidence = Math.min(1.0,
+    clusterScore * 0.25 +
+    dataScore * 0.15 +
+    expertScore * 0.20 +
+    tastingScore * 0.20 +
+    aiFactorScore * 0.20
+  );
 
   return {
     productId: product.id,

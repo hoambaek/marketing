@@ -827,17 +827,13 @@ export default function UAPSPage() {
                         </span>
                       </div>
                     ))}
-                    <span className="text-[9px] text-white/15 ml-1 font-mono">
-                      ±{Math.round((1 - latestPrediction.predictionConfidence) * 100)}%
-                    </span>
                   </div>
                 )}
               </div>
 
-              {/* AI 인사이트 행 */}
-              {latestPrediction && (
-                <div className="px-5 py-3 space-y-2">
-                  {latestPrediction.aiInsightText ? (
+              {/* AI 인사이트 행 — 높이 완전 고정 */}
+              <div className="px-5 pt-3 pb-5 space-y-2 h-[104px] overflow-hidden">
+                {latestPrediction?.aiInsightText ? (
                     <>
                       {/* 투하 전·후 2단 인사이트 */}
                       {latestPrediction.aiInsightText.includes('\n') ? (
@@ -877,30 +873,31 @@ export default function UAPSPage() {
                           </p>
                         </div>
                       )}
-                      {/* 출처 + 신뢰도 */}
-                      <div className="flex items-center justify-between">
-                        <div />
-                        {latestPrediction.predictionConfidence != null && (
-                          <div className="flex items-center gap-1.5 shrink-0">
-                            <div className="w-10 h-1 bg-white/[0.06] rounded-full overflow-hidden">
-                              <div
-                                className={`h-full rounded-full transition-all ${
-                                  latestPrediction.predictionConfidence >= 0.8 ? 'bg-emerald-400/60' :
-                                  latestPrediction.predictionConfidence >= 0.5 ? 'bg-amber-400/60' : 'bg-red-400/60'
-                                }`}
-                                style={{ width: `${latestPrediction.predictionConfidence * 100}%` }}
-                              />
-                            </div>
-                            <span className="text-[9px] text-white/25 font-mono">
-                              {Math.round(latestPrediction.predictionConfidence * 100)}%
-                            </span>
-                          </div>
-                        )}
-                      </div>
                     </>
                   ) : (
                     <p className="text-[11px] text-white/25 italic">AI 예측을 실행하면 투하 전·후 비교 인사이트가 표시됩니다</p>
                   )}
+              </div>
+
+              {/* 예측 신뢰도 바 */}
+              {latestPrediction?.predictionConfidence != null && (
+                <div className="px-5 py-2.5 border-t border-white/[0.04] flex items-center justify-end gap-3">
+                  <span className="text-[9px] text-white/25 uppercase tracking-wider">예측 신뢰도</span>
+                  <div className="w-20 h-1.5 bg-white/[0.06] rounded-full overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all ${
+                        latestPrediction.predictionConfidence >= 0.7 ? 'bg-emerald-400/70' :
+                        latestPrediction.predictionConfidence >= 0.45 ? 'bg-amber-400/70' : 'bg-red-400/70'
+                      }`}
+                      style={{ width: `${latestPrediction.predictionConfidence * 100}%` }}
+                    />
+                  </div>
+                  <span className={`text-xs font-mono font-medium ${
+                    latestPrediction.predictionConfidence >= 0.7 ? 'text-emerald-400/80' :
+                    latestPrediction.predictionConfidence >= 0.45 ? 'text-amber-400/80' : 'text-red-400/80'
+                  }`}>
+                    {Math.round(latestPrediction.predictionConfidence * 100)}%
+                  </span>
                 </div>
               )}
             </div>
