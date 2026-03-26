@@ -918,7 +918,7 @@ export default function UAPSPage() {
         </SectionWrapper>
 
         <SectionWrapper title="숙성 타임라인" icon={Gauge} iconColor="#C4A052" delay={0.35}>
-          <div className="h-[220px] sm:h-[300px]">
+          <div className="h-[280px] sm:h-[320px] lg:h-[360px]">
             {timelineData.length > 0 ? (
               <TimelineChart data={timelineData} harvestWindow={harvestWindow} plannedMonths={selectedProduct?.plannedDurationMonths ?? null} />
             ) : (
@@ -2055,8 +2055,8 @@ function FlavorRadar({
     <div className="flex flex-col lg:flex-row gap-4 lg:gap-0">
       {/* 제품 번호 — 데스크탑: 좌측 세로, 모바일: 상단 가로 */}
       {products && products.length > 0 && (
-        <div className="lg:w-[130px] lg:pr-3 lg:border-r lg:border-white/[0.04] flex lg:flex-col items-start">
-          <div className="flex lg:flex-col gap-1.5 flex-wrap overflow-x-auto pb-1 lg:pb-0">
+        <div className="lg:w-[140px] flex lg:flex-col items-start">
+          <div className="flex lg:flex-col gap-1.5 flex-wrap overflow-x-auto lg:overflow-x-hidden lg:overflow-y-auto lg:max-h-[340px] pb-1 lg:pb-0 lg:pr-3 lg:mr-3 lg:border-r lg:border-white/[0.04]">
             {products!.map((p, i) => (
               <button
                 key={p.id}
