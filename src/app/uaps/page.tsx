@@ -639,7 +639,7 @@ export default function UAPSPage() {
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {filtered.map((product) => (
+              {filtered.map((product, idx) => (
                 <motion.div
                   key={product.id}
                   whileHover={{ y: -2 }}
@@ -659,6 +659,7 @@ export default function UAPSPage() {
                   >
                     <div className="flex items-start justify-between mb-2">
                       <h4 className="text-white font-medium text-sm truncate pr-2">
+                        <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-white/[0.08] text-[10px] text-white/50 font-mono mr-1.5">{idx + 1}</span>
                         {product.productName}
                       </h4>
                       <span
@@ -910,7 +911,13 @@ export default function UAPSPage() {
         {/* 차트 (풍미 레이더 + 타임라인) */}
         {/* ═══════════════════════════════════════════════════════════ */}
         <SectionWrapper title="풍미 프로파일" icon={BarChart3} iconColor="#B76E79" delay={0.3}>
-          <FlavorRadar beforeProfile={beforeProfile} afterProfile={afterProfile} />
+          <FlavorRadar
+            beforeProfile={beforeProfile}
+            afterProfile={afterProfile}
+            products={agingProducts.filter(p => (p.productCategory ?? 'champagne') === listCategory)}
+            selectedProductId={selectedProductId}
+            onSelectProduct={selectProduct}
+          />
         </SectionWrapper>
 
         <SectionWrapper title="숙성 타임라인" icon={Gauge} iconColor="#C4A052" delay={0.35}>
@@ -2020,9 +2027,15 @@ const FALLBACK_PROFILES: Record<WineType, Record<string, number>> = {
 function FlavorRadar({
   beforeProfile,
   afterProfile,
+  products,
+  selectedProductId,
+  onSelectProduct,
 }: {
   beforeProfile: Record<string, number> | null;
   afterProfile: Record<string, number> | null;
+  products?: { id: string; productName: string }[];
+  selectedProductId?: string | null;
+  onSelectProduct?: (id: string) => void;
 }) {
   const ZERO_PROFILE: Record<string, number> = { fruity: 0, floralMineral: 0, yeastyAutolytic: 0, acidityFreshness: 0, bodyTexture: 0, finishComplexity: 0 };
   const before = beforeProfile || ZERO_PROFILE;
@@ -2043,7 +2056,29 @@ function FlavorRadar({
 
   return (
     <div className="flex flex-col lg:flex-row gap-4 lg:gap-0">
-      {/* 레이더 차트 — 좌측, 크게 */}
+      {/* 제품 번호 — 데스크탑: 좌측 세로, 모바일: 상단 가로 */}
+      {products && products.length > 0 && (
+        <div className="lg:w-[130px] lg:pr-3 lg:border-r lg:border-white/[0.04] flex lg:flex-col items-start">
+          <div className="flex lg:flex-col gap-1.5 flex-wrap overflow-x-auto pb-1 lg:pb-0">
+            {products!.map((p, i) => (
+              <button
+                key={p.id}
+                onClick={() => onSelectProduct?.(p.id)}
+                title={p.productName}
+                className={`flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-[11px] transition-all whitespace-nowrap ${
+                  selectedProductId === p.id
+                    ? 'bg-[#B76E79]/15 border border-[#B76E79]/30 text-[#B76E79]'
+                    : 'bg-white/[0.03] border border-white/[0.06] text-white/35 hover:text-white/60 hover:border-white/[0.12]'
+                }`}
+              >
+                <span className="w-4 h-4 flex items-center justify-center rounded-full bg-white/[0.08] text-[9px] font-mono shrink-0">{i + 1}</span>
+                <span className="truncate max-w-[80px] lg:max-w-[100px]">{p.productName}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+      {/* 레이더 차트 */}
       <div className="flex-1 h-[280px] sm:h-[320px] lg:h-[360px] relative">
         <ResponsiveContainer width="100%" height="100%">
           <RadarChart data={radarData} cx="50%" cy="50%" outerRadius="88%">
@@ -2127,15 +2162,15 @@ function FlavorRadar({
                 }`}
               >
                 <div className="flex flex-col">
-                  <span className="text-[9px] text-white/30 tracking-wide leading-none mb-0.5">{c.label}</span>
+                  <span className="text-[9px] lg:text-[10px] text-white/30 tracking-wide leading-none mb-0.5">{c.label}</span>
                   <div className="flex items-baseline gap-1">
-                    <span className="text-[10px] text-white/20 font-mono">{c.before}</span>
-                    <span className="text-[8px] text-white/15">→</span>
-                    <span className="text-[10px] text-white/45 font-mono">{c.after}</span>
+                    <span className="text-[10px] lg:text-xs text-white/20 font-mono">{c.before}</span>
+                    <span className="text-[8px] lg:text-[10px] text-white/15">→</span>
+                    <span className="text-[10px] lg:text-xs text-white/50 font-mono font-medium">{c.after}</span>
                   </div>
                 </div>
                 <span
-                  className={`text-xs font-mono font-semibold tabular-nums ${
+                  className={`text-sm lg:text-base font-mono font-semibold tabular-nums ${
                     isPositive ? 'text-[#B76E79]' : isNegative ? 'text-cyan-400/70' : 'text-white/15'
                   }`}
                   style={{ fontFamily: "var(--font-cormorant), 'Cormorant Garamond', serif" }}
