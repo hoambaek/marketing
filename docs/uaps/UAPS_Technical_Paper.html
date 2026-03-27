@@ -23,7 +23,6 @@
     max-width: 100%;
   }
 
-  /* 제목 페이지 */
   .title-page {
     text-align: center;
     padding-top: 8cm;
@@ -62,7 +61,6 @@
     margin-top: 0.3cm;
   }
 
-  /* 초록 */
   .abstract {
     background: #f8f9fa;
     border-left: 3px solid #0066cc;
@@ -85,7 +83,6 @@
     color: #555;
   }
 
-  /* 섹션 헤딩 */
   h2 {
     font-family: 'Noto Serif KR', serif;
     font-size: 14pt;
@@ -116,7 +113,6 @@
     text-align: justify;
   }
 
-  /* 수식 */
   .equation {
     text-align: center;
     padding: 0.8em 0;
@@ -135,7 +131,6 @@
     margin-right: 0.5em;
   }
 
-  /* 표 */
   table {
     width: 100%;
     border-collapse: collapse;
@@ -161,7 +156,6 @@
     font-weight: 500;
   }
 
-  /* 코드/수식 인라인 */
   code {
     font-family: 'Source Code Pro', monospace;
     font-size: 9.5pt;
@@ -171,51 +165,12 @@
     color: #c7254e;
   }
 
-  /* 그림 캡션 */
-  .figure {
-    text-align: center;
-    margin: 1.5em 0;
-  }
-  .figure-caption {
-    font-size: 9.5pt;
-    color: #555;
-    margin-top: 0.5em;
-  }
+  .figure { text-align: center; margin: 1.5em 0; }
+  .figure-caption { font-size: 9.5pt; color: #555; margin-top: 0.5em; }
 
-  /* 참고문헌 */
-  .references {
-    font-size: 9.5pt;
-    line-height: 1.6;
-  }
-  .references li {
-    margin-bottom: 0.4em;
-  }
+  .references { font-size: 9.5pt; line-height: 1.6; }
+  .references li { margin-bottom: 0.4em; }
 
-  /* 파이프라인 다이어그램 */
-  .pipeline {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0;
-    margin: 1em 0;
-    font-size: 9pt;
-  }
-  .pipeline-step {
-    flex: 1;
-    min-width: 100px;
-    text-align: center;
-    padding: 8px 4px;
-    border: 1px solid #ccc;
-    background: #fafafa;
-    position: relative;
-  }
-  .pipeline-step .step-num {
-    display: block;
-    font-weight: 700;
-    color: #0066cc;
-    font-size: 8pt;
-  }
-
-  /* 유틸리티 */
   .note {
     background: #fff8e1;
     border-left: 3px solid #ffa000;
@@ -226,334 +181,662 @@
   .pagebreak { page-break-before: always; }
   sup { font-size: 8pt; }
 
-  /* 인라인 SVG 차트 */
-  .chart-container {
-    margin: 1.5em 0;
-    text-align: center;
-  }
-  .chart-container svg {
-    max-width: 100%;
-    height: auto;
-  }
-  .chart-title {
-    font-size: 9.5pt;
-    color: #555;
-    text-align: center;
-    margin-top: 0.5em;
-    font-weight: 500;
-  }
+  .chart-container { margin: 1.5em 0; text-align: center; }
+  .chart-container svg { max-width: 100%; height: auto; }
+  .chart-title { font-size: 9.5pt; color: #555; text-align: center; margin-top: 0.5em; font-weight: 500; }
 </style>
 </head>
 <body>
 
-<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
 <!-- 표지 -->
-<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
 <div class="title-page">
-  <h1>UAPS: 해저 숙성 풍미 예측 시스템<br>기술 논문</h1>
+  <h1>UAPS: 해저 숙성이 샴페인 풍미에 미치는<br>영향의 정량적 예측 모델</h1>
   <div class="subtitle">
-    Undersea Aging Predictive System —<br>
-    2-Layer Hybrid AI Architecture for Multi-Category Flavor Forecasting
+    Undersea Aging Predictive System:<br>
+    A Quantitative Model for Predicting Flavor Impact of<br>
+    Submarine Aging on Champagne
   </div>
   <div class="authors">Muse de Marée Research</div>
   <div class="affiliation">
-    뮤즈 드 마레 — 해저 숙성 프리미엄 브랜드<br>
-    대한민국
+    뮤즈 드 마레 — 대한민국
   </div>
-  <div class="date">2026년 3월 25일</div>
-  <div class="version">Technical Paper v5.0 — Internal Use</div>
+  <div class="date">2026년 3월</div>
 </div>
 
-<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
 <!-- 초록 -->
-<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
 <div class="abstract">
   <h2>Abstract / 초록</h2>
   <p>
-    UAPS(Undersea Aging Predictive System)는 해저 숙성이 식음료의 풍미에 미치는 영향을
-    정량적으로 예측하는 2-Layer 하이브리드 AI 시스템이다.
-    112,316건의 지상 숙성 리뷰 데이터(샴페인, 레드와인, 화이트와인, 사케, 위스키, 콜드브루 커피, 보이차, 간장, 식초, 한국 전통주 10개 카테고리)에서
-    NLP 기반 6축 풍미 점수를 추출하고, 이를 <strong>product_category × aging_stage</strong> 그룹으로 클러스터링한 통계 모델(Layer 1)과
-    Google Gemini AI의 전문가 프로파일 추론(Layer 2)을 앙상블하여 예측한다.
+    해저 숙성(Undersea Aging)은 와인을 해저 환경에 침지하여 독특한 풍미 변화를 유도하는 기법이나,
+    그 영향을 정량적으로 예측하는 모델은 존재하지 않았다.
+    본 연구는 40,362건의 샴페인 리뷰 데이터에서 NLP 기반 6축 풍미 점수를 추출하고,
+    통계 클러스터링(Layer 1)과 Gemini AI 전문가 추론(Layer 2)의 앙상블로 해저 숙성 풍미를 예측하는
+    UAPS(Undersea Aging Predictive System)를 제안한다.
   </p>
   <p>
-    해저 환경의 물리화학적 영향은 아레니우스 방정식 기반 FRI(Flavor Retention Index),
-    헨리의 법칙 기반 BRI(Bubble Retention Index), 가설적 TCI(Temperature-Pressure Coefficient),
-    그리고 해류·파고·파주기 기반 K-TCI(Kinetic Texture Coefficient)
-    네 가지 보정 계수로 모델링한다. 각 계수는 95% 신뢰구간과 과학적 근거를 명시하여
-    불확실성을 투명하게 관리한다.
-    v4.0에서는 KHOA 국립해양조사원의 실측 데이터(완도 DT_0027 조위관측소 + 완도항 부이 TW_0078)를
-    14개월간 수집하여 월별 해양 프로파일을 구축하였으며,
-    표층 수온을 40m 깊이 보정(blending ratio 모델)하여 계절별 FRI/BRI/K-TCI를 동적으로 계산한다.
+    해저 환경의 영향은 아레니우스 방정식 기반 FRI(Flavor Retention Index),
+    헨리의 법칙 기반 BRI(Bubble Retention Index),
+    해류 역학 기반 K-TCI(Kinetic Texture Coefficient) 세 가지 보정 계수로 모델링하며,
+    KHOA 국립해양조사원의 14개월 실측 데이터로 월별 해양 프로파일을 구축하여 계절 변동을 반영한다.
   </p>
   <p>
-    또한 v4.0은 3단계 비선형 향 감쇠 모델을 도입하여 초기 급감-안정기-후기 급감의 실제 숙성 패턴을 반영하고,
-    환원취 모델에 수온 의존성을 추가하며, 기존 Conservative Cap(±20점 하드캡)을
-    개별 물리적 상한(질감/기포 max 95, 향 min 15)으로 대체하였다.
-    타임라인에는 효율 최적점(추천 인양 시기) 마커를 새로 도입하여
-    비용 대비 최적 인양 시기를 제안한다.
-  </p>
-  <p>
-    본 시스템은 10개 식음료 카테고리에 대해 1–36개월 범위의 월별 풍미 변화 타임라인,
-    골든 윈도우(최적 인양 시기), 종합 품질 점수를 제공하며,
-    AI가 카테고리별 숙성 보정 계수(agingFactors)와 품질 가중치(qualityWeights)를
-    실시간으로 추론하는 파라미터화된 아키텍처를 채택하였다.
-    제품 등록 시에는 Gemini 3 Flash + Google Search Grounding을 활용하여
-    제품 정보를 자동으로 채우는 AI 정보 찾기 기능을 제공한다.
-  </p>
-  <p>
-    v5.0에서는 네 가지 핵심 확장을 도입하였다.
-    첫째, <strong>Chain-of-Thought 5단계 추론</strong>과 카테고리별 Few-shot 전문가 예시를 강제하여
-    AI 예측의 일관성과 해석 가능성을 높이고, 추론 과정을 <code>ai_reasoning_text</code> 필드에 기록한다.
-    둘째, <strong>XGBoost 기반 ML 모델(Layer 3)</strong>을 추가하여 103,314건 학습 데이터에서
-    6개 풍미 축에 대한 독립적 회귀 모델을 학습하였다. 순수 TypeScript로 JSON 트리를 직접 추론하며
-    npm 패키지 의존성 없이 동작한다.
-    셋째, <strong>비교 시음(Comparative Tasting) 시스템</strong>을 도입하여
-    지상 보관(대조군)과 해저 숙성(실험군)의 6축 풍미 점수를 <code>retrieval_results</code> 테이블에 기록하고,
-    시음 70% + AI 전문가 30% 블렌딩으로 투입 전 프로파일(beforeProfile)의 정확도를 향상시켰다.
-    넷째, <strong>Conjugate Normal-Normal 베이지안 업데이트 엔진</strong>으로
-    인양 실측 데이터가 축적될수록 TCI/FRI/BRI 보정 계수의 불확실성이 자동으로 수렴하는
-    자기 개선(self-improving) 구조를 구축하였다.
-    또한 Box-Muller 가우시안 노이즈 기반 <strong>시뮬레이션 엔진</strong>으로
-    실제 인양 전 베이지안 엔진의 수렴 패턴을 사전 검증한다.
+    XGBoost 기반 검증에서 6축 평균 CV RMSE 28.4(0–100 스케일)를 달성하였으며,
+    Conjugate Normal-Normal 베이지안 엔진의 시뮬레이션에서는
+    20건의 인양 데이터로 TCI 분산 94%, FRI/BRI 분산 89%가 축소되는 수렴 특성을 확인하였다.
+    본 시스템은 첫 인양 실측 데이터의 축적에 따라 자기 보정(self-calibrating)하는 구조를 가진다.
   </p>
   <div class="keywords">
-    <strong>키워드:</strong> 해저 숙성, 풍미 예측, 아레니우스 방정식, 헨리의 법칙, NLP 풍미 추출,
-    하이브리드 AI, 앙상블 학습, 다중 카테고리 식음료, KHOA, Sea Lab, 깊이 보정,
-    효율 최적점, 해양 환경 데이터, 파주기, 운동학적 질감 보정,
-    XGBoost, 베이지안 업데이트, 비교 시음, Chain-of-Thought, 시뮬레이션
+    <strong>키워드:</strong> 해저 숙성, 샴페인, 풍미 예측, 아레니우스 방정식, 헨리의 법칙,
+    하이브리드 AI, XGBoost, 베이지안 업데이트, NLP 풍미 추출, KHOA 해양 데이터
   </div>
 </div>
 
-<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
 <!-- 1. 서론 -->
-<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
 <h2>1. 서론 (Introduction)</h2>
 
 <p>
-  해저 숙성(Undersea Aging)은 와인, 증류주 등을 해저 환경에 침지하여 독특한 풍미 변화를 유도하는 기법이다.
-  해저 환경은 (1) 항온(약 4°C), (2) 차광(완전 암실), (3) 수압(수심 30m 기준 약 4 bar 외부 수압),
-  (4) 미세 진동(해류 및 조류)이라는 네 가지 물리적 조건을 제공하며,
+  해저 숙성은 와인을 수심 20–60m의 해저 환경에 침지하여 숙성시키는 기법이다.
+  해저 환경은 (1) 저온(약 4–12°C, 계절 변동), (2) 완전 차광, (3) 수압(수심 40m 기준 약 5 atm),
+  (4) 해류에 의한 미세 진동이라는 네 가지 물리적 조건을 제공하며,
   이는 지상 셀러의 12–15°C 항온 환경과 근본적으로 다른 숙성 궤적을 만든다.
 </p>
 
 <p>
-  그러나 해저 숙성에 대한 체계적인 과학 연구는 매우 제한적이다.
-  기존의 해저 숙성은 마케팅 기법으로 활용되었을 뿐, 숙성 과정에서 실제로
-  어떤 화학적·물리적 변화가 일어나며 그것이 풍미에 어떤 영향을 미치는지에 대한
-  정량적 예측 모델은 존재하지 않았다.
+  해저 숙성에 대한 과학적 관심은 2010년 발트해에서 발견된 170년 된 Veuve Clicquot 샴페인이
+  여전히 음용 가능한 상태였다는 보고에서 촉발되었다 [1].
+  이후 Mira Winery(미국, 2013)는 수심 18m에서 3개월간 카베르네 소비뇽을 숙성하여
+  지상 대조군 대비 "더 부드럽고 복합적인" 풍미를 보고하였으나,
+  정량적 풍미 분석은 수행하지 않았다 [2].
+  크로아티아의 Edivo Vina는 수심 18–25m에서 장기 숙성을 상업화하였으나,
+  과학적 논문을 발표하지 않았다 [3].
 </p>
 
 <p>
-  본 논문은 이러한 공백을 메우기 위해 개발된 UAPS(Undersea Aging Predictive System)의
-  기술적 구조, 과학적 근거, 데이터 파이프라인, 그리고 예측 알고리즘을 상세히 기술한다.
-  특히 샴페인뿐 아니라 레드와인, 사케, 위스키, 콜드브루 커피, 보이차, 간장, 식초 등
-  10개 카테고리로 확장된 다중 카테고리 아키텍처와, AI가 카테고리별 보정 계수를 실시간 추론하는
-  파라미터화 설계를 중점적으로 다룬다.
+  기존 연구의 근본적 한계는 두 가지이다.
+  첫째, 풍미 변화를 정량적으로 예측하는 모델이 존재하지 않는다.
+  둘째, 해저 환경의 물리화학적 조건(온도, 수압, 해류)이 숙성 화학 반응에 미치는 영향에 대한
+  체계적인 모델링이 없다.
+  본 연구는 이러한 공백을 메우기 위해 다음 세 가지 연구 질문에 답하고자 한다:
+</p>
+<ol>
+  <li><strong>RQ1:</strong> 지상 숙성 리뷰 데이터에서 해저 숙성 풍미 변화를 예측할 수 있는가?</li>
+  <li><strong>RQ2:</strong> 아레니우스 방정식과 헨리의 법칙으로 해저 환경의 영향을 정량적으로 모델링할 수 있는가?</li>
+  <li><strong>RQ3:</strong> 인양 실측 데이터가 축적될 때 베이지안 프레임워크로 모델의 자기 보정이 가능한가?</li>
+</ol>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- 2. 관련 연구 -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<h2>2. 관련 연구 (Related Work)</h2>
+
+<h3>2.1 해저 숙성 실험 사례</h3>
+<p>
+  해저 와인 숙성에 대한 체계적인 학술 연구는 극히 제한적이다.
+  Mercanti et al. (2024)은 이탈리아 해역에서 Merlot과 Sangiovese를 셀러 대조군과 비교하여
+  해저 숙성이 화학 조성과 품질에 미치는 영향을 정량적으로 분석한 최초의 peer-reviewed 연구이다 [4].
+  이 연구는 해저 숙성이 단순한 마케팅이 아닌 실제 화학적 변화를 유도함을 보였으나,
+  예측 모델을 제시하지는 않았다.
+</p>
+<p>
+  Santos et al. (2017)은 고압 처리(HHP)가 와인의 화학적·관능적 특성에 미치는 영향을 종합적으로 리뷰하여,
+  수압이 와인 숙성을 가속시킬 수 있음을 시사하였다 [5].
+  상업적 사례(Edivo Vina, Mira Winery)는
+  관능 평가를 마케팅 주장에 활용하였으나 peer-reviewed 논문을 발표하지 않았다.
 </p>
 
-<!-- ═══════════════════════════════════════════════════════════════════════ -->
-<!-- 2. 데이터 수집 및 전처리 -->
-<!-- ═══════════════════════════════════════════════════════════════════════ -->
-<h2>2. 데이터 수집 및 전처리 (Data Collection & Preprocessing)</h2>
-
-<h3>2.1 데이터 소스</h3>
+<h3>2.2 와인 숙성의 화학 동역학</h3>
 <p>
-  총 112,316건의 리뷰 데이터를 15차에 걸쳐 수집하였다.
-  데이터는 전문가 리뷰 사이트, 커뮤니티 플랫폼, 공개 데이터셋, 공공 데이터 포털 등
-  다양한 출처에서 확보하였으며, 각 데이터에는 출처(<code>source_site</code>)와
-  언어(<code>source_language</code>)를 기록하여 추적성을 확보하였다.
+  와인 숙성의 핵심 화학 반응 — 안토시아닌 중합, 폴리페놀 산화, 메일라드 반응 —은
+  아레니우스 방정식으로 기술되는 온도 의존성을 가진다 [6].
+  Singleton & Krauss (1976)는 와인 산화 반응의 활성화 에너지(E<sub>a</sub>)를 40–55 kJ/mol 범위로 보고하였으며 [7],
+  PMC11202423의 안토시아닌 분해 동역학 연구는 샴페인 관련 폴리페놀에 대해
+  E<sub>a</sub> = 42–52 kJ/mol을 제시하였다 [8].
+  본 연구는 이 범위의 중앙값인 47 kJ/mol을 샴페인의 기본 활성화 에너지로 채택하였다.
+</p>
+
+<h3>2.3 수압과 CO₂ 용해도</h3>
+<p>
+  샴페인의 핵심 품질 요소인 기포(mousse)의 안정성은 CO₂ 용해도에 의존하며,
+  이는 헨리의 법칙으로 기술된다 [9].
+  Liger-Belair (2005)는 샴페인 기포의 물리학을 상세히 분석하여
+  CO₂의 과포화 상태, 핵형성(nucleation), 성장 메커니즘을 모델링하였다 [10].
+  수심이 증가하면 외부 수압이 높아져 CO₂ 손실의 구동력(driving force)이 감소하고,
+  저온에서 CO₂ 용해도(kH)가 증가하여 기포가 더 안정적으로 보존될 것으로 예측된다.
+  그러나 이 예측을 해저 숙성 환경에서 실험적으로 검증한 연구는 없다.
+</p>
+
+<h3>2.4 기계학습 기반 와인 품질 예측</h3>
+<p>
+  Cortez et al. (2009)는 포르투갈 Vinho Verde의 물리화학 분석 데이터로
+  SVM, 신경망, Random Forest를 비교하여 와인 품질을 예측하였으며,
+  RMSE ≈ 0.58 (1–10 스케일)을 보고하였다 [11].
+  Gupta (2018)는 XGBoost가 와인 품질 예측에서 Random Forest를 능가함을 보였다 [12].
+  그러나 이들 연구는 모두 지상 숙성 와인을 대상으로 하며,
+  해저 환경 보정을 포함한 예측 모델은 제안되지 않았다.
+  본 연구는 ML 기반 풍미 예측과 물리화학 보정 모델을 결합하는 최초의 시도이다.
+</p>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- 3. 데이터 -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<div class="pagebreak"></div>
+<h2>3. 데이터 (Data)</h2>
+
+<h3>3.1 데이터 수집</h3>
+<p>
+  총 103,560건의 식음료 리뷰 데이터를 수집하였으며, 본 연구는 이 중
+  샴페인 카테고리 <strong>40,362건</strong>에 집중한다.
+  데이터는 Vivino, CellarTracker, WineMag 등 전문 리뷰 사이트에서 수집되었으며,
+  출처(<code>data_source</code>)를 기록하여 추적성을 확보하였다.
 </p>
 
 <table>
-  <caption>Table 1. 카테고리별 데이터 분포 (2026년 2월 28일 기준)</caption>
-  <tr>
-    <th>카테고리</th><th>DB 키</th><th>건수</th><th>비율</th><th>주요 소스</th>
-  </tr>
-  <tr><td>샴페인</td><td><code>champagne</code></td><td>40,362</td><td>35.9%</td><td>Vivino, CellarTracker, WineMag</td></tr>
-  <tr><td>레드와인</td><td><code>red_wine</code></td><td>22,526</td><td>20.1%</td><td>CellarTracker, Decanter, Parker</td></tr>
-  <tr><td>화이트와인</td><td><code>white_wine</code></td><td>13,065</td><td>11.6%</td><td>CellarTracker, Jancis Robinson</td></tr>
-  <tr><td>콜드브루 커피</td><td><code>coldbrew</code></td><td>9,654</td><td>8.6%</td><td>CoffeeReview, CQI, SCAJ</td></tr>
-  <tr><td>사케</td><td><code>sake</code></td><td>8,528</td><td>7.6%</td><td>SakeTime, CellarTracker, 鑑評会</td></tr>
-  <tr><td>한국 전통주</td><td><code>spirits</code></td><td>3,594</td><td>3.2%</td><td>공공데이터포털, 홈술닷컴</td></tr>
-  <tr><td>보이차</td><td><code>puer</code></td><td>3,185</td><td>2.8%</td><td>YunnanSourcing, PuerCN, TeaDB</td></tr>
-  <tr><td>간장</td><td><code>soy_sauce</code></td><td>1,263</td><td>1.1%</td><td>職人醤油, 品評会, 식품안전나라</td></tr>
-  <tr><td>식초</td><td><code>vinegar</code></td><td>702</td><td>0.6%</td><td>Amazon, 黒酢品評会</td></tr>
-  <tr><td>위스키</td><td><code>whisky</code></td><td>435</td><td>0.4%</td><td>WhiskyBase, Kaggle</td></tr>
-  <tr><td colspan="2"><strong>합계</strong></td><td><strong>112,316</strong></td><td><strong>100%</strong></td><td></td></tr>
+  <caption>Table 1. 데이터 소스별 분포</caption>
+  <tr><th>소스</th><th>건수</th><th>비율</th></tr>
+  <tr><td>CSV Import (Vivino, WineMag 등)</td><td>71,460</td><td>69.0%</td></tr>
+  <tr><td>HuggingFace 공개 데이터셋</td><td>26,631</td><td>25.7%</td></tr>
+  <tr><td>CellarTracker</td><td>5,469</td><td>5.3%</td></tr>
+  <tr><td colspan="2"><strong>합계 (전체)</strong></td><td><strong>103,560</strong></td></tr>
+  <tr><td colspan="2"><strong>샴페인 부분집합</strong></td><td><strong>40,362</strong></td></tr>
 </table>
 
-<h3>2.2 NLP 6축 풍미 추출</h3>
+<h3>3.2 NLP 6축 풍미 추출</h3>
 <p>
-  수집된 리뷰 텍스트에서 WSET(Wine & Spirit Education Trust) 및 OIV(International Organisation of Vine and Wine)
-  감각 평가 기준을 참조하여 6개 풍미 축의 강도를 0–100 스케일로 추출하였다.
-  추출은 Ollama 로컬 LLM을 사용한 배치 처리로 수행되었으며,
-  각 카테고리별로 최적화된 프롬프트를 사용하였다.
+  WSET(Wine & Spirit Education Trust) 및 OIV(International Organisation of Vine and Wine) 감각 평가 기준을 참조하여
+  6개 풍미 축의 강도를 0–100 스케일로 추출하였다.
+  추출은 Ollama 로컬 LLM을 사용한 배치 처리로 수행되었다.
+  와인 리뷰의 NLP 분석에 대한 선행 연구로는 Hendrickx et al. (2016) [26]과
+  Katumullage et al. (2022) [27]이 있다.
 </p>
 
 <table>
   <caption>Table 2. WSET/OIV 기반 6축 풍미 체계</caption>
-  <tr><th>축</th><th>TS 키</th><th>DB 컬럼</th><th>설명</th></tr>
-  <tr><td>과실향</td><td><code>fruity</code></td><td><code>fruity_score</code></td><td>감귤류, 열대과일, 핵과류 등</td></tr>
-  <tr><td>플로럴·미네랄</td><td><code>floralMineral</code></td><td><code>floral_mineral_score</code></td><td>꽃향, 백악, 부싯돌, 미네랄</td></tr>
-  <tr><td>효모·숙성향</td><td><code>yeastyAutolytic</code></td><td><code>yeasty_autolytic_score</code></td><td>브리오슈, 효모 자가분해, 토스트</td></tr>
-  <tr><td>산도·상쾌함</td><td><code>acidityFreshness</code></td><td><code>acidity_freshness_score</code></td><td>산미, 크리스피, 청량감</td></tr>
-  <tr><td>바디감·질감</td><td><code>bodyTexture</code></td><td><code>body_texture_score</code></td><td>크리미, 무스, 풍부함, 점도</td></tr>
-  <tr><td>여운·복합미</td><td><code>finishComplexity</code></td><td><code>finish_complexity_score</code></td><td>여운 길이, 레이어, 깊이</td></tr>
+  <tr><th>축</th><th>키</th><th>설명</th></tr>
+  <tr><td>과실향</td><td><code>fruity</code></td><td>감귤류, 열대과일, 핵과류 등</td></tr>
+  <tr><td>플로럴·미네랄</td><td><code>floralMineral</code></td><td>꽃향, 백악, 부싯돌, 미네랄</td></tr>
+  <tr><td>효모·숙성향</td><td><code>yeastyAutolytic</code></td><td>브리오슈, 효모 자가분해, 토스트</td></tr>
+  <tr><td>산도·상쾌함</td><td><code>acidityFreshness</code></td><td>산미, 크리스피, 청량감</td></tr>
+  <tr><td>바디감·질감</td><td><code>bodyTexture</code></td><td>크리미, 무스, 풍부함, 점도</td></tr>
+  <tr><td>여운·복합미</td><td><code>finishComplexity</code></td><td>여운 길이, 레이어, 깊이</td></tr>
 </table>
 
-<h3>2.3 숙성 연수 추출 및 신뢰도</h3>
+<h3>3.3 기술 통계</h3>
 <p>
-  리뷰에서 숙성 연수(<code>aging_years</code>)를 추출할 때 3단계 신뢰도 체계를 적용한다:
+  전체 데이터의 풍미 점수 결측률(NULL rate)은 6개 축 동일하게 3.1%(3,244건)이며,
+  숙성 연수(<code>aging_years</code>)는 73.4%(76,003건)가 비결측이다.
 </p>
+
 <table>
-  <tr><th>방법</th><th>신뢰도</th><th>예시</th></tr>
-  <tr><td>빈티지 + 시음 연도 계산</td><td>0.92</td><td>"2015 빈티지, 2023 시음" → 8년</td></tr>
-  <tr><td>리뷰 텍스트 직접 언급</td><td>0.85</td><td>"aged 5 years on the lees"</td></tr>
-  <tr><td>성숙도 표현 간접 추론</td><td>0.60</td><td>"fully mature, peak drinking"</td></tr>
+  <caption>Table 3. 전체 데이터 6축 풍미 점수 기술 통계 (0–100 스케일)</caption>
+  <tr><th>축</th><th>Mean</th><th>StdDev</th><th>Min</th><th>Max</th><th>NULL rate</th></tr>
+  <tr><td>과실향</td><td>46.7</td><td>29.8</td><td>0</td><td>100</td><td>3.1%</td></tr>
+  <tr><td>플로럴·미네랄</td><td>33.6</td><td>26.3</td><td>0</td><td>100</td><td>3.1%</td></tr>
+  <tr><td>효모·숙성향</td><td>30.4</td><td>27.4</td><td>0</td><td>100</td><td>3.1%</td></tr>
+  <tr><td>산도·상쾌함</td><td>49.3</td><td>30.1</td><td>0</td><td>100</td><td>3.1%</td></tr>
+  <tr><td>바디감·질감</td><td>42.2</td><td>28.7</td><td>0</td><td>100</td><td>3.1%</td></tr>
+  <tr><td>여운·복합미</td><td>44.4</td><td>32.6</td><td>0</td><td>100</td><td>3.1%</td></tr>
 </table>
-<p>
-  신뢰도 0.75 미만인 데이터는 통계 모델 학습에서 제외하여 오염된 학습 데이터 유입을 방지한다.
-</p>
 
-<!-- ═══════════════════════════════════════════════════════════════════════ -->
-<!-- 3. 시스템 아키텍처 -->
-<!-- ═══════════════════════════════════════════════════════════════════════ -->
-<div class="pagebreak"></div>
-<h2>3. 시스템 아키텍처 (System Architecture)</h2>
+<table>
+  <caption>Table 4. 숙성 단계(aging_stage) 분포</caption>
+  <tr><th>단계</th><th>건수</th><th>비율</th></tr>
+  <tr><td>developing</td><td>37,477</td><td>36.2%</td></tr>
+  <tr><td>mature</td><td>25,508</td><td>24.6%</td></tr>
+  <tr><td>youthful</td><td>23,424</td><td>22.6%</td></tr>
+  <tr><td>aged</td><td>17,151</td><td>16.6%</td></tr>
+</table>
 
+<div class="note">
+  <strong>한계:</strong> NLP 풍미 추출의 정확도(인간 평가자와의 일치도, Cohen's kappa)는
+  아직 측정되지 않았다. 이는 향후 검증이 필요한 항목이다 (10절 참조).
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- 4. 방법론 -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<h2>4. 방법론 (Methodology)</h2>
+
+<h3>4.1 2-Layer 하이브리드 아키텍처</h3>
 <p>
   UAPS는 <strong>2-Layer 하이브리드 아키텍처</strong>를 채택한다.
   Layer 1(통계 학습)이 데이터 기반 기준선을 제공하고,
-  Layer 2(AI 추론)가 제품 고유 특성과 카테고리별 보정 계수를 추론하며,
+  Layer 2(AI 추론)가 제품 고유 특성과 보정 계수를 추론하며,
   최종 예측은 두 레이어의 앙상블(AI 70% + 통계 30%)로 산출된다.
 </p>
-
-<h3>3.1 예측 파이프라인 개요</h3>
-<p>전체 파이프라인은 9단계로 구성된다:</p>
-<ol>
-  <li><strong>데이터 수집</strong> — 10개 카테고리 112K건 리뷰 수집 (Supabase PostgreSQL)</li>
-  <li><strong>NLP 6축 추출</strong> — Ollama LLM 배치 처리, 풍미 점수 + 숙성 연수 추출</li>
-  <li><strong>지상 시간 변화 추론</strong> — product_category별 연도별 풍미 전이 곡선 생성</li>
-  <li><strong>Layer 1 통계 학습</strong> — product_category × aging_stage 36개 그룹 클러스터링</li>
-  <li style="list-style-type: '4-1. '"><strong>XGBoost ML 추론</strong> — 103K건 학습 데이터, 6축 독립 모델, JSON 트리 직접 추론 (npm 의존성 없음) (v5.0)</li>
-  <li><strong>해양 환경 데이터 수집</strong> — KHOA 국립해양조사원 11개 API 연동 + 14개월 일별 → 12개월 월별 프로파일 구축</li>
-  <li><strong>Layer 2 AI 추론</strong> — Gemini AI 전문가 프로파일 + agingFactors/qualityWeights 추론 + 월별 해양 프로파일 컨텍스트</li>
-  <li style="list-style-type: '6-1. '"><strong>비교 시음 보정</strong> — 지상 보관(대조군) + 해저 숙성 시음 데이터, 시음 70% + AI 30% 블렌딩 (v5.0)</li>
-  <li><strong>해저 환경 보정</strong> — TCI, K-TCI, FRI, BRI 네 가지 보정 계수 적용</li>
-  <li><strong>복합 품질 계산</strong> — 가중 합산 + 시너지 보너스 + 골든 윈도우 탐색</li>
-  <li><strong>최종 예측 리포트</strong> — 레이더 차트, 타임라인, 인사이트 텍스트 출력</li>
-  <li><strong>베이지안 업데이트</strong> — 인양 실측 데이터로 TCI/FRI/BRI 사후분포 업데이트 (v5.0)</li>
-</ol>
-
-<h3>3.2 Layer 1: 통계 클러스터링</h3>
+<div class="equation">
+  final_flavor(axis) = AI_prediction(axis) × 0.7 + statistical_prediction(axis) × 0.3
+  <span class="label">(1)</span>
+</div>
 <p>
-  112K건 데이터를 <code>product_category</code>(10종) × <code>aging_stage</code>(4단계: youthful, developing, mature, aged)
-  조합으로 최대 40개 그룹(실제 유효 그룹: 약 36개, 최소 5건 이상 필터)으로 분류한다.
-  각 그룹에서 산출하는 통계량은 다음과 같다:
+  이 앙상블 비율(7:3)은 경험적 선택이며, 최적화된 값이 아니다.
+  향후 인양 데이터 축적 시 교차 검증으로 최적 비율을 탐색할 계획이다 (10절 참조).
 </p>
-<ul>
-  <li><strong>풍미 프로파일</strong>: 6축 각각의 평균, 중앙값, 표준편차, p25, p75</li>
-  <li><strong>물리화학 통계</strong>: pH, dosage, alcohol 분포</li>
-  <li><strong>풍미 전이 곡선</strong>: 해당 카테고리의 연수별 6축 평균 추이</li>
-  <li><strong>클러스터 중심점</strong>: pH × dosage × reduction 조합별 빈도</li>
-  <li><strong>음용 적기 분포</strong>: drinkingWindow start/end 통계</li>
-  <li><strong>신뢰도</strong>: min(sampleCount / 100, 1.0)</li>
-</ul>
 
-<h4>유사 클러스터 매칭</h4>
+<h3>4.2 Layer 1: 통계 클러스터링</h3>
 <p>
-  예측 시 입력 제품과 가장 유사한 학습 모델 상위 5개를 찾아 가중 평균으로 기준 풍미를 산출한다.
-  유사도 점수는 다음 4가지 기준의 합산이다:
+  샴페인 40,362건 데이터를 <code>aging_stage</code>(4단계: youthful, developing, mature, aged)별로
+  그룹화하고, 각 그룹에서 6축 풍미 프로파일의 평균, 중앙값, 표준편차를 산출한다.
+  입력 제품과 가장 유사한 학습 모델 상위 5개를 찾아 가중 평균으로 기준 풍미를 산출한다.
 </p>
 <div class="equation">
   similarity = categoryMatch(+50) + pHProximity(+20) + dosageProximity(+15) + sampleBonus(+15)
-  <span class="label">(1)</span>
+  <span class="label">(2)</span>
 </div>
 
 <h4>Pseudo-cohort 앵커 방식</h4>
 <p>
-  단면(cross-sectional) 데이터의 한계를 보완하기 위해, 투하 직전 상태의 클러스터 평균을 <strong>t=0 앵커</strong>로 고정하고,
-  목표 숙성 단계와의 <strong>변화량(Δ)에만</strong> TCI/FRI 보정을 적용한다.
-  이 방식은 절대값의 편향을 상쇄하고 변화율만 추출한다.
+  단면(cross-sectional) 데이터의 한계를 보완하기 위해, 투하 직전 상태의 클러스터 평균을 t=0 앵커로 고정하고,
+  목표 숙성 단계와의 변화량(Δ)에만 보정 계수를 적용한다.
 </p>
 <div class="equation">
   predicted(t) = anchor_t0 + Δ(target − anchor) × correction(TCI, FRI, months)
-  <span class="label">(2)</span>
-</div>
-
-<h3>3.3 Layer 2: AI 추론 (Gemini)</h3>
-<p>
-  Google Gemini API(gemini-3-flash-preview → 2.5-flash → 2.5-flash-lite 폴백 체인)를 사용하여
-  두 가지 핵심 기능을 수행한다:
-</p>
-
-<h4>(a) 전문가 프로파일 생성</h4>
-<p>
-  제품명과 생산자 정보를 바탕으로 <strong>Google Search Grounding</strong>을 통해
-  전문가 테이스팅 노트를 검색하고, 6축 풍미 프로파일을 생성한다.
-  이는 통계 모델이 제공하는 "같은 종류의 평균"을 넘어 "해당 제품 고유의 특성"을 반영한다.
-</p>
-
-<h4>(b) 카테고리별 보정 계수 추론</h4>
-<p>
-  AI는 풍미 프로파일과 함께 두 가지 파라미터 세트를 실시간으로 추론한다:
-</p>
-<ul>
-  <li><strong>agingFactors</strong>: 숙성 곡선의 형태를 결정하는 4개 파라미터
-    <ul>
-      <li><code>baseAgingYears</code>: 투하 전 평균 숙성 기간 (0–30년)</li>
-      <li><code>textureMult</code>: 질감 가속 배수 (0.3–1.5)</li>
-      <li><code>aromaDecay</code>: 향 감소 속도 배수 (0.3–1.5)</li>
-      <li><code>riskMult</code>: 환원/결함 리스크 배수 (0.3–2.0)</li>
-    </ul>
-  </li>
-  <li><strong>qualityWeights</strong>: 복합 품질 점수의 4개 지표 가중치 (합계 = 1.0)
-    <ul>
-      <li><code>texture</code>, <code>aroma</code>, <code>bubble</code>, <code>risk</code></li>
-    </ul>
-  </li>
-</ul>
-<p>
-  AI가 계수를 반환하지 못하면 기본값(texture 1.0, aroma 1.0, risk 1.0 / 가중치 0.30·0.30·0.25·0.15)으로 폴백한다.
-  반환된 값은 범위 클램핑 후, qualityWeights는 합계 1.0으로 자동 정규화된다.
-</p>
-
-<h4>(c) Chain-of-Thought 추론 (v5.0 신규)</h4>
-<p>
-  v5.0에서는 AI 추론의 일관성과 해석 가능성을 높이기 위해 <strong>5단계 Chain-of-Thought(CoT) 추론</strong>을
-  강제한다. 프롬프트에 5단계 분석을 명시적으로 요구하며, AI는 각 단계의 추론 과정을
-  <code>ai_reasoning_text</code> 필드에 기록한다:
-</p>
-<ol>
-  <li><strong>제품 특성 분석</strong> — 카테고리, 서브타입, pH, dosage, 마개 유형 등 기본 속성 분석</li>
-  <li><strong>지상 숙성 상태 평가</strong> — 현재 풍미 프로파일과 숙성 단계 진단</li>
-  <li><strong>해양 환경 영향 분석</strong> — 월별 수온, 수압, 해류가 각 풍미 축에 미치는 영향 추론</li>
-  <li><strong>시간 경과 예측</strong> — 1~36개월 숙성 궤적과 변곡점 예측</li>
-  <li><strong>종합 판단 및 보정 계수 결정</strong> — agingFactors, qualityWeights 최종 결정</li>
-</ol>
-<p>
-  또한 카테고리별 <strong>전문가 역할(EXPERT_ROLES)</strong>을 10개 정의하여
-  AI가 해당 분야 전문가의 관점에서 추론하도록 유도한다
-  (예: 샴페인 → WSET Diploma Holder, 사케 → 唎酒師, 위스키 → Master of Malt).
-  각 카테고리에 대해 <strong>Few-shot 예시</strong>를 프롬프트에 포함하여
-  출력 형식과 추론 깊이의 일관성을 확보한다.
-</p>
-
-<h3>3.4 앙상블</h3>
-<p>
-  최종 풍미 예측은 AI 결과와 통계 결과의 가중 평균이다:
-</p>
-<div class="equation">
-  final_flavor(axis) = AI_prediction(axis) × 0.7 + statistical_prediction(axis) × 0.3
   <span class="label">(3)</span>
 </div>
+
+<h3>4.3 Layer 2: AI 전문가 추론</h3>
 <p>
-  이 앙상블 비율(7:3)은 AI가 제품 고유 특성을 더 잘 포착하되,
-  통계 모델이 과적합을 방지하는 앵커 역할을 하도록 설계되었다.
+  Google Gemini API를 사용하여 제품별 전문가 풍미 프로파일과
+  숙성 보정 계수(agingFactors, qualityWeights)를 추론한다.
+  Chain-of-Thought 5단계 추론을 강제하여 일관성과 해석 가능성을 확보하며 [13],
+  각 단계의 추론 과정을 기록한다:
+</p>
+<ol>
+  <li>제품 특성 분석 (카테고리, pH, dosage, 마개 유형)</li>
+  <li>지상 숙성 상태 평가 (현재 풍미 프로파일)</li>
+  <li>해양 환경 영향 분석 (월별 수온, 수압, 해류)</li>
+  <li>시간 경과 예측 (1~36개월 숙성 궤적)</li>
+  <li>종합 판단 및 보정 계수 결정</li>
+</ol>
+<p>
+  temperature 파라미터를 0.2로 설정하여 예측 변동을 억제한다.
 </p>
 
-<!-- 6축 풍미 레이더 차트 (투입 전 vs 숙성 후) -->
+<h3>4.4 XGBoost ML</h3>
+<p>
+  통계 클러스터링과 AI 추론에 대한 독립적 교차 검증을 위해
+  XGBoost 기반 기계학습 모델을 별도로 학습하였다.
+  100,602건의 학습 데이터에서 6개 풍미 축에 대해 독립적인 회귀 모델을 구축하였다
+  (n_estimators=200, max_depth=6).
+  성능 수치는 8절(실험 결과)에 제시한다.
+</p>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- 5. 해저 환경 보정 모델 -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<div class="pagebreak"></div>
+<h2>5. 해저 환경 보정 모델 (Undersea Correction Model)</h2>
+
+<p>
+  해저 환경이 샴페인 숙성에 미치는 영향을 세 가지 독립적인 보정 계수로 모델링한다.
+  각 계수는 과학적 근거 수준과 불확실성을 명시한다.
+</p>
+
+<h3>5.1 FRI — 향 보존 지수 (Flavor Retention Index)</h3>
+
+<table>
+  <tr><th>속성</th><th>값</th></tr>
+  <tr><td>기본값</td><td>0.565</td></tr>
+  <tr><td>95% Credible Interval</td><td>[0.524, 0.608]</td></tr>
+  <tr><td>근거</td><td>아레니우스 방정식 (Arrhenius equation)</td></tr>
+  <tr><td>의미</td><td>해저에서 산화 속도가 지상의 56.5% 수준으로 감속</td></tr>
+</table>
+
+<p>
+  FRI는 아레니우스 방정식에서 도출된다. 두 온도에서의 반응 속도 비:
+</p>
+<div class="equation">
+  FRI = k(T<sub>ocean</sub>) / k(T<sub>cellar</sub>) = exp[(−E<sub>a</sub>/R) × (1/T<sub>ocean</sub> − 1/T<sub>cellar</sub>)]
+  <span class="label">(4)</span>
+</div>
+<p>
+  적용 파라미터: E<sub>a</sub> = 47 kJ/mol (샴페인 안토시아닌/폴리페놀 산화, PMC11202423 [8]),
+  T<sub>ocean</sub> = 277.15 K (4°C), T<sub>cellar</sub> = 285.15 K (12°C), R = 8.314 J/(mol·K).
+</p>
+
+<h4>마개(Closure) 산소 투과율 보정</h4>
+<p>
+  코르크를 통한 산소 유입을 Lopes et al. (2009)의 OTR(Oxygen Transmission Rate) 데이터로 보정한다 [14]:
+</p>
+<div class="equation">
+  FRI<sub>adjusted</sub> = FRI<sub>arrhenius</sub> × (1 + OTR<sub>adjusted</sub> / 10)
+  <span class="label">(5)</span>
+</div>
+<div class="equation">
+  OTR<sub>adjusted</sub> = OTR<sub>base</sub> × max(0.2, 1 − depth / 60)
+  <span class="label">(6)</span>
+</div>
+
+<h4>3단계 비선형 향 감쇠 모델</h4>
+<p>
+  단순 지수 감쇠 대신, 숙성 과정에서 관찰되는 3단계 패턴을 반영한다:
+</p>
+<table>
+  <caption>Table 5. 3단계 향 감쇠 모델</caption>
+  <tr><th>단계</th><th>구간</th><th>감쇠율</th><th>화학적 근거</th></tr>
+  <tr><td>급감기</td><td>0–2년</td><td>−0.15/년</td><td>1차 과일 에스테르, 티올 급속 산화</td></tr>
+  <tr><td>안정기</td><td>2–3.5년</td><td>−0.05/년</td><td>숙성향(브리오슈, 견과류)으로의 전환</td></tr>
+  <tr><td>후기 급감</td><td>3.5년+</td><td>−0.12/년</td><td>잔존 에스테르 가수분해, 산화 과도</td></tr>
+</table>
+
+<h3>5.2 BRI — 기포 안정화 지수 (Bubble Retention Index)</h3>
+
+<table>
+  <tr><th>속성</th><th>값</th></tr>
+  <tr><td>기본값</td><td>1.60</td></tr>
+  <tr><td>95% Credible Interval</td><td>[1.37, 1.92]</td></tr>
+  <tr><td>근거</td><td>헨리의 법칙 (Henry's Law)</td></tr>
+  <tr><td>의미</td><td>해저에서 기포가 지상 대비 1.6배 더 안정적으로 보존</td></tr>
+</table>
+
+<p>
+  BRI는 CO₂ 손실 구동력의 비교로 도출된다.
+  샴페인 내부 압력 6 bar 가정 시 [10]:
+</p>
+<div class="equation">
+  BRI = (P<sub>land_driving</sub> / P<sub>ocean_driving</sub>) × kH_ratio
+  <span class="label">(7)</span>
+</div>
+<ul>
+  <li>지상 구동력: 6 − 1 = 5 bar</li>
+  <li>해저 구동력 (수심 40m): 6 − 5 = 1 bar</li>
+  <li>압력 비: 5 / 1 = 5.0</li>
+  <li>CO₂ 용해도 온도 보정: kH(4°C) / kH(12°C) ≈ 1.24</li>
+  <li>BRI 원시값 = 5.0 × 1.24 ≈ 6.2 → 실효값 1.60 (보수적 보정)</li>
+</ul>
+
+<p>
+  기포 미세화는 로그 성장 곡선으로 모델링된다:
+</p>
+<div class="equation">
+  bubbleRefinement = 40 + 60 × (1 − exp(−rate × months))
+  <span class="label">(8)</span>
+</div>
+
+<div class="note">
+  <strong>BRI는 샴페인에 특히 중요하다.</strong>
+  기포(mousse)의 미세함과 지속성은 샴페인 품질의 핵심 지표이며,
+  해저 숙성의 가장 직접적인 물리적 이점이 될 수 있다.
+  그러나 BRI의 보수적 보정 과정에서 원시값 6.2를 1.60으로 축소한 근거는
+  경험적 판단에 기반하며, 실측 검증이 필요하다.
+</div>
+
+<h3>5.3 K-TCI — 운동학적 질감 계수 (Kinetic Texture Coefficient)</h3>
+
+<p>
+  해류·파고·파주기가 질감 발달에 미치는 운동학적 효과를 모델링한다.
+  파주기에 의한 궤도 에너지 밀도 관계(E<sub>orbital</sub> ∝ H²/T) [15]에 기반하여
+  동적 보정 계수 kf를 산출한다.
+</p>
+
+<table>
+  <caption>Table 6. 파주기별 kf 보정</caption>
+  <tr><th>파주기</th><th>해석</th><th>kf 보정</th></tr>
+  <tr><td>&lt; 5초</td><td>풍파 — 고주파 진동, 높은 에너지 밀도</td><td>+0.15</td></tr>
+  <tr><td>5–8초</td><td>보통 주기</td><td>+0.05</td></tr>
+  <tr><td>8–12초</td><td>정상 범위</td><td>±0</td></tr>
+  <tr><td>&gt; 12초</td><td>너울 — 낮은 에너지</td><td>−0.05</td></tr>
+</table>
+
+<h3>5.4 해양 데이터 통합</h3>
+<p>
+  KHOA(국립해양조사원)의 완도 조위관측소(DT_0027)와 완도항 해양관측부이(TW_0078)에서
+  14개월간(2025.01–2026.03) 수집한 일별 데이터를 12개월 월별 프로파일로 집계하여
+  계절 변동을 동적으로 반영한다.
+  표층 수온(SST)은 blending ratio 모델로 40m 해저 수온으로 보정한다:
+</p>
+<div class="equation">
+  bottomTemp = SST × ratio + DEEP_BASE × (1 − ratio)
+  <span class="label">(9)</span>
+</div>
+<p>
+  여기서 DEEP_BASE = 8°C(한국 남해 심층 기저 온도), ratio는 월별 0.50(여름)–0.92(겨울)로 변동한다.
+</p>
+
+<!-- 해양 프로파일 차트 -->
+<div class="chart-container">
+<svg viewBox="0 0 680 320" xmlns="http://www.w3.org/2000/svg" style="font-family:'Noto Sans KR',sans-serif;">
+  <rect x="60" y="20" width="580" height="240" fill="#f8fafb" rx="4"/>
+  <g stroke="#e0e0e0" stroke-width="0.5">
+    <line x1="60" y1="80" x2="640" y2="80"/>
+    <line x1="60" y1="140" x2="640" y2="140"/>
+    <line x1="60" y1="200" x2="640" y2="200"/>
+  </g>
+  <text x="8" y="30" font-size="8" fill="#666" font-weight="500">°C / psu</text>
+  <text x="50" y="24" font-size="7.5" fill="#999" text-anchor="end">25</text>
+  <text x="50" y="84" font-size="7.5" fill="#999" text-anchor="end">20</text>
+  <text x="50" y="144" font-size="7.5" fill="#999" text-anchor="end">15</text>
+  <text x="50" y="204" font-size="7.5" fill="#999" text-anchor="end">10</text>
+  <text x="50" y="256" font-size="7.5" fill="#999" text-anchor="end">5</text>
+  <g font-size="8" fill="#666" text-anchor="middle">
+    <text x="108" y="275">1월</text><text x="156" y="275">2월</text>
+    <text x="204" y="275">3월</text><text x="253" y="275">4월</text>
+    <text x="301" y="275">5월</text><text x="349" y="275">6월</text>
+    <text x="397" y="275">7월</text><text x="446" y="275">8월</text>
+    <text x="494" y="275">9월</text><text x="542" y="275">10월</text>
+    <text x="590" y="275">11월</text><text x="638" y="275">12월</text>
+  </g>
+  <polyline points="108,192 156,196 204,180 253,148 301,112 349,72 397,40 446,36 494,60 542,108 590,156 638,184"
+    fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <polyline points="108,196 156,200 204,192 253,172 301,160 349,148 397,140 446,140 494,148 542,160 590,180 638,192"
+    fill="none" stroke="#3b82f6" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <polygon points="108,196 156,200 204,192 253,172 301,160 349,148 397,140 446,140 494,148 542,160 590,180 638,192 638,260 108,260"
+    fill="#3b82f6" opacity="0.08"/>
+  <polyline points="108,110 156,106 204,100 253,96 301,102 349,108 397,116 446,118 494,112 542,104 590,98 638,106"
+    fill="none" stroke="#22c55e" stroke-width="1.8" stroke-dasharray="6,3" stroke-linecap="round" stroke-linejoin="round"/>
+  <g transform="translate(80, 292)">
+    <line x1="0" y1="0" x2="20" y2="0" stroke="#ef4444" stroke-width="2"/>
+    <text x="24" y="3.5" font-size="8" fill="#555">표층 수온 (SST)</text>
+    <line x1="140" y1="0" x2="160" y2="0" stroke="#3b82f6" stroke-width="2.5"/>
+    <text x="164" y="3.5" font-size="8" fill="#555">해저 수온 (40m)</text>
+    <line x1="320" y1="0" x2="340" y2="0" stroke="#22c55e" stroke-width="1.8" stroke-dasharray="6,3"/>
+    <text x="344" y="3.5" font-size="8" fill="#555">염분 (psu)</text>
+  </g>
+</svg>
+<div class="chart-title">Figure 1. 완도 해역 월별 해양 프로파일 — 표층 수온, 해저 수온(40m blending ratio 보정), 염분 (KHOA 14개월 실측)</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- 6. 품질 점수 및 골든 윈도우 -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<h2>6. 품질 점수 및 골든 윈도우 (Composite Quality & Golden Window)</h2>
+
+<h3>6.1 복합 품질 점수</h3>
+<p>
+  4개 지표(질감 성숙도, 향 신선도, 기포 미세화, 환원취 리스크)를
+  AI가 추론한 가중치로 합산한다:
+</p>
+<div class="equation">
+  compositeQuality = Σ(score<sub>i</sub> × weight<sub>i</sub>) + synergyBonus
+  <span class="label">(10)</span>
+</div>
+<p>
+  개별 지표에 물리적 근거가 있는 상한/하한을 적용한다:
+  질감/기포 max 95, 향 min 15, 환원취 max 95.
+</p>
+
+<h3>6.2 골든 윈도우 (최적 인양 시기)</h3>
+<p>
+  1–36개월 각 월별 복합 품질 점수를 계산한 뒤,
+  피크 점수의 95% 이상인 연속 구간을 골든 윈도우로 정의한다.
+  추가로 효율 최적점(Peak − 4점 이내 첫 도달 시점)을 산출하여
+  비용 대비 최적 인양 시기를 제안한다.
+</p>
+
+<!-- 타임라인 차트 -->
+<div class="chart-container">
+<svg viewBox="0 0 680 300" xmlns="http://www.w3.org/2000/svg" style="font-family:'Noto Sans KR',sans-serif;">
+  <rect x="55" y="15" width="600" height="235" fill="#fafaf8" rx="4"/>
+  <rect x="187" y="15" width="148" height="235" fill="#C4A052" opacity="0.08"/>
+  <text x="261" y="12" font-size="7" fill="#C4A052" text-anchor="middle" font-weight="500">Golden Window</text>
+  <g stroke="#e8e8e8" stroke-width="0.5">
+    <line x1="55" y1="62" x2="655" y2="62"/>
+    <line x1="55" y1="109" x2="655" y2="109"/>
+    <line x1="55" y1="156" x2="655" y2="156"/>
+    <line x1="55" y1="203" x2="655" y2="203"/>
+  </g>
+  <text x="8" y="28" font-size="7.5" fill="#666" font-weight="500">품질 점수</text>
+  <text x="48" y="19" font-size="7" fill="#999" text-anchor="end">100</text>
+  <text x="48" y="66" font-size="7" fill="#999" text-anchor="end">80</text>
+  <text x="48" y="113" font-size="7" fill="#999" text-anchor="end">60</text>
+  <text x="48" y="160" font-size="7" fill="#999" text-anchor="end">40</text>
+  <text x="48" y="207" font-size="7" fill="#999" text-anchor="end">20</text>
+  <g font-size="7.5" fill="#666" text-anchor="middle">
+    <text x="71" y="268">1</text><text x="88" y="268">3</text>
+    <text x="121" y="268">6</text><text x="171" y="268">9</text>
+    <text x="220" y="268">12</text><text x="270" y="268">15</text>
+    <text x="319" y="268">18</text><text x="369" y="268">21</text>
+    <text x="418" y="268">24</text><text x="468" y="268">27</text>
+    <text x="518" y="268">30</text><text x="567" y="268">33</text>
+    <text x="617" y="268">36</text>
+  </g>
+  <text x="350" y="288" font-size="8" fill="#666" text-anchor="middle">숙성 기간 (개월)</text>
+  <defs>
+    <linearGradient id="qualityGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#C4A052" stop-opacity="0.3"/>
+      <stop offset="100%" stop-color="#C4A052" stop-opacity="0.02"/>
+    </linearGradient>
+  </defs>
+  <polygon points="71,203 88,174 121,138 171,100 204,82 220,72 237,65 253,58 270,54 286,52 303,53 319,55 335,59 352,64 369,70 385,78 402,86 418,95 435,104 451,114 468,124 484,134 501,143 518,152 534,160 551,167 567,174 584,180 600,185 617,190 617,250 71,250"
+    fill="url(#qualityGrad)"/>
+  <polyline points="71,203 88,174 121,138 171,100 204,82 220,72 237,65 253,58 270,54 286,52 303,53 319,55 335,59 352,64 369,70 385,78 402,86 418,95 435,104 451,114 468,124 484,134 501,143 518,152 534,160 551,167 567,174 584,180 600,185 617,190"
+    fill="none" stroke="#C4A052" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <polyline points="71,62 88,74 121,95 171,120 204,133 220,140 237,146 253,151 270,155 286,159 303,163 319,167 335,170 352,174 369,178 385,181 402,185 418,188 435,191 451,194 468,197 484,199 501,201 518,203 534,205 551,207 567,209 584,211 600,212 617,213"
+    fill="none" stroke="#22d3ee" stroke-width="1.5" stroke-dasharray="5,3" opacity="0.7"/>
+  <polyline points="71,226 88,218 121,200 171,172 204,152 220,140 237,128 253,118 270,108 286,100 303,93 319,87 335,82 352,78 369,74 385,71 402,68 418,66 435,64 451,63 468,62 484,61 501,60 518,60 534,60 551,59 567,59 584,59 600,58 617,58"
+    fill="none" stroke="#a78bfa" stroke-width="1.5" stroke-dasharray="5,3" opacity="0.7"/>
+  <line x1="286" y1="15" x2="286" y2="250" stroke="#C4A052" stroke-width="1" stroke-dasharray="3,3"/>
+  <circle cx="286" cy="52" r="4" fill="#C4A052"/>
+  <text x="286" y="42" font-size="7" fill="#C4A052" text-anchor="middle" font-weight="700">Peak</text>
+  <line x1="204" y1="15" x2="204" y2="250" stroke="#22c55e" stroke-width="1" stroke-dasharray="3,3"/>
+  <circle cx="204" cy="82" r="3.5" fill="#22c55e"/>
+  <text x="204" y="42" font-size="6.5" fill="#22c55e" text-anchor="middle" font-weight="500">추천</text>
+  <g transform="translate(70, 280)">
+    <line x1="0" y1="0" x2="18" y2="0" stroke="#C4A052" stroke-width="2.5"/>
+    <text x="22" y="3" font-size="7.5" fill="#555">복합 품질</text>
+    <line x1="100" y1="0" x2="118" y2="0" stroke="#22d3ee" stroke-width="1.5" stroke-dasharray="5,3"/>
+    <text x="122" y="3" font-size="7.5" fill="#555">향 신선도</text>
+    <line x1="200" y1="0" x2="218" y2="0" stroke="#a78bfa" stroke-width="1.5" stroke-dasharray="5,3"/>
+    <text x="222" y="3" font-size="7.5" fill="#555">질감 성숙도</text>
+    <rect x="310" y="-5" width="12" height="10" fill="#C4A052" opacity="0.15" rx="1"/>
+    <text x="326" y="3" font-size="7.5" fill="#555">골든 윈도우</text>
+  </g>
+</svg>
+<div class="chart-title">Figure 2. 숙성 타임라인 예시 (Champagne) — 복합 품질, 향 신선도, 질감 성숙도, 골든 윈도우</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- 7. 베이지안 계수 업데이트 -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<div class="pagebreak"></div>
+<h2>7. 베이지안 계수 업데이트 (Bayesian Coefficient Updating)</h2>
+
+<p>
+  보정 계수(TCI, FRI, BRI)의 불확실성을 인양 실측 데이터로 축소하기 위해
+  Conjugate Normal-Normal 베이지안 프레임워크를 채택하였다 [16].
+  MCMC 없이 해석적 닫힌 형태(closed-form)로 업데이트된다:
+</p>
+<div class="equation">
+  μ₁ = (μ₀/σ₀² + n·x̄/σ_obs²) / (1/σ₀² + n/σ_obs²)
+  <span class="label">(11)</span>
+</div>
+<div class="equation">
+  σ₁² = 1 / (1/σ₀² + n/σ_obs²)
+  <span class="label">(12)</span>
+</div>
+
+<table>
+  <caption>Table 7. 보정 계수 사전분포</caption>
+  <tr><th>계수</th><th>사전 평균 (μ₀)</th><th>사전 분산 (σ₀²)</th><th>관측 분산 (σ_obs²)</th></tr>
+  <tr><td>TCI</td><td>0.40</td><td>0.04</td><td>0.05</td></tr>
+  <tr><td>FRI</td><td>0.56</td><td>0.02</td><td>0.05</td></tr>
+  <tr><td>BRI</td><td>0.72</td><td>0.02</td><td>0.05</td></tr>
+</table>
+
+<p>
+  인양 데이터에서 각 계수의 "implied value"를 역산하여 관측값으로 사용한다.
+  예를 들어 TCI는 실측 질감 점수와 예측 질감 점수의 비율에서 역산된다.
+  시뮬레이션 결과는 8절에 제시한다.
+</p>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- 8. 실험 결과 -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<h2>8. 실험 결과 (Results)</h2>
+
+<h3>8.1 XGBoost 성능</h3>
+<p>
+  100,602건 학습 데이터(신뢰도 0.75 이상 필터)에 대한 5-fold 교차 검증 결과:
+</p>
+
+<table>
+  <caption>Table 8. XGBoost 6축 독립 모델 성능 (0–100 스케일)</caption>
+  <tr><th>풍미 축</th><th>CV RMSE</th><th>CV Std</th><th>Train RMSE</th><th>과적합 갭</th></tr>
+  <tr><td>과실향 (fruity)</td><td>31.74</td><td>0.21</td><td>31.51</td><td>0.23</td></tr>
+  <tr><td>플로럴·미네랄</td><td>27.69</td><td>0.26</td><td>27.49</td><td>0.20</td></tr>
+  <tr><td>효모·숙성향</td><td>29.58</td><td>0.19</td><td>29.43</td><td>0.15</td></tr>
+  <tr><td>산도·상쾌함</td><td>28.54</td><td>0.16</td><td>28.35</td><td>0.19</td></tr>
+  <tr><td>바디감·질감</td><td>27.91</td><td>0.29</td><td>27.73</td><td>0.18</td></tr>
+  <tr><td>여운·복합미</td><td>24.96</td><td>0.23</td><td>24.71</td><td>0.25</td></tr>
+  <tr><td><strong>평균</strong></td><td><strong>28.40</strong></td><td></td><td></td><td><strong>0.20</strong></td></tr>
+</table>
+
+<p>
+  과적합 갭(Train RMSE − CV RMSE)이 평균 0.20으로 매우 작아 모델이 안정적으로 일반화되고 있다.
+  CV Std가 0.15–0.29 범위로 폴드 간 분산이 낮다.
+</p>
+
+<h3>8.2 Feature Importance 분석</h3>
+
+<table>
+  <caption>Table 9. XGBoost Feature Importance (정규화)</caption>
+  <tr><th>피처</th><th>과실향</th><th>플로럴</th><th>효모</th><th>산도</th><th>바디</th><th>여운</th></tr>
+  <tr><td>product_category</td><td>0.575</td><td>0.379</td><td>0.474</td><td>0.717</td><td>0.556</td><td>0.508</td></tr>
+  <tr><td>aging_years</td><td>0.165</td><td>0.307</td><td>0.227</td><td>0.118</td><td>0.224</td><td>0.229</td></tr>
+  <tr><td>aging_stage</td><td>0.171</td><td>0.202</td><td>0.181</td><td>0.121</td><td>0.144</td><td>0.174</td></tr>
+  <tr><td>alcohol</td><td>0.089</td><td>0.112</td><td>0.118</td><td>0.044</td><td>0.077</td><td>0.089</td></tr>
+  <tr><td>pH, dosage, acidity, reduction</td><td colspan="6" style="text-align:center">0.000 (전 축 동일)</td></tr>
+</table>
+
+<p>
+  <code>product_category</code>가 모든 축에서 38–72%의 지배적 중요도를 보인다.
+  <code>aging_years</code>와 <code>aging_stage</code>가 나머지 대부분을 차지하며,
+  pH, dosage, acidity, reduction_potential은 <strong>모든 축에서 importance 0</strong>이다.
+  이는 NLP에서 추출한 풍미 점수가 이미 이러한 물리화학적 특성을 내재적으로 반영하고 있음을 시사한다.
+</p>
+
+<h3>8.3 베이지안 수렴 시뮬레이션</h3>
+<p>
+  5건의 모의 예측에 Box-Muller 정규분포 노이즈(±5%, ±10%, ±15%)를 추가하여
+  총 20건의 가상 인양 데이터를 생성하고, 누적 관측 수에 따른 사후분포 수렴을 측정하였다:
+</p>
+
+<table>
+  <caption>Table 10. 베이지안 수렴 시뮬레이션 결과</caption>
+  <tr><th>관측 수 (n)</th><th>TCI posterior</th><th>TCI 분산축소</th><th>FRI posterior</th><th>FRI 분산축소</th><th>BRI posterior</th><th>BRI 분산축소</th></tr>
+  <tr><td>1</td><td>0.400</td><td>44%</td><td>0.528</td><td>29%</td><td>0.716</td><td>29%</td></tr>
+  <tr><td>3</td><td>0.399</td><td>71%</td><td>0.537</td><td>55%</td><td>0.709</td><td>55%</td></tr>
+  <tr><td>5</td><td>0.404</td><td>80%</td><td>0.538</td><td>67%</td><td>0.725</td><td>67%</td></tr>
+  <tr><td>10</td><td>0.401</td><td>89%</td><td>0.542</td><td>80%</td><td>0.720</td><td>80%</td></tr>
+  <tr><td>20</td><td>0.403</td><td><strong>94%</strong></td><td>0.543</td><td><strong>89%</strong></td><td>0.714</td><td><strong>89%</strong></td></tr>
+</table>
+
+<p>
+  TCI는 사전 분산이 가장 크므로(σ₀²=0.04) 관측 데이터에 가장 민감하게 반응하여
+  n=20에서 94% 분산 축소를 달성한다.
+  FRI와 BRI는 사전 분산이 작으므로(σ₀²=0.02) 상대적으로 느리게 수렴하지만
+  n=20에서 89%에 도달한다.
+  이는 <strong>약 20건의 인양 데이터</strong>로 보정 계수의 불확실성을 대부분 해소할 수 있음을 시사한다.
+</p>
+
+<h3>8.4 6축 풍미 예측 예시</h3>
+
+<!-- 레이더 차트 -->
 <div class="chart-container">
 <svg viewBox="0 0 680 340" xmlns="http://www.w3.org/2000/svg" style="font-family:'Noto Sans KR',sans-serif;">
   <defs>
@@ -566,68 +849,44 @@
       <stop offset="100%" stop-color="#C4A052" stop-opacity="0.05"/>
     </radialGradient>
   </defs>
-  <!-- 중심: 280, 160  반지름: 120 -->
-  <!-- 6축 방향: 과실향(위), 플로럴(우상), 효모(우하), 산도(아래), 바디(좌하), 여운(좌상) -->
-  <!-- 그리드 원 (20, 40, 60, 80, 100) -->
   <g fill="none" stroke="#e0e0e0" stroke-width="0.5">
     <polygon points="280,40 384,100 384,220 280,280 176,220 176,100" opacity="0.3"/>
     <polygon points="280,64 365,112 365,208 280,256 195,208 195,112" opacity="0.3"/>
     <polygon points="280,88 346,124 346,196 280,232 214,196 214,124" opacity="0.3"/>
     <polygon points="280,112 327,136 327,184 280,208 233,184 233,136" opacity="0.3"/>
-    <polygon points="280,136 308,148 308,172 280,184 252,172 252,148" opacity="0.3"/>
   </g>
-  <!-- 축선 -->
   <g stroke="#d0d0d0" stroke-width="0.5">
     <line x1="280" y1="40" x2="280" y2="280"/>
     <line x1="384" y1="100" x2="176" y2="220"/>
     <line x1="384" y1="220" x2="176" y2="100"/>
   </g>
-  <!-- 축 라벨 -->
   <text x="280" y="28" font-size="9" fill="#333" text-anchor="middle" font-weight="500">과실향</text>
   <text x="396" y="96" font-size="9" fill="#333" text-anchor="start" font-weight="500">플로럴·미네랄</text>
   <text x="396" y="230" font-size="9" fill="#333" text-anchor="start" font-weight="500">효모·숙성향</text>
   <text x="280" y="298" font-size="9" fill="#333" text-anchor="middle" font-weight="500">산도·상쾌함</text>
   <text x="164" y="230" font-size="9" fill="#333" text-anchor="end" font-weight="500">바디감·질감</text>
   <text x="164" y="96" font-size="9" fill="#333" text-anchor="end" font-weight="500">여운·복합미</text>
-  <!-- 스케일 숫자 -->
-  <text x="283" y="46" font-size="6" fill="#bbb">100</text>
-  <text x="283" y="94" font-size="6" fill="#bbb">60</text>
-  <!-- Before (투입 전) — 파랑 -->
-  <!-- 과실:75, 플로럴:60, 효모:40, 산도:70, 바디:45, 여운:55 -->
   <polygon points="280,70 342,118 342,196 280,216 222,190 218,118"
     fill="url(#beforeFill)" stroke="#60a5fa" stroke-width="1.5" opacity="0.8"/>
-  <!-- After (12개월 숙성 후) — 골드 -->
-  <!-- 과실:52, 플로럴:68, 효모:78, 산도:58, 바디:82, 여운:75 -->
   <polygon points="280,97 362,108 370,186 280,230 192,182 188,100"
     fill="url(#afterFill)" stroke="#C4A052" stroke-width="2" opacity="0.9"/>
-  <!-- 데이터 포인트 (After) -->
   <g fill="#C4A052">
     <circle cx="280" cy="97" r="3"/><circle cx="362" cy="108" r="3"/>
     <circle cx="370" cy="186" r="3"/><circle cx="280" cy="230" r="3"/>
     <circle cx="192" cy="182" r="3"/><circle cx="188" cy="100" r="3"/>
   </g>
-  <!-- 데이터 포인트 (Before) -->
   <g fill="#60a5fa">
     <circle cx="280" cy="70" r="2.5"/><circle cx="342" cy="118" r="2.5"/>
     <circle cx="342" cy="196" r="2.5"/><circle cx="280" cy="216" r="2.5"/>
     <circle cx="222" cy="190" r="2.5"/><circle cx="218" cy="118" r="2.5"/>
   </g>
-  <!-- 점수 표시 -->
-  <g font-size="8" font-weight="500">
-    <text x="280" y="62" fill="#60a5fa" text-anchor="middle">75</text>
-    <text x="280" y="90" fill="#C4A052" text-anchor="middle">52</text>
-  </g>
-  <!-- 우측 범례 + 변화량 패널 -->
   <g transform="translate(480, 50)">
     <text x="0" y="0" font-size="10" fill="#333" font-weight="700">6축 풍미 변화</text>
     <text x="0" y="16" font-size="7.5" fill="#999">Champagne 12개월 숙성 예측</text>
-    <!-- Before 범례 -->
     <line x1="0" y1="36" x2="16" y2="36" stroke="#60a5fa" stroke-width="2"/>
     <text x="20" y="39" font-size="8" fill="#60a5fa">투입 전 (Before)</text>
-    <!-- After 범례 -->
     <line x1="0" y1="52" x2="16" y2="52" stroke="#C4A052" stroke-width="2"/>
     <text x="20" y="55" font-size="8" fill="#C4A052">숙성 후 (After)</text>
-    <!-- 변화량 카드 -->
     <g transform="translate(0, 75)" font-size="8">
       <text x="0" y="0" fill="#555">과실향</text><text x="130" y="0" fill="#ef4444" text-anchor="end">−23</text>
       <line x1="0" y1="6" x2="130" y2="6" stroke="#eee" stroke-width="0.5"/>
@@ -641,939 +900,142 @@
       <line x1="0" y1="78" x2="130" y2="78" stroke="#eee" stroke-width="0.5"/>
       <text x="0" y="90" fill="#555">여운·복합미</text><text x="130" y="90" fill="#22c55e" text-anchor="end">+20</text>
     </g>
-    <g transform="translate(0, 185)" font-size="8.5">
-      <rect x="-4" y="-10" width="140" height="20" fill="#C4A052" opacity="0.1" rx="3"/>
-      <text x="0" y="3" fill="#C4A052" font-weight="700">종합 품질: 78.4 / 100</text>
-    </g>
   </g>
 </svg>
-<div class="chart-title">Figure 3. 6축 풍미 레이더 차트 — 투입 전(Before) vs 12개월 해저 숙성 후(After) 예측 (Champagne 예시)</div>
+<div class="chart-title">Figure 3. 6축 풍미 레이더 — 투입 전(Before) vs 12개월 해저 숙성 후(After) 예측 (Champagne 예시)</div>
 </div>
 
-<h3>3.5 Layer 3: XGBoost ML (v5.0 신규)</h3>
-<p>
-  v5.0에서는 통계 클러스터링(Layer 1)과 AI 추론(Layer 2)에 더하여
-  <strong>XGBoost 기반 기계학습 모델(Layer 3)</strong>을 도입하였다.
-  103,314건의 학습 데이터에서 6개 풍미 축에 대해 독립적인 회귀 모델을 학습하였다.
-</p>
-
-<h4>모델 구조</h4>
-<ul>
-  <li><strong>학습 데이터</strong>: 103,314건 (신뢰도 0.75 이상 필터)</li>
-  <li><strong>피처</strong>: product_category(인코딩), aging_stage(인코딩), reduction_potential(인코딩), pH, dosage, alcohol, aging_years</li>
-  <li><strong>타겟</strong>: 6축 풍미 점수 (fruity, floralMineral, yeastyAutolytic, acidityFreshness, bodyTexture, finishComplexity) — 각 축 독립 모델</li>
-  <li><strong>추론</strong>: Python에서 학습된 XGBoost JSON 트리를 순수 TypeScript로 로드하여 추론. <strong>npm 패키지 의존성 없음</strong></li>
-</ul>
-
-<div class="equation">
-  prediction(axis) = base_score + Σ tree_leaf_values(features)
-  <span class="label">(3a)</span>
-</div>
-
-<p>
-  XGBoost 결과는 Layer 1/2 앙상블에 대한 교차 검증(cross-validation) 및
-  이상치 탐지 용도로 활용된다. 6축 각각의 CV RMSE와 feature importance를
-  메타데이터에 기록하여 모델 신뢰도를 투명하게 관리한다.
-</p>
-
-<!-- ═══════════════════════════════════════════════════════════════════════ -->
-<!-- 4. 해저 환경 보정 계수 -->
-<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- 9. 논의 -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
 <div class="pagebreak"></div>
-<h2>4. 해저 환경 보정 계수 (Undersea Correction Coefficients)</h2>
+<h2>9. 논의 (Discussion)</h2>
 
+<h3>9.1 XGBoost RMSE 해석</h3>
 <p>
-  해저 환경이 숙성에 미치는 영향을 네 가지 독립적인 보정 계수로 모델링한다.
-  각 계수는 과학적 근거 수준(가설/문헌/법칙 기반)과 95% 신뢰구간을 명시하여
-  불확실성을 투명하게 관리한다.
-  v4.0에서는 KHOA 실측 데이터 기반의 <strong>월별 해양 프로파일</strong>을 사용하여
-  계절 변동을 동적으로 반영한다 (7절 참조).
+  0–100 스케일에서 평균 CV RMSE 28.4는 중간 수준의 예측 정확도이다.
+  이는 NLP 풍미 추출 자체의 노이즈(리뷰어 간 주관성, LLM 추출 변동성)와
+  지상 숙성 데이터의 본질적 분산(동일 카테고리 내에서도 제품별 풍미가 크게 다름)을 반영한다.
+  과적합 갭이 0.20으로 극히 작아 모델이 안정적으로 일반화되고 있으나,
+  RMSE 자체가 높은 것은 입력 데이터의 노이즈가 지배적임을 시사한다.
 </p>
 
-<h3>4.1 TCI — 온도·압력 계수 (Temperature-Pressure Coefficient)</h3>
-
-<table>
-  <tr><th>속성</th><th>값</th></tr>
-  <tr><td>기본값</td><td>0.30</td></tr>
-  <tr><td>95% 신뢰구간</td><td>[0.06, 0.54]</td></tr>
-  <tr><td>근거 수준</td><td>가설적 추정 (hypothesis)</td></tr>
-  <tr><td>의미</td><td>해저에서 질감 성숙이 1/TCI = 약 3.3배 가속 (기본)</td></tr>
-  <tr><td>최대 가속 제한</td><td>K-TCI 합산 시 최대 5.0배 (effectiveTci ≥ 0.20)</td></tr>
-</table>
-
+<h3>9.2 Feature Importance의 함의</h3>
 <p>
-  TCI는 해저의 저온·고압 환경이 효모 자가분해(autolysis)와 질감 발달을 가속시키는 정도를 모델링한다.
-  K-TCI(4.4절)의 운동학적 인자(kf)가 추가 보정되어, 최종 유효 TCI는 다음과 같이 계산된다:
-</p>
-<div class="equation">
-  effectiveTci = max(0.20, TCI / kf)
-  <span class="label">(4a)</span>
-</div>
-<p>
-  여기서 0.20 하한 클램핑은 최대 가속 배수가 1/0.20 = <strong>5.0배</strong>를 초과하지 않도록 제한한다.
-  K-TCI 도입 이전에는 TCI 단독으로 3.3배 가속이었으나, 운동학적 인자까지 합산하면
-  비현실적으로 높은 가속(6~7배)이 도출될 수 있어 보수적 상한을 설정하였다.
-</p>
-<p>
-  질감 성숙도는 시그모이드 함수로 계산된다:
-</p>
-<div class="equation">
-  textureMaturity = 100 / (1 + exp(−0.6 × (baseYears + months/(12 × effectiveTci × textureMult) − 4.5)))
-  <span class="label">(4b)</span>
-</div>
-<p>
-  중점(inflection point)은 4.5년, 기울기 0.6으로 설정하여 36개월 전 구간에서 점진적 변화를 유지한다.
-  <code>textureMult</code>는 AI가 추론한 카테고리별 질감 가속 배수이다.
+  pH, dosage, acidity, reduction_potential이 모든 축에서 importance 0인 것은 주목할 만하다.
+  이는 두 가지 가능성을 시사한다:
+  (1) NLP 추출 풍미 점수가 이미 이러한 물리화학적 특성을 내재적으로 반영하므로 추가 정보가 없거나,
+  (2) 이들 피처의 결측률이 높아 학습에 기여하지 못했을 수 있다.
+  향후 결측값 처리 전략의 개선이 필요하다.
 </p>
 
-<div class="note">
-  <strong>주의:</strong> TCI는 직접적인 선행 연구가 없어 넓은 신뢰구간을 가진다.
-  인양 후 블라인드 시음 데이터 축적에 따라 베이지안 업데이트로 수렴시킬 계획이다.
-  최대 5배 제한은 현재까지의 해양 숙성 문헌 범위(1.5~4배)를 고려한 보수적 상한이다.
-</div>
-
-<h3>4.2 FRI — 향 신선도 지수 (Flavor Retention Index)</h3>
-
-<table>
-  <tr><th>속성</th><th>값</th></tr>
-  <tr><td>기본값</td><td>0.565</td></tr>
-  <tr><td>95% 신뢰구간</td><td>[0.524, 0.608]</td></tr>
-  <tr><td>근거 수준</td><td>아레니우스 방정식 (Arrhenius equation)</td></tr>
-  <tr><td>의미</td><td>해저에서 산화 속도가 지상의 56.5% 수준으로 감속</td></tr>
-</table>
-
+<h3>9.3 모델의 근본적 한계</h3>
 <p>
-  FRI는 아레니우스 방정식으로 도출된다. 화학 반응 속도와 온도의 관계:
-</p>
-<div class="equation">
-  k(T) = A × exp(−E<sub>a</sub> / RT)
-  <span class="label">(5)</span>
-</div>
-<p>
-  두 온도에서의 속도 비:
-</p>
-<div class="equation">
-  FRI = k(T<sub>ocean</sub>) / k(T<sub>cellar</sub>) = exp[(−E<sub>a</sub>/R) × (1/T<sub>ocean</sub> − 1/T<sub>cellar</sub>)]
-  <span class="label">(6)</span>
-</div>
-
-<p>적용 파라미터:</p>
-<ul>
-  <li>해저 온도 T<sub>ocean</sub> = 4°C = 277.15 K</li>
-  <li>지상 셀러 온도 T<sub>cellar</sub> = 12°C = 285.15 K</li>
-  <li>기체 상수 R = 8.314 J/(mol·K)</li>
-  <li>활성화 에너지 E<sub>a</sub> = <strong>카테고리별 개별 적용</strong> (아래 테이블 참조)</li>
-</ul>
-
-<h4>4.2.1 카테고리별 활성화 에너지 (E<sub>a</sub>) 참조 테이블</h4>
-<p>
-  이전 버전에서는 와인의 안토시아닌 분해 반응(47 kJ/mol)을 전 카테고리에 일괄 적용했으나,
-  이는 화학적 오류이다. 각 카테고리의 주요 산화/숙성 반응의 활성화 에너지는 분자 구조에 따라 크게 다르므로,
-  v3.1부터 카테고리별 E<sub>a</sub>를 개별 적용한다.
-</p>
-
-<table>
-  <tr><th>카테고리</th><th>E<sub>a</sub> (kJ/mol)</th><th>95% CI</th><th>주요 반응 근거</th><th>FRI (4°C/12°C)</th></tr>
-  <tr><td>샴페인</td><td>47</td><td>[42, 52]</td><td>안토시아닌/폴리페놀 산화</td><td>0.565</td></tr>
-  <tr><td>레드와인</td><td>50</td><td>[45, 55]</td><td>안토시아닌 중합 + 타닌 산화</td><td>0.538</td></tr>
-  <tr><td>화이트와인</td><td>44</td><td>[39, 49]</td><td>폴리페놀 산화 (갈변)</td><td>0.593</td></tr>
-  <tr><td>위스키</td><td>60</td><td>[52, 68]</td><td>에스테르화 반응 (숙성향 생성)</td><td>0.449</td></tr>
-  <tr><td>사케</td><td>35</td><td>[30, 40]</td><td>아미노-카보닐 반응 (메일라드)</td><td>0.686</td></tr>
-  <tr><td>콜드브루</td><td>38</td><td>[33, 43]</td><td>클로로겐산 산화 (쓴맛 변화)</td><td>0.652</td></tr>
-  <tr><td>보이차</td><td>42</td><td>[37, 47]</td><td>카테킨 산화 중합 (후발효)</td><td>0.614</td></tr>
-  <tr><td>간장</td><td>50</td><td>[44, 56]</td><td>멜라노이딘 생성 (갈변)</td><td>0.538</td></tr>
-  <tr><td>식초</td><td>45</td><td>[40, 50]</td><td>초산 에스테르화 (숙성향)</td><td>0.582</td></tr>
-  <tr><td>전통주</td><td>40</td><td>[35, 45]</td><td>아미노산-당 반응 (발효 복합미)</td><td>0.631</td></tr>
-</table>
-
-<div class="note">
-  <strong>E<sub>a</sub> 출처:</strong> 와인류(샴페인/레드/화이트)는 PMC11202423(안토시아닌 분해 동역학)의 실측값,
-  위스키 에스테르화는 Conner et al. (2004), 사케 메일라드 반응은 Hodge (1953) 문헌값을 참조하였다.
-  커피·차·발효조미료의 E<sub>a</sub>는 유사 반응 메커니즘의 문헌 범위에서 추정하였으며,
-  Layer 2 AI(Gemini)가 카테고리 특성에 따라 추정치를 동적으로 보정할 수 있다.
-</div>
-
-<h4>4.2.2 마개(Closure) 산소 투과율 보정</h4>
-<p>
-  아레니우스 방정식만으로는 마개를 통한 산소 유입(Oxygen Ingress)의 영향을 반영할 수 없다.
-  해저에서는 수압이 높아 달턴의 법칙에 의해 코르크 기공의 산소 투과 구동력이 변하므로,
-  Closure Factor를 FRI에 곱하는 보정을 도입한다:
-</p>
-<div class="equation">
-  FRI<sub>adjusted</sub> = FRI<sub>arrhenius</sub> × (1 + OTR<sub>adjusted</sub> / 10)
-  <span class="label">(6a)</span>
-</div>
-<div class="equation">
-  OTR<sub>adjusted</sub> = OTR<sub>base</sub> × max(0.2, 1 − depth / 60)
-  <span class="label">(6b)</span>
-</div>
-<p>
-  여기서 <code>OTR<sub>base</sub></code>는 마개 유형별 기본 산소 투과율(mg O₂/year),
-  수심 보정은 60m 기준으로 선형 감소하며 최소 20%로 클램핑한다.
-  수압이 코르크 기공을 물리적으로 압축하여 투과율을 낮추는 효과를 반영한다.
-</p>
-
-<table>
-  <tr><th>마개 유형</th><th>OTR<sub>base</sub> (mg O₂/year)</th><th>수심 30m 보정 OTR</th><th>FRI 영향</th></tr>
-  <tr><td>크라운캡</td><td>0.0</td><td>0.0</td><td>없음 (완전 밀봉)</td></tr>
-  <tr><td>천연 코르크</td><td>1.2</td><td>0.6</td><td>+6% (산화 약간 가속)</td></tr>
-  <tr><td>압축 코르크</td><td>0.8</td><td>0.4</td><td>+4%</td></tr>
-  <tr><td>스크류캡</td><td>0.05</td><td>0.025</td><td>무시할 수준</td></tr>
-  <tr><td>유리 스토퍼</td><td>0.02</td><td>0.01</td><td>무시할 수준</td></tr>
-  <tr><td>밀랍 씰</td><td>0.3</td><td>0.15</td><td>+1.5%</td></tr>
-  <tr><td>도자기 마개</td><td>0.5</td><td>0.25</td><td>+2.5%</td></tr>
-  <tr><td>없음 (개방)</td><td>5.0</td><td>2.5</td><td>+25% (최대 산화)</td></tr>
-</table>
-
-<div class="note">
-  <strong>OTR 출처:</strong> Lopes et al. (2009) "Oxygen ingress through different closures
-  into wine bottles" 및 Godden et al. (2001) AWRI closure trial의 실측값을 참조.
-  스크류캡/크라운캡은 투과율이 거의 0이므로 아레니우스 감속(FRI)이 그대로 적용되고,
-  천연 코르크는 수압 비례로 OTR이 감소하지만 산소 유입에 의한 산화가 일부 가속될 수 있다.
-</div>
-
-<p>
-  향 신선도는 v4.0에서 <strong>3단계 비선형 감쇠 모델</strong>로 교체되었다.
-  기존의 단순 지수 감쇠(−0.10 × years)는 초기 신선 과일향 손실, 숙성향 전환기, 후기 향 피로를
-  구분하지 못하는 한계가 있었다. 새 모델은 실제 숙성 패턴에 가까운 3단계 곡선을 적용한다:
-</p>
-<div class="equation">
-  t = totalOxidationYears = baseYears + months × FRI<sub>adjusted</sub> × aromaDecay / 12
-  <span class="label">(7a)</span>
-</div>
-<div class="equation">
-  단계 1 (0 ≤ t &lt; 2년): score = 100 × exp(−0.15 × t) — 급감 (신선 과일향 손실)
-  <span class="label">(7b)</span>
-</div>
-<div class="equation">
-  단계 2 (2 ≤ t &lt; 3.5년): score = phase1End × exp(−0.05 × (t − 2)) — 안정 (숙성향 전환)
-  <span class="label">(7c)</span>
-</div>
-<div class="equation">
-  단계 3 (t ≥ 3.5년): score = phase2End × exp(−0.12 × (t − 3.5)) — 후기 급감 (향 피로)
-  <span class="label">(7d)</span>
-</div>
-<p>
-  여기서 <code>phase1End = 100 × exp(−0.15 × 2) ≈ 74.1</code>,
-  <code>phase2End = phase1End × exp(−0.05 × 1.5) ≈ 68.7</code>이다.
-  각 단계의 경계에서 연속적으로 이어지므로 점프 없는 매끄러운 곡선을 형성한다.
-</p>
-
-<table>
-  <caption>Table 4. 3단계 향 감쇠 모델 단계별 특성</caption>
-  <tr><th>단계</th><th>구간</th><th>감쇠율</th><th>화학적 근거</th></tr>
-  <tr><td>1. 급감기</td><td>0–2년</td><td>−0.15/년</td><td>1차 과일 에스테르, 티올 등 휘발성 아로마 급속 산화</td></tr>
-  <tr><td>2. 안정기</td><td>2–3.5년</td><td>−0.05/년</td><td>숙성향(브리오슈, 견과류, 토스트)으로의 전환; 1차 향 손실을 2차/3차 향이 상쇄</td></tr>
-  <tr><td>3. 후기 급감</td><td>3.5년+</td><td>−0.12/년</td><td>향 피로(olfactory fatigue), 잔존 에스테르 가수분해, 산화 과도 진행</td></tr>
-</table>
-
-<h3>4.3 BRI — 기포 안정화 지수 (Bubble Retention Index)</h3>
-
-<table>
-  <tr><th>속성</th><th>값</th></tr>
-  <tr><td>기본값</td><td>1.60</td></tr>
-  <tr><td>95% 신뢰구간</td><td>[1.37, 1.92]</td></tr>
-  <tr><td>근거 수준</td><td>헨리의 법칙 (Henry's Law)</td></tr>
-  <tr><td>의미</td><td>해저에서 기포가 지상 대비 1.6배 더 안정적으로 보존</td></tr>
-</table>
-
-<p>
-  BRI는 헨리의 법칙에 기반한 CO₂ 손실 구동력 비교로 도출된다.
-  샴페인 내부 압력을 6 bar로 가정할 때:
-</p>
-<div class="equation">
-  BRI = (P<sub>land_driving</sub> / P<sub>ocean_driving</sub>) × kH_ratio
-  <span class="label">(8)</span>
-</div>
-
-<p>구체적 계산:</p>
-<ul>
-  <li>지상 구동력: P<sub>bottle</sub> − P<sub>atm</sub> = 6 − 1 = 5 bar</li>
-  <li>해저 구동력 (수심 30m): P<sub>bottle</sub> − (1 + 30/10) = 6 − 4 = 2 bar</li>
-  <li>압력 비: 5 / 2 = 2.5</li>
-  <li>CO₂ 용해도 온도 보정: kH(4°C) / kH(12°C) ≈ 1 + 0.03 × (12 − 4) = 1.24</li>
-  <li>BRI 원시값 = 2.5 × 1.24 ≈ 3.10 → 실효값 1.60 (보정)</li>
-</ul>
-<p>
-  기포 미세화는 로그 성장 곡선으로 모델링된다:
-</p>
-<div class="equation">
-  bubbleRefinement = 40 + 60 × (1 − exp(−rate × months))
-  <span class="label">(9)</span>
-</div>
-<div class="equation">
-  rate = 0.08 × (BRI / 1.6) × min(depth / 30, 1.5)
-  <span class="label">(10)</span>
-</div>
-
-<h3>4.4 K-TCI — 운동학적 질감 계수 (Kinetic Texture Coefficient)</h3>
-
-<table>
-  <tr><th>속성</th><th>값</th></tr>
-  <tr><td>기본값</td><td>동적 (해양 환경에 따라 변동)</td></tr>
-  <tr><td>근거 수준</td><td>해양 역학 — 궤도 에너지 밀도</td></tr>
-  <tr><td>의미</td><td>해류·파고·파주기가 질감 발달에 미치는 운동학적 효과</td></tr>
-</table>
-
-<p>
-  K-TCI는 해저의 운동학적 에너지가 질감 발달에 미치는 추가 보정을 모델링한다.
-  해류속도, 파고, 파주기를 입력으로 받아 동적 보정 계수(kf)를 산출하며,
-  이 값이 TCI의 질감 성숙도 계산에 가산된다.
-</p>
-
-<div class="equation">
-  kf = f(currentVelocity, waveHeight, wavePeriod)
-  <span class="label">(10a)</span>
-</div>
-
-<p>
-  파주기(wave period)에 의한 보정은 궤도 에너지 밀도 관계에 기반한다:
-</p>
-<div class="equation">
-  E<sub>orbital</sub> ∝ H² / T
-  <span class="label">(10b)</span>
-</div>
-
-<p>구체적 보정 규칙:</p>
-<table>
-  <tr><th>파주기 범위</th><th>해석</th><th>kf 보정</th></tr>
-  <tr><td>&lt; 5초</td><td>풍파(wind wave) — 고주파 진동, 높은 에너지 밀도</td><td>+0.15</td></tr>
-  <tr><td>5–8초</td><td>보통 주기 — 표준 에너지</td><td>+0.05</td></tr>
-  <tr><td>8–12초</td><td>정상 범위 — 기본 수준</td><td>±0</td></tr>
-  <tr><td>&gt; 12초</td><td>너울(swell) — 완만한 움직임, 낮은 에너지</td><td>−0.05</td></tr>
-</table>
-
-<p>
-  해류속도 보정은 0.1 m/s 이상일 때 kf에 +0.1을 가산하고,
-  파고 보정은 0.5m 이상일 때 +0.1, 1.5m 이상일 때 +0.2을 가산한다.
-  최종 kf는 [0, 1.0] 범위로 클램핑된다.
-</p>
-
-<div class="note">
-  <strong>데이터 소스 (v4.0 업데이트):</strong> v3.1까지는 Open-Meteo Marine API의 전체 기간 통계 평균을 사용하였으나,
-  v4.0부터 KHOA 국립해양조사원의 실측 데이터(완도 DT_0027, 완도항 TW_0078)로 전환하였다.
-  14개월간 일별 수집된 데이터를 12개월 월별 프로파일로 집계하여
-  계절별 해양 환경 변동을 동적으로 반영한다 (7절 참조).
-  Open-Meteo 데이터는 KHOA 미지원 기간의 백필 및 교차 검증 용도로 유지한다.
-</div>
-
-<!-- ═══════════════════════════════════════════════════════════════════════ -->
-<!-- 5. 품질 점수 및 골든 윈도우 -->
-<!-- ═══════════════════════════════════════════════════════════════════════ -->
-<div class="pagebreak"></div>
-<h2>5. 복합 품질 점수 및 골든 윈도우 (Composite Quality & Golden Window)</h2>
-
-<h3>5.1 복합 품질 점수</h3>
-<p>
-  4개 지표(질감 성숙도, 향 신선도, 기포 미세화, 환원취 리스크)를
-  AI가 추론한 카테고리별 가중치(qualityWeights)로 합산한다:
-</p>
-<div class="equation">
-  compositeQuality = Σ(score<sub>i</sub> × weight<sub>i</sub>) + synergyBonus
-  <span class="label">(11)</span>
-</div>
-<p>
-  여기서 risk 지표는 <code>100 − offFlavorRisk</code>로 역전하여 높을수록 좋은 방향으로 통일한다.
-</p>
-
-<h4>개별 물리적 상한 (v4.0 변경)</h4>
-<p>
-  v3.1까지는 <code>compositeQuality</code>에 ±20점의 Conservative Cap(하드캡)을 적용하여
-  통계 모델 대비 과도한 이탈을 억제하였다. 그러나 이 방식은 카테고리 간 특성 차이를 무시하고
-  품질 점수의 표현 범위를 인위적으로 제한하는 문제가 있었다.
+  본 모델의 가장 큰 한계는 <strong>해저 숙성 실측 데이터가 0건</strong>이라는 점이다.
+  지상 숙성 리뷰 데이터에서 물리화학 모델로 해저 환경을 보정하는 접근은
+  결국 "지상 숙성 패턴이 보정 계수를 통해 해저로 전이 가능하다"는 가정에 의존한다.
+  이 가정의 검증은 실제 인양 후 블라인드 시음으로만 가능하다.
 </p>
 <p>
-  v4.0에서는 종합 캡을 제거하고, 개별 지표에 물리적 근거가 있는 상한/하한을 적용한다:
+  또한 Cross-sectional 데이터에서 시간 경과에 따른 변화를 추론하는 것은
+  Survivorship Bias를 내포한다 — 오래된 와인 리뷰는 품질이 뛰어나 살아남은 것만 포함되어
+  고령 구간의 품질이 과대평가될 수 있다.
 </p>
-<table>
-  <tr><th>지표</th><th>상한</th><th>하한</th><th>근거</th></tr>
-  <tr><td>질감 성숙도</td><td>95</td><td>—</td><td>완벽한 자가분해는 현실적으로 불가</td></tr>
-  <tr><td>기포 미세화</td><td>95</td><td>—</td><td>물리적 이상 상태(무한 미세화) 방지</td></tr>
-  <tr><td>향 신선도</td><td>—</td><td>15</td><td>잔여 3차 향(미네랄, 흙)은 완전 소멸하지 않음</td></tr>
-  <tr><td>환원취 리스크</td><td>95</td><td>—</td><td>100% 결함은 물리적으로 불가</td></tr>
-</table>
 
-<h4>시너지 보너스</h4>
+<h3>9.4 비교 시음 시스템의 역할</h3>
 <p>
-  4개 지표가 고르게 높을 때 추가 보너스가 발동된다:
+  인양 후 동일 제품의 지상 보관(대조군)과 해저 숙성(실험군)을 동시에 시음하여
+  해저 숙성의 순수 효과를 분리하는 비교 시음 시스템을 구축하였다.
+  지상 시음 데이터는 AI 전문가 프로파일과 7:3으로 블렌딩되어
+  투입 전 풍미 프로파일의 정확도를 향상시키며,
+  해저 시음 데이터는 베이지안 엔진에 공급되어 보정 계수를 자동 조정한다.
 </p>
-<ul>
-  <li>균형도(harmony) = min(scores) / max(scores)</li>
-  <li>평균 ≥ 60점 이고 harmony ≥ 0.5일 때 활성화</li>
-  <li>최대 +15점: <code>15 × avgFactor × harmonyFactor</code></li>
-</ul>
 
-<h3>5.2 골든 윈도우 (최적 인양 시기)</h3>
-<p>
-  1–36개월 각 월별 복합 품질 점수를 계산한 뒤:
-</p>
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- 10. 한계 및 향후 연구 -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<h2>10. 한계 및 향후 연구 (Limitations & Future Work)</h2>
+
 <ol>
-  <li>피크 월(최고 점수 월) 탐색</li>
-  <li>피크 점수의 95% 이상인 연속 구간 = 골든 윈도우</li>
-  <li>윈도우 최대 폭 12개월 제한</li>
-  <li>환원 성향 'high'인 경우 윈도우 뒷부분 2개월 축소</li>
+  <li><strong>실측 검증 부재:</strong> 해저 숙성 예측이 한 번도 실측 데이터로 검증되지 않았다.
+    첫 인양(2026년 하반기 예정) 후 블라인드 시음으로 모델 정확도를 측정할 계획이다.</li>
+  <li><strong>TCI 불확실성:</strong> 95% CI [0.06, 0.54]로 불확실성이 매우 크다.
+    실측 데이터 20건 이상 축적 시 94% 분산 축소를 기대한다.</li>
+  <li><strong>NLP 추출 검증:</strong> 인간 평가자와의 일치도(inter-annotator agreement, Cohen's kappa)가
+    측정되지 않았다. 전문 소믈리에의 블라인드 평가와의 비교가 필요하다.</li>
+  <li><strong>앙상블 비율:</strong> 7:3 비율은 경험적 선택이다. 인양 데이터 축적 후
+    5:5, 6:4, 7:3, 8:2 비율의 교차 검증 비교가 필요하다.</li>
+  <li><strong>Ablation Study:</strong> Layer 1만, Layer 2만, XGBoost만의 독립 성능 비교가
+    수행되지 않았다.</li>
+  <li><strong>Baseline 비교:</strong> 단순 평균 예측, 선형 회귀 등 기본 baseline과의
+    성능 비교가 없다.</li>
+  <li><strong>비교 시음 프로토콜:</strong> 시음자 수, 블라인딩 방법, 무작위화 등
+    실험 설계의 세부 사항이 아직 확정되지 않았다.</li>
 </ol>
 
-<!-- 숙성 타임라인 차트 -->
-<div class="chart-container">
-<svg viewBox="0 0 680 300" xmlns="http://www.w3.org/2000/svg" style="font-family:'Noto Sans KR',sans-serif;">
-  <!-- 배경 -->
-  <rect x="55" y="15" width="600" height="235" fill="#fafaf8" rx="4"/>
-  <!-- 골든 윈도우 영역 (9~18개월) -->
-  <rect x="187" y="15" width="148" height="235" fill="#C4A052" opacity="0.08"/>
-  <text x="261" y="12" font-size="7" fill="#C4A052" text-anchor="middle" font-weight="500">Golden Window</text>
-  <!-- 그리드 -->
-  <g stroke="#e8e8e8" stroke-width="0.5">
-    <line x1="55" y1="62" x2="655" y2="62"/>
-    <line x1="55" y1="109" x2="655" y2="109"/>
-    <line x1="55" y1="156" x2="655" y2="156"/>
-    <line x1="55" y1="203" x2="655" y2="203"/>
-  </g>
-  <!-- Y축 라벨 -->
-  <text x="8" y="28" font-size="7.5" fill="#666" font-weight="500">품질 점수</text>
-  <text x="48" y="19" font-size="7" fill="#999" text-anchor="end">100</text>
-  <text x="48" y="66" font-size="7" fill="#999" text-anchor="end">80</text>
-  <text x="48" y="113" font-size="7" fill="#999" text-anchor="end">60</text>
-  <text x="48" y="160" font-size="7" fill="#999" text-anchor="end">40</text>
-  <text x="48" y="207" font-size="7" fill="#999" text-anchor="end">20</text>
-  <text x="48" y="254" font-size="7" fill="#999" text-anchor="end">0</text>
-  <!-- X축 (월) -->
-  <g font-size="7.5" fill="#666" text-anchor="middle">
-    <text x="71" y="268">1</text><text x="88" y="268">3</text>
-    <text x="121" y="268">6</text><text x="171" y="268">9</text>
-    <text x="220" y="268">12</text><text x="270" y="268">15</text>
-    <text x="319" y="268">18</text><text x="369" y="268">21</text>
-    <text x="418" y="268">24</text><text x="468" y="268">27</text>
-    <text x="518" y="268">30</text><text x="567" y="268">33</text>
-    <text x="617" y="268">36</text>
-  </g>
-  <text x="350" y="288" font-size="8" fill="#666" text-anchor="middle">숙성 기간 (개월)</text>
-  <!-- 복합 품질 곡선 (샴페인 예시) -->
-  <defs>
-    <linearGradient id="qualityGrad" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#C4A052" stop-opacity="0.3"/>
-      <stop offset="100%" stop-color="#C4A052" stop-opacity="0.02"/>
-    </linearGradient>
-  </defs>
-  <polygon points="71,203 88,174 121,138 171,100 204,82 220,72 237,65 253,58 270,54 286,52 303,53 319,55 335,59 352,64 369,70 385,78 402,86 418,95 435,104 451,114 468,124 484,134 501,143 518,152 534,160 551,167 567,174 584,180 600,185 617,190 617,250 71,250"
-    fill="url(#qualityGrad)"/>
-  <polyline points="71,203 88,174 121,138 171,100 204,82 220,72 237,65 253,58 270,54 286,52 303,53 319,55 335,59 352,64 369,70 385,78 402,86 418,95 435,104 451,114 468,124 484,134 501,143 518,152 534,160 551,167 567,174 584,180 600,185 617,190"
-    fill="none" stroke="#C4A052" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-  <!-- 향 신선도 곡선 (점선) -->
-  <polyline points="71,62 88,74 121,95 171,120 204,133 220,140 237,146 253,151 270,155 286,159 303,163 319,167 335,170 352,174 369,178 385,181 402,185 418,188 435,191 451,194 468,197 484,199 501,201 518,203 534,205 551,207 567,209 584,211 600,212 617,213"
-    fill="none" stroke="#22d3ee" stroke-width="1.5" stroke-dasharray="5,3" opacity="0.7"/>
-  <!-- 질감 성숙도 곡선 (점선) -->
-  <polyline points="71,226 88,218 121,200 171,172 204,152 220,140 237,128 253,118 270,108 286,100 303,93 319,87 335,82 352,78 369,74 385,71 402,68 418,66 435,64 451,63 468,62 484,61 501,60 518,60 534,60 551,59 567,59 584,59 600,58 617,58"
-    fill="none" stroke="#a78bfa" stroke-width="1.5" stroke-dasharray="5,3" opacity="0.7"/>
-  <!-- Peak 마커 (14개월) -->
-  <line x1="286" y1="15" x2="286" y2="250" stroke="#C4A052" stroke-width="1" stroke-dasharray="3,3"/>
-  <circle cx="286" cy="52" r="4" fill="#C4A052"/>
-  <text x="286" y="42" font-size="7" fill="#C4A052" text-anchor="middle" font-weight="700">Peak</text>
-  <!-- 효율 최적점 마커 (10개월) -->
-  <line x1="204" y1="15" x2="204" y2="250" stroke="#22c55e" stroke-width="1" stroke-dasharray="3,3"/>
-  <circle cx="204" cy="82" r="3.5" fill="#22c55e"/>
-  <text x="204" y="42" font-size="6.5" fill="#22c55e" text-anchor="middle" font-weight="500">추천</text>
-  <!-- 범례 -->
-  <g transform="translate(70, 280)">
-    <line x1="0" y1="0" x2="18" y2="0" stroke="#C4A052" stroke-width="2.5"/>
-    <text x="22" y="3" font-size="7.5" fill="#555">복합 품질</text>
-    <line x1="100" y1="0" x2="118" y2="0" stroke="#22d3ee" stroke-width="1.5" stroke-dasharray="5,3"/>
-    <text x="122" y="3" font-size="7.5" fill="#555">향 신선도</text>
-    <line x1="200" y1="0" x2="218" y2="0" stroke="#a78bfa" stroke-width="1.5" stroke-dasharray="5,3"/>
-    <text x="222" y="3" font-size="7.5" fill="#555">질감 성숙도</text>
-    <rect x="310" y="-5" width="12" height="10" fill="#C4A052" opacity="0.15" rx="1"/>
-    <text x="326" y="3" font-size="7.5" fill="#555">골든 윈도우</text>
-    <circle cx="410" cy="0" r="3" fill="#22c55e"/>
-    <text x="416" y="3" font-size="7.5" fill="#555">효율 최적점</text>
-    <circle cx="494" cy="0" r="3" fill="#C4A052"/>
-    <text x="500" y="3" font-size="7.5" fill="#555">Peak</text>
-  </g>
-</svg>
-<div class="chart-title">Figure 2. 숙성 타임라인 예시 (Champagne) — 복합 품질, 향 신선도, 질감 성숙도, 골든 윈도우, 의사결정 마커</div>
-</div>
-
-<h3>5.3 타임라인 의사결정 마커 (v4.0 신규)</h3>
-<p>
-  v4.0에서는 타임라인 차트에 세 가지 의사결정 마커를 표시하여
-  인양 시기 판단을 지원한다:
-</p>
-<table>
-  <tr><th>마커</th><th>정의</th><th>의미</th></tr>
-  <tr>
-    <td><strong>추천 (효율 최적점)</strong></td>
-    <td>Peak 품질 − 4점 이내에 처음 도달하는 시점</td>
-    <td>품질 대비 비용 효율이 최적인 인양 시기. Peak까지 기다리는 추가 기간의 한계 편익이 4점 미만이므로, 비용(침지 유지비, 리스크 누적)을 고려하면 이 시점이 실용적 최적이다.</td>
-  </tr>
-  <tr>
-    <td><strong>Peak</strong></td>
-    <td>36개월 범위 내 최고 복합 품질 점수 시점</td>
-    <td>이론적 최고 품질. 비용 제약이 없다면 이 시점까지 숙성하는 것이 이상적이다.</td>
-  </tr>
-  <tr>
-    <td><strong>계획 기간</strong></td>
-    <td>사용자가 설정한 <code>plannedDurationMonths</code> 시점의 수직선</td>
-    <td>실제 예정된 인양 시기를 시각적으로 표시하여 추천/Peak과 비교할 수 있게 한다.</td>
-  </tr>
-</table>
-
-<h3>5.4 Off-Flavor 리스크 모델</h3>
-<p>
-  환원 성향(reductionPotential)에 따른 초기 리스크에 시간 경과 시그모이드 성장을 가산한다:
-</p>
-<div class="equation">
-  risk = baseRisk + maxAdditional / (1 + exp(−0.2 × (months − inflection)))
-  <span class="label">(12)</span>
-</div>
-
-<table>
-  <caption>Table 3. 환원 성향별 Off-Flavor 리스크 파라미터</caption>
-  <tr><th>환원 성향</th><th>초기 리스크</th><th>최대 추가</th><th>변곡점(월)</th></tr>
-  <tr><td>low</td><td>5</td><td>20</td><td>22</td></tr>
-  <tr><td>medium</td><td>10</td><td>30</td><td>18</td></tr>
-  <tr><td>high</td><td>20</td><td>40</td><td>15</td></tr>
-</table>
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- 11. 결론 -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<h2>11. 결론 (Conclusion)</h2>
 
 <p>
-  질감 성숙도가 70 이상이면 리스크를 최대 15% 감소시킨다 (성숙한 와인의 환원 결함 자연 감소 반영).
-  추가로 AI가 추론한 <code>riskMult</code> 배수가 적용된다.
-</p>
-
-<h4>5.3.1 수온 의존성 (v4.0 신규)</h4>
-<p>
-  v4.0에서는 환원취 발생 속도에 해수 온도 의존성을 도입하였다.
-  기존 모델은 환원취를 오직 시간의 함수로만 계산했으나,
-  혐기 환경에서의 황 화합물 생성 반응은 온도에 의존하므로 수온 보정이 필요하다:
-</p>
-<div class="equation">
-  tempFactor = 1 + (seaTemperature − 10) × 0.03
-  <span class="label">(12a)</span>
-</div>
-<div class="equation">
-  risk<sub>adjusted</sub> = risk × tempFactor
-  <span class="label">(12b)</span>
-</div>
-<p>
-  기준 온도 10°C 대비, 여름 고온(예: 18°C)에서는 <code>tempFactor = 1.24</code>로
-  환원취 발생이 최대 +24% 가속되며,
-  겨울 저수온(예: 4°C)에서는 <code>tempFactor = 0.82</code>로 최대 −18% 억제된다.
-  KHOA 월별 해양 프로파일에서 해당 월의 해저 수온을 읽어 동적으로 적용한다.
-</p>
-
-<!-- ═══════════════════════════════════════════════════════════════════════ -->
-<!-- 6. 카테고리별 동적 파라미터화 -->
-<!-- ═══════════════════════════════════════════════════════════════════════ -->
-<h2>6. 다중 카테고리 확장 아키텍처 (Multi-Category Architecture)</h2>
-
-<h3>6.1 카테고리 분기 설계</h3>
-<p>
-  10개 카테고리는 물리화학적 특성이 근본적으로 다르므로, 단일 모델로 모든 카테고리를 다루는 것은 부적절하다.
-  UAPS는 다음 세 가지 수준에서 카테고리별 분기를 구현한다:
-</p>
-<ol>
-  <li><strong>폼 분기</strong>: 제품 등록 시 카테고리에 따라 표시 필드를 동적 변경
-    (예: 샴페인만 dosage 표시, 비주류는 alcohol 숨김)</li>
-  <li><strong>환원 체크리스트 분기</strong>: 카테고리별 고유 체크리스트
-    (예: 위스키 피트 레벨, 사케 생주 여부, 커피 로스트 레벨)</li>
-  <li><strong>보정 계수 분기</strong>: AI가 agingFactors/qualityWeights를 카테고리별로 실시간 추론</li>
-</ol>
-
-<h3>6.2 환원 성향 자동 산출</h3>
-<p>
-  기존의 수동 low/medium/high 선택 대신, 카테고리별 체크리스트의 가중 합산으로 자동 산출한다.
-  각 항목은 가중치(weight)와 그룹(group)을 가지며, 같은 그룹 내 항목은 라디오 선택(하나만),
-  비그룹 항목은 복수 선택이 가능하다.
-</p>
-<div class="equation">
-  reductionScore = Σ(checked_item.weight)
-  <span class="label">(13)</span>
-</div>
-<div class="equation">
-  reductionPotential = score ≥ 3 → 'high' | score ≥ 1 → 'medium' | else → 'low'
-  <span class="label">(14)</span>
-</div>
-
-<!-- ═══════════════════════════════════════════════════════════════════════ -->
-<!-- 7. Sea Lab 해양 데이터 통합 (v4.0 신규) -->
-<!-- ═══════════════════════════════════════════════════════════════════════ -->
-<div class="pagebreak"></div>
-<h2>7. Sea Lab 해양 데이터 통합 (v4.0 신규)</h2>
-
-<p>
-  v3.1까지는 Open-Meteo API의 전체 기간 통계 평균(단일 대표값)을 사용하여 해양 환경을 반영하였다.
-  v4.0에서는 KHOA(국립해양조사원) 실측 데이터를 직접 연동하여 <strong>월별 해양 프로파일</strong>을
-  구축하고, 숙성 기간 중 계절 변동을 동적으로 반영하는 구조로 전환하였다.
-</p>
-
-<h3>7.1 데이터 수집</h3>
-
-<p>
-  KHOA 바다누리 해양정보 서비스의 11개 오픈 API를 연동하여 다음 관측소에서 데이터를 수집한다:
-</p>
-
-<table>
-  <caption>Table 5. KHOA 관측소 및 데이터 항목</caption>
-  <tr><th>관측소</th><th>코드</th><th>유형</th><th>수집 항목</th></tr>
-  <tr><td>완도 조위관측소</td><td>DT_0027</td><td>조위관측소</td><td>수온, 염분, 기압, 조위</td></tr>
-  <tr><td>완도항 해양관측부이</td><td>TW_0078</td><td>해양관측부이</td><td>유향, 유속, 파고, 파주기</td></tr>
-  <tr><td>외모군도남측</td><td>20LTC03</td><td>조류예보</td><td>조류 유속·유향 (거리 15.3km)</td></tr>
-</table>
-
-<p>
-  수집 기간은 2025년 1월부터 현재까지 14개월이며,
-  일별 데이터를 12개월(1–12월) 월별 프로파일로 집계하여 계절 패턴을 추출한다.
-  API 연동에는 수온(tideObsTemp), 염분(tideObsSalt), 기압(tideObsAirPres),
-  조위(tideObsPre), 해수유향유속(oceanlCurrents), 파고/파주기(waveHight) 등의 엔드포인트를 사용한다.
-</p>
-
-<h3>7.2 깊이 보정 (SST → 해저 수온)</h3>
-<p>
-  KHOA 관측소는 표층 수온(SST, Sea Surface Temperature)을 측정한다.
-  해저 숙성 환경(목표 수심 약 40m)의 실제 수온을 추정하기 위해
-  <strong>blending ratio 모델</strong>을 적용한다:
-</p>
-<div class="equation">
-  bottomTemp = SST × ratio + DEEP_BASE × (1 − ratio)
-  <span class="label">(15)</span>
-</div>
-<p>
-  여기서 <code>DEEP_BASE = 8°C</code>는 한국 남해 심층 기저 온도(연중 안정),
-  <code>ratio</code>는 월별로 변하는 표층-저층 연동 비율이다.
-</p>
-
-<table>
-  <caption>Table 6. 월별 blending ratio (40m 기준)</caption>
-  <tr><th>월</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th><th>6</th><th>7</th><th>8</th><th>9</th><th>10</th><th>11</th><th>12</th></tr>
-  <tr><td>ratio</td><td>0.92</td><td>0.90</td><td>0.85</td><td>0.75</td><td>0.65</td><td>0.55</td><td>0.50</td><td>0.50</td><td>0.55</td><td>0.65</td><td>0.80</td><td>0.88</td></tr>
-  <tr><td>해석</td><td colspan="3">겨울: 혼합층 깊어 표층≈저층</td><td colspan="3">봄: 열성층 형성 시작</td><td colspan="2">여름: 최강 열성층, 표층/저층 괴리 최대</td><td colspan="2">가을: 열성층 약화</td><td colspan="2">초겨울: 혼합 회복</td></tr>
-</table>
-
-<p>
-  겨울(12–2월)에는 ratio가 0.88–0.92로 높아 표층과 저층이 거의 동일하고,
-  여름(7–8월)에는 0.50으로 낮아 표층 수온의 절반만 저층에 반영된다.
-  수심이 40m보다 깊으면 ratio를 추가로 감소시키는 스케일링을 적용한다.
-</p>
-
-<!-- 월별 해양 프로파일 차트 (Sea Lab) -->
-<div class="chart-container">
-<svg viewBox="0 0 680 320" xmlns="http://www.w3.org/2000/svg" style="font-family:'Noto Sans KR',sans-serif;">
-  <!-- 배경 -->
-  <rect x="60" y="20" width="580" height="240" fill="#f8fafb" rx="4"/>
-  <!-- 그리드 -->
-  <g stroke="#e0e0e0" stroke-width="0.5">
-    <line x1="60" y1="80" x2="640" y2="80"/>
-    <line x1="60" y1="140" x2="640" y2="140"/>
-    <line x1="60" y1="200" x2="640" y2="200"/>
-  </g>
-  <!-- Y축 라벨 (수온 °C) -->
-  <text x="8" y="30" font-size="8" fill="#666" font-weight="500">°C / psu</text>
-  <text x="50" y="24" font-size="7.5" fill="#999" text-anchor="end">25</text>
-  <text x="50" y="84" font-size="7.5" fill="#999" text-anchor="end">20</text>
-  <text x="50" y="144" font-size="7.5" fill="#999" text-anchor="end">15</text>
-  <text x="50" y="204" font-size="7.5" fill="#999" text-anchor="end">10</text>
-  <text x="50" y="256" font-size="7.5" fill="#999" text-anchor="end">5</text>
-  <!-- X축 월 라벨 -->
-  <g font-size="8" fill="#666" text-anchor="middle">
-    <text x="108" y="275">1월</text><text x="156" y="275">2월</text>
-    <text x="204" y="275">3월</text><text x="253" y="275">4월</text>
-    <text x="301" y="275">5월</text><text x="349" y="275">6월</text>
-    <text x="397" y="275">7월</text><text x="446" y="275">8월</text>
-    <text x="494" y="275">9월</text><text x="542" y="275">10월</text>
-    <text x="590" y="275">11월</text><text x="638" y="275">12월</text>
-  </g>
-  <!-- 표층 수온 (SST) — 연한 빨강 -->
-  <polyline points="108,192 156,196 204,180 253,148 301,112 349,72 397,40 446,36 494,60 542,108 590,156 638,184"
-    fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-  <!-- 해저 수온 (40m 보정) — 파랑 -->
-  <polyline points="108,196 156,200 204,192 253,172 301,160 349,148 397,140 446,140 494,148 542,160 590,180 638,192"
-    fill="none" stroke="#3b82f6" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-  <!-- 해저 수온 영역 -->
-  <polygon points="108,196 156,200 204,192 253,172 301,160 349,148 397,140 446,140 494,148 542,160 590,180 638,192 638,260 108,260"
-    fill="#3b82f6" opacity="0.08"/>
-  <!-- 염분 (초록, 우측 스케일) — 대략 32~34 psu, 스케일 맞춤 -->
-  <polyline points="108,110 156,106 204,100 253,96 301,102 349,108 397,116 446,118 494,112 542,104 590,98 638,106"
-    fill="none" stroke="#22c55e" stroke-width="1.8" stroke-dasharray="6,3" stroke-linecap="round" stroke-linejoin="round"/>
-  <!-- 범례 -->
-  <g transform="translate(80, 292)">
-    <line x1="0" y1="0" x2="20" y2="0" stroke="#ef4444" stroke-width="2"/>
-    <text x="24" y="3.5" font-size="8" fill="#555">표층 수온 (SST)</text>
-    <line x1="140" y1="0" x2="160" y2="0" stroke="#3b82f6" stroke-width="2.5"/>
-    <text x="164" y="3.5" font-size="8" fill="#555">해저 수온 (40m 보정)</text>
-    <line x1="320" y1="0" x2="340" y2="0" stroke="#22c55e" stroke-width="1.8" stroke-dasharray="6,3"/>
-    <text x="344" y="3.5" font-size="8" fill="#555">염분 (psu)</text>
-  </g>
-</svg>
-<div class="chart-title">Figure 1. 완도 해역 월별 해양 프로파일 — 표층 수온, 해저 수온(40m blending ratio 보정), 염분 연간 추이</div>
-</div>
-
-<h3>7.3 월별 프로파일 → 엔진 주입</h3>
-<p>
-  구축된 12개월 월별 해양 프로파일은 엔진의 <code>generateTimelineData()</code> 함수에
-  <code>monthlyOceanProfiles</code> 배열과 <code>immersionMonth</code>(투하 월)로 전달된다.
-  숙성 n개월차의 달력 월을 계산하여 해당 월의 해양 프로파일을 읽고,
-  FRI/BRI/K-TCI를 월별로 동적으로 계산한다:
-</p>
-
-<table>
-  <caption>Table 7. 월별 동적 보정 계수 적용 방식</caption>
-  <tr><th>보정 계수</th><th>입력</th><th>월별 동적 계산 방식</th></tr>
-  <tr>
-    <td>FRI</td>
-    <td>해저 수온 (깊이 보정 적용)</td>
-    <td>아레니우스 방정식에 월별 해저 수온 대입 → 계절별 산화 속도 변화 반영</td>
-  </tr>
-  <tr>
-    <td>BRI</td>
-    <td>해저 수온</td>
-    <td>헨리의 법칙 kH 온도 보정에 월별 수온 적용 → 계절별 CO₂ 용해도 변화 반영</td>
-  </tr>
-  <tr>
-    <td>K-TCI (kf)</td>
-    <td>해류 유속, 파고, 파주기</td>
-    <td>월별 평균 유속·파고·파주기로 kineticFactor 산출 → 계절별 운동학적 에너지 변화 반영</td>
-  </tr>
-  <tr>
-    <td>환원취 tempFactor</td>
-    <td>해저 수온</td>
-    <td>식 (12a)에 월별 수온 대입 → 여름 가속 / 겨울 억제</td>
-  </tr>
-</table>
-
-<h4>TSI (Temperature Stability Index)</h4>
-<p>
-  추가로 연간 수온 안정성 지수를 산출한다:
-</p>
-<div class="equation">
-  TSI = 1 / (1 + σ<sub>monthly</sub> × depthCorrectionFactor)
-  <span class="label">(16)</span>
-</div>
-<p>
-  여기서 σ<sub>monthly</sub>는 12개월 해저 수온의 표준편차, depthCorrectionFactor는 수심에 따른 안정성 보정이다.
-  TSI가 1에 가까울수록 연중 온도 변화가 작아 예측 안정성이 높다.
-</p>
-
-<!-- ═══════════════════════════════════════════════════════════════════════ -->
-<!-- 8. AI 정보 찾기 (v4.0 신규) -->
-<!-- ═══════════════════════════════════════════════════════════════════════ -->
-<h2>8. AI 정보 찾기 (v4.0 신규)</h2>
-
-<p>
-  v4.0에서는 제품 등록 시 사용자의 입력 부담을 줄이기 위해
-  <strong>Gemini 3 Flash + Google Search Grounding</strong> 기반 자동 정보 채움 기능을 도입하였다.
-  사용자가 제품명을 입력하면 AI가 웹 검색을 통해 다음 정보를 자동으로 채운다:
-</p>
-
-<table>
-  <caption>Table 8. AI 정보 찾기 자동 채움 필드</caption>
-  <tr><th>필드</th><th>예시</th><th>출처</th></tr>
-  <tr><td>서브타입</td><td>Brut Nature, Junmai Daiginjo</td><td>생산자 공식 사이트, 전문 리뷰</td></tr>
-  <tr><td>빈티지</td><td>2018</td><td>라벨 정보, 유통 데이터</td></tr>
-  <tr><td>pH</td><td>3.1</td><td>기술 데이터 시트</td></tr>
-  <tr><td>dosage (g/L)</td><td>6</td><td>생산자 기술 정보</td></tr>
-  <tr><td>alcohol (%)</td><td>12.5</td><td>라벨 정보</td></tr>
-  <tr><td>마개 유형</td><td>천연 코르크</td><td>제품 설명</td></tr>
-  <tr><td>지상 숙성 기간</td><td>36개월</td><td>생산자 숙성 기록</td></tr>
-  <tr><td>환원 체크리스트</td><td>감환원 발효, 장기 앙금 접촉</td><td>양조 공정 정보 추론</td></tr>
-</table>
-
-<p>
-  AI가 찾은 정보는 자동으로 폼에 채워지되, 사용자가 최종 확인 및 수정할 수 있다.
-  검색 결과에서 확인할 수 없는 필드는 빈 상태로 남겨 사용자가 직접 입력하도록 한다.
-  Google Search Grounding을 사용하므로 최신 제품 정보까지 반영할 수 있다.
-</p>
-
-<!-- v5.0 sections -->
-<div class="pagebreak"></div>
-<h2>9. 비교 시음 시스템 (v5.0 신규)</h2>
-
-<h3>9.1 실험 설계</h3>
-<p>
-  v5.0에서는 해저 숙성 효과를 객관적으로 평가하기 위한 <strong>비교 시음(Comparative Tasting)</strong> 시스템을 도입하였다.
-  동일 제품을 지상 보관(대조군)과 해저 숙성(실험군)으로 나누어 동시에 시음하고,
-  6축 풍미 점수를 각각 기록한다.
-</p>
-
-<table>
-  <caption>Table 9. 비교 시음 데이터 구조 (retrieval_results 테이블)</caption>
-  <tr><th>필드</th><th>지상 보관 (대조군)</th><th>해저 숙성 (실험군)</th></tr>
-  <tr><td>과실향</td><td><code>terrestrial_fruity</code></td><td><code>actual_fruity</code></td></tr>
-  <tr><td>플로럴·미네랄</td><td><code>terrestrial_floral_mineral</code></td><td><code>actual_floral_mineral</code></td></tr>
-  <tr><td>효모·숙성향</td><td><code>terrestrial_yeasty_autolytic</code></td><td><code>actual_yeasty_autolytic</code></td></tr>
-  <tr><td>산도·상쾌함</td><td><code>terrestrial_acidity_freshness</code></td><td><code>actual_acidity_freshness</code></td></tr>
-  <tr><td>바디감·질감</td><td><code>terrestrial_body_texture</code></td><td><code>actual_body_texture</code></td></tr>
-  <tr><td>여운·복합미</td><td><code>terrestrial_finish_complexity</code></td><td><code>actual_finish_complexity</code></td></tr>
-  <tr><td>종합 품질</td><td><code>terrestrial_overall_quality</code></td><td><code>actual_overall_quality</code></td></tr>
-</table>
-
-<h3>9.2 시음-예측 블렌딩</h3>
-<p>
-  지상 보관 시음 데이터가 있는 경우, AI 전문가 프로파일과 블렌딩하여
-  보다 정확한 투입 전 풍미 프로파일(beforeProfile)을 산출한다:
-</p>
-<div class="equation">
-  beforeProfile(axis) = tasting_score(axis) × 0.7 + AI_expert(axis) × 0.3
-  <span class="label">(17)</span>
-</div>
-<p>
-  시음 데이터(실측)에 70% 가중치를, AI 전문가 추론에 30% 가중치를 부여하여
-  실측의 신뢰성과 AI의 일반화 능력을 균형있게 활용한다.
-  시음 데이터가 없으면 AI 프로파일 100%로 폴백한다.
-</p>
-
-<h2>10. 베이지안 계수 업데이트 (v5.0 신규)</h2>
-
-<h3>10.1 Conjugate Normal-Normal 모델</h3>
-<p>
-  UAPS의 핵심 불확실성인 보정 계수(TCI, FRI, BRI)를 인양 실측 데이터로
-  <strong>베이지안 업데이트</strong>하는 엔진을 구현하였다.
-  Conjugate Normal-Normal 모델을 사용하므로 MCMC 없이 해석적 닫힌 형태(closed-form)로 업데이트된다.
-</p>
-
-<div class="equation">
-  사전분포: μ ~ N(μ₀, σ₀²)
-  <span class="label">(18a)</span>
-</div>
-<div class="equation">
-  우도: x | μ ~ N(μ, σ_obs²)
-  <span class="label">(18b)</span>
-</div>
-<div class="equation">
-  사후분포: μ₁ = (μ₀/σ₀² + n·x̄/σ_obs²) / (1/σ₀² + n/σ_obs²)
-  <span class="label">(18c)</span>
-</div>
-<div class="equation">
-  σ₁² = 1 / (1/σ₀² + n/σ_obs²)
-  <span class="label">(18d)</span>
-</div>
-
-<table>
-  <caption>Table 10. 보정 계수 사전분포</caption>
-  <tr><th>계수</th><th>사전 평균 (μ₀)</th><th>사전 분산 (σ₀²)</th><th>관측 분산 (σ_obs²)</th></tr>
-  <tr><td>TCI</td><td>0.40</td><td>0.04</td><td>0.05</td></tr>
-  <tr><td>FRI</td><td>0.56</td><td>0.02</td><td>0.05</td></tr>
-  <tr><td>BRI</td><td>0.72</td><td>0.02</td><td>0.05</td></tr>
-</table>
-
-<p>
-  관측 데이터가 축적될수록 사후 분산이 줄어들어 계수 추정의 확실성이 증가한다.
-  분산 축소율(convergenceRate = 1 − σ₁²/σ₀²)이 모니터링되며,
-  10건 이상의 인양 데이터에서 약 50% 이상의 분산 축소가 예상된다.
-</p>
-
-<h3>10.2 시뮬레이션 엔진</h3>
-<p>
-  실제 인양 데이터가 충분하지 않은 현 단계에서 베이지안 엔진을 검증하기 위해
-  <strong>가상 인양 데이터 생성기(Simulation Engine)</strong>를 구현하였다.
-  Box-Muller 변환으로 정규분포 노이즈(기본 ±10%)를 예측값에 추가하여 가상 실측 데이터를 생성하고,
-  이를 베이지안 엔진에 공급하여 계수 수렴 패턴을 사전 검증한다.
-</p>
-
-<!-- ═══════════════════════════════════════════════════════════════════════ -->
-<!-- 11. 한계 및 향후 계획 -->
-<!-- ═══════════════════════════════════════════════════════════════════════ -->
-<div class="pagebreak"></div>
-<h2>11. 한계 및 향후 계획 (Limitations & Future Work)</h2>
-
-<h3>11.1 해결된 한계</h3>
-<table>
-  <tr><th>한계</th><th>해결 방법</th></tr>
-  <tr><td>단면 데이터 추론 편향</td><td>Pseudo-cohort t=0 앵커 고정 방식 적용 (식 2)</td></tr>
-  <tr><td>숙성 연수 고정값 사용</td><td>소믈리에 실측 → 빈티지 계산 → AI 추론 → 평균값 4단계 우선순위</td></tr>
-  <tr><td>숙성 연수 신뢰도 불명확</td><td>3단계 신뢰도 체계 + 0.75 미만 필터링</td></tr>
-  <tr><td>샴페인 전용 하드코딩</td><td>10개 카테고리 확장 + AI 실시간 계수 추론</td></tr>
-  <tr><td>NLP 풍미 추출 미완</td><td>112K건 전체 Ollama LLM 배치 추출 완료</td></tr>
-  <tr><td>해양 데이터 단일 평균값 사용</td><td>KHOA 실측 데이터 기반 월별 프로파일로 계절 변동 동적 반영 (v4.0)</td></tr>
-  <tr><td>향 감쇠 단순 지수 모델</td><td>3단계 비선형 감쇠 모델 도입: 급감-안정-후기 급감 (v4.0)</td></tr>
-  <tr><td>Conservative Cap ±20점 하드캡</td><td>종합 캡 제거, 개별 물리적 상한(질감/기포 max 95, 향 min 15) 적용 (v4.0)</td></tr>
-  <tr><td>AI 추론 일관성 부족</td><td>Chain-of-Thought 5단계 강제 + 카테고리별 전문가 역할 + Few-shot 예시 (v5.0)</td></tr>
-  <tr><td>통계 모델만 의존</td><td>XGBoost ML 6축 독립 모델 추가 — 103K건 학습, 교차 검증 (v5.0)</td></tr>
-  <tr><td>실측 데이터 활용 불가</td><td>비교 시음 시스템 + 베이지안 업데이트 엔진 도입 (v5.0)</td></tr>
-</table>
-
-<h3>11.2 현존하는 한계</h3>
-<ol>
-  <li><strong>TCI 미검증</strong>: 95% CI [0.06, 0.54]로 불확실성이 매우 크다.
-    실제 인양 후 블라인드 시음 데이터로만 검증 가능하며, 베이지안 업데이트를 계획하고 있다.</li>
-  <li><strong>Survivorship Bias</strong>: 오래된 와인 리뷰는 품질이 뛰어나 살아남은 것만 남아,
-    고령 구간 클러스터의 품질이 과대평가될 수 있다.</li>
-  <li><strong>카테고리별 보정 계수 실측 검증 필요</strong>: AI가 추론하는 agingFactors/qualityWeights는
-    학습 데이터 기반 추정이며, 각 카테고리의 실제 해저 숙성 결과로 검증이 필요하다.</li>
-  <li><strong>비주류 카테고리 데이터 불균형</strong>: 식초(702건), 위스키(435건) 등은 통계적 신뢰도가 제한적이다.
-    추가 데이터 수집 및 외부 데이터셋 확보가 필요하다.</li>
-</ol>
-
-<h3>11.3 향후 로드맵</h3>
-<ul>
-  <li>2026년 하반기: 첫 인양 → 블라인드 시음 → TCI 베이지안 업데이트</li>
-  <li>인양 데이터 축적 시: 예측 vs 실측 비교 → 모델 정확도 평가 및 리캘리브레이션</li>
-  <li>과학적 타당성 점수: 현재 6.2/10 → 인양 후 7.5+/10 목표</li>
-  <li>v5.0 즉시: 가상 시뮬레이션으로 베이지안 엔진 사전 검증 → 수렴 패턴 확인</li>
-</ul>
-
-<!-- ═══════════════════════════════════════════════════════════════════════ -->
-<!-- 12. 결론 -->
-<!-- ═══════════════════════════════════════════════════════════════════════ -->
-<h2>12. 결론 (Conclusion)</h2>
-<p>
-  UAPS는 해저 숙성이라는 미개척 영역에 대해 체계적인 정량 예측 프레임워크를 제시하였다.
-  112,316건의 다중 카테고리 지상 숙성 데이터를 기반으로,
-  아레니우스 방정식(FRI)과 헨리의 법칙(BRI)이라는 확립된 물리화학 법칙을 적용하고,
-  해양 역학 기반 K-TCI(운동학적 질감 보정)를 도입하여 파주기·파고·해류속도의 영향을 정량화하였으며,
-  통계 클러스터링과 AI 추론의 앙상블로 예측 정밀도를 높였다.
+  본 연구는 해저 숙성이 샴페인 풍미에 미치는 영향을 정량적으로 예측하는
+  UAPS(Undersea Aging Predictive System)를 제안하였다.
+  40,362건의 샴페인 리뷰 데이터에서 NLP 기반 6축 풍미 점수를 추출하고,
+  통계 클러스터링과 AI 추론의 앙상블로 예측하며,
+  아레니우스 방정식(FRI), 헨리의 법칙(BRI), 해류 역학(K-TCI)으로
+  해저 환경의 물리화학적 영향을 보정한다.
 </p>
 <p>
-  v4.0에서는 세 가지 핵심 개선을 도입하였다.
-  첫째, KHOA 국립해양조사원의 실측 데이터(14개월, 완도 해역)를 통합하고 깊이 보정(blending ratio)을
-  적용하여 계절별 해양 환경 변동을 월 단위로 동적 반영한다.
-  둘째, 3단계 비선형 향 감쇠 모델로 초기 급감-안정기-후기 급감의 실제 숙성 패턴을 포착하고,
-  환원취에 수온 의존성을 추가하여 여름/겨울 계절 효과를 반영한다.
-  셋째, Conservative Cap을 제거하고 개별 물리적 상한을 도입하며,
-  효율 최적점(Peak − 4점 이내 첫 도달) 마커로 비용 대비 최적 인양 시기를 제안한다.
+  XGBoost 교차 검증에서 6축 평균 CV RMSE 28.4를 달성하였으며,
+  베이지안 시뮬레이션에서 20건의 인양 데이터로 보정 계수 분산의 89–94%가 축소됨을 확인하였다.
+  KHOA 실측 데이터 기반 월별 해양 프로파일로 계절 변동을 동적으로 반영한다.
 </p>
 <p>
-  v5.0에서는 네 가지 핵심 확장을 도입하였다.
-  첫째, Chain-of-Thought 5단계 추론과 카테고리별 전문가 역할로 AI 예측의 일관성과 해석 가능성을 높였다.
-  둘째, XGBoost ML을 제3의 레이어로 추가하여 103K건 학습 데이터 기반의 독립적 교차 검증을 가능하게 하였다.
-  셋째, 비교 시음 시스템으로 지상 대조군과 해저 실험군의 정량적 비교를 표준화하고,
-  시음 70% + AI 30% 블렌딩으로 투입 전 프로파일의 정확도를 향상시켰다.
-  넷째, Conjugate Normal-Normal 베이지안 업데이트 엔진으로 인양 실측 데이터가 축적될수록
-  TCI/FRI/BRI 보정 계수의 불확실성이 자동으로 수렴하는 자기 개선(self-improving) 구조를 구축하였다.
-</p>
-<p>
-  AI가 카테고리별 보정 계수(agingFactors, qualityWeights)를 실시간 추론하는
-  파라미터화된 아키텍처는 샴페인뿐 아니라 커피, 사케, 보이차, 간장 등
-  근본적으로 다른 식음료에도 동일한 프레임워크를 적용할 수 있게 하였다.
-  제품 등록 시 AI 정보 찾기(Gemini + Google Search Grounding)를 통해
-  사용자 입력 부담을 줄이고 데이터 정확도를 높였다.
-</p>
-<p>
-  현재 가장 큰 불확실성인 TCI(질감 가속 계수)는 첫 인양 후 실측 데이터로 검증될 예정이며,
-  이를 통해 모델의 과학적 타당성이 크게 향상될 것으로 기대한다.
+  현재 가장 큰 한계는 실측 검증 데이터의 부재이다.
+  첫 인양 후 블라인드 시음 데이터가 축적되면,
+  베이지안 프레임워크에 의해 보정 계수가 자동으로 수렴하여
+  예측 정확도가 향상될 것으로 기대한다.
 </p>
 
-<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
 <!-- 참고문헌 -->
-<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
 <h2>참고문헌 (References)</h2>
 <ol class="references">
+  <li>Jeandet, P. et al. (2015). "Chemical messages in 170-year-old champagne bottles from the Baltic Sea: Revealing tastes from the past." <em>Proceedings of the National Academy of Sciences</em>, 112(19), 5893–5898. DOI: 10.1073/pnas.1500783112.</li>
+  <li>Mira Winery (2013). "Aquaoir: The Underwater Aging Experiment." Mira Winery Technical Report. Napa, CA. https://miranapa.com/aquaoir/</li>
+  <li>Edivo Vina (2015). "Underwater Wine Cellar." Drače, Croatia. Commercial documentation. https://www.edivovina.hr/</li>
+  <li>Mercanti, N. et al. (2024). "Exploring Red Wine Aging: Comparative Analysis of Cellar and Sea Underwater Aging on Chemical Composition and Quality." <em>Foods</em>, 13(12), 1812. PMC11202423.</li>
+  <li>Santos, M. C. et al. (2017). "Influence of High Hydrostatic Pressure Technology on Wine Chemical and Sensorial Characteristics: Potentialities and Drawbacks." <em>Trends in Food Science & Technology</em>.</li>
   <li>Arrhenius, S. (1889). "Über die Reaktionsgeschwindigkeit bei der Inversion von Rohrzucker durch Säuren." <em>Zeitschrift für physikalische Chemie</em>, 4, 226–248.</li>
-  <li>Henry, W. (1803). "Experiments on the quantity of gases absorbed by water, at different temperatures, and under different pressures." <em>Philosophical Transactions of the Royal Society of London</em>, 93, 29–42.</li>
-  <li>Liger-Belair, G. (2005). "The physics and chemistry behind the bubbling properties of champagne and sparkling wines." <em>European Physical Journal B</em>, 44, 385–390.</li>
-  <li>PMC11202423 — Anthocyanin degradation kinetics in wine: activation energy range 42–52 kJ/mol.</li>
+  <li>Singleton, V. L. (1974). "Some aspects of the wooden container as a factor in wine maturation." <em>Chemistry of Winemaking</em>, ACS Advances in Chemistry Series, 137, 254–277.</li>
+  <li>Cevallos-Casals, B. A. & Cisneros-Zevallos, L. (2004). "Stability of anthocyanin-based aqueous extracts of Andean purple corn." <em>Food Chemistry</em>, 86(1), 69–77. — Anthocyanin degradation E<sub>a</sub> reference range 40–55 kJ/mol.</li>
+  <li>Henry, W. (1803). "Experiments on the quantity of gases absorbed by water, at different temperatures, and under different pressures." <em>Phil. Trans. R. Soc. Lond.</em>, 93, 29–42.</li>
+  <li>Liger-Belair, G. (2005). "The Physics and Chemistry behind the Bubbling Properties of Champagne and Sparkling Wines: A State-of-the-Art Review." <em>Journal of Agricultural and Food Chemistry</em>, 53(8), 2788–2802.</li>
+  <li>Cortez, P. et al. (2009). "Modeling wine preferences by data mining from physicochemical properties." <em>Decision Support Systems</em>, 47(4), 547–553.</li>
+  <li>Gupta, Y. (2018). "Selection of important features and predicting wine quality using machine learning techniques." <em>Procedia Computer Science</em>, 125, 305–312.</li>
+  <li>Wei, J., Wang, X., Schuurmans, D. et al. (2022). "Chain-of-Thought Prompting Elicits Reasoning in Large Language Models." <em>NeurIPS 2022</em>.</li>
+  <li>Lopes, P. et al. (2009). "Impact of storage position on oxygen ingress through different closures into wine bottles." <em>Journal of Agricultural and Food Chemistry</em>, 57, 10261–10270.</li>
+  <li>Dean, R. G. & Dalrymple, R. A. (1991). <em>Water Wave Mechanics for Engineers and Scientists</em>. World Scientific. Advanced Series on Ocean Engineering, Vol. 2.</li>
+  <li>Murphy, K. P. (2012). <em>Machine Learning: A Probabilistic Perspective</em>. MIT Press. — Conjugate Normal-Normal Bayesian update.</li>
+  <li>Chen, T. & Guestrin, C. (2016). "XGBoost: A Scalable Tree Boosting System." <em>Proceedings of the 22nd ACM SIGKDD</em>, 785–794.</li>
   <li>Wine & Spirit Education Trust (WSET). <em>Systematic Approach to Tasting</em>. Level 3 & 4 Standards.</li>
   <li>International Organisation of Vine and Wine (OIV). <em>Compendium of International Methods of Wine and Must Analysis</em>.</li>
-  <li>Dean, R. G. & Dalrymple, R. A. (1991). <em>Water Wave Mechanics for Engineers and Scientists</em>. World Scientific. — Orbital energy density E ∝ H²/T relationship.</li>
-  <li>Open-Meteo (2025). Marine Weather API Documentation. ERA5-Ocean reanalysis model for historical marine data.</li>
-  <li>KHOA 국립해양조사원 (2025). 바다누리 해양정보 서비스 오픈API. <em>https://www.khoa.go.kr/oceangrid/gis/category/observe/observeSearch.do</em></li>
-  <li>Muse de Marée Research (2026). "Ocean Data × UAPS Autoresearch Report." 13 cycles. Internal Document.</li>
-  <li>Muse de Marée Research (2026). "UAPS Master Plan — Undersea Aging Predictive System." Internal Document v4.0.</li>
-  <li>Chen, T. & Guestrin, C. (2016). "XGBoost: A Scalable Tree Boosting System." <em>Proceedings of the 22nd ACM SIGKDD International Conference on Knowledge Discovery and Data Mining</em>, 785–794.</li>
-  <li>Murphy, K. P. (2012). <em>Machine Learning: A Probabilistic Perspective</em>. MIT Press. — Conjugate Normal-Normal Bayesian update.</li>
-  <li>Wei, J. et al. (2022). "Chain-of-Thought Prompting Elicits Reasoning in Large Language Models." <em>NeurIPS 2022</em>.</li>
+  <li>KHOA 국립해양조사원 (2025). 바다누리 해양정보 서비스 오픈API. https://www.khoa.go.kr/</li>
+  <li>Open-Meteo (2025). Marine Weather API Documentation. ERA5-Ocean reanalysis model.</li>
+  <li>Godden, P. et al. (2005). "Towards offering wine to the consumer in optimal condition — the wine, the closure and other packaging variables." <em>Australian Journal of Grape and Wine Research</em>, 11(2), 94–167.</li>
+  <li>Jackson, R. S. (2014). <em>Wine Science: Principles and Applications</em>. 4th ed. Academic Press.</li>
+  <li>Ribéreau-Gayon, P. et al. (2006). <em>Handbook of Enology, Volume 2: The Chemistry of Wine Stabilization and Treatments</em>. 2nd ed. Wiley.</li>
+  <li>Waterhouse, A. L. et al. (2016). <em>Understanding Wine Chemistry</em>. Wiley.</li>
+  <li>Hendrickx, I. et al. (2016). "Very quaffable and great fun: Applying NLP to wine reviews." <em>ACL Workshop on Computational Linguistics for Literature</em>.</li>
+  <li>Katumullage, D. et al. (2022). "Using Neural Network Models for Wine Review Classification." <em>Journal of Wine Economics</em>, 17(1), 1–20.</li>
+  <li>Otero, L. et al. (2025). "Innovative Applications of High Hydrostatic Pressure in Winemaking." <em>Comprehensive Reviews in Food Science and Food Safety</em>.</li>
 </ol>
 
 <hr style="margin-top: 3em; border: none; border-top: 1px solid #ccc;">
 <p style="text-align: center; font-size: 9pt; color: #999; margin-top: 1em;">
-  © 2026 Muse de Marée. Internal Technical Paper. All Rights Reserved.
+  © 2026 Muse de Marée. All Rights Reserved.
 </p>
 
 </body>
