@@ -46,6 +46,7 @@ import {
   LayoutGrid,
   ChevronDown,
   ClipboardCheck,
+  ScrollText,
 } from 'lucide-react';
 
 // 카테고리 목록
@@ -514,6 +515,13 @@ export default function UAPSPage() {
                   >
                     <Info className="w-3 h-3" />
                     작동 원리
+                  </Link>
+                  <Link
+                    href="/uaps/marine-elevage"
+                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border border-white/15 text-white/50 text-xs hover:bg-white/[0.04] hover:border-white/25 hover:text-white/80 transition-all duration-300"
+                  >
+                    <ScrollText className="w-3 h-3" />
+                    해저 숙성 정의 문서
                   </Link>
                   <button
                     onClick={trainModel}
