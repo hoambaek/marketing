@@ -18,6 +18,7 @@ export default async function TastingSubmitPage({
   if (!ctx) {
     return (
       <main className="min-h-screen bg-[#0a0b0d] text-white flex items-center justify-center px-6">
+        <div className="fixed inset-0 -z-10 bg-[#0a0b0d]" aria-hidden />
         <div className="max-w-md text-center">
           <p className="text-white/35 text-[10px] tracking-[0.3em] uppercase mb-4">Muse de Marée · Marine Élevage</p>
           <h1 className="text-2xl text-white/85 mb-3" style={{ fontFamily: 'Cormorant Garamond, serif' }}>
@@ -42,6 +43,9 @@ export default async function TastingSubmitPage({
       className="min-h-screen bg-[#0a0b0d] text-white pb-24"
       style={{ marginTop: 'calc(-4rem - env(safe-area-inset-top, 0px))' }}
     >
+      {/* 안전 영역(노치)까지 본문과 동일한 단색으로 — 전역 body 그라데이션을 가림 */}
+      <div className="fixed inset-0 -z-10 bg-[#0a0b0d]" aria-hidden />
+
       {/* 상단 로고 (가운데) — 헤더가 있던 자리를 채움 */}
       <div
         className="flex justify-center pb-2"
