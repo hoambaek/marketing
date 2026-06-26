@@ -212,8 +212,12 @@ export default function TastingForm({
       <button
         onClick={handleSubmit}
         disabled={status === 'submitting'}
-        className="w-full py-3 rounded-xl border text-sm font-medium transition-all disabled:opacity-50"
-        style={{ borderColor: `${GOLD}40`, color: GOLD, backgroundColor: `${GOLD}0c` }}
+        className="w-full py-3.5 rounded-xl text-sm font-semibold tracking-wide transition-all hover:opacity-90 active:scale-[0.99] disabled:opacity-50"
+        style={{
+          background: 'linear-gradient(180deg, #d4b066 0%, #C4A052 100%)',
+          color: '#1a1206',
+          boxShadow: '0 4px 14px rgba(196,160,82,0.25), inset 0 1px 0 rgba(255,255,255,0.25)',
+        }}
       >
         {status === 'submitting' ? '제출 중…' : '시음 결과 제출'}
       </button>
