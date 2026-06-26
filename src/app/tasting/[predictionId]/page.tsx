@@ -49,22 +49,33 @@ export default async function TastingSubmitPage({
         style={{ paddingTop: 'calc(1.75rem + env(safe-area-inset-top, 0px))' }}
       >
         <Image
-          src="/images/logo/logo_text_trans_W.png"
+          src="/images/logo/logo_all_W_KR.png"
           alt="Muse de Marée"
-          width={200}
-          height={40}
+          width={300}
+          height={288}
           priority
-          className="h-7 sm:h-8 w-auto opacity-90"
+          className="h-40 sm:h-48 w-auto opacity-90"
         />
       </div>
 
       <section className="max-w-2xl mx-auto px-4 sm:px-6 pt-4 sm:pt-6 pb-6 text-center">
-        <p className="text-white/35 text-[10px] sm:text-xs tracking-[0.25em] uppercase mb-3 font-light">
+        <p className="text-[#C4A052]/85 text-xs sm:text-sm tracking-[0.25em] uppercase mb-5 font-medium">
           비교 시음 기록
         </p>
-        <h1 className="text-2xl sm:text-4xl text-white/90 mb-3 leading-tight font-light" style={{ fontFamily: 'Cormorant Garamond, serif' }}>
-          {productName}
-        </h1>
+
+        {/* 제품명 — 샴페인 라벨처럼 라인 박스 안에 에디토리얼하게 */}
+        <div className="mx-auto w-fit max-w-[300px] sm:max-w-[340px] border border-white/[0.18] px-7 py-7 sm:py-8 mb-5">
+          <div className="flex items-center justify-center gap-2 mb-4">
+            <span className="w-5 h-px bg-[#C4A052]/40" />
+            <span className="text-[8px] sm:text-[9px] tracking-[0.35em] text-[#C4A052]/70 uppercase">Marine Élevage</span>
+            <span className="w-5 h-px bg-[#C4A052]/40" />
+          </div>
+          <h1 className="text-2xl sm:text-3xl text-white/90 leading-[1.35] font-light" style={{ fontFamily: 'Cormorant Garamond, serif' }}>
+            {productName}
+          </h1>
+          <p className="mt-4 text-[9px] sm:text-[10px] tracking-[0.3em] text-white/35 uppercase">Comparative Tasting</p>
+        </div>
+
         <p className="text-white/40 text-sm leading-relaxed">
           해저 숙성 샴페인과 지상 보관 대조군을 블라인드로 비교 시음한 결과를 기록해 주세요.
           제출하신 내용은 내부 검토 후 데이터에 반영됩니다.
