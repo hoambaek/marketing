@@ -1,4 +1,3 @@
-import Link from 'next/link';
 import Image from 'next/image';
 import { fetchPredictionContextForTasting } from '@/lib/supabase/database/tasting-submissions';
 import { PRODUCTS } from '@/lib/types';
@@ -17,8 +16,7 @@ export default async function TastingSubmitPage({
   // 유효하지 않은 링크 / 서버 미설정
   if (!ctx) {
     return (
-      <main className="min-h-screen bg-[#0a0b0d] text-white flex items-center justify-center px-6">
-        <div className="fixed inset-0 -z-10 bg-[#0a0b0d]" aria-hidden />
+      <main className="min-h-screen text-white flex items-center justify-center px-6">
         <div className="max-w-md text-center">
           <p className="text-white/35 text-[10px] tracking-[0.3em] uppercase mb-4">Muse de Marée · Marine Élevage</p>
           <h1 className="text-2xl text-white/85 mb-3" style={{ fontFamily: 'Cormorant Garamond, serif' }}>
@@ -40,11 +38,10 @@ export default async function TastingSubmitPage({
 
   return (
     <main
-      className="min-h-screen bg-[#0a0b0d] text-white pb-24"
+      className="min-h-screen text-white pb-24"
       style={{ marginTop: 'calc(-4rem - env(safe-area-inset-top, 0px))' }}
     >
-      {/* 안전 영역(노치)까지 본문과 동일한 단색으로 — 전역 body 그라데이션을 가림 */}
-      <div className="fixed inset-0 -z-10 bg-[#0a0b0d]" aria-hidden />
+      {/* 배경을 칠하지 않아 전역 body 네이비 그라데이션이 그대로 비침 (UAPS와 동일, 안전 영역까지 통일) */}
 
       {/* 상단 로고 (가운데) — 헤더가 있던 자리를 채움 */}
       <div
@@ -80,7 +77,12 @@ export default async function TastingSubmitPage({
       </div>
 
       <div className="max-w-2xl mx-auto px-4 sm:px-6 mt-10 flex justify-center">
-        <Link href="/" className="opacity-30 hover:opacity-50 transition-opacity">
+        <a
+          href="https://musedemaree.com"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="opacity-30 hover:opacity-50 transition-opacity"
+        >
           <Image
             src="/images/logo/logo_text_trans_W.png"
             alt="Muse de Marée"
@@ -88,7 +90,7 @@ export default async function TastingSubmitPage({
             height={28}
             className="h-5 w-auto"
           />
-        </Link>
+        </a>
       </div>
     </main>
   );
