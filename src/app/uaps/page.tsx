@@ -780,7 +780,8 @@ export default function UAPSPage() {
               {/* 시뮬레이터 행 */}
               <div className="px-4 sm:px-5 py-3.5 border-b border-white/[0.04] space-y-3 sm:space-y-0">
                 {/* 상단: 라벨 + 기간 + 버튼 */}
-                <div className="flex items-center gap-3 sm:gap-4">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+                  <div className="flex items-center gap-3 sm:gap-4">
                   <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
                     <div className="p-1.5 rounded-lg bg-cyan-500/[0.08]">
                       <Target className="w-3.5 h-3.5 text-cyan-400" />
@@ -796,9 +797,11 @@ export default function UAPSPage() {
                     </span>
                     <span className="text-[10px] text-white/20">개월</span>
                   </div>
+                  </div>
 
-                  <div className="flex-1" />
+                  <div className="hidden sm:block flex-1" />
 
+                  <div className="flex items-center gap-2 flex-wrap">
                   <button
                     onClick={() => setShowCoefficientDialog(true)}
                     className="p-2 sm:p-1.5 rounded-lg border border-white/[0.06] hover:border-white/[0.12] hover:bg-white/[0.04] text-white/30 hover:text-white/60 transition-all shrink-0"
@@ -846,6 +849,7 @@ export default function UAPSPage() {
                     )}
                     {isPredicting ? '분석 중' : 'AI 예측'}
                   </button>
+                  </div>
                 </div>
 
                 {/* 품질 점수 — 모바일: 별도 행, 데스크톱: 인라인 */}
