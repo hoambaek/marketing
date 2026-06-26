@@ -1,6 +1,12 @@
 'use client';
 
 import { useState, type CSSProperties } from 'react';
+
+// 오늘 날짜 (로컬 타임존 기준, YYYY-MM-DD)
+function todayLocal(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
 import { Warehouse, Anchor } from 'lucide-react';
 
 const GOLD = '#C4A052';
@@ -48,7 +54,8 @@ export default function TastingForm({
 }) {
   const [recorderName, setRecorderName] = useState('');
   const [recorderAffiliation, setRecorderAffiliation] = useState('');
-  const [retrievalDate, setRetrievalDate] = useState('');
+  // 시음 날짜 기본값 = 오늘 (lazy 초기화)
+  const [retrievalDate, setRetrievalDate] = useState(todayLocal);
   const [notes, setNotes] = useState('');
 
   const [undersea, setUndersea] = useState<Scores>(initialScores);
@@ -141,7 +148,7 @@ export default function TastingForm({
           <div>
             <label className={labelClass}>시음 날짜</label>
             {/* appearance-none: iOS date 입력이 화면 밖으로 넘치는 문제 방지 */}
-            <input type="date" value={retrievalDate} onChange={e => setRetrievalDate(e.target.value)} className={`${inputClass} appearance-none`} />
+            <input type="date" value={retrievalDate} onChange={e => setRetrievalDate(e.target.value)} suppressHydrationWarning className={`${inputClass} appearance-none`} />
           </div>
         </div>
       </section>
