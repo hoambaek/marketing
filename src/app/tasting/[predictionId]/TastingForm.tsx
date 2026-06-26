@@ -1,8 +1,11 @@
 'use client';
 
 import { useState, type CSSProperties } from 'react';
+import { Warehouse, Anchor } from 'lucide-react';
 
 const GOLD = '#C4A052';
+// 골드와 같은 채도(HSL S≈47%)의 블루-네이비 — 해저 숙성 슬라이더용
+const NAVY = '#3F5E9A';
 
 // 6축 정의
 const AXES = [
@@ -21,8 +24,8 @@ const initialScores = (): Scores =>
   AXES.reduce((acc, a) => ({ ...acc, [a.key]: 50 }), {} as Scores);
 
 function ScoreSlider({
-  label, value, onChange,
-}: { label: string; value: number; onChange: (v: number) => void }) {
+  label, value, onChange, fillColor = GOLD,
+}: { label: string; value: number; onChange: (v: number) => void; fillColor?: string }) {
   return (
     <div className="flex items-center gap-3 py-3">
       <span className="text-[13px] text-white/60 w-24 shrink-0">{label}</span>
@@ -30,7 +33,7 @@ function ScoreSlider({
         type="range" min={0} max={100} step={1} value={value}
         onChange={e => onChange(Number(e.target.value))}
         className="liquid-slider flex-1"
-        style={{ '--val': `${value}%` } as CSSProperties}
+        style={{ '--val': `${value}%`, '--fill': fillColor } as CSSProperties}
         aria-label={label}
       />
       <span className="text-[13px] font-mono text-white/75 w-9 text-right tabular-nums">{value}</span>
@@ -143,26 +146,11 @@ export default function TastingForm({
         </div>
       </section>
 
-      {/* 해저 숙성 시음 */}
+      {/* 지상 보관 시음 */}
       <section className="rounded-2xl border border-white/[0.08] bg-white/[0.015] p-5">
         <div className="flex items-center gap-2 mb-3">
-          <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: GOLD }} />
-          <h2 className="text-[13px] font-medium text-white/80">해저 숙성 샴페인</h2>
-        </div>
-        {AXES.map(a => (
-          <ScoreSlider key={a.key} label={a.label} value={undersea[a.key]}
-            onChange={v => setUndersea(s => ({ ...s, [a.key]: v }))} />
-        ))}
-        <div className="mt-2 pt-2 border-t border-white/[0.06]">
-          <ScoreSlider label="종합 선호도" value={underseaOverall} onChange={setUnderseaOverall} />
-        </div>
-      </section>
-
-      {/* 지상 대조군 시음 */}
-      <section className="rounded-2xl border border-white/[0.08] bg-white/[0.015] p-5">
-        <div className="flex items-center gap-2 mb-3">
-          <span className="w-1.5 h-1.5 rounded-full bg-white/40" />
-          <h2 className="text-[13px] font-medium text-white/80">지상 보관 (대조군)</h2>
+          <Warehouse className="w-4 h-4 text-white/50" />
+          <h2 className="text-[13px] font-medium text-white/80">지상 보관</h2>
         </div>
         {AXES.map(a => (
           <ScoreSlider key={a.key} label={a.label} value={terrestrial[a.key]}
@@ -170,6 +158,21 @@ export default function TastingForm({
         ))}
         <div className="mt-2 pt-2 border-t border-white/[0.06]">
           <ScoreSlider label="종합 선호도" value={terrestrialOverall} onChange={setTerrestrialOverall} />
+        </div>
+      </section>
+
+      {/* 해저 숙성 시음 */}
+      <section className="rounded-2xl border border-white/[0.08] bg-white/[0.015] p-5">
+        <div className="flex items-center gap-2 mb-3">
+          <Anchor className="w-4 h-4" style={{ color: NAVY }} />
+          <h2 className="text-[13px] font-medium text-white/80">해저 숙성</h2>
+        </div>
+        {AXES.map(a => (
+          <ScoreSlider key={a.key} label={a.label} value={undersea[a.key]}
+            onChange={v => setUndersea(s => ({ ...s, [a.key]: v }))} fillColor={NAVY} />
+        ))}
+        <div className="mt-2 pt-2 border-t border-white/[0.06]">
+          <ScoreSlider label="종합 선호도" value={underseaOverall} onChange={setUnderseaOverall} fillColor={NAVY} />
         </div>
       </section>
 
