@@ -53,29 +53,25 @@ export function Header() {
               transition={{ duration: 0.5 }}
               className="flex items-center"
             >
-              <Link href="/" className="flex items-center gap-3 group">
-                {/* Logo Image */}
-                <div className="relative w-10 h-10">
-                  <Image
-                    src="/logo.png"
-                    alt="Muse de Marée"
-                    fill
-                    className="object-contain"
-                    priority
-                  />
-                </div>
-                {/* Logo Text */}
-                <div>
-                  <p
-                    className="text-lg sm:text-xl tracking-tight text-white/90"
-                    style={{ fontFamily: "var(--font-cormorant), 'Playfair Display', Georgia, serif" }}
-                  >
-                    Muse de Marée
-                  </p>
-                  <p className="text-[9px] sm:text-[10px] uppercase tracking-[0.2em] text-[#b7916e] -mt-0.5">
-                    Master Plan
-                  </p>
-                </div>
+              <Link href="/" className="flex items-center gap-2.5 group">
+                {/* 심볼 로고 */}
+                <Image
+                  src="/images/logo/logo_trans_W.png"
+                  alt="Muse de Marée"
+                  width={44}
+                  height={36}
+                  priority
+                  className="h-8 w-auto opacity-95"
+                />
+                {/* 텍스트 로고 — 심볼과 시각적 중심을 맞추기 위해 살짝 위로 */}
+                <Image
+                  src="/images/logo/logo_text_trans_W.png"
+                  alt="Muse de Marée"
+                  width={170}
+                  height={26}
+                  priority
+                  className="h-[18px] sm:h-5 w-auto opacity-90 -translate-y-[2px]"
+                />
               </Link>
             </motion.div>
 

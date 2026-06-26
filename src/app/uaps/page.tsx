@@ -810,15 +810,6 @@ export default function UAPSPage() {
                     <Settings2 className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
                   </button>
                   <button
-                    onClick={() => setShowRetrievalModal(true)}
-                    disabled={!latestPrediction}
-                    className="flex items-center gap-1.5 bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 rounded-lg px-3 py-2 sm:py-1.5 text-xs font-medium text-emerald-400 transition-all disabled:opacity-30 shrink-0"
-                    title={!latestPrediction ? '예측을 먼저 실행하세요' : '비교 시음 결과 입력'}
-                  >
-                    <ClipboardCheck className="w-3 h-3" />
-                    비교 시음
-                  </button>
-                  <button
                     onClick={async () => {
                       if (!latestPrediction) return;
                       try {
@@ -831,11 +822,11 @@ export default function UAPSPage() {
                       }
                     }}
                     disabled={!latestPrediction}
-                    className="flex items-center gap-1.5 border border-white/[0.12] hover:border-white/25 hover:bg-white/[0.04] rounded-lg px-3 py-2 sm:py-1.5 text-xs font-medium text-white/50 hover:text-white/80 transition-all disabled:opacity-30 shrink-0"
+                    className="flex items-center gap-1.5 bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 rounded-lg px-3 py-2 sm:py-1.5 text-xs font-medium text-emerald-400 transition-all disabled:opacity-30 shrink-0"
                     title={!latestPrediction ? '예측을 먼저 실행하세요' : '외부 기록자용 공개 입력 링크 복사'}
                   >
-                    {linkCopied ? <Check className="w-3 h-3 text-emerald-400" /> : <Link2 className="w-3 h-3" />}
-                    {linkCopied ? '복사됨' : '기록 링크'}
+                    {linkCopied ? <Check className="w-3 h-3" /> : <Link2 className="w-3 h-3" />}
+                    {linkCopied ? '복사됨' : '시음 기록 링크'}
                   </button>
                   <button
                     onClick={() => runPrediction(selectedProductId, selectedProduct.plannedDurationMonths || 18)}
