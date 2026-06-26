@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, type CSSProperties } from 'react';
 
 const GOLD = '#C4A052';
 
@@ -24,14 +24,16 @@ function ScoreSlider({
   label, value, onChange,
 }: { label: string; value: number; onChange: (v: number) => void }) {
   return (
-    <div className="flex items-center gap-3 py-1.5">
-      <span className="text-[12px] text-white/55 w-24 shrink-0">{label}</span>
+    <div className="flex items-center gap-3 py-3">
+      <span className="text-[13px] text-white/60 w-24 shrink-0">{label}</span>
       <input
         type="range" min={0} max={100} step={1} value={value}
         onChange={e => onChange(Number(e.target.value))}
-        className="flex-1 accent-[#C4A052] h-1 cursor-pointer"
+        className="liquid-slider flex-1"
+        style={{ '--val': `${value}%` } as CSSProperties}
+        aria-label={label}
       />
-      <span className="text-[12px] font-mono text-white/70 w-9 text-right tabular-nums">{value}</span>
+      <span className="text-[13px] font-mono text-white/75 w-9 text-right tabular-nums">{value}</span>
     </div>
   );
 }
@@ -115,7 +117,8 @@ export default function TastingForm({
     );
   }
 
-  const inputClass = 'w-full bg-white/[0.03] border border-white/[0.1] rounded-lg px-3 py-2 text-sm text-white/80 placeholder:text-white/25 focus:outline-none focus:border-[#C4A052]/40 transition-colors';
+  // text-base(16px): iOS에서 입력 포커스 시 자동 확대(줌) 방지. min-w-0: date 입력 넘침 방지
+  const inputClass = 'w-full min-w-0 bg-white/[0.03] border border-white/[0.1] rounded-lg px-3 py-2.5 text-base text-white/80 placeholder:text-white/25 focus:outline-none focus:border-[#C4A052]/40 transition-colors';
   const labelClass = 'text-[11px] text-white/40 mb-1.5 block';
 
   return (
@@ -134,7 +137,8 @@ export default function TastingForm({
           </div>
           <div>
             <label className={labelClass}>시음 날짜</label>
-            <input type="date" value={retrievalDate} onChange={e => setRetrievalDate(e.target.value)} className={inputClass} />
+            {/* appearance-none: iOS date 입력이 화면 밖으로 넘치는 문제 방지 */}
+            <input type="date" value={retrievalDate} onChange={e => setRetrievalDate(e.target.value)} className={`${inputClass} appearance-none`} />
           </div>
         </div>
       </section>
