@@ -83,23 +83,18 @@ export async function fetchPredictionContextForTasting(
   underseaDurationMonths: number;
 } | null> {
   if (!supabaseAdmin) return null;
+  // FK(aging_predictions.product_id → aging_products.id) 기반 조인으로 1회 쿼리
   const { data, error } = await supabaseAdmin
     .from('aging_predictions')
-    .select('id, product_id, undersea_duration_months')
+    .select('id, product_id, undersea_duration_months, aging_products(product_name)')
     .eq('id', predictionId)
     .single();
   if (error || !data) return null;
 
-  // 제품명 조회 (aging_products.product_name)
-  let productName: string | null = null;
-  if (data.product_id) {
-    const { data: prod } = await supabaseAdmin
-      .from('aging_products')
-      .select('product_name')
-      .eq('id', data.product_id)
-      .single();
-    productName = prod?.product_name ?? null;
-  }
+  const joined = data.aging_products as { product_name: string } | { product_name: string }[] | null;
+  const productName = Array.isArray(joined)
+    ? joined[0]?.product_name ?? null
+    : joined?.product_name ?? null;
 
   return {
     predictionId: data.id,

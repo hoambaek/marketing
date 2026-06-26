@@ -42,7 +42,21 @@ function ScoreSlider({
         style={{ '--val': `${value}%`, '--fill': fillColor } as CSSProperties}
         aria-label={label}
       />
-      <span className="text-[13px] font-mono text-white/75 w-9 text-right tabular-nums">{value}</span>
+      <input
+        type="number"
+        min={0}
+        max={100}
+        value={value}
+        inputMode="numeric"
+        aria-label={`${label} 점수`}
+        onChange={e => {
+          const v = e.target.value;
+          if (v === '') { onChange(0); return; }
+          const n = Number(v);
+          if (!Number.isNaN(n)) onChange(Math.max(0, Math.min(100, Math.round(n))));
+        }}
+        className="w-12 shrink-0 text-base font-mono text-white/80 text-right tabular-nums bg-transparent border-b border-white/[0.12] focus:border-[#C4A052]/50 focus:outline-none px-0.5 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+      />
     </div>
   );
 }
