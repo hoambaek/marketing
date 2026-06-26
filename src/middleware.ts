@@ -8,6 +8,7 @@ const isClerkConfigured = !!process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
 const isPublicRoute = createRouteMatcher([
   '/sign-in(.*)',
   '/b/(.*)',         // NFC 병 조회 공개 페이지
+  '/tasting/(.*)',   // 외부 기록자 비교 시음 입력 공개 페이지
   // sign-up은 허용하지 않음 - 등록된 사용자만 로그인 가능
 ]);
 

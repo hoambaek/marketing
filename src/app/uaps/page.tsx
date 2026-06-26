@@ -47,6 +47,9 @@ import {
   ChevronDown,
   ClipboardCheck,
   ScrollText,
+  Link2,
+  Check,
+  Inbox,
 } from 'lucide-react';
 
 // 카테고리 목록
@@ -265,6 +268,7 @@ export default function UAPSPage() {
   const [editingProduct, setEditingProduct] = useState<AgingProduct | null>(null);
   const [showCoefficientDialog, setShowCoefficientDialog] = useState(false);
   const [showRetrievalModal, setShowRetrievalModal] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
   const [listCategory, setListCategory] = useState('champagne');
   // predictionMonths는 제품의 plannedDurationMonths 사용
@@ -522,6 +526,13 @@ export default function UAPSPage() {
                   >
                     <ScrollText className="w-3 h-3" />
                     해저 숙성 정의 문서
+                  </Link>
+                  <Link
+                    href="/uaps/tasting-review"
+                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border border-white/15 text-white/50 text-xs hover:bg-white/[0.04] hover:border-white/25 hover:text-white/80 transition-all duration-300"
+                  >
+                    <Inbox className="w-3 h-3" />
+                    제출 검토
                   </Link>
                   <button
                     onClick={trainModel}
@@ -803,6 +814,25 @@ export default function UAPSPage() {
                   >
                     <ClipboardCheck className="w-3 h-3" />
                     비교 시음
+                  </button>
+                  <button
+                    onClick={async () => {
+                      if (!latestPrediction) return;
+                      try {
+                        await navigator.clipboard.writeText(`${window.location.origin}/tasting/${latestPrediction.id}`);
+                        setLinkCopied(true);
+                        setTimeout(() => setLinkCopied(false), 2000);
+                      } catch {
+                        // 클립보드 권한 없을 때 프롬프트로 폴백
+                        window.prompt('기록자에게 전달할 링크', `${window.location.origin}/tasting/${latestPrediction.id}`);
+                      }
+                    }}
+                    disabled={!latestPrediction}
+                    className="flex items-center gap-1.5 border border-white/[0.12] hover:border-white/25 hover:bg-white/[0.04] rounded-lg px-3 py-2 sm:py-1.5 text-xs font-medium text-white/50 hover:text-white/80 transition-all disabled:opacity-30 shrink-0"
+                    title={!latestPrediction ? '예측을 먼저 실행하세요' : '외부 기록자용 공개 입력 링크 복사'}
+                  >
+                    {linkCopied ? <Check className="w-3 h-3 text-emerald-400" /> : <Link2 className="w-3 h-3" />}
+                    {linkCopied ? '복사됨' : '기록 링크'}
                   </button>
                   <button
                     onClick={() => runPrediction(selectedProductId, selectedProduct.plannedDurationMonths || 18)}
@@ -1255,6 +1285,8 @@ function RetrievalInputModal({
   const [undersea, setUndersea] = useState<TastingScores>({ fruity: '', floralMineral: '', yeastyAutolytic: '', acidityFreshness: '', bodyTexture: '', finishComplexity: '', overallQuality: '' });
   const [saving, setSaving] = useState(false);
   const [existingId, setExistingId] = useState<string | null>(null);
+  const [shareCopied, setShareCopied] = useState(false);
+  const shareUrl = typeof window !== 'undefined' ? `${window.location.origin}/tasting/${prediction.id}` : '';
 
   // 기존 저장 데이터 로드
   useEffect(() => {
@@ -1394,6 +1426,42 @@ function RetrievalInputModal({
         </div>
 
         <div className="p-5 space-y-4">
+          {/* 외부 기록자에게 공유 — 로그인 없이 입력 가능한 공개 링크 */}
+          <div className="bg-white/[0.03] border border-white/[0.1] rounded-xl px-4 py-3">
+            <div className="flex items-center gap-1.5 mb-2">
+              <Link2 className="w-3.5 h-3.5 text-white/40" />
+              <p className="text-[11px] font-medium text-white/60">외부 기록자에게 공유</p>
+            </div>
+            <p className="text-[10px] text-white/30 mb-2.5 leading-relaxed">
+              아래 링크를 소믈리에·시음 패널에게 보내면, 로그인 없이 직접 비교 시음을 입력할 수 있습니다.
+              제출된 내용은 <span className="text-white/45">제출 검토</span>에서 승인해야 반영됩니다.
+            </p>
+            <div className="flex items-center gap-2">
+              <input
+                readOnly
+                value={shareUrl}
+                onClick={(e) => (e.target as HTMLInputElement).select()}
+                className="flex-1 min-w-0 px-2.5 py-1.5 bg-black/30 border border-white/[0.08] rounded-lg text-[11px] text-white/50 font-mono truncate focus:outline-none focus:border-white/20"
+              />
+              <button
+                onClick={async () => {
+                  try {
+                    await navigator.clipboard.writeText(shareUrl);
+                    setShareCopied(true);
+                    setTimeout(() => setShareCopied(false), 2000);
+                  } catch {
+                    window.prompt('기록자에게 전달할 링크', shareUrl);
+                  }
+                }}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-[11px] font-medium transition-all shrink-0"
+                style={{ borderColor: '#C4A05240', color: '#C4A052', backgroundColor: '#C4A0520c' }}
+              >
+                {shareCopied ? <Check className="w-3 h-3 text-emerald-400" /> : <Link2 className="w-3 h-3" />}
+                {shareCopied ? '복사됨' : '복사'}
+              </button>
+            </div>
+          </div>
+
           {/* 예측 요약 */}
           <div className="bg-[#C4A052]/[0.06] border border-[#C4A052]/[0.15] rounded-xl px-4 py-3">
             <div className="flex items-center gap-4 text-xs">

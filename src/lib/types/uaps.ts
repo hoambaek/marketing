@@ -210,6 +210,69 @@ export interface RetrievalResult {
   createdAt: string;
 }
 
+// 외부 기록자 비교 시음 제출 (대기함) — 검토·승인 후 RetrievalResult로 복사됨
+export type TastingSubmissionStatus = 'pending' | 'approved' | 'rejected';
+
+export interface TastingSubmission {
+  id: string;
+  predictionId: string | null;
+  productId: string;
+  // 기록자
+  recorderName: string;
+  recorderAffiliation: string | null;
+  // 시음 메타
+  retrievalDate: string | null;
+  actualDurationMonths: number | null;
+  tastingPanelSize: number;
+  tastingNotes: string | null;
+  // 해저 숙성 6축 + 종합
+  actualFruity: number | null;
+  actualFloralMineral: number | null;
+  actualYeastyAutolytic: number | null;
+  actualAcidityFreshness: number | null;
+  actualBodyTexture: number | null;
+  actualFinishComplexity: number | null;
+  actualOverallQuality: number | null;
+  // 지상 대조군 6축 + 종합
+  terrestrialFruity: number | null;
+  terrestrialFloralMineral: number | null;
+  terrestrialYeastyAutolytic: number | null;
+  terrestrialAcidityFreshness: number | null;
+  terrestrialBodyTexture: number | null;
+  terrestrialFinishComplexity: number | null;
+  terrestrialOverallQuality: number | null;
+  // 검토 상태
+  status: TastingSubmissionStatus;
+  reviewedAt: string | null;
+  approvedRetrievalId: string | null;
+  createdAt: string;
+}
+
+// 외부 시음 제출 입력 (공개 폼 → 서버)
+export interface TastingSubmissionInput {
+  predictionId: string;
+  recorderName: string;
+  recorderAffiliation?: string | null;
+  retrievalDate?: string | null;
+  actualDurationMonths?: number | null;
+  tastingPanelSize: number;
+  tastingNotes?: string | null;
+  actualFruity: number | null;
+  actualFloralMineral: number | null;
+  actualYeastyAutolytic: number | null;
+  actualAcidityFreshness: number | null;
+  actualBodyTexture: number | null;
+  actualFinishComplexity: number | null;
+  actualOverallQuality: number | null;
+  terrestrialFruity: number | null;
+  terrestrialFloralMineral: number | null;
+  terrestrialYeastyAutolytic: number | null;
+  terrestrialAcidityFreshness: number | null;
+  terrestrialBodyTexture: number | null;
+  terrestrialFinishComplexity: number | null;
+  terrestrialOverallQuality: number | null;
+}
+
 // 풍미 사전
 export interface FlavorDictionary {
   id: string;

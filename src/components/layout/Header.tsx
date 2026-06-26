@@ -32,6 +32,9 @@ export function Header() {
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
+  // 외부 기록자용 공개 페이지(/tasting/*)에서는 내부 대시보드 네비게이션을 숨긴다
+  if (pathname?.startsWith('/tasting')) return null;
+
   return (
     <header className="fixed top-0 left-0 right-0 z-50">
       {/* iOS PWA Safe Area Background */}
