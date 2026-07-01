@@ -25,7 +25,7 @@ const navigation: NavItem[] = [
   { name: 'Sea Lab', href: '/data-log' },
   { name: 'UAPS', href: '/uaps' },
   { name: 'CXP', href: '/cxp' },
-  { name: '관리자', href: '/admin' },
+  { name: 'Members', href: '/admin' },
   { name: '블로그', href: 'https://blog.musedemaree.com/admin', external: true },
 ];
 
