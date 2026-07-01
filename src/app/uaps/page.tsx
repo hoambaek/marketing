@@ -828,6 +828,14 @@ export default function UAPSPage() {
                     {linkCopied ? <Check className="w-3 h-3" /> : <Link2 className="w-3 h-3" />}
                     {linkCopied ? '복사됨' : '시음 기록 링크'}
                   </button>
+                  <Link
+                    href="/uaps/tasting-review"
+                    className="flex items-center gap-1.5 bg-white/[0.04] hover:bg-white/[0.08] border border-white/15 hover:border-white/25 rounded-lg px-3 py-2 sm:py-1.5 text-xs font-medium text-white/50 hover:text-white/80 transition-all shrink-0"
+                    title="시음 기록 링크로 받은 평가 승인/거부"
+                  >
+                    <Inbox className="w-3 h-3" />
+                    제출 검토
+                  </Link>
                   <button
                     onClick={() => runPrediction(selectedProductId, selectedProduct.plannedDurationMonths || 18)}
                     disabled={isPredicting || !selectedProduct.plannedDurationMonths}
