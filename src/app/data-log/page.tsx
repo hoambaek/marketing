@@ -38,7 +38,6 @@ import {
   ArrowDown,
   Timer,
   TrendingUp,
-  CloudRain,
 } from 'lucide-react';
 import { useOceanDataStore } from '@/lib/store/ocean-data-store';
 import {
@@ -294,25 +293,6 @@ function BoxPlotShape(props: any) {
   );
 }
 
-// Hero 통계 (거의 상수인 값 — 큰 숫자 + 미니 스파크라인)
-function HeroStat({ value, unit, spark, color, caption }: { value: string; unit: string; spark: number[]; color: string; caption: string }) {
-  const min = Math.min(...spark), max = Math.max(...spark), r = (max - min) || 1;
-  const w = 100, h = 30;
-  const pts = spark.map((v, i) => `${((i / (spark.length - 1)) * w).toFixed(1)},${(h - ((v - min) / r) * h).toFixed(1)}`);
-  return (
-    <div className="h-full flex flex-col justify-center">
-      <div className="flex items-end gap-2">
-        <span className="text-6xl sm:text-7xl font-light tracking-tight tabular-nums" style={{ color }}>{value}</span>
-        <span className="text-base text-white/40 mb-3">{unit}</span>
-      </div>
-      <svg viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" className="w-full h-14 mt-6">
-        <polyline points={pts.join(' ')} fill="none" stroke={color} strokeWidth={1.5} strokeOpacity={0.7} vectorEffect="non-scaling-stroke" />
-      </svg>
-      <p className="text-[10px] text-white/25 mt-3 font-mono uppercase tracking-wider">{caption}</p>
-    </div>
-  );
-}
-
 // UAPS Coefficient Gauge component
 function CoefficientGauge({
   label,
@@ -509,7 +489,6 @@ export default function DataLogPage() {
       해류방향: day.currentDirectionDominant,
       파고: day.waveHeightAvg,
       파주기: day.wavePeriodAvg,
-      습도: day.humidityAvg,
       기압: day.surfacePressureAvg,
       수압: calculateWaterPressure(day.depth, day.surfacePressureAvg || undefined),
       FRI: day.seaTemperatureAvg
@@ -1039,20 +1018,23 @@ export default function DataLogPage() {
               </ResponsiveContainer>
             </ChartWrapper>
 
-            {/* 6. 수압 — 현재값 hero + 스파크라인 (거의 상수) */}
-            <ChartWrapper title="수압" icon={Gauge} iconColor="#bfa46a" delay={0.62}>
-              <HeroStat
-                value={
-                  chartData.filter((d) => d.수압 != null).slice(-1)[0]?.수압?.toFixed(2) ?? '—'
-                }
-                unit="atm"
-                spark={chartData
-                  .slice(-30)
-                  .map((d) => d.수압)
-                  .filter((v): v is number => v != null)}
-                color="#bfa46a"
-                caption={`최근 30일 · 수심 ${agingDepth}m 기준`}
-              />
+            {/* 6. 수압 변화 — 면적 */}
+            <ChartWrapper title="수압 변화" icon={Gauge} iconColor="#bfa46a" delay={0.62}>
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={chartData}>
+                  <defs>
+                    <linearGradient id="waterPressureGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#bfa46a" stopOpacity={0.3} />
+                      <stop offset="100%" stopColor="#bfa46a" stopOpacity={0.02} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="2 6" stroke="#ffffff0a" vertical={false} />
+                  <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={8} tick={{ fill: '#ffffff45', fontSize: chartFontSize }} />
+                  <YAxis width={yAxisWidth} tickLine={false} axisLine={false} tickMargin={8} tick={{ fill: '#ffffff45', fontSize: chartFontSize }} domain={['auto', 'auto']} unit="atm" />
+                  <Tooltip content={<CustomTooltip />} />
+                  <Area type="monotone" dataKey="수압" stroke="#bfa46a" strokeWidth={1.75} fill="url(#waterPressureGradient)" />
+                </AreaChart>
+              </ResponsiveContainer>
             </ChartWrapper>
 
             {/* 7. 파고 — 세로 막대 (파랑 강도) */}
@@ -1092,25 +1074,6 @@ export default function DataLogPage() {
                   <Tooltip content={<CustomTooltip />} />
                   <Line type="stepAfter" dataKey="해류속도" stroke="#9090b0" strokeWidth={1.75} dot={false} />
                 </LineChart>
-              </ResponsiveContainer>
-            </ChartWrapper>
-
-            {/* 10. 습도 — 면적 */}
-            <ChartWrapper title="습도 변화" icon={CloudRain} iconColor="#86a8bd" delay={0.74}>
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={chartData}>
-                  <defs>
-                    <linearGradient id="humidityGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#86a8bd" stopOpacity={0.3} />
-                      <stop offset="100%" stopColor="#86a8bd" stopOpacity={0.02} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="2 6" stroke="#ffffff0a" vertical={false} />
-                  <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={8} tick={{ fill: '#ffffff45', fontSize: chartFontSize }} />
-                  <YAxis width={yAxisWidth} tickLine={false} axisLine={false} tickMargin={8} tick={{ fill: '#ffffff45', fontSize: chartFontSize }} domain={[0, 100]} unit="%" />
-                  <Tooltip content={<CustomTooltip />} />
-                  <Area type="monotone" dataKey="습도" stroke="#86a8bd" strokeWidth={1.75} fill="url(#humidityGradient)" />
-                </AreaChart>
               </ResponsiveContainer>
             </ChartWrapper>
 

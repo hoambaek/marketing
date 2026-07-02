@@ -158,9 +158,9 @@ export default function AdminDashboard({ brandbook, partner, invitations, subscr
   const router = useRouter();
 
   const counts = {
-    brandbook: brandbook.filter((r) => r.status === 'pending').length,
-    partner: partner.filter((r) => r.status === 'new').length,
-    invitations: invitations.filter((r) => r.status === 'new').length,
+    brandbook: brandbook.length,
+    partner: partner.length,
+    invitations: invitations.length,
     subscribers: subscribers.filter((r) => (r.status ?? 'active') === 'active').length,
   };
 
