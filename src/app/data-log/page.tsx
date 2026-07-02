@@ -16,6 +16,10 @@ import {
   ComposedChart,
   Bar,
   BarChart,
+  ScatterChart,
+  Scatter,
+  ZAxis,
+  ReferenceLine,
 } from 'recharts';
 import {
   Waves,
@@ -34,6 +38,7 @@ import {
   ArrowDown,
   Timer,
   TrendingUp,
+  CloudRain,
 } from 'lucide-react';
 import { useOceanDataStore } from '@/lib/store/ocean-data-store';
 import {
@@ -96,7 +101,7 @@ function OceanParticles() {
 }
 
 // Depth gauge visualization (0~60m, 투입 지점 마킹)
-const DEPLOYED_DEPTHS = [30, 40, 50]; // 실제 투입 수심
+const DEPLOYED_DEPTHS = [20, 30, 40]; // 실제 투입 수심
 
 function DepthGauge({ depth, maxDepth = 60 }: { depth: number; maxDepth?: number }) {
   const percentage = Math.min(100, (depth / maxDepth) * 100);
@@ -266,6 +271,48 @@ function ChartWrapper({
   );
 }
 
+// Box plot 커스텀 shape (recharts Bar dataKey=[q1,q3]에 주입)
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function BoxPlotShape(props: any) {
+  const { x, y, width, height, payload, color = '#7ba892' } = props;
+  if (payload?.min == null) return null;
+  const { min, q1, median, q3, max } = payload;
+  const unit = height / ((q3 - q1) || 1); // 염분 1단위당 픽셀
+  const maxY = y - (max - q3) * unit;
+  const minY = y + height + (q1 - min) * unit;
+  const medY = y + (q3 - median) * unit;
+  const cx = x + width / 2;
+  const cap = width * 0.28;
+  return (
+    <g stroke={color} fill={color}>
+      <line x1={cx} y1={maxY} x2={cx} y2={minY} strokeWidth={1} strokeOpacity={0.4} />
+      <line x1={cx - cap} y1={maxY} x2={cx + cap} y2={maxY} strokeWidth={1} strokeOpacity={0.4} />
+      <line x1={cx - cap} y1={minY} x2={cx + cap} y2={minY} strokeWidth={1} strokeOpacity={0.4} />
+      <rect x={x} y={y} width={width} height={height} rx={2} fillOpacity={0.22} strokeOpacity={0.55} strokeWidth={1} />
+      <line x1={x} y1={medY} x2={x + width} y2={medY} strokeWidth={2} />
+    </g>
+  );
+}
+
+// Hero 통계 (거의 상수인 값 — 큰 숫자 + 미니 스파크라인)
+function HeroStat({ value, unit, spark, color, caption }: { value: string; unit: string; spark: number[]; color: string; caption: string }) {
+  const min = Math.min(...spark), max = Math.max(...spark), r = (max - min) || 1;
+  const w = 100, h = 30;
+  const pts = spark.map((v, i) => `${((i / (spark.length - 1)) * w).toFixed(1)},${(h - ((v - min) / r) * h).toFixed(1)}`);
+  return (
+    <div className="h-full flex flex-col justify-center">
+      <div className="flex items-end gap-2">
+        <span className="text-6xl sm:text-7xl font-light tracking-tight tabular-nums" style={{ color }}>{value}</span>
+        <span className="text-base text-white/40 mb-3">{unit}</span>
+      </div>
+      <svg viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" className="w-full h-14 mt-6">
+        <polyline points={pts.join(' ')} fill="none" stroke={color} strokeWidth={1.5} strokeOpacity={0.7} vectorEffect="non-scaling-stroke" />
+      </svg>
+      <p className="text-[10px] text-white/25 mt-3 font-mono uppercase tracking-wider">{caption}</p>
+    </div>
+  );
+}
+
 // UAPS Coefficient Gauge component
 function CoefficientGauge({
   label,
@@ -343,10 +390,15 @@ function CoefficientGauge({
 // Custom tooltip for charts
 function CustomTooltip({ active, payload, label }: {
   active?: boolean;
-  payload?: Array<{ name: string; value: number; color: string }>;
+  payload?: Array<{ name: string; value: number | number[]; color: string; fill?: string }>;
   label?: string;
 }) {
   if (!active || !payload?.length) return null;
+
+  const fmt = (v: number | number[]) => {
+    if (Array.isArray(v)) return `${v[0]?.toFixed(1)} ~ ${v[1]?.toFixed(1)}`;
+    return typeof v === 'number' ? v.toFixed(2) : v;
+  };
 
   return (
     <div className="bg-[#0d1421]/95 backdrop-blur-xl border border-white/10 rounded-xl p-3 shadow-2xl">
@@ -355,12 +407,10 @@ function CustomTooltip({ active, payload, label }: {
         <div key={i} className="flex items-center gap-2">
           <div
             className="w-2 h-2 rounded-full"
-            style={{ backgroundColor: item.color }}
+            style={{ backgroundColor: item.color || item.fill }}
           />
           <span className="text-sm text-white/80">{item.name}:</span>
-          <span className="text-sm font-medium text-white">
-            {typeof item.value === 'number' ? item.value.toFixed(2) : item.value}
-          </span>
+          <span className="text-sm font-medium text-white">{fmt(item.value)}</span>
         </div>
       ))}
     </div>
@@ -443,12 +493,23 @@ export default function DataLogPage() {
       date: day.date.slice(5), // MM-DD format
       fullDate: day.date,
       수온: day.seaTemperatureAvg,
+      // 밴드용 [최저, 최고] 범위 (일교차 / 조석 진폭)
+      수온범위:
+        day.seaTemperatureMin != null && day.seaTemperatureMax != null
+          ? [day.seaTemperatureMin, day.seaTemperatureMax]
+          : undefined,
+      조위범위:
+        day.tideLevelMin != null && day.tideLevelMax != null
+          ? [day.tideLevelMin, day.tideLevelMax]
+          : undefined,
       염분: day.salinity,
       조위: day.tideLevelAvg,
       조류유속: day.tidalCurrentSpeed,
       해류속도: day.currentVelocityAvg,
+      해류방향: day.currentDirectionDominant,
       파고: day.waveHeightAvg,
       파주기: day.wavePeriodAvg,
+      습도: day.humidityAvg,
       기압: day.surfacePressureAvg,
       수압: calculateWaterPressure(day.depth, day.surfacePressureAvg || undefined),
       FRI: day.seaTemperatureAvg
@@ -462,6 +523,38 @@ export default function DataLogPage() {
             )
           : null,
     }));
+  }, [dailyData]);
+
+  // 월별 염분 분포 (box plot용) — 최근 8개월
+  const salinityMonthly = useMemo(() => {
+    const byMonth: Record<string, number[]> = {};
+    for (const d of dailyData) {
+      if (d.salinity != null) {
+        (byMonth[d.date.slice(0, 7)] ??= []).push(d.salinity);
+      }
+    }
+    const quantile = (sorted: number[], q: number) => {
+      const pos = (sorted.length - 1) * q;
+      const base = Math.floor(pos);
+      return sorted[base] + (sorted[base + 1] - sorted[base] || 0) * (pos - base);
+    };
+    return Object.keys(byMonth)
+      .sort()
+      .slice(-8)
+      .map((m) => {
+        const s = [...byMonth[m]].sort((a, b) => a - b);
+        const q1 = quantile(s, 0.25);
+        const q3 = quantile(s, 0.75);
+        return {
+          month: m.slice(2), // YY-MM
+          min: s[0],
+          q1,
+          median: quantile(s, 0.5),
+          q3,
+          max: s[s.length - 1],
+          iqr: [q1, q3] as [number, number],
+        };
+      });
   }, [dailyData]);
 
   const handleRefresh = () => {
@@ -727,7 +820,7 @@ export default function DataLogPage() {
                 label="수온"
                 value={currentConditions?.seaTemperature?.toFixed(1) ?? null}
                 unit="°C"
-                color="#22d3ee"
+                color="#5ba3a8"
                 delay={0.1}
               />
               <DataCard
@@ -735,7 +828,7 @@ export default function DataLogPage() {
                 label="염분"
                 value={currentConditions?.salinity?.toFixed(1) ?? null}
                 unit="psu"
-                color="#34d399"
+                color="#7ba892"
                 delay={0.15}
               />
               <DataCard
@@ -743,7 +836,7 @@ export default function DataLogPage() {
                 label="조위"
                 value={currentConditions?.tideLevel?.toFixed(0) ?? null}
                 unit="cm"
-                color="#818cf8"
+                color="#8385b5"
                 delay={0.2}
               />
               <DataCard
@@ -751,7 +844,7 @@ export default function DataLogPage() {
                 label="기압"
                 value={currentConditions?.surfacePressure?.toFixed(0) ?? null}
                 unit="hPa"
-                color="#f472b6"
+                color="#99a1b0"
                 delay={0.25}
               />
               <DataCard
@@ -759,7 +852,7 @@ export default function DataLogPage() {
                 label="수압"
                 value={currentConditions?.waterPressure?.toFixed(2) ?? null}
                 unit="atm"
-                color="#fb923c"
+                color="#bfa46a"
                 delay={0.3}
               />
               <DataCard
@@ -767,7 +860,7 @@ export default function DataLogPage() {
                 label="조류 유속"
                 value={currentConditions?.tidalCurrentSpeed?.toFixed(1) ?? null}
                 unit="cm/s"
-                color="#c084fc"
+                color="#6b8fb0"
                 delay={0.35}
               />
               <DataCard
@@ -775,7 +868,7 @@ export default function DataLogPage() {
                 label="파고"
                 value={currentConditions?.waveHeight?.toFixed(1) ?? null}
                 unit="m"
-                color="#60a5fa"
+                color="#5d8ca0"
                 delay={0.4}
               />
               <DataCard
@@ -783,7 +876,7 @@ export default function DataLogPage() {
                 label="파주기"
                 value={currentConditions?.wavePeriod?.toFixed(1) ?? null}
                 unit="s"
-                color="#fbbf24"
+                color="#7fa0a8"
                 delay={0.45}
               />
               <DataCard
@@ -833,7 +926,7 @@ export default function DataLogPage() {
                     : '데이터 없음'
                 }
                 statusLabel={getFRILabel(uapsCoeffs?.fri ?? NaN)}
-                color="#22d3ee"
+                color="#C4A052"
                 delay={0.55}
               />
               <CoefficientGauge
@@ -846,7 +939,7 @@ export default function DataLogPage() {
                     : '데이터 없음'
                 }
                 statusLabel={getBRILabel(uapsCoeffs?.bri ?? NaN)}
-                color="#60a5fa"
+                color="#8ba0b5"
                 delay={0.6}
               />
               <CoefficientGauge
@@ -859,7 +952,7 @@ export default function DataLogPage() {
                     : '데이터 없음'
                 }
                 statusLabel={getKTCILabel(uapsCoeffs?.kTci ?? NaN)}
-                color="#c084fc"
+                color="#6b8fb0"
                 delay={0.65}
               />
               <CoefficientGauge
@@ -868,7 +961,7 @@ export default function DataLogPage() {
                 rawValue={uapsCoeffs?.tsi !== undefined ? (uapsCoeffs?.tsi ?? 0).toFixed(2) : '—'}
                 description={`최근 ${Math.min(dailyData.length, 30)}일 기준`}
                 statusLabel={getTSILabel(uapsCoeffs?.tsi ?? NaN)}
-                color="#34d399"
+                color="#5ba3a8"
                 delay={0.7}
               />
             </div>
@@ -877,167 +970,157 @@ export default function DataLogPage() {
           {/* ── 시계열 차트 (8개) ── */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-            {/* 1. 수온 변화 */}
-            <ChartWrapper title="수온 변화" icon={Thermometer} iconColor="#22d3ee" delay={0.4}>
+            {/* 1. 수온 — 일교차 밴드 + 평균선 */}
+            <ChartWrapper title="수온 변화" icon={Thermometer} iconColor="#5ba3a8" delay={0.4}>
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={chartData}>
-                  <defs>
-                    <linearGradient id="tempGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#22d3ee" stopOpacity={0.3} />
-                      <stop offset="100%" stopColor="#22d3ee" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" />
-                  <XAxis dataKey="date" stroke="#ffffff30" tick={{ fill: '#ffffff50', fontSize: chartFontSize }} />
-                  <YAxis width={yAxisWidth} stroke="#ffffff30" tick={{ fill: '#ffffff50', fontSize: chartFontSize }} domain={['auto', 'auto']} />
+                <ComposedChart data={chartData}>
+                  <CartesianGrid strokeDasharray="2 6" stroke="#ffffff0a" vertical={false} />
+                  <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={8} tick={{ fill: '#ffffff45', fontSize: chartFontSize }} />
+                  <YAxis width={yAxisWidth} tickLine={false} axisLine={false} tickMargin={8} tick={{ fill: '#ffffff45', fontSize: chartFontSize }} domain={['auto', 'auto']} unit="°C" />
                   <Tooltip content={<CustomTooltip />} />
-                  <Area type="monotone" dataKey="수온" stroke="#22d3ee" strokeWidth={2} fill="url(#tempGradient)" />
-                </AreaChart>
+                  <Area type="monotone" dataKey="수온범위" stroke="none" fill="#5ba3a8" fillOpacity={0.16} name="일교차" isAnimationActive={false} />
+                  <Line type="monotone" dataKey="수온" stroke="#5ba3a8" strokeWidth={2} dot={false} />
+                </ComposedChart>
               </ResponsiveContainer>
             </ChartWrapper>
 
-            {/* 2. 염분 변화 */}
-            <ChartWrapper title="염분 변화" icon={Droplets} iconColor="#34d399" delay={0.45}>
+            {/* 2. 염분 — 월별 분포 (box plot) */}
+            <ChartWrapper title="염분 분포" icon={Droplets} iconColor="#7ba892" delay={0.45}>
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={chartData}>
-                  <defs>
-                    <linearGradient id="salinityGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#34d399" stopOpacity={0.3} />
-                      <stop offset="100%" stopColor="#34d399" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" />
-                  <XAxis dataKey="date" stroke="#ffffff30" tick={{ fill: '#ffffff50', fontSize: chartFontSize }} />
-                  <YAxis width={yAxisWidth} stroke="#ffffff30" tick={{ fill: '#ffffff50', fontSize: chartFontSize }} domain={['auto', 'auto']} />
-                  <Tooltip content={<CustomTooltip />} />
-                  <Area type="monotone" dataKey="염분" stroke="#34d399" strokeWidth={2} fill="url(#salinityGradient)" />
-                </AreaChart>
+                <ComposedChart data={salinityMonthly}>
+                  <CartesianGrid strokeDasharray="2 6" stroke="#ffffff0a" vertical={false} />
+                  <XAxis dataKey="month" tickLine={false} axisLine={false} tickMargin={8} tick={{ fill: '#ffffff45', fontSize: chartFontSize }} />
+                  <YAxis width={yAxisWidth} tickLine={false} axisLine={false} tickMargin={8} tick={{ fill: '#ffffff45', fontSize: chartFontSize }} domain={['auto', 'auto']} unit="‰" />
+                  <Tooltip content={<CustomTooltip />} cursor={{ fill: '#ffffff05' }} />
+                  <Bar dataKey="iqr" name="사분위(Q1~Q3)" shape={<BoxPlotShape color="#7ba892" />} isAnimationActive={false} />
+                </ComposedChart>
               </ResponsiveContainer>
             </ChartWrapper>
 
-            {/* 3. 조위 변화 */}
-            <ChartWrapper title="조위 변화" icon={Anchor} iconColor="#818cf8" delay={0.5}>
+            {/* 3. 조위 — 조석 진폭 밴드 + 평균선 */}
+            <ChartWrapper title="조위 변화" icon={Anchor} iconColor="#8385b5" delay={0.5}>
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={chartData}>
-                  <defs>
-                    <linearGradient id="tideGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#818cf8" stopOpacity={0.3} />
-                      <stop offset="100%" stopColor="#818cf8" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" />
-                  <XAxis dataKey="date" stroke="#ffffff30" tick={{ fill: '#ffffff50', fontSize: chartFontSize }} />
-                  <YAxis width={yAxisWidth} stroke="#ffffff30" tick={{ fill: '#ffffff50', fontSize: chartFontSize }} domain={['auto', 'auto']} />
+                <ComposedChart data={chartData}>
+                  <CartesianGrid strokeDasharray="2 6" stroke="#ffffff0a" vertical={false} />
+                  <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={8} tick={{ fill: '#ffffff45', fontSize: chartFontSize }} />
+                  <YAxis width={yAxisWidth} tickLine={false} axisLine={false} tickMargin={8} tick={{ fill: '#ffffff45', fontSize: chartFontSize }} domain={['auto', 'auto']} unit="㎝" />
                   <Tooltip content={<CustomTooltip />} />
-                  <Area type="monotone" dataKey="조위" stroke="#818cf8" strokeWidth={2} fill="url(#tideGradient)" />
-                </AreaChart>
+                  <Area type="monotone" dataKey="조위범위" stroke="none" fill="#8385b5" fillOpacity={0.16} name="조석 진폭" isAnimationActive={false} />
+                  <Line type="monotone" dataKey="조위" stroke="#8385b5" strokeWidth={2} dot={false} />
+                </ComposedChart>
               </ResponsiveContainer>
             </ChartWrapper>
 
-            {/* 4. 조류 유속 */}
-            <ChartWrapper title="조류 유속" icon={Navigation2} iconColor="#c084fc" delay={0.55}>
+            {/* 4. 조류 유속 — 버블 (크기 = 유속) */}
+            <ChartWrapper title="조류 유속" icon={Navigation2} iconColor="#6b8fb0" delay={0.55}>
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chartData}>
-                  <defs>
-                    <linearGradient id="tidalCurrentGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#c084fc" stopOpacity={0.5} />
-                      <stop offset="100%" stopColor="#c084fc" stopOpacity={0.1} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" />
-                  <XAxis dataKey="date" stroke="#ffffff30" tick={{ fill: '#ffffff50', fontSize: chartFontSize }} />
-                  <YAxis width={yAxisWidth} stroke="#ffffff30" tick={{ fill: '#ffffff50', fontSize: chartFontSize }} />
-                  <Tooltip content={<CustomTooltip />} />
-                  <Bar
-                    dataKey="조류유속"
-                    fill="url(#tidalCurrentGradient)"
-                    stroke="#c084fc"
-                    strokeWidth={1}
-                    radius={[4, 4, 0, 0]}
-                  />
-                </BarChart>
+                <ScatterChart margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
+                  <CartesianGrid strokeDasharray="2 6" stroke="#ffffff0a" vertical={false} />
+                  <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={8} tick={{ fill: '#ffffff45', fontSize: chartFontSize }} interval="preserveStartEnd" minTickGap={40} />
+                  <YAxis dataKey="조류유속" width={yAxisWidth} tickLine={false} axisLine={false} tickMargin={8} tick={{ fill: '#ffffff45', fontSize: chartFontSize }} domain={['auto', 'auto']} unit="㎝/s" />
+                  <ZAxis dataKey="조류유속" range={[8, 130]} />
+                  <Tooltip content={<CustomTooltip />} cursor={{ strokeDasharray: '3 3', stroke: '#ffffff20' }} />
+                  <Scatter data={chartData} fill="#6b8fb0" fillOpacity={0.45} stroke="#6b8fb0" strokeOpacity={0.8} isAnimationActive={false} />
+                </ScatterChart>
               </ResponsiveContainer>
             </ChartWrapper>
 
-            {/* 5. 기압 / 수압 */}
-            <ChartWrapper title="기압 / 수압" icon={Gauge} iconColor="#f472b6" delay={0.6}>
+            {/* 5. 기압 — 표준선(1013 hPa) 대비 스파이크 */}
+            <ChartWrapper title="기압 변화" icon={Gauge} iconColor="#99a1b0" delay={0.6}>
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" />
-                  <XAxis dataKey="date" stroke="#ffffff30" tick={{ fill: '#ffffff50', fontSize: chartFontSize }} />
-                  <YAxis
-                    yAxisId="left"
-                    width={yAxisWidth}
-                    stroke="#ffffff30"
-                    tick={{ fill: '#ffffff50', fontSize: chartFontSize }}
-                    domain={['auto', 'auto']}
-                  />
-                  <YAxis
-                    yAxisId="right"
-                    orientation="right"
-                    width={yAxisWidth}
-                    stroke="#ffffff30"
-                    tick={{ fill: '#ffffff50', fontSize: chartFontSize }}
-                    domain={['auto', 'auto']}
-                  />
+                  <CartesianGrid strokeDasharray="2 6" stroke="#ffffff0a" vertical={false} />
+                  <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={8} tick={{ fill: '#ffffff45', fontSize: chartFontSize }} />
+                  <YAxis width={yAxisWidth} tickLine={false} axisLine={false} tickMargin={8} tick={{ fill: '#ffffff45', fontSize: chartFontSize }} domain={['auto', 'auto']} unit="h" />
                   <Tooltip content={<CustomTooltip />} />
-                  <Legend
-                    wrapperStyle={{ paddingTop: 10 }}
-                    formatter={(value: string) => (
-                      <span className="text-white/60 text-xs">{value}</span>
-                    )}
-                  />
-                  <Line yAxisId="left" type="monotone" dataKey="기압" stroke="#f472b6" strokeWidth={2} dot={false} />
-                  <Line yAxisId="right" type="monotone" dataKey="수압" stroke="#fb923c" strokeWidth={2} dot={false} />
+                  <ReferenceLine y={1013} stroke="#99a1b0" strokeDasharray="4 4" strokeOpacity={0.45} label={{ value: '표준 1013', fill: '#ffffff40', fontSize: 9, position: 'insideTopRight' }} />
+                  <Line type="monotone" dataKey="기압" stroke="#99a1b0" strokeWidth={1.5} dot={false} />
                 </LineChart>
               </ResponsiveContainer>
             </ChartWrapper>
 
-            {/* 6. 파고 변화 */}
-            <ChartWrapper title="파고 변화" icon={Waves} iconColor="#60a5fa" delay={0.65}>
+            {/* 6. 수압 — 현재값 hero + 스파크라인 (거의 상수) */}
+            <ChartWrapper title="수압" icon={Gauge} iconColor="#bfa46a" delay={0.62}>
+              <HeroStat
+                value={
+                  chartData.filter((d) => d.수압 != null).slice(-1)[0]?.수압?.toFixed(2) ?? '—'
+                }
+                unit="atm"
+                spark={chartData
+                  .slice(-30)
+                  .map((d) => d.수압)
+                  .filter((v): v is number => v != null)}
+                color="#bfa46a"
+                caption={`최근 30일 · 수심 ${agingDepth}m 기준`}
+              />
+            </ChartWrapper>
+
+            {/* 7. 파고 — 세로 막대 (파랑 강도) */}
+            <ChartWrapper title="파고 변화" icon={Waves} iconColor="#5d8ca0" delay={0.65}>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={chartData}>
+                  <CartesianGrid strokeDasharray="2 6" stroke="#ffffff0a" vertical={false} />
+                  <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={8} tick={{ fill: '#ffffff45', fontSize: chartFontSize }} />
+                  <YAxis width={yAxisWidth} tickLine={false} axisLine={false} tickMargin={8} tick={{ fill: '#ffffff45', fontSize: chartFontSize }} unit="m" />
+                  <Tooltip content={<CustomTooltip />} cursor={{ fill: '#ffffff05' }} />
+                  <Bar dataKey="파고" fill="#5d8ca0" fillOpacity={0.75} radius={[2, 2, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </ChartWrapper>
+
+            {/* 8. 파주기 — lollipop (이산 값) */}
+            <ChartWrapper title="파주기 변화" icon={Timer} iconColor="#7fa0a8" delay={0.7}>
+              <ResponsiveContainer width="100%" height="100%">
+                <ComposedChart data={chartData}>
+                  <CartesianGrid strokeDasharray="2 6" stroke="#ffffff0a" vertical={false} />
+                  <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={8} tick={{ fill: '#ffffff45', fontSize: chartFontSize }} />
+                  <YAxis width={yAxisWidth} tickLine={false} axisLine={false} tickMargin={8} tick={{ fill: '#ffffff45', fontSize: chartFontSize }} unit="s" />
+                  <Tooltip content={<CustomTooltip />} />
+                  <Bar dataKey="파주기" barSize={1.5} fill="#7fa0a8" fillOpacity={0.3} isAnimationActive={false} />
+                  <Scatter dataKey="파주기" fill="#7fa0a8" isAnimationActive={false} />
+                </ComposedChart>
+              </ResponsiveContainer>
+            </ChartWrapper>
+
+            {/* 9. 해류 속도 — 스텝 라인 */}
+            <ChartWrapper title="해류 속도" icon={Wind} iconColor="#9090b0" delay={0.72}>
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={chartData}>
+                  <CartesianGrid strokeDasharray="2 6" stroke="#ffffff0a" vertical={false} />
+                  <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={8} tick={{ fill: '#ffffff45', fontSize: chartFontSize }} />
+                  <YAxis width={yAxisWidth} tickLine={false} axisLine={false} tickMargin={8} tick={{ fill: '#ffffff45', fontSize: chartFontSize }} unit="m/s" />
+                  <Tooltip content={<CustomTooltip />} />
+                  <Line type="stepAfter" dataKey="해류속도" stroke="#9090b0" strokeWidth={1.75} dot={false} />
+                </LineChart>
+              </ResponsiveContainer>
+            </ChartWrapper>
+
+            {/* 10. 습도 — 면적 */}
+            <ChartWrapper title="습도 변화" icon={CloudRain} iconColor="#86a8bd" delay={0.74}>
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={chartData}>
                   <defs>
-                    <linearGradient id="waveGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#60a5fa" stopOpacity={0.3} />
-                      <stop offset="100%" stopColor="#60a5fa" stopOpacity={0} />
+                    <linearGradient id="humidityGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#86a8bd" stopOpacity={0.3} />
+                      <stop offset="100%" stopColor="#86a8bd" stopOpacity={0.02} />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" />
-                  <XAxis dataKey="date" stroke="#ffffff30" tick={{ fill: '#ffffff50', fontSize: chartFontSize }} />
-                  <YAxis width={yAxisWidth} stroke="#ffffff30" tick={{ fill: '#ffffff50', fontSize: chartFontSize }} />
+                  <CartesianGrid strokeDasharray="2 6" stroke="#ffffff0a" vertical={false} />
+                  <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={8} tick={{ fill: '#ffffff45', fontSize: chartFontSize }} />
+                  <YAxis width={yAxisWidth} tickLine={false} axisLine={false} tickMargin={8} tick={{ fill: '#ffffff45', fontSize: chartFontSize }} domain={[0, 100]} unit="%" />
                   <Tooltip content={<CustomTooltip />} />
-                  <Area type="monotone" dataKey="파고" stroke="#60a5fa" strokeWidth={2} fill="url(#waveGradient)" />
+                  <Area type="monotone" dataKey="습도" stroke="#86a8bd" strokeWidth={1.75} fill="url(#humidityGradient)" />
                 </AreaChart>
               </ResponsiveContainer>
             </ChartWrapper>
 
-            {/* 7. 파주기 변화 */}
-            <ChartWrapper title="파주기 변화" icon={Timer} iconColor="#fbbf24" delay={0.7}>
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={chartData}>
-                  <defs>
-                    <linearGradient id="wavePeriodGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#fbbf24" stopOpacity={0.3} />
-                      <stop offset="100%" stopColor="#fbbf24" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" />
-                  <XAxis dataKey="date" stroke="#ffffff30" tick={{ fill: '#ffffff50', fontSize: chartFontSize }} />
-                  <YAxis width={yAxisWidth} stroke="#ffffff30" tick={{ fill: '#ffffff50', fontSize: chartFontSize }} />
-                  <Tooltip content={<CustomTooltip />} />
-                  <Area type="monotone" dataKey="파주기" stroke="#fbbf24" strokeWidth={2} fill="url(#wavePeriodGradient)" />
-                </AreaChart>
-              </ResponsiveContainer>
-            </ChartWrapper>
-
-            {/* 8. FRI/BRI 추이 */}
+            {/* 10. FRI/BRI 추이 */}
             <ChartWrapper title="FRI / BRI 추이" icon={TrendingUp} iconColor="#C4A052" delay={0.75}>
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" />
-                  <XAxis dataKey="date" stroke="#ffffff30" tick={{ fill: '#ffffff50', fontSize: chartFontSize }} />
-                  <YAxis width={yAxisWidth} stroke="#ffffff30" tick={{ fill: '#ffffff50', fontSize: chartFontSize }} domain={[0, 1]} />
+                  <CartesianGrid strokeDasharray="2 6" stroke="#ffffff0a" vertical={false} />
+                  <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={8} tick={{ fill: '#ffffff45', fontSize: chartFontSize }} />
+                  <YAxis width={yAxisWidth} tickLine={false} axisLine={false} tickMargin={8} tick={{ fill: '#ffffff45', fontSize: chartFontSize }} domain={[0, 1]} />
                   <Tooltip content={<CustomTooltip />} />
                   <Legend
                     wrapperStyle={{ paddingTop: 10 }}
@@ -1045,8 +1128,8 @@ export default function DataLogPage() {
                       <span className="text-white/60 text-xs">{value}</span>
                     )}
                   />
-                  <Line type="monotone" dataKey="FRI" stroke="#22d3ee" strokeWidth={2} dot={false} />
-                  <Line type="monotone" dataKey="BRI" stroke="#60a5fa" strokeWidth={2} dot={false} />
+                  <Line type="monotone" dataKey="FRI" stroke="#C4A052" strokeWidth={2} dot={false} />
+                  <Line type="monotone" dataKey="BRI" stroke="#8ba0b5" strokeWidth={2} dot={false} />
                 </LineChart>
               </ResponsiveContainer>
             </ChartWrapper>

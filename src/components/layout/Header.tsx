@@ -22,7 +22,7 @@ const navigation: NavItem[] = [
   { name: 'KPI', href: '/kpi' },
   { name: '재고관리', href: '/inventory' },
   { name: '예산관리', href: '/budget' },
-  { name: 'Sea Lab', href: '/data-log' },
+  { name: 'Data Log', href: '/data-log' },
   { name: 'UAPS', href: '/uaps' },
   { name: 'CXP', href: '/cxp' },
   { name: 'Members', href: '/admin' },

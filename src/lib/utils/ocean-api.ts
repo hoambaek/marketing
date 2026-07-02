@@ -254,13 +254,14 @@ export async function enrichWithKhoaData(
   reqDate?: string
 ): Promise<Omit<OceanDataDaily, 'id' | 'createdAt' | 'updatedAt'>[]> {
   try {
-    // KHOA 최신관측 + 조류예보 동시 호출
-    const [items, tidalForecast] = await Promise.all([
+    // KHOA 조위관측소(DT_0027) + 완도항 부이(TW_0078, 유속) + 조류예보 동시 호출
+    const [items, buoyItems, tidalForecast] = await Promise.all([
       fetchKhoaRecentData({ reqDate, min: 60 }),
+      fetchKhoaBuoyData({ reqDate, min: 60 }).catch(() => []),
       getTodayTidalCurrentForecast().catch(() => null),
     ]);
 
-    if (items.length === 0 && !tidalForecast) return dailyData;
+    if (items.length === 0 && buoyItems.length === 0 && !tidalForecast) return dailyData;
 
     const khoaDaily = items.length > 0 ? aggregateKhoaDaily(items) : [];
     const khoaMap = new Map(khoaDaily.map(d => [d.date, d]));
@@ -270,15 +271,33 @@ export async function enrichWithKhoaData(
     const kst = new Date(now.getTime() + 9 * 60 * 60 * 1000);
     const todayStr = kst.toISOString().split('T')[0];
 
+    // 완도항 부이(TW_0078) 유속 일 평균 — DT_0027 조위관측소는 유속을 측정하지 않음
+    const buoySpeeds = buoyItems.map(i => i.crsp).filter((v): v is number => v !== null);
+    const buoyDirs = buoyItems.map(i => i.crdir).filter((v): v is number => v !== null);
+    const buoySpeedAvg = buoySpeeds.length > 0
+      ? buoySpeeds.reduce((a, b) => a + b, 0) / buoySpeeds.length
+      : null;
+    const buoyDirDominant = buoyDirs.length > 0 ? buoyDirs[Math.floor(buoyDirs.length / 2)] : null;
+    // 부이 조회 데이터가 해당하는 날짜 (reqDate 지정 시 그 날, 없으면 오늘)
+    const buoyDate = reqDate
+      ? `${reqDate.slice(0, 4)}-${reqDate.slice(4, 6)}-${reqDate.slice(6, 8)}`
+      : todayStr;
+
     return dailyData.map(day => {
       const khoa = khoaMap.get(day.date);
       const isToday = day.date === todayStr;
+      const isBuoyDate = day.date === buoyDate;
 
       // 조류예보는 오늘 데이터만 적용
       const tidalSpeed = (isToday && tidalForecast) ? tidalForecast.speed : null;
       const tidalDir = (isToday && tidalForecast) ? tidalForecast.direction : null;
 
-      if (!khoa && !isToday) return day;
+      // 부이 실측 유속은 조회 날짜(buoyDate) 레코드에만 적용
+      const buoySpeed = isBuoyDate ? buoySpeedAvg : null;
+      const buoyDir = isBuoyDate ? buoyDirDominant : null;
+
+      const hasCurrentSource = buoySpeed !== null || tidalSpeed !== null;
+      if (!khoa && !hasCurrentSource) return day;
 
       return {
         ...day,
@@ -294,11 +313,11 @@ export async function enrichWithKhoaData(
         tideLevelAvg: khoa?.tideLevelAvg ?? day.tideLevelAvg,
         tideLevelMin: khoa?.tideLevelMin ?? day.tideLevelMin,
         tideLevelMax: khoa?.tideLevelMax ?? day.tideLevelMax,
-        // 조류: 관측소 실측(있으면) > 조류예보(오늘만)
-        tidalCurrentSpeed: khoa?.currentVelocityAvg ?? tidalSpeed ?? day.tidalCurrentSpeed,
-        tidalCurrentDirection: khoa?.currentDirectionDominant ?? tidalDir ?? day.tidalCurrentDirection,
-        // 데이터 소스 표기
-        dataSource: khoa ? 'hybrid' : (isToday && tidalForecast ? 'hybrid' : day.dataSource),
+        // 조류 유속: 부이 실측(TW_0078) > 조류예보(오늘만) > 관측소값 > 기존값
+        tidalCurrentSpeed: buoySpeed ?? tidalSpeed ?? khoa?.currentVelocityAvg ?? day.tidalCurrentSpeed,
+        tidalCurrentDirection: buoyDir ?? tidalDir ?? khoa?.currentDirectionDominant ?? day.tidalCurrentDirection,
+        // 데이터 소스 표기 (KHOA 관측·부이·예보 중 하나라도 있으면 hybrid)
+        dataSource: (khoa || hasCurrentSource) ? 'hybrid' : day.dataSource,
       };
     });
   } catch {

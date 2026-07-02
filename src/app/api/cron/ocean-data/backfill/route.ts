@@ -76,7 +76,8 @@ export async function GET(request: Request) {
         console.log(`[백필] 청크 처리 중: ${chunk.start} ~ ${chunk.end} (${chunksProcessed + 1}/${chunks.length})`);
 
         // Open-Meteo API에서 데이터 fetch
-        const { marine, weather } = await fetchOpenMeteoRawData(chunk.start, chunk.end, { marineModel: 'era5_ocean' });
+        // 기본 marine 모델 사용 — era5_ocean은 해류·수온(SST)을 반환하지 않아 파고만 채워지므로 사용하지 않음
+        const { marine, weather } = await fetchOpenMeteoRawData(chunk.start, chunk.end);
 
         // 시간별 → 일별 집계
         const hourlyData = extractHourlyData(marine, weather);

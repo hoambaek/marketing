@@ -8,7 +8,9 @@ const withPWA = require('next-pwa')({
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: 'standalone',
-  turbopack: {},
+  turbopack: {
+    root: __dirname,
+  },
   serverExternalPackages: [],
   serverBodyParser: {
     sizeLimit: '50mb',
