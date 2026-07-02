@@ -36,7 +36,7 @@ import {
   CONSERVATIVE_CAP,
   MIN_EFFECTIVE_TCI,
 } from '@/lib/types/uaps';
-import { type MonthlyOceanProfile, getMonthlyProfile } from '@/lib/utils/uaps-ocean-profile';
+import { type MonthlyOceanProfile, getMonthlyProfile, estimateBottomTemperature } from '@/lib/utils/uaps-ocean-profile';
 import { calculateLiveTSI } from '@/lib/utils/uaps-live-coefficients';
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -140,8 +140,10 @@ export function calculateHenryBRI(
   const drivingForceLand = pBottle - pExtLand; // 5 bar
 
   // 해저 CO2 구동력 (수압 = 1 + depth/10 bar)
+  // 하한 1.0 bar: 외부압이 병 내부압에 근접해도 최소 구동력 존재로 처리
+  // (40m 이상에서 BRI가 비현실적으로 폭증하던 문제 보정)
   const pExtOcean = 1 + depthM / 10;
-  const drivingForceOcean = Math.max(0.1, pBottle - pExtOcean);
+  const drivingForceOcean = Math.max(1.0, pBottle - pExtOcean);
 
   // 압력 기반 보존비
   const pressureRatio = drivingForceLand / drivingForceOcean;
@@ -174,7 +176,7 @@ export function calculateHenryBRI(
 function calculateHenryBRIRaw(depthM: number, oceanTempC: number, cellarTempC: number): number {
   const pBottle = 6;
   const drivingForceLand = pBottle - 1;
-  const drivingForceOcean = Math.max(0.1, pBottle - (1 + depthM / 10));
+  const drivingForceOcean = Math.max(1.0, pBottle - (1 + depthM / 10));
   const pressureRatio = drivingForceLand / drivingForceOcean;
   const solubilityCorrection = 1 + 0.03 * (cellarTempC - oceanTempC);
   return pressureRatio * solubilityCorrection;
@@ -1281,26 +1283,48 @@ export function simulateDepthQualities(
   const depths = [10, 20, 30, 40, 50];
   const results: DepthSimulationResult[] = [];
 
+  const category = (product.productCategory || 'champagne') as string;
+  const eaEntry = CATEGORY_EA_MAP[category];
+  const ea = eaEntry ? eaEntry.ea * 1000 : 47000;
+  const closureType = product.closureType || 'cork_natural';
+
+  // 표층 수온(SST) — 깊이별 해저 수온 추정의 기준값
+  const surfaceTemp = oceanConditions?.seaTemperature ?? 4;
+  // 현재 월 (깊이별 성층 프로파일 적용용)
+  const currentMonth = new Date().getMonth() + 1;
+
+  // 숙성 반응 속도의 온도 의존성 (아레니우스 Q10 근사)
+  // 깊을수록 저온 → texture·aroma 발달이 느려지는 트레이드오프를 반영
+  const TEMP_REF = 10; // 기준 수온 (°C)
+  const Q10 = 2.2;     // 10°C 하락당 반응속도 배율
+
   for (const depth of depths) {
-    // 깊이별 BRI 재계산
-    const briMeta = calculateHenryBRI(depth, oceanConditions?.seaTemperature ?? 4);
+    // 깊이별 해저 수온 추정 (성층 반영: 깊을수록 저온)
+    const bottomTemp = estimateBottomTemperature(surfaceTemp, depth, currentMonth);
+
+    // 깊이별 BRI 재계산 (수압 + 해저 수온)
+    const briMeta = calculateHenryBRI(depth, bottomTemp);
     const bri = briMeta.value;
 
-    // 깊이별 FRI 재계산 (수압에 따른 OTR 보정)
-    const category = (product.productCategory || 'champagne') as string;
-    const eaEntry = CATEGORY_EA_MAP[category];
-    const ea = eaEntry ? eaEntry.ea * 1000 : 47000;
-    const closureType = product.closureType || 'cork_natural';
-    const oceanTemp = oceanConditions?.seaTemperature ?? 4;
-    const friMeta = calculateArrheniusFRI(oceanTemp, 12, ea, closureType, depth);
+    // 깊이별 FRI 재계산 (수압에 따른 OTR 보정 + 해저 수온)
+    const friMeta = calculateArrheniusFRI(bottomTemp, 12, ea, closureType, depth);
     const fri = friMeta.value;
 
-    const texture = calculateTextureMaturity(baseAging, months, config.tci * af.textureMult, kf);
-    const aroma = calculateAromaFreshness(baseAging, months, fri * af.aromaDecay);
-    const bubble = calculateBubbleRefinement(months, depth, bri);
-    const risk = calculateOffFlavorRisk(reductionPotential, months, texture) * af.riskMult;
+    // 저온일수록 질감·향 발달이 느려짐 → 실효 숙성 개월수 축소
+    const kineticTempFactor = Math.pow(Q10, (bottomTemp - TEMP_REF) / 10);
+    const effectiveMonths = months * kineticTempFactor;
 
-    const quality = calculateCompositeQuality(texture, aroma, bubble, risk, product.wineType, w);
+    const texture = calculateTextureMaturity(baseAging, effectiveMonths, config.tci * af.textureMult, kf);
+    const aroma = calculateAromaFreshness(baseAging, effectiveMonths, fri * af.aromaDecay);
+    // 기포 미세화는 물리 체류 기간 기준 (저온·고압은 CO2 안정화에 유리)
+    const bubble = calculateBubbleRefinement(months, depth, bri);
+    const risk = calculateOffFlavorRisk(reductionPotential, months, texture, bottomTemp) * af.riskMult;
+
+    let quality = calculateCompositeQuality(texture, aroma, bubble, risk, product.wineType, w);
+    // 40m 초과 페널티: 실측상 저온으로 숙성이 정체되고 회수 효율이 급감 (초과 m당 -0.6점)
+    if (depth > 40) {
+      quality = Math.max(0, quality - (depth - 40) * 0.6);
+    }
 
     results.push({
       depth,
