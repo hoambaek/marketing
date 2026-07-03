@@ -733,6 +733,7 @@ export function calculateOptimalHarvestWindow(
 
   // 6-36개월 각 월별 복합 품질 계산
   const kf = af.kineticFactor ?? 1.0;
+  const timeScale = af.timeScale ?? 1.0;
 
   // TSI 계산: monthlyOceanProfiles가 있으면 12개월 수온으로 산출
   let tsiScore: number | undefined;
@@ -767,17 +768,20 @@ export function calculateOptimalHarvestWindow(
       }
     }
 
+    // 시간축 압축 적용 성숙 개월 (숙성 속도 반영) — 계절 수온은 실제 경과월(m) 기준
+    const effM = m * timeScale;
+
     // v4.0: 개별 물리적 상한 + 계절 수온 전달
-    const texture = Math.min(95, calculateTextureMaturity(baseAging, m, config.tci * af.textureMult, dynamicKf));
-    const aroma = Math.max(15, calculateAromaFreshness(baseAging, m, dynamicFri * af.aromaDecay));
-    const bubble = Math.min(95, calculateBubbleRefinement(m, product.agingDepth, dynamicBri));
+    const texture = Math.min(95, calculateTextureMaturity(baseAging, effM, config.tci * af.textureMult, dynamicKf));
+    const aroma = Math.max(15, calculateAromaFreshness(baseAging, effM, dynamicFri * af.aromaDecay));
+    const bubble = Math.min(95, calculateBubbleRefinement(effM, product.agingDepth, dynamicBri));
 
     let monthTemp: number | undefined;
     if (monthlyOceanProfiles && monthlyOceanProfiles.length > 0 && immersionMonth) {
       const calMonth = ((immersionMonth - 1 + m - 1) % 12) + 1;
       monthTemp = getMonthlyProfile(monthlyOceanProfiles, calMonth).seaTemperatureAvg;
     }
-    const risk = calculateOffFlavorRisk(reductionPotential, m, texture, monthTemp) * af.riskMult;
+    const risk = calculateOffFlavorRisk(reductionPotential, effM, texture, monthTemp) * af.riskMult;
 
     const score = calculateCompositeQuality(texture, aroma, bubble, risk, product.wineType, qualityWeights, tsiScore);
     monthlyScores.push({ month: m, score });
@@ -867,6 +871,8 @@ export function generateTimelineData(
   const af = agingFactors || DEFAULT_AGING_FACTORS;
   const w = qualityWeights || DEFAULT_QUALITY_WEIGHTS;
   const kf = af.kineticFactor ?? 1.0;
+  // 시간축 압축 배수 — 숙성 성숙 계산에만 적용(차트 x축·해양 계절 주기는 실제 월 유지)
+  const timeScale = af.timeScale ?? 1.0;
   const baseAging = (product.terrestrialAgingYears != null && product.terrestrialAgingYears > 0)
     ? product.terrestrialAgingYears
     : af.baseAgingYears;
@@ -911,9 +917,12 @@ export function generateTimelineData(
       }
     }
 
+    // 시간축 압축 적용 성숙 개월 (숙성 속도 반영) — 차트 월(m)은 실제 경과월 유지
+    const effM = m * timeScale;
+
     // v4.0: 개별 점수에 물리적 상한 적용 (종합 캡 제거)
-    const textureMaturity = Math.min(95, calculateTextureMaturity(baseAging, m, config.tci * af.textureMult, dynamicKf));
-    const aromaFreshness = Math.max(15, calculateAromaFreshness(baseAging, m, dynamicFri * af.aromaDecay));
+    const textureMaturity = Math.min(95, calculateTextureMaturity(baseAging, effM, config.tci * af.textureMult, dynamicKf));
+    const aromaFreshness = Math.max(15, calculateAromaFreshness(baseAging, effM, dynamicFri * af.aromaDecay));
 
     // 환원취: 해당 월 수온 전달 (계절 의존성)
     let monthTemp: number | undefined;
@@ -922,8 +931,8 @@ export function generateTimelineData(
       const profile = getMonthlyProfile(monthlyOceanProfiles, calendarMonth);
       monthTemp = profile.seaTemperatureAvg;
     }
-    const offFlavorRisk = calculateOffFlavorRisk(reductionPotential, m, textureMaturity, monthTemp) * af.riskMult;
-    const bubbleRefinement = Math.min(95, calculateBubbleRefinement(m, product.agingDepth, dynamicBri));
+    const offFlavorRisk = calculateOffFlavorRisk(reductionPotential, effM, textureMaturity, monthTemp) * af.riskMult;
+    const bubbleRefinement = Math.min(95, calculateBubbleRefinement(effM, product.agingDepth, dynamicBri));
 
     // v4.0: 종합 캡 제거 — 개별 상한으로 자연스러운 곡선 보장
     const compositeQuality = calculateCompositeQuality(

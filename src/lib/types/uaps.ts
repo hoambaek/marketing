@@ -14,7 +14,7 @@ export type ProductCategory =
   | 'champagne'
   | 'red_wine'
   | 'white_wine'
-  | 'coldbrew'
+  | 'green_coffee_bean'
   | 'sake'
   | 'whisky'
   | 'spirits'
@@ -502,6 +502,7 @@ export interface AgingFactors {
   aromaDecay: number;      // 향 감소 속도 배수 (0.3~1.5)
   riskMult: number;        // 환원 리스크 배수 (0.3~2.0)
   kineticFactor: number;   // 운동학적 인자 K-TCI (0.5~2.0), 해류 진동 기반 질감 가속
+  timeScale?: number;      // 시간축 압축 배수 (숙성 속도) — 1.0=와인/샴페인 기준, >1=빠른 숙성(전통주·간장 등), <1=느린 숙성(보이차)
 }
 
 // 카테고리별 품질 가중치 (합계 = 1.0)
@@ -519,6 +520,7 @@ export const AGING_FACTORS_RANGE = {
   aromaDecay: { min: 0.3, max: 1.5 },
   riskMult: { min: 0.3, max: 2.0 },
   kineticFactor: { min: 0.5, max: 2.0 },
+  timeScale: { min: 0.3, max: 5.0 },
 } as const;
 
 // 기본 AgingFactors (샴페인 blend 기준)
@@ -528,6 +530,7 @@ export const DEFAULT_AGING_FACTORS: AgingFactors = {
   aromaDecay: 1.0,
   riskMult: 1.0,
   kineticFactor: 1.0,
+  timeScale: 1.0,
 };
 
 // 기본 QualityWeights (범용)
@@ -543,7 +546,7 @@ export const PRODUCT_CATEGORY_LABELS: Record<ProductCategory, string> = {
   champagne: '샴페인',
   red_wine: '레드와인',
   white_wine: '화이트와인',
-  coldbrew: '콜드브루 커피',
+  green_coffee_bean: '생두 (그린빈)',
   sake: '사케',
   whisky: '위스키',
   spirits: '한국 전통주',
@@ -593,7 +596,7 @@ export const CATEGORY_SUBTYPES: Record<string, { value: string; label: string }[
     { value: 'honjozo', label: '혼조조' },
     { value: 'tokubetsu', label: '토쿠베츠' },
   ],
-  coldbrew: [
+  green_coffee_bean: [
     { value: 'arabica', label: '아라비카' },
     { value: 'robusta', label: '로부스타' },
     { value: 'blend', label: '블렌드' },
@@ -674,12 +677,12 @@ export const CATEGORY_REDUCTION_CHECKLIST: Record<string, ReductionCheckItem[]> 
     { id: 'hiire', label: '히이레 (火入)', desc: '가열 살균 처리', weight: -1, group: null },
     { id: 'muroka', label: '무로카 (無濾過)', desc: '무여과, 잔여 효모 함유', weight: 1, group: null },
   ],
-  coldbrew: [
-    { id: 'darkRoast', label: '다크 로스트', desc: 'Full City+ · 높은 탄화물', weight: -1, group: 'roast' },
-    { id: 'mediumRoast', label: '미디엄 로스트', desc: 'City · Full City', weight: 0, group: 'roast' },
-    { id: 'lightRoast', label: '라이트 로스트', desc: 'Cinnamon · City-', weight: 1, group: 'roast' },
-    { id: 'natural', label: '내추럴 가공', desc: '자연건조 · 발효 풍미', weight: 1, group: null },
-    { id: 'washed', label: '워시드 가공', desc: '수세식 · 깔끔한 산미', weight: -1, group: null },
+  green_coffee_bean: [
+    { id: 'natural', label: '내추럴 가공', desc: '자연건조 · 과실·발효 풍미', weight: 1, group: 'process' },
+    { id: 'honey', label: '허니 가공', desc: '점액질 잔류 건조 · 단맛', weight: 1, group: 'process' },
+    { id: 'washed', label: '워시드 가공', desc: '수세식 · 깔끔한 산미', weight: 0, group: 'process' },
+    { id: 'newCrop', label: '뉴 크롭', desc: '당해 수확 · 높은 수분·활성', weight: 1, group: null },
+    { id: 'highGrown', label: '고지대·고밀도', desc: 'SHB/SHG · 고밀도 생두', weight: 1, group: null },
   ],
   puer: [
     { id: 'jinYaCha', label: '긴압차', desc: '병차·전차·타차 압축 형태', weight: 1, group: null },
@@ -723,7 +726,7 @@ export const CATEGORY_FIELD_CONFIG: Record<string, CategoryFieldConfig> = {
   white_wine:       { showVintage: true, vintageLabel: '빈티지', showDosage: false, showAlcohol: true, subtypeLabel: '품종' },
   whisky:           { showVintage: true, vintageLabel: '증류 연도', showDosage: false, showAlcohol: true, subtypeLabel: '위스키 타입' },
   sake:             { showVintage: true, vintageLabel: '양조 연도', showDosage: false, showAlcohol: true, subtypeLabel: '사케 등급' },
-  coldbrew:         { showVintage: true, vintageLabel: '수확 연도', showDosage: false, showAlcohol: false, subtypeLabel: '커피 타입' },
+  green_coffee_bean: { showVintage: true, vintageLabel: '수확 연도', showDosage: false, showAlcohol: false, subtypeLabel: '생두 타입' },
   puer:             { showVintage: true, vintageLabel: '생산 연도', showDosage: false, showAlcohol: false, subtypeLabel: '보이차 타입' },
   soy_sauce:        { showVintage: false, vintageLabel: '', showDosage: false, showAlcohol: false, subtypeLabel: '간장 타입' },
   vinegar:          { showVintage: false, vintageLabel: '', showDosage: false, showAlcohol: false, subtypeLabel: '식초 타입' },
@@ -772,7 +775,7 @@ export const CATEGORY_DEFAULT_CLOSURE: Record<string, ClosureType> = {
   white_wine: 'screw_cap',
   whisky: 'cork_natural',
   sake: 'screw_cap',
-  coldbrew: 'screw_cap',
+  green_coffee_bean: 'screw_cap',
   puer: 'none',
   soy_sauce: 'ceramic_cap',
   vinegar: 'glass_stopper',
@@ -793,7 +796,7 @@ export const CATEGORY_EA_MAP: Record<string, CategoryEaEntry> = {
   white_wine: { ea: 44, eaLower: 39, eaUpper: 49, reactionBasis: '폴리페놀 산화 (갈변)' },
   whisky:     { ea: 60, eaLower: 52, eaUpper: 68, reactionBasis: '에스테르화 반응 (숙성향 생성)' },
   sake:       { ea: 35, eaLower: 30, eaUpper: 40, reactionBasis: '아미노-카보닐 반응 (메일라드)' },
-  coldbrew:   { ea: 38, eaLower: 33, eaUpper: 43, reactionBasis: '클로로겐산 산화 (쓴맛 변화)' },
+  green_coffee_bean: { ea: 38, eaLower: 33, eaUpper: 43, reactionBasis: '지질 산화 + 클로로겐산 분해 (생두 에이징)' },
   puer:       { ea: 42, eaLower: 37, eaUpper: 47, reactionBasis: '카테킨 산화 중합 (후발효)' },
   soy_sauce:  { ea: 50, eaLower: 44, eaUpper: 56, reactionBasis: '멜라노이딘 생성 (갈변)' },
   vinegar:    { ea: 45, eaLower: 40, eaUpper: 50, reactionBasis: '초산 에스테르화 (숙성향)' },

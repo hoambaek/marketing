@@ -92,7 +92,7 @@ const ALL_CATEGORIES = [
   { slug: 'whisky',     label: '위스키',      emoji: '🥃', href: '/uaps/whisky' },
   { slug: 'soy-sauce',  label: '간장',        emoji: '🫙', href: '/uaps/soy-sauce' },
   { slug: 'vinegar',    label: '식초',        emoji: '🍶', href: '/uaps/vinegar' },
-  { slug: 'cold-brew',  label: '콜드브루',    emoji: '☕', href: '/uaps/cold-brew' },
+  { slug: 'green-bean', label: '생두',        emoji: '🫘', href: '/uaps/green-bean' },
   { slug: 'spirits',    label: '소주',        emoji: '🍵', href: '/uaps/spirits' },
   { slug: 'yakju',      label: '전통주',      emoji: '🍚', href: '/uaps/yakju' },
   { slug: 'puerh',      label: '보이차',      emoji: '🫖', href: '/uaps/puerh' },
@@ -105,7 +105,7 @@ const SLUG_TO_DB_CATEGORY: Record<string, string> = {
   'whisky':     'whisky',
   'soy-sauce':  'soy_sauce',
   'vinegar':    'vinegar',
-  'cold-brew':  'coldbrew',
+  'green-bean': 'green_coffee_bean',
   'spirits':    'spirits',
   'yakju':      'spirits',
   'puerh':      'puer',
@@ -181,16 +181,16 @@ const CATEGORY_CONFIG: Record<string, {
     bgVia: '#0a1f12',
     icon: '🍶',
   },
-  'cold-brew': {
-    label: '콜드브루',
-    title: 'Cold Brew Intelligence',
-    subtitle: '콜드브루 해저 숙성 풍미 예측 시스템',
+  'green-bean': {
+    label: '생두',
+    title: 'Green Bean Intelligence',
+    subtitle: '생두(그린빈) 해저 숙성 풍미 예측 시스템',
     accent: '#f97316',
     accentRgb: '249, 115, 22',
     secondAccent: '#fdba74',
     bgFrom: '#1a0d00',
     bgVia: '#1a1008',
-    icon: '☕',
+    icon: '🫘',
   },
   spirits: {
     label: '소주',
@@ -377,15 +377,20 @@ export default function CategoryUAPSPage() {
     setLocalBri(config.bri);
   }, [config.tci, config.fri, config.bri]);
 
+  // AI 예측의 카테고리별 계수(agingFactors/qualityWeights)를 타임라인에 주입
+  // (메인 /uaps 페이지와 동일 — 미전달 시 샴페인 기본값으로 폴백되어 비샴페인 곡선이 왜곡됨)
+  const aiAgingFactors = latestPrediction?.agingFactorsJson ?? undefined;
+  const aiQualityWeights = latestPrediction?.qualityWeightsJson ?? undefined;
+
   const timelineData = useMemo(() => {
     if (!selectedProduct) return [];
-    return generateTimelineData(selectedProduct, config);
-  }, [selectedProduct, config]);
+    return generateTimelineData(selectedProduct, config, aiAgingFactors, aiQualityWeights);
+  }, [selectedProduct, config, aiAgingFactors, aiQualityWeights]);
 
   const harvestWindow = useMemo(() => {
     if (!selectedProduct) return null;
-    return calculateOptimalHarvestWindow(selectedProduct, config);
-  }, [selectedProduct, config]);
+    return calculateOptimalHarvestWindow(selectedProduct, config, aiAgingFactors, aiQualityWeights);
+  }, [selectedProduct, config, aiAgingFactors, aiQualityWeights]);
 
   const beforeProfile = useMemo(() => {
     if (latestPrediction?.expertProfileJson) return latestPrediction.expertProfileJson;

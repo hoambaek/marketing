@@ -417,10 +417,10 @@ export default function HowItWorksPage() {
                   sources: ['Yunnan Sourcing US/CN', 'White2Tea', 'TeaDB', 'Reddit r/puerh', 'PuerCN(中文)'],
                 },
                 {
-                  emoji: '☕',
-                  name: '스페셜티 커피',
+                  emoji: '🫘',
+                  name: '스페셜티 생두',
                   color: '#fb923c',
-                  sources: ['CoffeeReview.com', 'CQI/Kaggle', 'Sweet Maria\'s', 'Cup of Excellence', 'SCAJ+Best of Panama', 'Reddit r/coldbrew', '아프리카·아시아 스페셜티'],
+                  sources: ['SCA Green Grading', 'CQI/Kaggle', 'Sweet Maria\'s', 'Royal Coffee', 'Cup of Excellence', 'SCAJ+Best of Panama', '아프리카·아시아 스페셜티'],
                 },
                 {
                   emoji: '🫙',
@@ -804,7 +804,7 @@ export default function HowItWorksPage() {
           <p>
             4개 지표를 <span className="text-amber-300">AI가 추론한 카테고리별 가중치(qualityWeights)</span>로 합산합니다.
             예) 샴페인: 향(0.35) &gt; 질감(0.25) = 기포(0.25) &gt; 위험(0.15),
-            콜드브루 커피: 질감(0.35) &gt; 향(0.30) &gt; 기포(0.20) &gt; 위험(0.15).
+            생두: 질감(0.35) &gt; 향(0.30) &gt; 기포(0.20) &gt; 위험(0.15).
           </p>
           <p>
             4개 지표가 고르게 높을 때 <span className="text-amber-300">시너지 보너스(최대 +15점)</span>가 발동됩니다

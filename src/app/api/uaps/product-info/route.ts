@@ -20,7 +20,7 @@ export async function POST(request: Request) {
 
   const categoryLabels: Record<string, string> = {
     champagne: '샴페인/스파클링 와인', red_wine: '레드와인', white_wine: '화이트와인',
-    whisky: '위스키', sake: '사케/일본주', coldbrew: '콜드브루 커피',
+    whisky: '위스키', sake: '사케/일본주', green_coffee_bean: '생두 (그린빈)',
     puer: '보이차/생차', soy_sauce: '간장', vinegar: '식초', spirits: '한국 전통주',
   };
   const categoryLabel = categoryLabels[productCategory] || productCategory;
@@ -31,7 +31,7 @@ export async function POST(request: Request) {
     white_wine: ['chardonnay', 'sauvignon_blanc', 'riesling', 'blend_white', 'other_white'],
     whisky: ['single_malt', 'blended', 'bourbon', 'rye', 'other_whisky'],
     sake: ['junmai_daiginjo', 'junmai_ginjo', 'junmai', 'honjozo', 'sparkling_sake'],
-    coldbrew: ['single_origin', 'blend_coffee', 'decaf'],
+    green_coffee_bean: ['arabica', 'robusta', 'blend', 'specialty'],
     puer: ['sheng_raw', 'shou_ripe', 'aged_vintage'],
     soy_sauce: ['naturally_brewed', 'aged_premium', 'tamari'],
     vinegar: ['balsamic', 'apple_cider', 'rice_wine', 'traditional'],
