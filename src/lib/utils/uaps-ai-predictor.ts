@@ -30,6 +30,7 @@ import {
 } from './uaps-engine';
 import {
   WINE_TYPE_LABELS,
+  getFlavorAxes,
   REDUCTION_POTENTIAL_LABELS,
   PRODUCT_CATEGORY_LABELS,
   CLOSURE_TYPE_LABELS,
@@ -135,6 +136,7 @@ function buildExpertProfilePrompt(product: AgingProduct, monthlyOceanProfiles?: 
     red_wine: '레드 와인 전문가',
     white_wine: '화이트 와인 전문가',
     coldbrew: '커피 전문가 (SCA Q-Grader)',
+    green_coffee_bean: '생두/커피 전문가 (SCA Q-Grader, green grading)',
     sake: '사케 전문가 (唎酒師)',
     whisky: '위스키 전문가',
     spirits: '전통주/증류주 전문가',
@@ -150,6 +152,7 @@ function buildExpertProfilePrompt(product: AgingProduct, monthlyOceanProfiles?: 
     red_wine: 'Wine Advocate, Robert Parker, Decanter, Wine Spectator',
     white_wine: 'Wine Advocate, Jancis Robinson, Decanter, CellarTracker',
     coldbrew: 'CoffeeReview, Cup of Excellence, SCA 리뷰',
+    green_coffee_bean: 'SCA green grading, CoffeeReview, Sweet Maria\'s, Royal Coffee',
     sake: '全国新酒鑑評会, Kura Master, IWC Sake, SAKEDOO',
     whisky: 'WhiskyBase, Whisky Advocate, Master of Malt',
     spirits: '더술닷컴, 전통주갤러리, 우리술닷컴',
@@ -158,6 +161,11 @@ function buildExpertProfilePrompt(product: AgingProduct, monthlyOceanProfiles?: 
     vinegar: 'Amazon Reviews, 黒酢品評会',
   };
   const sources = sourcesByCategory[category] || '전문 리뷰 사이트';
+
+  // 카테고리별 6축 의미 (DB 컬럼 슬롯은 고정, 감각 축은 제품군별로 재정의)
+  const axisGuide = getFlavorAxes(category)
+    .map((a) => `- "${a.key}": ${a.label}`)
+    .join('\n');
 
   return `당신은 ${expertRole}입니다.
 다음 ${categoryLabel} 제품의 풍미 프로파일을 전문가 테이스팅 노트를 기반으로 분석해주세요.
@@ -181,6 +189,10 @@ ${sources} 등 전문가 리뷰를 검색하여
 - 55-70: 좋음
 - 70-85: 우수
 - 85+: 뛰어남
+
+## 풍미 6축 의미 (${categoryLabel} 기준)
+아래 6개 키로 응답하되, 각 키는 이 제품군에서 다음 감각 축을 의미합니다. **와인 기준이 아니라 이 제품군의 감각으로 평가하세요.**
+${axisGuide}
 
 JSON만 응답:
 {

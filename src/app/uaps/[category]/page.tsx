@@ -60,7 +60,7 @@ import {
   WINE_TYPE_LABELS,
   PRODUCT_STATUS_LABELS,
   REDUCTION_POTENTIAL_LABELS,
-  FLAVOR_AXES,
+  getFlavorAxes,
   CATEGORY_FIELD_CONFIG,
   CATEGORY_SUBTYPES,
   CATEGORY_REDUCTION_CHECKLIST,
@@ -927,7 +927,7 @@ export default function CategoryUAPSPage() {
         {/* ═══════════════════════════════════════════════════════════ */}
         {(beforeProfile || afterProfile) && (
           <SectionWrapper title="풍미 프로파일" icon={BarChart3} iconColor="#B76E79" delay={0.3}>
-            <FlavorRadar beforeProfile={beforeProfile} afterProfile={afterProfile} accentRgb={theme.accentRgb} accent={theme.accent} />
+            <FlavorRadar beforeProfile={beforeProfile} afterProfile={afterProfile} accentRgb={theme.accentRgb} accent={theme.accent} category={categoryDbName} />
           </SectionWrapper>
         )}
 
@@ -1484,17 +1484,19 @@ function FlavorRadar({
   afterProfile,
   accent,
   accentRgb,
+  category,
 }: {
   beforeProfile: Record<string, number> | null;
   afterProfile: Record<string, number> | null;
   accent: string;
   accentRgb: string;
+  category?: string | null;
 }) {
   const fallback = { fruity: 50, floralMineral: 45, yeastyAutolytic: 40, acidityFreshness: 55, bodyTexture: 50, finishComplexity: 50 };
   const before = beforeProfile || fallback;
   const after = afterProfile || before;
 
-  const radarData = FLAVOR_AXES.map((axis) => ({
+  const radarData = getFlavorAxes(category).map((axis) => ({
     axis: axis.label,
     before: Math.round(Math.min(100, Math.max(5, before[axis.key] ?? 50))),
     after: Math.round(Math.min(100, Math.max(5, after[axis.key] ?? 50))),

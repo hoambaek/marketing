@@ -98,7 +98,7 @@ import {
   PRODUCT_STATUS_COLORS,
   REDUCTION_POTENTIAL_LABELS,
   MODEL_STATUS_LABELS,
-  FLAVOR_AXES,
+  getFlavorAxes,
   CATEGORY_SUBTYPES,
   CATEGORY_REDUCTION_CHECKLIST,
   CATEGORY_FIELD_CONFIG,
@@ -955,6 +955,7 @@ export default function UAPSPage() {
             products={agingProducts.filter(p => (p.productCategory ?? 'champagne') === listCategory)}
             selectedProductId={selectedProductId}
             onSelectProduct={selectProduct}
+            category={selectedProduct?.productCategory ?? listCategory}
           />
         </SectionWrapper>
 
@@ -2106,18 +2107,20 @@ function FlavorRadar({
   products,
   selectedProductId,
   onSelectProduct,
+  category,
 }: {
   beforeProfile: Record<string, number> | null;
   afterProfile: Record<string, number> | null;
   products?: { id: string; productName: string }[];
   selectedProductId?: string | null;
   onSelectProduct?: (id: string) => void;
+  category?: string | null;
 }) {
   const ZERO_PROFILE: Record<string, number> = { fruity: 0, floralMineral: 0, yeastyAutolytic: 0, acidityFreshness: 0, bodyTexture: 0, finishComplexity: 0 };
   const before = beforeProfile || ZERO_PROFILE;
   const after = afterProfile || before;
 
-  const radarData = FLAVOR_AXES.map((axis) => ({
+  const radarData = getFlavorAxes(category).map((axis) => ({
     axis: axis.label,
     before: Math.round(Math.min(100, Math.max(0, before[axis.key] ?? 0))),
     after: Math.round(Math.min(100, Math.max(0, after[axis.key] ?? 0))),

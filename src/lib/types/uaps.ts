@@ -448,7 +448,8 @@ export const MODEL_STATUS_LABELS: Record<ModelStatus, string> = {
   trained: '학습 완료',
 };
 
-// 풍미 축 라벨 (레이더 차트용) — WSET/OIV 검증 6축
+// 풍미 축 라벨 (레이더 차트용) — 샴페인 기본값 (WSET/OIV 6축)
+// key/color는 6슬롯 고정, label만 카테고리별로 재정의됨 (getFlavorAxes 참조)
 export const FLAVOR_AXES = [
   { key: 'fruity', label: '과실향', color: '#fde047' },
   { key: 'floralMineral', label: '플로럴·미네랄', color: '#a78bfa' },
@@ -457,6 +458,38 @@ export const FLAVOR_AXES = [
   { key: 'bodyTexture', label: '바디감·질감', color: '#fb923c' },
   { key: 'finishComplexity', label: '여운·복합미', color: '#f472b6' },
 ] as const;
+
+// 카테고리별 6축 라벨 (DB category_flavor_axes와 동기 — v2)
+// 축 순서 = FLAVOR_AXES 순서(fruity_score ~ finish_complexity_score 슬롯)
+export const CATEGORY_FLAVOR_LABELS: Record<string, readonly [string, string, string, string, string, string]> = {
+  champagne:         ['과실향', '플로럴·미네랄', '효모·숙성향', '산도·상쾌함', '바디감·질감', '여운·복합미'],
+  'champagne/wine':  ['과실향', '플로럴·미네랄', '효모·숙성향', '산도·상쾌함', '바디감·질감', '여운·복합미'],
+  soy_sauce:         ['감칠맛 깊이', '향미 복합성', '염분 통합', '산미 구조', '농후감·koku', 'kokumi 여운'],
+  vinegar:           ['산미 원숙도', '자극성·코쏨', '향 복합성', '감칠맛 깊이', '단맛 균형', '여운 청명함'],
+  green_coffee_bean: ['향·풍미 복합성', '산미', '바디·무게감', '단맛', '여운', '클린컵·결점도'],
+  spirits:           ['순도·퓨젤 통합', '과실향 에스테르', '곡물 단맛', '바디·질감', '이취·산화 리스크', '여운 따뜻함'],
+  sake:              ['농순감·濃淡', '쌀·누룩 향', '유산미 섬세함', '감신 밸런스·甘辛', '감칠맛', '여운 비단결'],
+  puer:              ['꽃·과실향 밝기', '수렴성 구조', '단맛 복잡성', '미네랄·떼루아르', '차기 활력', '회감 속도·강도'],
+};
+
+// 이취·부정 축 인덱스 (0-based) — 예측 편향 방지 표기용
+export const CATEGORY_NEGATIVE_AXIS: Record<string, number> = {
+  green_coffee_bean: 5, // 클린컵·결점도
+  spirits: 4,           // 이취·산화 리스크
+};
+
+/**
+ * 카테고리별 풍미 6축 반환 (key/color 고정, label만 카테고리별)
+ * 미정의 카테고리는 샴페인 기본값(FLAVOR_AXES) 사용
+ */
+export function getFlavorAxes(category?: string | null) {
+  const labels = (category && CATEGORY_FLAVOR_LABELS[category]) || null;
+  return FLAVOR_AXES.map((axis, i) => ({
+    key: axis.key,
+    color: axis.color,
+    label: labels ? labels[i] : axis.label,
+  }));
+}
 
 // ═══════════════════════════════════════════════════════════════════════════
 // AI 추론 보정 계수 인터페이스
