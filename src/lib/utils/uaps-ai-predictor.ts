@@ -165,6 +165,10 @@ function buildExpertProfilePrompt(product: AgingProduct, monthlyOceanProfiles?: 
     .map((a) => `- "${a.key}": ${a.label}`)
     .join('\n');
 
+  // 리무아주(질감 발달)·기포는 와인/스파클링에만 유효 — 비샴페인은 축 오염 방지 위해 조건부
+  const isWineLike = category === 'champagne' || category === 'red_wine' || category === 'white_wine';
+  const hasCarbonation = category === 'champagne';
+
   return `당신은 ${expertRole}입니다.
 다음 ${categoryLabel} 제품의 풍미 프로파일을 전문가 테이스팅 노트를 기반으로 분석해주세요.
 
@@ -215,9 +219,9 @@ ${monthlyOceanProfiles.map(p =>
 
 풍미 프로파일 평가 시 아래 해저 숙성 효과를 반영하세요:
 - 겨울(12~2월) 저수온(7~9°C): 산화 억제 → 향 보존 극대화, FRI 유리
-- 여름(7~9월) 고수온(14~16°C): 산화 가속 → 숙성 빠름, 환원취 리스크
-- 조류에 의한 자연 리무아주: 질감(bodyTexture) 가속 발달
-- 40m 수압(4.9atm): 기포 미세화, CO₂ 안정` : ''}`;
+- 여름(7~9월) 고수온(14~16°C): 산화 가속 → 숙성 빠름, 이취·산화 리스크↑
+- 조류에 의한 자연 진동: ${isWineLike ? '질감·마우스필 발달 (자연 리무아주 효과)' : '내용물 순환 → 균질 숙성'}
+- 40m 수압(4.9atm): ${hasCarbonation ? '기포 미세화, CO₂ 안정' : '용존 산소 억제 → 산화·이취 리스크 완화'}` : ''}`;
 }
 
 function parseExpertProfileResponse(text: string): ExpertProfileResult | null {

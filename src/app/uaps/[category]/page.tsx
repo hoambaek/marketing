@@ -61,6 +61,7 @@ import {
   PRODUCT_STATUS_LABELS,
   REDUCTION_POTENTIAL_LABELS,
   getFlavorAxes,
+  CATEGORY_NEGATIVE_AXIS,
   CATEGORY_FIELD_CONFIG,
   CATEGORY_SUBTYPES,
   CATEGORY_REDUCTION_CHECKLIST,
@@ -1501,14 +1502,19 @@ function FlavorRadar({
   const before = beforeProfile || fallback;
   const after = afterProfile || before;
 
-  const radarData = getFlavorAxes(category).map((axis) => ({
-    axis: axis.label,
+  // 음성축(이취·산화 리스크 등): 값이 낮을수록 좋음 — 라벨에 ↓ 마커, 비교표 색상 반전
+  const negIdx = category ? CATEGORY_NEGATIVE_AXIS[category] : undefined;
+
+  const radarData = getFlavorAxes(category).map((axis, i) => ({
+    axis: negIdx === i ? `${axis.label} ↓` : axis.label,
+    isNeg: negIdx === i,
     before: Math.round(Math.min(100, Math.max(5, before[axis.key] ?? 50))),
     after: Math.round(Math.min(100, Math.max(5, after[axis.key] ?? 50))),
   }));
 
   const changes = radarData.map((d) => ({
     label: d.axis,
+    isNeg: d.isNeg,
     before: d.before,
     after: d.after,
     diff: d.after - d.before,
@@ -1563,8 +1569,11 @@ function FlavorRadar({
 
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-1 gap-1.5">
           {changes.map((c) => {
-            const isPositive = c.diff > 0;
-            const isNegative = c.diff < 0;
+            // 음성축은 리스크↓(diff<0)가 개선, 양성축은 값↑(diff>0)가 개선
+            const isImprove = c.isNeg ? c.diff < 0 : c.diff > 0;
+            const isDecline = c.isNeg ? c.diff > 0 : c.diff < 0;
+            const isPositive = isImprove;
+            const isNegative = isDecline;
             return (
               <div
                 key={c.label}
@@ -1589,7 +1598,7 @@ function FlavorRadar({
                     fontFamily: "var(--font-cormorant), 'Cormorant Garamond', serif",
                   }}
                 >
-                  {isPositive ? '+' : ''}{c.diff}
+                  {c.diff > 0 ? '+' : ''}{c.diff}
                 </span>
               </div>
             );
