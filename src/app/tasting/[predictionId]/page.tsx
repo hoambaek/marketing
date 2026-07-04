@@ -1,6 +1,7 @@
 import Image from 'next/image';
 import { fetchPredictionContextForTasting } from '@/lib/supabase/database/tasting-submissions';
 import { PRODUCTS } from '@/lib/types';
+import { PRODUCT_CATEGORY_LABELS } from '@/lib/types/uaps';
 import TastingForm from './TastingForm';
 
 export const dynamic = 'force-dynamic';
@@ -34,7 +35,9 @@ export default async function TastingSubmitPage({
   // aging_products.product_name 우선, 없으면 인벤토리 PRODUCTS 매핑, 그래도 없으면 일반명
   const inventoryProduct = PRODUCTS.find(p => p.id === ctx.productId);
   const productName =
-    ctx.productName ?? inventoryProduct?.nameKo ?? inventoryProduct?.name ?? '해저 숙성 샴페인';
+    ctx.productName ?? inventoryProduct?.nameKo ?? inventoryProduct?.name ?? '해저 숙성 제품';
+  const categoryLabel =
+    (ctx.productCategory && PRODUCT_CATEGORY_LABELS[ctx.productCategory as keyof typeof PRODUCT_CATEGORY_LABELS]) || '제품';
 
   return (
     <main
@@ -77,14 +80,14 @@ export default async function TastingSubmitPage({
         </div>
 
         <p className="text-white/40 text-sm leading-relaxed">
-          해저 숙성 샴페인과 지상 보관 대조군을 블라인드로 비교 시음한 결과를 기록해 주세요.
+          {categoryLabel}의 해저 숙성본과 지상 보관 대조군을 블라인드로 비교 시음한 결과를 기록해 주세요.
           제출하신 내용은 내부 검토 후 데이터에 반영됩니다.
         </p>
       </section>
 
       <div className="max-w-2xl mx-auto px-4 sm:px-6">
         <div className="h-px bg-white/[0.07] mb-8" />
-        <TastingForm predictionId={ctx.predictionId} />
+        <TastingForm predictionId={ctx.predictionId} category={ctx.productCategory} />
       </div>
 
       <div className="max-w-2xl mx-auto px-4 sm:px-6 mt-10 flex justify-center">

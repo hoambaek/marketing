@@ -8,12 +8,13 @@ function todayLocal(): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 import { Warehouse, Anchor } from 'lucide-react';
+import { getFlavorAxes } from '@/lib/types/uaps';
 
 const GOLD = '#C4A052';
 // 골드와 같은 채도(HSL S≈47%)의 블루-네이비 — 해저 숙성 슬라이더용
 const NAVY = '#3F5E9A';
 
-// 6축 정의
+// 6축 정의 — key는 DB 슬롯 고정, label은 카테고리별로 런타임 치환(getFlavorAxes)
 const AXES = [
   { key: 'Fruity', label: '과실향' },
   { key: 'FloralMineral', label: '플로럴·미네랄' },
@@ -63,9 +64,13 @@ function ScoreSlider({
 
 export default function TastingForm({
   predictionId,
+  category,
 }: {
   predictionId: string;
+  category?: string | null;
 }) {
+  // 카테고리별 6축 라벨 (key 순서 = AXES 순서와 동일 = DB 슬롯 순서)
+  const axisLabels = getFlavorAxes(category).map((a) => a.label);
   const [recorderName, setRecorderName] = useState('');
   const [recorderAffiliation, setRecorderAffiliation] = useState('');
   // 시음 날짜 기본값 = 오늘 (lazy 초기화)
@@ -173,8 +178,8 @@ export default function TastingForm({
           <Warehouse className="w-4 h-4 text-white/50" />
           <h2 className="text-[13px] font-medium text-white/80">지상 보관</h2>
         </div>
-        {AXES.map(a => (
-          <ScoreSlider key={a.key} label={a.label} value={terrestrial[a.key]}
+        {AXES.map((a, i) => (
+          <ScoreSlider key={a.key} label={axisLabels[i]} value={terrestrial[a.key]}
             onChange={v => setTerrestrial(s => ({ ...s, [a.key]: v }))} />
         ))}
         <div className="mt-2 pt-2 border-t border-white/[0.06]">
@@ -188,8 +193,8 @@ export default function TastingForm({
           <Anchor className="w-4 h-4" style={{ color: NAVY }} />
           <h2 className="text-[13px] font-medium text-white/80">해저 숙성</h2>
         </div>
-        {AXES.map(a => (
-          <ScoreSlider key={a.key} label={a.label} value={undersea[a.key]}
+        {AXES.map((a, i) => (
+          <ScoreSlider key={a.key} label={axisLabels[i]} value={undersea[a.key]}
             onChange={v => setUndersea(s => ({ ...s, [a.key]: v }))} fillColor={NAVY} />
         ))}
         <div className="mt-2 pt-2 border-t border-white/[0.06]">
@@ -201,7 +206,7 @@ export default function TastingForm({
       <section>
         <label className={labelClass}>시음 노트 (선택)</label>
         <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={4} maxLength={2000}
-          placeholder="짠 미네랄 여운, 둥글어진 tension, 미세한 무스의 통합감 등 자유롭게 기록해 주세요."
+          placeholder="향·질감·여운의 변화, 대조군과의 차이, 인상적인 특징 등 자유롭게 기록해 주세요."
           className={`${inputClass} resize-none`} />
       </section>
 

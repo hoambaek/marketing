@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { ArrowLeft, Check, X, Loader2, Inbox } from 'lucide-react';
 import { PRODUCTS } from '@/lib/types';
 import type { TastingSubmission, TastingSubmissionStatus } from '@/lib/types/uaps';
+import { getFlavorAxes } from '@/lib/types/uaps';
 
 const GOLD = '#C4A052';
 
@@ -165,12 +166,13 @@ export default function TastingReviewPage() {
                     <span className="text-[9px] font-mono text-white/25 uppercase tracking-widest w-12 text-right" style={{ color: `${GOLD}99` }}>해저</span>
                     <span className="text-[9px] font-mono text-white/25 uppercase tracking-widest w-12 text-right">지상</span>
                   </div>
-                  {AXES.map(a => {
+                  {getFlavorAxes(s.productCategory).map((axis, i) => {
+                    const a = AXES[i];
                     const u = s[a.key] as number | null;
                     const t = s[a.tKey] as number | null;
                     return (
-                      <div key={a.label} className="grid grid-cols-[1fr_auto_auto] gap-x-4 px-3 py-1.5 border-b border-white/[0.03] last:border-0 items-center">
-                        <span className="text-[12px] text-white/50">{a.label}</span>
+                      <div key={a.key} className="grid grid-cols-[1fr_auto_auto] gap-x-4 px-3 py-1.5 border-b border-white/[0.03] last:border-0 items-center">
+                        <span className="text-[12px] text-white/50">{axis.label}</span>
                         <span className="text-[12px] font-mono w-12 text-right tabular-nums" style={{ color: GOLD }}>{u ?? '—'}</span>
                         <span className="text-[12px] font-mono text-white/45 w-12 text-right tabular-nums">{t ?? '—'}</span>
                       </div>

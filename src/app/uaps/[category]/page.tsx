@@ -44,6 +44,9 @@ import {
   Info,
   ChevronDown,
   LayoutGrid,
+  Link2,
+  Inbox,
+  Check,
 } from 'lucide-react';
 import { useUAPSStore } from '@/lib/store/uaps-store';
 import type {
@@ -366,6 +369,7 @@ export default function CategoryUAPSPage() {
   const [showModal, setShowModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState<AgingProduct | null>(null);
   const [showCoefficientDialog, setShowCoefficientDialog] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
 
   const [localTci, setLocalTci] = useState(config.tci);
@@ -817,6 +821,7 @@ export default function CategoryUAPSPage() {
 
                   <div className="flex-1" />
 
+                  <div className="flex items-center gap-2 flex-wrap">
                   <button
                     onClick={() => setShowCoefficientDialog(true)}
                     className="p-2 sm:p-1.5 rounded-lg border border-white/[0.06] hover:border-white/[0.12] hover:bg-white/[0.04] text-white/30 hover:text-white/60 transition-all shrink-0"
@@ -824,6 +829,32 @@ export default function CategoryUAPSPage() {
                   >
                     <Settings2 className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
                   </button>
+                  <button
+                    onClick={async () => {
+                      if (!latestPrediction) return;
+                      try {
+                        await navigator.clipboard.writeText(`${window.location.origin}/tasting/${latestPrediction.id}`);
+                        setLinkCopied(true);
+                        setTimeout(() => setLinkCopied(false), 2000);
+                      } catch {
+                        window.prompt('기록자에게 전달할 링크', `${window.location.origin}/tasting/${latestPrediction.id}`);
+                      }
+                    }}
+                    disabled={!latestPrediction}
+                    className="flex items-center gap-1.5 bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 rounded-lg px-3 py-2 sm:py-1.5 text-xs font-medium text-emerald-400 transition-all disabled:opacity-30 shrink-0"
+                    title={!latestPrediction ? '예측을 먼저 실행하세요' : '외부 기록자용 공개 입력 링크 복사'}
+                  >
+                    {linkCopied ? <Check className="w-3 h-3" /> : <Link2 className="w-3 h-3" />}
+                    {linkCopied ? '복사됨' : '시음 기록 링크'}
+                  </button>
+                  <Link
+                    href="/uaps/tasting-review"
+                    className="flex items-center gap-1.5 bg-white/[0.04] hover:bg-white/[0.08] border border-white/15 hover:border-white/25 rounded-lg px-3 py-2 sm:py-1.5 text-xs font-medium text-white/50 hover:text-white/80 transition-all shrink-0"
+                    title="시음 기록 링크로 받은 평가 승인/거부"
+                  >
+                    <Inbox className="w-3 h-3" />
+                    제출 검토
+                  </Link>
                   <button
                     onClick={() => runPrediction(selectedProductId, selectedProduct.plannedDurationMonths || 18)}
                     disabled={isPredicting || !selectedProduct.plannedDurationMonths}
@@ -837,6 +868,7 @@ export default function CategoryUAPSPage() {
                     )}
                     {isPredicting ? '분석 중' : 'AI 예측'}
                   </button>
+                  </div>
                 </div>
 
                 {latestPrediction?.overallQualityScore != null && (

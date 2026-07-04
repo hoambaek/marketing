@@ -80,26 +80,29 @@ export async function fetchPredictionContextForTasting(
   predictionId: string;
   productId: string | null;
   productName: string | null;
+  productCategory: string | null;
   underseaDurationMonths: number;
 } | null> {
   if (!supabaseAdmin) return null;
   // FK(aging_predictions.product_id → aging_products.id) 기반 조인으로 1회 쿼리
   const { data, error } = await supabaseAdmin
     .from('aging_predictions')
-    .select('id, product_id, undersea_duration_months, aging_products(product_name)')
+    .select('id, product_id, product_category, undersea_duration_months, aging_products(product_name, product_category)')
     .eq('id', predictionId)
     .single();
   if (error || !data) return null;
 
-  const joined = data.aging_products as { product_name: string } | { product_name: string }[] | null;
-  const productName = Array.isArray(joined)
-    ? joined[0]?.product_name ?? null
-    : joined?.product_name ?? null;
+  const joined = data.aging_products as { product_name: string; product_category?: string | null } | { product_name: string; product_category?: string | null }[] | null;
+  const joinedRow = Array.isArray(joined) ? joined[0] : joined;
+  const productName = joinedRow?.product_name ?? null;
+  // 예측 시점 카테고리 우선, 없으면 제품 카테고리로 폴백
+  const productCategory = (data.product_category as string | null) ?? joinedRow?.product_category ?? null;
 
   return {
     predictionId: data.id,
     productId: data.product_id,
     productName,
+    productCategory,
     underseaDurationMonths: data.undersea_duration_months,
   };
 }
@@ -162,7 +165,7 @@ export async function fetchTastingSubmissions(
   if (!supabaseAdmin) return null;
   const { data, error } = await supabaseAdmin
     .from('tasting_submissions')
-    .select('*')
+    .select('*, aging_predictions(product_category)')
     .eq('status', status)
     .order('created_at', { ascending: false })
     .limit(limit);
@@ -170,7 +173,13 @@ export async function fetchTastingSubmissions(
     dbLogger.error('시음 제출 목록 조회 실패:', error);
     return null;
   }
-  return (data as DBTastingSubmission[]).map(mapDb);
+  type JoinedRow = DBTastingSubmission & {
+    aging_predictions?: { product_category: string | null } | { product_category: string | null }[] | null;
+  };
+  return (data as JoinedRow[]).map((row) => {
+    const j = Array.isArray(row.aging_predictions) ? row.aging_predictions[0] : row.aging_predictions;
+    return { ...mapDb(row), productCategory: j?.product_category ?? null };
+  });
 }
 
 /**
