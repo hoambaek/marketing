@@ -97,8 +97,8 @@ const ALL_CATEGORIES = [
   { slug: 'soy-sauce',  label: '간장',        emoji: '🫙', href: '/uaps/soy-sauce' },
   { slug: 'vinegar',    label: '식초',        emoji: '🍶', href: '/uaps/vinegar' },
   { slug: 'green-bean', label: '생두',        emoji: '🫘', href: '/uaps/green-bean' },
-  { slug: 'spirits',    label: '소주',        emoji: '🍵', href: '/uaps/spirits' },
   { slug: 'yakju',      label: '전통주',      emoji: '🍚', href: '/uaps/yakju' },
+  { slug: 'soju',       label: '증류주',      emoji: '🍶', href: '/uaps/soju' },
   { slug: 'puerh',      label: '보이차',      emoji: '🫖', href: '/uaps/puerh' },
 ];
 
@@ -110,8 +110,8 @@ const SLUG_TO_DB_CATEGORY: Record<string, string> = {
   'soy-sauce':  'soy_sauce',
   'vinegar':    'vinegar',
   'green-bean': 'green_coffee_bean',
-  'spirits':    'spirits',
-  'yakju':      'spirits',
+  'yakju':      'yakju_cheongju',
+  'soju':       'spirits',
   'puerh':      'puer',
 };
 
@@ -196,21 +196,21 @@ const CATEGORY_CONFIG: Record<string, {
     bgVia: '#1a1008',
     icon: '🫘',
   },
-  spirits: {
-    label: '소주',
+  soju: {
+    label: '증류주',
     title: 'Soju Intelligence',
-    subtitle: '소주·전통 증류주 해저 숙성 풍미 예측 시스템',
+    subtitle: '증류식 소주 해저 숙성 풍미 예측 시스템',
     accent: '#06b6d4',
     accentRgb: '6, 182, 212',
     secondAccent: '#67e8f9',
     bgFrom: '#001a1f',
     bgVia: '#001a20',
-    icon: '🍵',
+    icon: '🍶',
   },
   yakju: {
     label: '전통주',
     title: 'Jeontongju Intelligence',
-    subtitle: '전통주 해저 숙성 풍미 예측 시스템',
+    subtitle: '전통주(약주·청주) 해저 숙성 풍미 예측 시스템',
     accent: '#84cc16',
     accentRgb: '132, 204, 22',
     secondAccent: '#bef264',

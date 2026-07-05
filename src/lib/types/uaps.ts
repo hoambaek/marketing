@@ -17,6 +17,7 @@ export type ProductCategory =
   | 'green_coffee_bean'
   | 'sake'
   | 'whisky'
+  | 'yakju_cheongju'
   | 'spirits'
   | 'puer'
   | 'soy_sauce'
@@ -465,18 +466,89 @@ export const FLAVOR_AXES = [
 export const CATEGORY_FLAVOR_LABELS: Record<string, readonly [string, string, string, string, string, string]> = {
   champagne:         ['과실향', '플로럴·미네랄', '효모·숙성향', '산도·상쾌함', '바디감·질감', '여운·복합미'],
   'champagne/wine':  ['과실향', '플로럴·미네랄', '효모·숙성향', '산도·상쾌함', '바디감·질감', '여운·복합미'],
-  soy_sauce:         ['감칠맛 깊이', '향미 복합성', '염분 통합', '산미 구조', '농후감·koku', 'kokumi 여운'],
-  vinegar:           ['산미 원숙도', '자극성·코쏨', '향 복합성', '감칠맛 깊이', '단맛 균형', '여운 청명함'],
-  green_coffee_bean: ['향·풍미 복합성', '산미', '바디·무게감', '단맛', '여운', '클린컵·결점도'],
-  spirits:           ['순도·퓨젤 통합', '과실향 에스테르', '곡물 단맛', '바디·질감', '이취·산화 리스크', '여운 따뜻함'],
-  sake:              ['농순감·濃淡', '쌀·누룩 향', '유산미 섬세함', '감신 밸런스·甘辛', '감칠맛', '여운 비단결'],
-  puer:              ['꽃·과실향 밝기', '수렴성 구조', '단맛 복잡성', '미네랄·떼루아르', '차기 활력', '회감 속도·강도'],
+  soy_sauce:         ['감칠맛', '짠맛', '단맛', '향(구수함)', '농후감', '여운'],
+  vinegar:           ['산미', '부드러움', '향', '단맛', '바디·밀도', '여운'],
+  green_coffee_bean: ['향', '산미', '바디', '단맛', '여운', '클린컵'],
+  yakju_cheongju:    ['아로마', '단맛', '산미', '감칠맛', '바디감', '여운'],
+  spirits:           ['곡물향', '숙성향', '순도', '단맛', '목넘김', '여운'],
+  whisky:            ['몰트·곡물향', '과일·꽃향', '피트·스모크', '오크·바닐라', '바디감', '피니시'],
+  sake:              ['긴조·쌀향', '단맛', '산미', '감칠맛', '바디감', '여운(키레)'],
+  puer:              ['향', '쓴맛', '떫은맛', '단맛(회감)', '바디감', '여운'],
+};
+
+// 카테고리별 6축 정의 (시음 폼·레이더에서 각 축 하단 설명으로 표시)
+// 축 순서 = CATEGORY_FLAVOR_LABELS와 동일
+export const CATEGORY_FLAVOR_DEFINITIONS: Record<string, readonly [string, string, string, string, string, string]> = {
+  yakju_cheongju: [
+    '과실향·누룩향 등 향의 복합성',
+    '유리당에서 오는 단맛·잔당감',
+    '유기산(젖산·숙신산)의 산뜻한 신맛',
+    '유리아미노산의 감칠맛·깊이(旨味)',
+    '입안에서 느끼는 무게감·농순감',
+    '삼킨 뒤 남는 후미·단뒷맛의 지속',
+  ],
+  spirits: [
+    '증류 향 — 쌀·곡물의 구수함(화향)',
+    '옹기·오크 숙성의 깊은 향(바닐라·나무)',
+    '알코올 자극·잡향이 적고 깨끗한 정도(높을수록 순수)',
+    '목넘김 후 올라오는 곡류 단맛(잔당감)',
+    '삼킬 때 매끄럽게 넘어가는 부드러움',
+    '날숨 시 코·입에 남는 잔향의 지속',
+  ],
+  whisky: [
+    '맥아·시리얼의 구수한 향',
+    '사과·배·시트러스·꽃 뉘앙스',
+    '훈연·요오드·바다향의 강도',
+    '오크통 숙성의 바닐라·나무·카라멜',
+    '입안 무게감·기름진 질감',
+    '삼킨 뒤 이어지는 따뜻한 여운',
+  ],
+  sake: [
+    '멜론·바나나 긴조향, 쌀·누룩향',
+    '쌀에서 오는 은은한 단맛',
+    '상쾌하게 받쳐주는 신맛',
+    '우마미·깊이(경수일수록 도드라짐)',
+    '진하고 옅은 정도(濃淡)',
+    '깔끔하게 끊기는 뒷맛(키레)',
+  ],
+  puer: [
+    '꽃·과실·묵은(진)향의 복합성',
+    '첫맛의 쌉쌀함',
+    '혀를 조이는 수렴성(떫음)',
+    '쓴맛 뒤 올라오는 단맛(回甘)',
+    '입안의 두터움·매끄러움(순후)',
+    '목넘김 후 오래 남는 기운(후운·차기)',
+  ],
+  soy_sauce: [
+    '발효 우마미·깊이(핵심)',
+    '염도·짭짤함',
+    '은은한 단맛',
+    '발효·볶은 곡물의 구수한 향',
+    '입안 진하고 묵직한 정도(こく)',
+    '뒤에 남는 감칠맛·풍미 지속',
+  ],
+  vinegar: [
+    '신맛의 강도·원숙함',
+    '코를 쏘지 않고 부드럽게 감기는 정도',
+    '과실·발효·오크의 향 복합성',
+    '자연스러운 단맛(발사믹 등)',
+    '농도·점도(숙성 식초의 시럽감)',
+    '뒤에 남는 산뜻함·풍미',
+  ],
+  green_coffee_bean: [
+    '마른/젖은 향(프래그런스·아로마)',
+    '밝고 상쾌한 신맛',
+    '입안 무게감·질감',
+    '자연스러운 당미',
+    '삼킨 뒤 지속되는 풍미(애프터테이스트)',
+    '잡맛·결점 없는 깨끗함(높을수록 좋음)',
+  ],
 };
 
 // 이취·부정 축 인덱스 (0-based) — 예측 편향 방지 표기용
 export const CATEGORY_NEGATIVE_AXIS: Record<string, number> = {
-  green_coffee_bean: 5, // 클린컵·결점도
-  spirits: 4,           // 이취·산화 리스크
+  // 전 카테고리 6축을 양성(높을수록 좋음)으로 통일 — 음성축 없음
+  // (생두 결점도 → 클린컵↑, 증류주 타격감 → 순도↑ 등으로 반전 완료)
 };
 
 /**
@@ -485,10 +557,12 @@ export const CATEGORY_NEGATIVE_AXIS: Record<string, number> = {
  */
 export function getFlavorAxes(category?: string | null) {
   const labels = (category && CATEGORY_FLAVOR_LABELS[category]) || null;
+  const defs = (category && CATEGORY_FLAVOR_DEFINITIONS[category]) || null;
   return FLAVOR_AXES.map((axis, i) => ({
     key: axis.key,
     color: axis.color,
     label: labels ? labels[i] : axis.label,
+    definition: defs ? defs[i] : null,
   }));
 }
 
@@ -550,7 +624,8 @@ export const PRODUCT_CATEGORY_LABELS: Record<ProductCategory, string> = {
   green_coffee_bean: '생두 (그린빈)',
   sake: '사케',
   whisky: '위스키',
-  spirits: '한국 전통주',
+  yakju_cheongju: '전통주(약주·청주)',
+  spirits: '증류주(소주)',
   puer: '생차/보이차',
   soy_sauce: '간장',
   vinegar: '식초',
@@ -623,12 +698,19 @@ export const CATEGORY_SUBTYPES: Record<string, { value: string; label: string }[
     { value: 'rice', label: '쌀식초' },
     { value: 'fruit', label: '과일식초' },
   ],
-  spirits: [
+  yakju_cheongju: [
     { value: 'yakju', label: '약주' },
-    { value: 'takju', label: '탁주/막걸리' },
     { value: 'cheongju', label: '청주' },
-    { value: 'soju', label: '소주' },
+    { value: 'takju', label: '탁주/막걸리' },
+    { value: 'hapju', label: '합주' },
     { value: 'fruit_wine', label: '과실주' },
+  ],
+  spirits: [
+    { value: 'distilled', label: '증류식 소주' },
+    { value: 'andong', label: '안동소주' },
+    { value: 'rice', label: '쌀소주' },
+    { value: 'barley', label: '보리소주' },
+    { value: 'liqueur', label: '리큐르' },
   ],
 };
 
@@ -703,12 +785,19 @@ export const CATEGORY_REDUCTION_CHECKLIST: Record<string, ReductionCheckItem[]> 
     { id: 'traditional', label: '전통 방식', desc: '전통 항아리·나무통 숙성', weight: 1, group: null },
     { id: 'industrial', label: '산업 제조', desc: '속성 발효 · 대량 생산', weight: -2, group: null },
   ],
-  spirits: [
-    { id: 'saengMakgeolli', label: '생막걸리', desc: '비살균 · 활성 효모', weight: 2, group: null },
+  yakju_cheongju: [
+    { id: 'saengju', label: '생주 (비살균)', desc: '비살균 · 활성 효모', weight: 2, group: null },
     { id: 'pasteurized', label: '살균', desc: '가열 살균 처리', weight: -1, group: null },
     { id: 'longAged', label: '장기숙성', desc: '장기 숙성 이력', weight: 1, group: null },
     { id: 'danyangju', label: '단양주', desc: '1차 발효만', weight: 0, group: 'brew' },
     { id: 'iyangju', label: '이양주+', desc: '2차 이상 중양주', weight: 1, group: 'brew' },
+  ],
+  spirits: [
+    { id: 'onggiAged', label: '옹기 숙성', desc: '옹기(항아리) 숙성 — 미세 호흡', weight: 1, group: null },
+    { id: 'oakAged', label: '오크 숙성', desc: '오크통 숙성 — 나무·바닐라향', weight: 1, group: null },
+    { id: 'highProof', label: '고도수 원액', desc: '40도 이상, 에스테르화 활발', weight: 1, group: null },
+    { id: 'atmospheric', label: '상압 증류', desc: '풍부한 향, 잡미 잔존 가능', weight: 0, group: 'distill' },
+    { id: 'reducedPressure', label: '감압 증류', desc: '깨끗·부드러움, 향 약함', weight: -1, group: 'distill' },
   ],
 };
 
@@ -731,7 +820,8 @@ export const CATEGORY_FIELD_CONFIG: Record<string, CategoryFieldConfig> = {
   puer:             { showVintage: true, vintageLabel: '생산 연도', showDosage: false, showAlcohol: false, subtypeLabel: '보이차 타입' },
   soy_sauce:        { showVintage: false, vintageLabel: '', showDosage: false, showAlcohol: false, subtypeLabel: '간장 타입' },
   vinegar:          { showVintage: false, vintageLabel: '', showDosage: false, showAlcohol: false, subtypeLabel: '식초 타입' },
-  spirits:          { showVintage: false, vintageLabel: '', showDosage: false, showAlcohol: true, subtypeLabel: '전통주 타입' },
+  yakju_cheongju:   { showVintage: false, vintageLabel: '', showDosage: false, showAlcohol: true, subtypeLabel: '약주·청주 타입' },
+  spirits:          { showVintage: true, vintageLabel: '증류 연도', showDosage: false, showAlcohol: true, subtypeLabel: '증류주 타입' },
 };
 
 // 기본 보정 계수 (과학적 도출값)
@@ -780,6 +870,7 @@ export const CATEGORY_DEFAULT_CLOSURE: Record<string, ClosureType> = {
   puer: 'none',
   soy_sauce: 'ceramic_cap',
   vinegar: 'glass_stopper',
+  yakju_cheongju: 'screw_cap',
   spirits: 'cork_natural',
 };
 
@@ -801,7 +892,8 @@ export const CATEGORY_EA_MAP: Record<string, CategoryEaEntry> = {
   puer:       { ea: 42, eaLower: 37, eaUpper: 47, reactionBasis: '카테킨 산화 중합 (후발효)' },
   soy_sauce:  { ea: 50, eaLower: 44, eaUpper: 56, reactionBasis: '멜라노이딘 생성 (갈변)' },
   vinegar:    { ea: 45, eaLower: 40, eaUpper: 50, reactionBasis: '초산 에스테르화 (숙성향)' },
-  spirits:    { ea: 40, eaLower: 35, eaUpper: 45, reactionBasis: '아미노산-당 반응 (발효 복합미)' },
+  yakju_cheongju: { ea: 40, eaLower: 35, eaUpper: 45, reactionBasis: '아미노-카보닐(메일라드) + 유기산 에스테르화' },
+  spirits:    { ea: 55, eaLower: 48, eaUpper: 62, reactionBasis: '에스테르화 반응 (숙성향 생성·퓨젤 순화)' },
 };
 
 // K-TCI 최대 가속 제한 — effectiveTci = tci / kf 의 하한

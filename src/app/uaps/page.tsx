@@ -61,8 +61,8 @@ const UAPS_CATEGORIES = [
   { slug: 'soy-sauce',  label: '간장',        emoji: '🫙', color: '#92400e', href: '/uaps/soy-sauce' },
   { slug: 'vinegar',    label: '식초',        emoji: '🍶', color: '#10b981', href: '/uaps/vinegar' },
   { slug: 'green-bean', label: '생두',        emoji: '🫘', color: '#f97316', href: '/uaps/green-bean' },
-  { slug: 'spirits',    label: '소주',        emoji: '🍵', color: '#06b6d4', href: '/uaps/spirits' },
   { slug: 'yakju',      label: '전통주',      emoji: '🍚', color: '#84cc16', href: '/uaps/yakju' },
+  { slug: 'soju',       label: '증류주',      emoji: '🍶', color: '#06b6d4', href: '/uaps/soju' },
   { slug: 'puerh',      label: '보이차',      emoji: '🫖', color: '#f43f5e', href: '/uaps/puerh' },
 ];
 
@@ -75,8 +75,8 @@ const UAPS_CATEGORY_DB: Record<string, string> = {
   'soy-sauce':  'soy_sauce',
   'vinegar':    'vinegar',
   'green-bean': 'green_coffee_bean',
-  'spirits':    'spirits',
-  'yakju':      'spirits',
+  'yakju':      'yakju_cheongju',
+  'soju':       'spirits',
   'puerh':      'puer',
 };
 
@@ -1617,7 +1617,8 @@ const MODAL_CATEGORIES = [
   { value: 'puer',        label: '🫖 생차/보이차' },
   { value: 'soy_sauce',   label: '🫙 간장' },
   { value: 'vinegar',     label: '🍶 식초' },
-  { value: 'spirits',     label: '🍚 한국 전통주' },
+  { value: 'yakju_cheongju', label: '🍚 전통주(약주·청주)' },
+  { value: 'spirits',     label: '🍶 증류주(소주)' },
 ];
 
 function ProductModal({

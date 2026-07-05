@@ -21,7 +21,8 @@ export async function POST(request: Request) {
   const categoryLabels: Record<string, string> = {
     champagne: '샴페인/스파클링 와인', red_wine: '레드와인', white_wine: '화이트와인',
     whisky: '위스키', sake: '사케/일본주', green_coffee_bean: '생두 (그린빈)',
-    puer: '보이차/생차', soy_sauce: '간장', vinegar: '식초', spirits: '한국 전통주',
+    puer: '보이차/생차', soy_sauce: '간장', vinegar: '식초',
+    yakju_cheongju: '전통주(약주·청주)', spirits: '증류주(소주)',
   };
   const categoryLabel = categoryLabels[productCategory] || productCategory;
 
@@ -35,7 +36,8 @@ export async function POST(request: Request) {
     puer: ['sheng_raw', 'shou_ripe', 'aged_vintage'],
     soy_sauce: ['naturally_brewed', 'aged_premium', 'tamari'],
     vinegar: ['balsamic', 'apple_cider', 'rice_wine', 'traditional'],
-    spirits: ['makgeolli', 'soju_premium', 'yakju', 'fruit_wine'],
+    yakju_cheongju: ['yakju', 'cheongju', 'takju', 'hapju', 'fruit_wine'],
+    spirits: ['distilled', 'andong', 'rice', 'barley', 'liqueur'],
   };
 
   const closureOptions = ['cork_natural', 'crown_cap', 'screwcap', 'diam', 'glass_stopper', 'ceramic_cap'];

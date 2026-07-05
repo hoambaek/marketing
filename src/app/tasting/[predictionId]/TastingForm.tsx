@@ -31,11 +31,12 @@ const initialScores = (): Scores =>
   AXES.reduce((acc, a) => ({ ...acc, [a.key]: 50 }), {} as Scores);
 
 function ScoreSlider({
-  label, value, onChange, fillColor = GOLD,
-}: { label: string; value: number; onChange: (v: number) => void; fillColor?: string }) {
+  label, definition, value, onChange, fillColor = GOLD,
+}: { label: string; definition?: string | null; value: number; onChange: (v: number) => void; fillColor?: string }) {
   return (
-    <div className="flex items-center gap-3 py-3">
-      <span className="text-[13px] text-white/60 w-24 shrink-0">{label}</span>
+    <div className="py-2.5">
+      <div className="flex items-center gap-3">
+      <span className="text-[13px] text-white/70 w-24 shrink-0">{label}</span>
       <input
         type="range" min={0} max={100} step={1} value={value}
         onChange={e => onChange(Number(e.target.value))}
@@ -58,6 +59,10 @@ function ScoreSlider({
         }}
         className="w-12 shrink-0 text-base font-mono text-white/80 text-right tabular-nums bg-transparent border-b border-white/[0.12] focus:border-[#C4A052]/50 focus:outline-none px-0.5 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
       />
+      </div>
+      {definition && (
+        <p className="text-[10.5px] text-white/35 leading-snug mt-1">{definition}</p>
+      )}
     </div>
   );
 }
@@ -69,8 +74,8 @@ export default function TastingForm({
   predictionId: string;
   category?: string | null;
 }) {
-  // 카테고리별 6축 라벨 (key 순서 = AXES 순서와 동일 = DB 슬롯 순서)
-  const axisLabels = getFlavorAxes(category).map((a) => a.label);
+  // 카테고리별 6축 (key 순서 = AXES 순서 = DB 슬롯 순서) — 라벨 + 정의
+  const axisMeta = getFlavorAxes(category);
   const [recorderName, setRecorderName] = useState('');
   const [recorderAffiliation, setRecorderAffiliation] = useState('');
   // 시음 날짜 기본값 = 오늘 (lazy 초기화)
@@ -179,7 +184,7 @@ export default function TastingForm({
           <h2 className="text-[13px] font-medium text-white/80">지상 보관</h2>
         </div>
         {AXES.map((a, i) => (
-          <ScoreSlider key={a.key} label={axisLabels[i]} value={terrestrial[a.key]}
+          <ScoreSlider key={a.key} label={axisMeta[i].label} definition={axisMeta[i].definition} value={terrestrial[a.key]}
             onChange={v => setTerrestrial(s => ({ ...s, [a.key]: v }))} />
         ))}
         <div className="mt-2 pt-2 border-t border-white/[0.06]">
@@ -194,7 +199,7 @@ export default function TastingForm({
           <h2 className="text-[13px] font-medium text-white/80">해저 숙성</h2>
         </div>
         {AXES.map((a, i) => (
-          <ScoreSlider key={a.key} label={axisLabels[i]} value={undersea[a.key]}
+          <ScoreSlider key={a.key} label={axisMeta[i].label} definition={axisMeta[i].definition} value={undersea[a.key]}
             onChange={v => setUndersea(s => ({ ...s, [a.key]: v }))} fillColor={NAVY} />
         ))}
         <div className="mt-2 pt-2 border-t border-white/[0.06]">
