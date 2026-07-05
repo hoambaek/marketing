@@ -6,6 +6,7 @@ import SupabaseInitializer from '@/components/SupabaseInitializer';
 import { ClerkWrapper } from '@/components/ClerkWrapper';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import Toast from '@/components/Toast';
+import { getSiteUrl } from '@/lib/site-url';
 
 
 const cormorant = Cormorant_Garamond({
@@ -23,6 +24,7 @@ const lora = Lora({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(getSiteUrl()),
   title: '뮤즈드마레 마스터플랜 | Muse de Marée',
   description: '해저숙성 샴페인 브랜드 런칭을 위한 마스터플랜 관리 시스템',
   keywords: ['뮤즈드마레', 'Muse de Marée', '해저숙성', '샴페인', '럭셔리', '마스터플랜'],

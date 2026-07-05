@@ -1,10 +1,52 @@
+import type { Metadata } from 'next';
 import Image from 'next/image';
 import { fetchPredictionContextForTasting } from '@/lib/supabase/database/tasting-submissions';
-import { PRODUCTS } from '@/lib/types';
-import { PRODUCT_CATEGORY_LABELS } from '@/lib/types/uaps';
 import TastingForm from './TastingForm';
+import { resolveTastingDisplay } from './display';
 
 export const dynamic = 'force-dynamic';
+
+/**
+ * 시음 링크 전용 메타데이터 — 카카오톡·SNS 미리보기에 마스터플랜 기본값 대신
+ * 제품명이 들어간 시음 기록 제목/설명이 나오도록 한다.
+ * (og:image는 같은 폴더의 opengraph-image.tsx가 자동 주입)
+ */
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ predictionId: string }>;
+}): Promise<Metadata> {
+  const { predictionId } = await params;
+  const ctx = await fetchPredictionContextForTasting(predictionId);
+
+  if (!ctx) {
+    return {
+      title: '시음 기록 | Muse de Marée',
+      description: '유효하지 않은 시음 기록 링크입니다.',
+    };
+  }
+
+  const { productName, categoryLabel } = resolveTastingDisplay(ctx);
+  const title = `${productName} · 비교 시음 기록 | Muse de Marée`;
+  const description = `${categoryLabel}의 해저 숙성본과 지상 보관 대조군을 블라인드로 비교 시음한 결과를 기록해 주세요.`;
+
+  return {
+    title,
+    description,
+    openGraph: {
+      title: `${productName} · 비교 시음 기록`,
+      description,
+      type: 'article',
+      locale: 'ko_KR',
+      siteName: 'Muse de Marée',
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: `${productName} · 비교 시음 기록`,
+      description,
+    },
+  };
+}
 
 export default async function TastingSubmitPage({
   params,
@@ -32,12 +74,7 @@ export default async function TastingSubmitPage({
     );
   }
 
-  // aging_products.product_name 우선, 없으면 인벤토리 PRODUCTS 매핑, 그래도 없으면 일반명
-  const inventoryProduct = PRODUCTS.find(p => p.id === ctx.productId);
-  const productName =
-    ctx.productName ?? inventoryProduct?.nameKo ?? inventoryProduct?.name ?? '해저 숙성 제품';
-  const categoryLabel =
-    (ctx.productCategory && PRODUCT_CATEGORY_LABELS[ctx.productCategory as keyof typeof PRODUCT_CATEGORY_LABELS]) || '제품';
+  const { productName, categoryLabel } = resolveTastingDisplay(ctx);
 
   return (
     <main
