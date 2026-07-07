@@ -1380,14 +1380,16 @@ function RetrievalInputModal({
       predictionId: prediction.id,
     };
 
-    if (existingId) {
-      const { updateRetrievalResult } = await import('@/lib/supabase/database/uaps');
-      await updateRetrievalResult(existingId, payload);
-    } else {
-      const { createRetrievalResult } = await import('@/lib/supabase/database/uaps');
-      await createRetrievalResult(payload);
-    }
+    const res = await fetch('/api/uaps/retrieval', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(existingId ? { id: existingId, payload } : { payload }),
+    });
     setSaving(false);
+    if (!res.ok) {
+      console.error('UAPS: 인양 결과 저장 요청 실패', res.status);
+      return;
+    }
     onSaved();
   };
 

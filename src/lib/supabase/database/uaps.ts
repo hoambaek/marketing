@@ -859,87 +859,10 @@ function mapDbRetrievalResult(db: DBRetrievalResult): RetrievalResult {
   };
 }
 
-export async function createRetrievalResult(
-  input: Omit<RetrievalResult, 'id' | 'createdAt'>
-): Promise<RetrievalResult | null> {
-  if (!isSupabaseConfigured()) return null;
-
-  const { data, error } = await supabase!
-    .from('retrieval_results')
-    .insert({
-      product_id: input.productId,
-      retrieval_date: input.retrievalDate,
-      actual_duration_months: input.actualDurationMonths,
-      actual_fruity: input.actualFruity,
-      actual_floral_mineral: input.actualFloralMineral,
-      actual_yeasty_autolytic: input.actualYeastyAutolytic,
-      actual_acidity_freshness: input.actualAcidityFreshness,
-      actual_body_texture: input.actualBodyTexture,
-      actual_finish_complexity: input.actualFinishComplexity,
-      actual_overall_quality: input.actualOverallQuality,
-      terrestrial_fruity: input.terrestrialFruity,
-      terrestrial_floral_mineral: input.terrestrialFloralMineral,
-      terrestrial_yeasty_autolytic: input.terrestrialYeastyAutolytic,
-      terrestrial_acidity_freshness: input.terrestrialAcidityFreshness,
-      terrestrial_body_texture: input.terrestrialBodyTexture,
-      terrestrial_finish_complexity: input.terrestrialFinishComplexity,
-      terrestrial_overall_quality: input.terrestrialOverallQuality,
-      tasting_panel_size: input.tastingPanelSize,
-      tasting_notes: input.tastingNotes,
-      is_simulated: input.isSimulated,
-      prediction_id: input.predictionId,
-    })
-    .select()
-    .single();
-
-  if (error) {
-    dbLogger.error('UAPS: 인양 결과 저장 실패:', error);
-    return null;
-  }
-
-  return mapDbRetrievalResult(data);
-}
-
-export async function updateRetrievalResult(
-  id: string,
-  input: Partial<Omit<RetrievalResult, 'id' | 'createdAt'>>
-): Promise<RetrievalResult | null> {
-  if (!isSupabaseConfigured()) return null;
-
-  const updateData: Record<string, unknown> = {};
-  if (input.retrievalDate !== undefined) updateData.retrieval_date = input.retrievalDate;
-  if (input.actualDurationMonths !== undefined) updateData.actual_duration_months = input.actualDurationMonths;
-  if (input.actualFruity !== undefined) updateData.actual_fruity = input.actualFruity;
-  if (input.actualFloralMineral !== undefined) updateData.actual_floral_mineral = input.actualFloralMineral;
-  if (input.actualYeastyAutolytic !== undefined) updateData.actual_yeasty_autolytic = input.actualYeastyAutolytic;
-  if (input.actualAcidityFreshness !== undefined) updateData.actual_acidity_freshness = input.actualAcidityFreshness;
-  if (input.actualBodyTexture !== undefined) updateData.actual_body_texture = input.actualBodyTexture;
-  if (input.actualFinishComplexity !== undefined) updateData.actual_finish_complexity = input.actualFinishComplexity;
-  if (input.actualOverallQuality !== undefined) updateData.actual_overall_quality = input.actualOverallQuality;
-  if (input.terrestrialFruity !== undefined) updateData.terrestrial_fruity = input.terrestrialFruity;
-  if (input.terrestrialFloralMineral !== undefined) updateData.terrestrial_floral_mineral = input.terrestrialFloralMineral;
-  if (input.terrestrialYeastyAutolytic !== undefined) updateData.terrestrial_yeasty_autolytic = input.terrestrialYeastyAutolytic;
-  if (input.terrestrialAcidityFreshness !== undefined) updateData.terrestrial_acidity_freshness = input.terrestrialAcidityFreshness;
-  if (input.terrestrialBodyTexture !== undefined) updateData.terrestrial_body_texture = input.terrestrialBodyTexture;
-  if (input.terrestrialFinishComplexity !== undefined) updateData.terrestrial_finish_complexity = input.terrestrialFinishComplexity;
-  if (input.terrestrialOverallQuality !== undefined) updateData.terrestrial_overall_quality = input.terrestrialOverallQuality;
-  if (input.tastingPanelSize !== undefined) updateData.tasting_panel_size = input.tastingPanelSize;
-  if (input.tastingNotes !== undefined) updateData.tasting_notes = input.tastingNotes;
-
-  const { data, error } = await supabase!
-    .from('retrieval_results')
-    .update(updateData)
-    .eq('id', id)
-    .select()
-    .single();
-
-  if (error) {
-    dbLogger.error('UAPS: 인양 결과 업데이트 실패:', error);
-    return null;
-  }
-
-  return mapDbRetrievalResult(data);
-}
+// 인양 실측 결과 쓰기(create/update)는 service_role 전용으로 이동했다.
+// → src/lib/supabase/database/retrieval-results.ts (API: /api/uaps/retrieval)
+//   retrieval_results는 anon 쓰기를 RLS로 차단하므로 anon 클라이언트로 쓰지 않는다.
+//   읽기(fetchRetrievalResults)는 anon SELECT로 계속 허용한다.
 
 export async function fetchRetrievalResults(
   productId?: string
