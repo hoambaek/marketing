@@ -46,6 +46,7 @@ interface PartnerRow {
   status: 'new' | 'handled';
   created_at: string;
   handled_at: string | null;
+  referral_source: string | null;
 }
 interface InvitationRow {
   id: string;
@@ -54,6 +55,7 @@ interface InvitationRow {
   status: 'new' | 'handled';
   created_at: string;
   handled_at: string | null;
+  referral_source: string | null;
 }
 interface SubscriberRow {
   id: string;
@@ -324,13 +326,13 @@ export default function AdminDashboard({ brandbook, partner, invitations, subscr
                 {tab === 'partner' && (
                   <>
                     <th className={th}>유형</th><th className={th}>업장</th><th className={th}>담당자</th>
-                    <th className={th}>이메일</th><th className={th}>메시지</th><th className={th}>상태</th>
+                    <th className={th}>이메일</th><th className={th}>메시지</th><th className={th}>경로</th><th className={th}>상태</th>
                     <th className={th}>일시</th><th className={th}>작업</th>
                   </>
                 )}
                 {tab === 'invitations' && (
                   <>
-                    <th className={th}>이름</th><th className={th}>이메일</th><th className={th}>상태</th>
+                    <th className={th}>이름</th><th className={th}>이메일</th><th className={th}>알게 된 경로</th><th className={th}>상태</th>
                     <th className={th}>일시</th><th className={th}>작업</th>
                   </>
                 )}
@@ -344,7 +346,7 @@ export default function AdminDashboard({ brandbook, partner, invitations, subscr
             </thead>
             <tbody className="divide-y divide-white/[0.04]">
               {filtered.length === 0 && (
-                <tr><td className="px-4 py-10 text-center text-sm text-white/30" colSpan={9}>데이터가 없습니다.</td></tr>
+                <tr><td className="px-4 py-10 text-center text-sm text-white/30" colSpan={10}>데이터가 없습니다.</td></tr>
               )}
 
               {/* 브랜드 소개서 */}
@@ -395,6 +397,7 @@ export default function AdminDashboard({ brandbook, partner, invitations, subscr
                   <td className={td}>{r.name ?? '—'}</td>
                   <td className={td}>{r.email}</td>
                   <td className={cn(td, 'max-w-[240px] whitespace-pre-wrap text-white/60')}>{r.message ?? '—'}</td>
+                  <td className={cn(td, 'max-w-[160px] text-white/60')}>{r.referral_source ?? '—'}</td>
                   <td className={td}><StatusBadge status={r.status} /></td>
                   <td className={cn(td, 'whitespace-nowrap text-white/50')}>{fmt(r.created_at)}</td>
                   <td className={td}>
@@ -423,6 +426,7 @@ export default function AdminDashboard({ brandbook, partner, invitations, subscr
                 <tr key={r.id} className="hover:bg-white/[0.02]">
                   <td className={td}>{r.name ?? '—'}</td>
                   <td className={td}>{r.email}</td>
+                  <td className={cn(td, 'max-w-[200px] text-white/60')}>{r.referral_source ?? '—'}</td>
                   <td className={td}><StatusBadge status={r.status} /></td>
                   <td className={cn(td, 'whitespace-nowrap text-white/50')}>{fmt(r.created_at)}</td>
                   <td className={td}>

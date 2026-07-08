@@ -17,6 +17,7 @@ import {
   BarChart3,
   Database,
   Route,
+  MessageCircleHeart,
 } from 'lucide-react';
 
 const containerVariants = {
@@ -59,7 +60,7 @@ export interface ChannelsData {
   sources: SourceState[];
   funnel: { discovery: StatCard; witness: StatCard; relation: StatCard; invite: StatCard };
   kpi: { igSaved: StatCard; igShares: StatCard; blogSessions: StatCard };
-  traffic: { channelGroups: TrafficSlice[]; referrers: TrafficSlice[] };
+  traffic: { channelGroups: TrafficSlice[]; referrers: TrafficSlice[]; selfReported: TrafficSlice[] };
   report: {
     week_start: string;
     generated_at: string;
@@ -456,8 +457,17 @@ export function ChannelsDashboard({ data }: { data: ChannelsData }) {
             variants={containerVariants}
             initial="hidden"
             animate="visible"
-            className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-5"
+            className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-5"
           >
+            <motion.div variants={itemVariants}>
+              <TrafficList
+                title="자기보고 (직접 물어봄)"
+                sub="폼의 '어떻게 알게 되셨나요' — 다크소셜·입소문까지 잡는 최고 신호"
+                icon={<MessageCircleHeart className="text-amber-400" />}
+                slices={traffic.selfReported}
+                accent="text-amber-400/70"
+              />
+            </motion.div>
             <motion.div variants={itemVariants}>
               <TrafficList
                 title="채널 그룹 (GA4)"

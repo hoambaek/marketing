@@ -14,6 +14,7 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { kstDaysAgo } from '@/lib/marketing/store';
+import { tagReferral } from '@/lib/marketing/referral-tags';
 
 export const maxDuration = 120;
 
@@ -29,6 +30,25 @@ interface MetricAgg {
   metric: string;
   thisWeek: number;
   prevWeek: number;
+}
+
+/** referral_source가 있는데 referral_tag가 비어있는 행을 규칙 태깅으로 채운다 */
+async function backfillReferralTags(): Promise<void> {
+  if (!supabaseAdmin) return;
+  for (const table of ['invitations', 'partner_inquiries', 'subscribers']) {
+    const { data } = await supabaseAdmin
+      .from(table)
+      .select('id, referral_source')
+      .is('referral_tag', null)
+      .not('referral_source', 'is', null)
+      .limit(500);
+    for (const row of (data ?? []) as { id: string; referral_source: string | null }[]) {
+      const tag = tagReferral(row.referral_source);
+      if (tag) {
+        await supabaseAdmin.from(table).update({ referral_tag: tag }).eq('id', row.id);
+      }
+    }
+  }
 }
 
 async function aggregateWeeks(): Promise<MetricAgg[]> {
@@ -144,6 +164,9 @@ export async function GET(request: Request) {
   }
 
   try {
+    // 0단계: 자기보고 어트리뷰션 태깅 (referral_tag 비어있는 행을 규칙으로 채움)
+    await backfillReferralTags();
+
     const metrics = await aggregateWeeks();
     if (metrics.length === 0) {
       return NextResponse.json({

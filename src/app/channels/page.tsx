@@ -91,6 +91,7 @@ async function loadData(): Promise<ChannelsData> {
   let report: ChannelsData['report'] = null;
   const lastDates: Record<string, string> = {};
   let admin: ChannelsData['admin'] = { brandbook: [], partner: [], invitations: [], subscribers: [] };
+  let selfReportedSlices: { label: string; value: number }[] = [];
 
   if (supabaseAdmin) {
     const since = new Date(Date.now() - 14 * 86400_000).toISOString().slice(0, 10);
@@ -119,6 +120,19 @@ async function loadData(): Promise<ChannelsData> {
       invitations: invites.data ?? [],
       subscribers: subs.data ?? [],
     };
+    // 자기보고 어트리뷰션 집계 (referral_tag 우선, 없으면 원문)
+    const selfReported = new Map<string, number>();
+    for (const src of [invites.data ?? [], partner.data ?? [], subs.data ?? []]) {
+      for (const row of src as { referral_source?: string | null; referral_tag?: string | null }[]) {
+        const label = (row.referral_tag || row.referral_source || '').trim();
+        if (!label) continue;
+        selfReported.set(label, (selfReported.get(label) ?? 0) + 1);
+      }
+    }
+    selfReportedSlices = [...selfReported.entries()]
+      .map(([label, value]) => ({ label, value }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 8);
     for (const m of metrics) {
       if (!lastDates[m.source] || m.date > lastDates[m.source]) lastDates[m.source] = m.date;
     }
@@ -156,6 +170,8 @@ async function loadData(): Promise<ChannelsData> {
         .map((r) => ({ label: cleanReferrer(r.label), value: r.value }))
         .filter((r): r is { label: string; value: number } => r.label !== null)
         .slice(0, 8),
+      // 자기보고 어트리뷰션 (전체 기간) — 다크소셜·AI유입 등 측정 사각 보완
+      selfReported: selfReportedSlices,
     },
     report,
     hasData: metrics.length > 0,
