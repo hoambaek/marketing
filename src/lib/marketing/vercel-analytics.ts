@@ -79,17 +79,21 @@ export async function fetchVercelDaily(
   projectId: string,
   date: string
 ): Promise<VercelDailyMetric[]> {
+  // aggregate 엔드포인트는 `by`가 필수 — 하루 범위를 day로 묶어 총계 버킷을 얻는다
   const raw = await query('visits/aggregate', projectId, {
     since: `${date}T00:00:00Z`,
     until: `${date}T23:59:59Z`,
+    by: 'day',
   });
-  const out: VercelDailyMetric[] = [];
+  let visitors = 0;
+  let pageviews = 0;
   for (const row of extractRows(raw)) {
-    const visitors = num(row.visitors);
-    const pageviews = num(row.pageviews);
-    if (visitors !== null) out.push({ metric: 'visitors', dimension: {}, value: visitors });
-    if (pageviews !== null) out.push({ metric: 'pageviews', dimension: {}, value: pageviews });
+    visitors += num(row.visitors) ?? 0;
+    pageviews += num(row.pageviews) ?? num(row.total) ?? 0;
   }
+  const out: VercelDailyMetric[] = [];
+  out.push({ metric: 'visitors', dimension: {}, value: visitors });
+  out.push({ metric: 'pageviews', dimension: {}, value: pageviews });
   return out;
 }
 
