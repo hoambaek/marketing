@@ -30,6 +30,7 @@ export async function approveBrandBook(id: string): Promise<ActionResult> {
       return { ok: false, error: data?.error ?? `발송 실패 (HTTP ${res.status})` };
     }
     revalidatePath('/admin');
+  revalidatePath('/channels');
     return { ok: true };
   } catch (e) {
     logger.error('[admin] 소개서 발송 호출 실패', e);
@@ -46,6 +47,7 @@ export async function rejectBrandBook(id: string): Promise<ActionResult> {
     .eq('id', id);
   if (error) return { ok: false, error: error.message };
   revalidatePath('/admin');
+  revalidatePath('/channels');
   return { ok: true };
 }
 
@@ -61,6 +63,7 @@ export async function setPartnerHandled(id: string, handled: boolean): Promise<A
     .eq('id', id);
   if (error) return { ok: false, error: error.message };
   revalidatePath('/admin');
+  revalidatePath('/channels');
   return { ok: true };
 }
 
@@ -76,6 +79,7 @@ export async function setInvitationHandled(id: string, handled: boolean): Promis
     .eq('id', id);
   if (error) return { ok: false, error: error.message };
   revalidatePath('/admin');
+  revalidatePath('/channels');
   return { ok: true };
 }
 
@@ -88,6 +92,7 @@ export async function unsubscribeSubscriber(id: string): Promise<ActionResult> {
     .eq('id', id);
   if (error) return { ok: false, error: error.message };
   revalidatePath('/admin');
+  revalidatePath('/channels');
   return { ok: true };
 }
 
@@ -105,5 +110,6 @@ export async function deleteRow(table: string, id: string): Promise<ActionResult
   const { error } = await supabaseAdmin.from(table).delete().eq('id', id);
   if (error) return { ok: false, error: error.message };
   revalidatePath('/admin');
+  revalidatePath('/channels');
   return { ok: true };
 }

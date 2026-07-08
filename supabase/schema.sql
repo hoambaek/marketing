@@ -747,3 +747,78 @@ INSERT INTO flavor_dictionary (id, expert_term, consumer_keywords, associated_st
   ('fd-toast', 'Toast', ARRAY['토스트', '구운빵', '커피', '카라멜', 'toast', 'coffee', 'caramel'], 'mature', 'nutty', 1.4, 0.5),
   ('fd-oxidation', 'Oxidation', ARRAY['산화', '셰리', '마데이라', '호두껍질', 'sherry', 'madeira'], 'aged', 'oxidative', 1.0, 0.3)
 ON CONFLICT (expert_term) DO NOTHING;
+
+-- ═══════════════════════════════════════════════════════════════
+-- 마케팅 관제 시스템 (2026-07-08)
+-- 원격 적용: apply_migration 'marketing_command_center_tables'
+-- 쓰기: 크론(service_role)만. RLS 활성화 + 정책 없음 = service_role 전용
+-- ═══════════════════════════════════════════════════════════════
+
+CREATE TABLE IF NOT EXISTS channel_metrics_daily (
+  id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  date DATE NOT NULL,
+  channel TEXT NOT NULL,
+  source TEXT NOT NULL,
+  metric TEXT NOT NULL,
+  dim_key TEXT NOT NULL DEFAULT '',
+  dimension JSONB NOT NULL DEFAULT '{}',
+  value NUMERIC NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (date, channel, source, metric, dim_key)
+);
+CREATE INDEX IF NOT EXISTS idx_cmd_date ON channel_metrics_daily (date DESC);
+CREATE INDEX IF NOT EXISTS idx_cmd_channel_metric ON channel_metrics_daily (channel, metric, date DESC);
+
+CREATE TABLE IF NOT EXISTS content_performance (
+  id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  content_type TEXT NOT NULL,
+  external_id TEXT NOT NULL,
+  content_item_id BIGINT,
+  title TEXT,
+  permalink TEXT,
+  published_at TIMESTAMPTZ,
+  snapshot_date DATE NOT NULL,
+  metrics JSONB NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (content_type, external_id, snapshot_date)
+);
+CREATE INDEX IF NOT EXISTS idx_cp_type_date ON content_performance (content_type, snapshot_date DESC);
+
+CREATE TABLE IF NOT EXISTS newsletter_campaigns (
+  id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  stibee_campaign_id TEXT UNIQUE,
+  subject TEXT,
+  sent_at TIMESTAMPTZ,
+  recipients INT, opens INT, clicks INT, unsubscribes INT,
+  open_rate NUMERIC, click_rate NUMERIC,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS search_queries (
+  id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  date DATE NOT NULL,
+  site TEXT NOT NULL,
+  query TEXT NOT NULL,
+  page TEXT NOT NULL DEFAULT '',
+  clicks INT NOT NULL DEFAULT 0,
+  impressions INT NOT NULL DEFAULT 0,
+  ctr NUMERIC, position NUMERIC,
+  tier TEXT,
+  UNIQUE (date, site, query, page)
+);
+CREATE INDEX IF NOT EXISTS idx_sq_tier_date ON search_queries (tier, date DESC);
+
+CREATE TABLE IF NOT EXISTS ai_reports (
+  id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  week_start DATE NOT NULL UNIQUE,
+  generated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  verdict TEXT,
+  summary_md TEXT NOT NULL,
+  metrics_snapshot JSONB
+);
+
+ALTER TABLE channel_metrics_daily ENABLE ROW LEVEL SECURITY;
+ALTER TABLE content_performance ENABLE ROW LEVEL SECURITY;
+ALTER TABLE newsletter_campaigns ENABLE ROW LEVEL SECURITY;
+ALTER TABLE search_queries ENABLE ROW LEVEL SECURITY;
+ALTER TABLE ai_reports ENABLE ROW LEVEL SECURITY;

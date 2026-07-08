@@ -19,13 +19,12 @@ const navigation: NavItem[] = [
   { name: '대시보드', href: '/' },
   { name: '월별플랜', href: '/monthly-plan' },
   { name: '캘린더', href: '/calendar' },
-  { name: 'KPI', href: '/kpi' },
+  { name: '채널', href: '/channels' },
   { name: '재고관리', href: '/inventory' },
   { name: '예산관리', href: '/budget' },
   { name: 'Data Log', href: '/data-log' },
   { name: 'UAPS', href: '/uaps' },
   { name: 'CXP', href: '/cxp' },
-  { name: 'Members', href: '/admin' },
   { name: '블로그', href: 'https://blog.musedemaree.com/admin', external: true },
 ];
 

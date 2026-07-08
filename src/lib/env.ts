@@ -23,6 +23,11 @@ const REQUIRED_ENV_VARS = {
     'CLOUDFLARE_R2_SECRET_ACCESS_KEY',
     'CLOUDFLARE_R2_PUBLIC_URL',
   ] as const,
+
+  // 마케팅 관제 — 각 소스는 독립적으로 선택적 (미설정 시 해당 수집기만 skip)
+  marketingGa4: ['GOOGLE_SERVICE_ACCOUNT_KEY', 'GA4_PROPERTY_ID'] as const,
+  marketingVercel: ['VERCEL_API_TOKEN', 'VERCEL_TEAM_ID'] as const,
+  marketingMeta: ['META_ACCESS_TOKEN', 'META_IG_USER_ID'] as const,
 } as const;
 
 type EnvGroup = keyof typeof REQUIRED_ENV_VARS;

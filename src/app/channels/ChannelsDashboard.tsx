@@ -1,0 +1,467 @@
+'use client';
+
+import { motion } from 'framer-motion';
+import ReactMarkdown from 'react-markdown';
+import { Footer } from '@/components/layout/Footer';
+import AdminDashboard from '@/app/admin/AdminDashboard';
+import {
+  Compass,
+  Eye,
+  Mail,
+  Handshake,
+  Instagram,
+  Bookmark,
+  Send,
+  Globe,
+  Sparkles,
+  BarChart3,
+  Database,
+} from 'lucide-react';
+
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: { staggerChildren: 0.08 },
+  },
+};
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 40 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.8, ease: [0.25, 0.46, 0.45, 0.94] as const },
+  },
+};
+
+export interface StatCard {
+  cur: number;
+  prev: number;
+}
+
+export interface SourceState {
+  key: string;
+  name: string;
+  configured: boolean;
+  lastDate?: string;
+}
+
+type AdminData = Omit<React.ComponentProps<typeof AdminDashboard>, 'embedded'>;
+
+export interface ChannelsData {
+  sources: SourceState[];
+  funnel: { discovery: StatCard; witness: StatCard; relation: StatCard; invite: StatCard };
+  kpi: { igSaved: StatCard; igShares: StatCard; blogSessions: StatCard };
+  report: {
+    week_start: string;
+    generated_at: string;
+    verdict: string;
+    summary_md: string;
+  } | null;
+  hasData: boolean;
+  admin: AdminData;
+}
+
+const FUNNEL_STEPS = [
+  {
+    key: 'discovery' as const,
+    label: '발견',
+    sub: '검색 클릭 + 인스타 도달',
+    icon: <Compass className="w-5 h-5" />,
+    color: { bg: 'bg-blue-500/10', text: 'text-blue-400', accent: 'from-blue-500 to-blue-400', glow: 'rgba(59, 130, 246, 0.15)' },
+  },
+  {
+    key: 'witness' as const,
+    label: '목격',
+    sub: '랜딩 세션',
+    icon: <Eye className="w-5 h-5" />,
+    color: { bg: 'bg-violet-500/10', text: 'text-violet-400', accent: 'from-violet-500 to-violet-400', glow: 'rgba(139, 92, 246, 0.15)' },
+  },
+  {
+    key: 'relation' as const,
+    label: '관계',
+    sub: '명부 등록',
+    icon: <Mail className="w-5 h-5" />,
+    color: { bg: 'bg-emerald-500/10', text: 'text-emerald-400', accent: 'from-emerald-500 to-emerald-400', glow: 'rgba(16, 185, 129, 0.15)' },
+  },
+  {
+    key: 'invite' as const,
+    label: '초대·문의',
+    sub: '초대 신청 + B2B 문의',
+    icon: <Handshake className="w-5 h-5" />,
+    color: { bg: 'bg-amber-500/10', text: 'text-amber-400', accent: 'from-amber-500 to-amber-400', glow: 'rgba(245, 158, 11, 0.15)' },
+  },
+];
+
+const KPI_CARDS = [
+  {
+    key: 'igSaved' as const,
+    label: '인스타 저장',
+    sub: '팔로워 수보다 상위 지표',
+    icon: <Bookmark className="w-5 h-5" />,
+    color: { bg: 'bg-pink-500/10', text: 'text-pink-400', accent: 'from-pink-500 to-pink-400', glow: 'rgba(236, 72, 153, 0.15)' },
+  },
+  {
+    key: 'igShares' as const,
+    label: '인스타 공유',
+    sub: 'DM 공유 = 최상위 알고리즘 신호',
+    icon: <Send className="w-5 h-5" />,
+    color: { bg: 'bg-pink-500/10', text: 'text-pink-400', accent: 'from-pink-500 to-pink-400', glow: 'rgba(236, 72, 153, 0.15)' },
+  },
+  {
+    key: 'blogSessions' as const,
+    label: '블로그 세션',
+    sub: '키워드 3계층 검증 중',
+    icon: <Globe className="w-5 h-5" />,
+    color: { bg: 'bg-blue-500/10', text: 'text-blue-400', accent: 'from-blue-500 to-blue-400', glow: 'rgba(59, 130, 246, 0.15)' },
+  },
+];
+
+function Delta({ cur, prev }: StatCard) {
+  if (prev === 0 && cur === 0) {
+    return <span className="text-[10px] sm:text-xs text-white/25">데이터 수집 전</span>;
+  }
+  const diff = cur - prev;
+  const cls = diff >= 0 ? 'text-emerald-400' : 'text-red-400';
+  return (
+    <span className={`text-[10px] sm:text-xs font-medium ${cls}`}>
+      {diff >= 0 ? '+' : ''}
+      {diff.toLocaleString()} <span className="text-white/30">전주 대비</span>
+    </span>
+  );
+}
+
+const SOURCE_ICONS: Record<string, React.ReactNode> = {
+  ga4: <BarChart3 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />,
+  vercel: <Globe className="w-3.5 h-3.5 sm:w-4 sm:h-4" />,
+  ig_graph: <Instagram className="w-3.5 h-3.5 sm:w-4 sm:h-4" />,
+  gsc: <Database className="w-3.5 h-3.5 sm:w-4 sm:h-4" />,
+};
+
+export function ChannelsDashboard({ data }: { data: ChannelsData }) {
+  const { sources, funnel, kpi, report, hasData, admin } = data;
+
+  return (
+    <div className="min-h-screen pb-20">
+      {/* Ambient Background */}
+      <div className="fixed inset-0 -z-10">
+        <div className="absolute inset-0 bg-gradient-to-b from-[#0a0f1a] via-[#0d1525] to-[#0a0f1a]" />
+        <div
+          className="absolute inset-0 opacity-30"
+          style={{
+            backgroundImage: `radial-gradient(ellipse 80% 50% at 50% -20%, rgba(183, 145, 110, 0.15), transparent),
+                              radial-gradient(ellipse 60% 40% at 20% 80%, rgba(59, 130, 246, 0.08), transparent),
+                              radial-gradient(ellipse 50% 30% at 80% 50%, rgba(16, 185, 129, 0.06), transparent)`,
+          }}
+        />
+        <div
+          className="absolute inset-0 opacity-[0.015]"
+          style={{
+            backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")`,
+          }}
+        />
+      </div>
+
+      {/* Hero */}
+      <section className="relative pt-8 sm:pt-16 pb-6 sm:pb-12 px-4 sm:px-6 lg:px-12">
+        <div className="max-w-6xl mx-auto">
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 1, ease: [0.25, 0.46, 0.45, 0.94] }}
+            className="relative"
+          >
+            <motion.div
+              initial={{ scaleX: 0 }}
+              animate={{ scaleX: 1 }}
+              transition={{ duration: 1.2, delay: 0.3, ease: [0.25, 0.46, 0.45, 0.94] }}
+              className="hidden sm:block absolute -left-6 top-1/2 w-16 h-px bg-gradient-to-r from-[#b7916e] to-transparent origin-left"
+            />
+
+            <div className="sm:pl-14">
+              <motion.p
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.8, delay: 0.4 }}
+                className="text-[#b7916e] text-[10px] sm:text-sm tracking-[0.2em] sm:tracking-[0.3em] uppercase mb-2 sm:mb-4 font-light"
+              >
+                Marketing Intelligence
+              </motion.p>
+
+              <h1
+                className="text-3xl sm:text-5xl lg:text-6xl text-white/95 mb-2 sm:mb-6 leading-[1.1] tracking-tight"
+                style={{ fontFamily: "var(--font-cormorant), 'Playfair Display', Georgia, serif" }}
+              >
+                <span className="sm:block inline">Channel </span>
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#b7916e] via-[#d4c4a8] to-[#b7916e]">
+                  Command
+                </span>
+              </h1>
+
+              <motion.p
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 1, delay: 0.8 }}
+                className="hidden sm:block text-white/40 text-lg max-w-xl font-light leading-relaxed"
+              >
+                전환은 결제가 아니라 명부 등록과 초대 — 온라인 채널은 브랜드 홍보만
+              </motion.p>
+            </div>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* 수집기 상태 - Pills */}
+      <section className="px-4 sm:px-6 lg:px-8 mb-4 sm:mb-6">
+        <div className="max-w-6xl mx-auto">
+          <motion.div
+            variants={itemVariants}
+            initial="hidden"
+            animate="visible"
+            className="relative rounded-xl sm:rounded-2xl overflow-hidden"
+          >
+            <div className="absolute inset-0 bg-gradient-to-br from-white/[0.04] to-white/[0.01] backdrop-blur-sm" />
+            <div className="absolute inset-0 border border-white/[0.06] rounded-xl sm:rounded-2xl" />
+            <div className="relative p-2 sm:p-4">
+              <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto scrollbar-hide pb-1">
+                {sources.map((s) => (
+                  <div
+                    key={s.key}
+                    className={`flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl text-[11px] sm:text-sm font-medium whitespace-nowrap border ${
+                      s.configured
+                        ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                        : 'text-white/40 border-white/[0.08]'
+                    }`}
+                  >
+                    <span
+                      className={`w-1.5 h-1.5 rounded-full ${
+                        s.configured ? 'bg-emerald-400' : 'bg-white/20'
+                      }`}
+                    />
+                    {SOURCE_ICONS[s.key]}
+                    <span>{s.name}</span>
+                    <span className="text-[9px] sm:text-[10px] text-white/30 font-normal">
+                      {s.configured ? (s.lastDate ? `적재 ${s.lastDate}` : '첫 수집 대기') : '연동 대기'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* 퍼널 */}
+      <section className="px-4 sm:px-6 lg:px-8 mb-6 sm:mb-10">
+        <div className="max-w-6xl mx-auto">
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.3 }}
+            className="text-white/40 text-[10px] sm:text-xs uppercase tracking-[0.2em] mb-3 sm:mb-4"
+          >
+            Funnel · 최근 7일
+          </motion.p>
+          <motion.div
+            variants={containerVariants}
+            initial="hidden"
+            animate="visible"
+            className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-5"
+          >
+            {FUNNEL_STEPS.map((step, i) => {
+              const stat = funnel[step.key];
+              return (
+                <motion.div
+                  key={step.key}
+                  variants={itemVariants}
+                  className="group relative rounded-xl sm:rounded-2xl overflow-hidden"
+                >
+                  <div className="absolute inset-0 bg-gradient-to-br from-white/[0.04] to-white/[0.01] backdrop-blur-sm" />
+                  <div className="absolute inset-0 border border-white/[0.06] rounded-xl sm:rounded-2xl" />
+                  <div
+                    className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
+                    style={{
+                      background: `radial-gradient(circle at 50% 100%, ${step.color.glow}, transparent 70%)`,
+                    }}
+                  />
+
+                  <div className={`relative px-2.5 sm:px-5 py-2 sm:py-4 ${step.color.bg} border-b border-white/[0.04]`}>
+                    <div className="flex items-center gap-1.5 sm:gap-3">
+                      <div className={`p-1.5 sm:p-2.5 rounded-lg sm:rounded-xl bg-[#0a0f1a]/50 ${step.color.text} [&>svg]:w-3.5 [&>svg]:h-3.5 sm:[&>svg]:w-5 sm:[&>svg]:h-5`}>
+                        {step.icon}
+                      </div>
+                      <div className="min-w-0">
+                        <p className={`text-[11px] sm:text-sm font-medium ${step.color.text}`}>
+                          {i + 1} · {step.label}
+                        </p>
+                        <p className="text-[9px] sm:text-xs text-white/30 truncate hidden sm:block">{step.sub}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="relative p-2.5 sm:p-5">
+                    <p
+                      className="text-xl sm:text-4xl text-white/90 mb-1 sm:mb-2"
+                      style={{ fontFamily: "var(--font-cormorant), 'Playfair Display', Georgia, serif" }}
+                    >
+                      {stat.cur.toLocaleString()}
+                    </p>
+                    <Delta {...stat} />
+                  </div>
+                </motion.div>
+              );
+            })}
+          </motion.div>
+        </div>
+      </section>
+
+      {/* 전략 KPI */}
+      <section className="px-4 sm:px-6 lg:px-8 mb-6 sm:mb-10">
+        <div className="max-w-6xl mx-auto">
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.4 }}
+            className="text-white/40 text-[10px] sm:text-xs uppercase tracking-[0.2em] mb-3 sm:mb-4"
+          >
+            Strategy Signals · 최근 7일
+          </motion.p>
+          <motion.div
+            variants={containerVariants}
+            initial="hidden"
+            animate="visible"
+            className="grid grid-cols-3 gap-2 sm:gap-5"
+          >
+            {KPI_CARDS.map((card) => {
+              const stat = kpi[card.key];
+              return (
+                <motion.div
+                  key={card.key}
+                  variants={itemVariants}
+                  className="group relative rounded-xl sm:rounded-2xl overflow-hidden"
+                >
+                  <div className="absolute inset-0 bg-gradient-to-br from-white/[0.04] to-white/[0.01] backdrop-blur-sm" />
+                  <div className="absolute inset-0 border border-white/[0.06] rounded-xl sm:rounded-2xl" />
+                  <div
+                    className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
+                    style={{
+                      background: `radial-gradient(circle at 50% 100%, ${card.color.glow}, transparent 70%)`,
+                    }}
+                  />
+                  <div className="relative p-3 sm:p-6">
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-3 mb-2 sm:mb-4">
+                      <div className={`p-1.5 sm:p-2.5 rounded-lg sm:rounded-xl ${card.color.bg} border border-white/[0.06] w-fit ${card.color.text} [&>svg]:w-3.5 [&>svg]:h-3.5 sm:[&>svg]:w-5 sm:[&>svg]:h-5`}>
+                        {card.icon}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-[10px] sm:text-sm text-white/50">{card.label}</p>
+                        <p className="text-[9px] sm:text-[11px] text-white/25 truncate hidden sm:block">{card.sub}</p>
+                      </div>
+                    </div>
+                    <p
+                      className="text-xl sm:text-4xl text-white/90 mb-1"
+                      style={{ fontFamily: "var(--font-cormorant), 'Playfair Display', Georgia, serif" }}
+                    >
+                      {stat.cur.toLocaleString()}
+                    </p>
+                    <Delta {...stat} />
+                  </div>
+                </motion.div>
+              );
+            })}
+          </motion.div>
+        </div>
+      </section>
+
+      {/* AI 주간 리포트 */}
+      <section className="px-4 sm:px-6 lg:px-8">
+        <div className="max-w-6xl mx-auto">
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.5 }}
+            className="text-white/40 text-[10px] sm:text-xs uppercase tracking-[0.2em] mb-3 sm:mb-4"
+          >
+            AI Weekly Report
+          </motion.p>
+
+          <motion.div
+            variants={itemVariants}
+            initial="hidden"
+            animate="visible"
+            className="relative rounded-xl sm:rounded-2xl overflow-hidden"
+          >
+            <div className="absolute inset-0 bg-gradient-to-br from-[#b7916e]/[0.08] to-white/[0.02] backdrop-blur-sm" />
+            <div className="absolute inset-0 border border-[#b7916e]/20 rounded-xl sm:rounded-2xl" />
+            <div
+              className="absolute inset-0 opacity-40"
+              style={{
+                background: 'radial-gradient(circle at 50% 0%, rgba(183, 145, 110, 0.15), transparent 50%)',
+              }}
+            />
+
+            <div className="relative p-4 sm:p-8">
+              {report ? (
+                <>
+                  <div className="flex items-center gap-3 mb-4 sm:mb-6">
+                    <div className="p-2 sm:p-3 rounded-xl sm:rounded-2xl bg-[#b7916e]/20 border border-[#b7916e]/30">
+                      <Sparkles className="w-4 h-4 sm:w-6 sm:h-6 text-[#d4c4a8]" />
+                    </div>
+                    <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+                      <span
+                        className={`rounded-full px-2.5 sm:px-3 py-1 text-[10px] sm:text-xs font-semibold border ${
+                          report.verdict === 'on-track'
+                            ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
+                            : report.verdict === 'watch'
+                              ? 'bg-amber-500/15 text-amber-400 border-amber-500/30'
+                              : 'bg-red-500/15 text-red-400 border-red-500/30'
+                        }`}
+                      >
+                        {report.verdict}
+                      </span>
+                      <span className="text-[10px] sm:text-xs text-white/30">
+                        {report.week_start} 주 · {new Date(report.generated_at).toLocaleString('ko-KR')}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="prose prose-invert prose-sm max-w-none prose-headings:text-white/80 prose-p:text-white/60 prose-strong:text-[#d4c4a8] prose-li:text-white/60">
+                    <ReactMarkdown>{report.summary_md}</ReactMarkdown>
+                  </div>
+                </>
+              ) : (
+                <div className="py-8 sm:py-12 text-center">
+                  <Sparkles className="w-10 h-10 sm:w-12 sm:h-12 mx-auto mb-4 text-[#b7916e]/30" />
+                  <p className="text-white/40 text-sm sm:text-base font-light">
+                    {hasData
+                      ? '첫 주간 리포트는 다음 월요일 오전 8시에 생성됩니다'
+                      : '수집기 연동 후 데이터가 쌓이면 매주 월요일 리포트가 자동 생성됩니다'}
+                  </p>
+                </div>
+              )}
+            </div>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* 명부·문의 관리 (구 Members 페이지 통합) — 퍼널 ③관계·④초대의 실물 데이터 */}
+      <section className="px-4 sm:px-6 lg:px-8 mt-6 sm:mt-10">
+        <div className="max-w-6xl mx-auto">
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.6 }}
+            className="text-white/40 text-[10px] sm:text-xs uppercase tracking-[0.2em] mb-3 sm:mb-4"
+          >
+            Registre · 명부와 문의
+          </motion.p>
+          <motion.div variants={itemVariants} initial="hidden" animate="visible">
+            <AdminDashboard {...admin} embedded />
+          </motion.div>
+        </div>
+      </section>
+
+      <Footer subtitle="Channel Command" />
+    </div>
+  );
+}

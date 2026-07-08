@@ -70,6 +70,8 @@ interface Props {
   partner: PartnerRow[];
   invitations: InvitationRow[];
   subscribers: SubscriberRow[];
+  /** true면 페이지 크롬(배경·여백·헤더) 없이 섹션으로 렌더 — /channels 임베드용 */
+  embedded?: boolean;
 }
 
 type TabKey = 'brandbook' | 'partner' | 'invitations' | 'subscribers';
@@ -149,7 +151,7 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 // ── 메인 ────────────────────────────────────────────────
-export default function AdminDashboard({ brandbook, partner, invitations, subscribers }: Props) {
+export default function AdminDashboard({ brandbook, partner, invitations, subscribers, embedded = false }: Props) {
   const [tab, setTab] = useState<TabKey>('brandbook');
   const [query, setQuery] = useState('');
   const [pending, startTransition] = useTransition();
@@ -232,13 +234,21 @@ export default function AdminDashboard({ brandbook, partner, invitations, subscr
     'inline-flex items-center gap-1 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors disabled:opacity-40';
 
   return (
-    <div className="min-h-screen bg-[#0a0f1a] text-white pt-20 sm:pt-24 pb-16 px-4 sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-7xl">
-        {/* 헤더 */}
-        <div className="mb-6">
-          <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-[#b7916e]/70">Admin</p>
-          <h1 className="mt-1 text-2xl font-light">신청·구독자 관리</h1>
-        </div>
+    <div
+      className={
+        embedded
+          ? 'text-white'
+          : 'min-h-screen bg-[#0a0f1a] text-white pt-20 sm:pt-24 pb-16 px-4 sm:px-6 lg:px-8'
+      }
+    >
+      <div className={embedded ? '' : 'mx-auto max-w-7xl'}>
+        {/* 헤더 (임베드 시 상위 섹션이 라벨을 제공) */}
+        {!embedded && (
+          <div className="mb-6">
+            <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-[#b7916e]/70">Admin</p>
+            <h1 className="mt-1 text-2xl font-light">신청·구독자 관리</h1>
+          </div>
+        )}
 
         {/* 탭 */}
         <div className="mb-5 flex flex-wrap gap-2">
