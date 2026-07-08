@@ -44,10 +44,10 @@
 - [ ] **현재 플랜 확인** (Hobby / Pro) — Hobby여도 운영 가능하게 설계했지만, 플랜에 따라 커스텀 이벤트 수집 경로가 달라짐
 - [ ] ⚠️ **선행 미완료 건**: landing 프로젝트의 **Vercel Analytics를 대시보드에서 Enable** (웹 그로스 작업 때부터 대기 중)
 
-## 4. 결정 2가지 (비용 발생)
+## 4. 결정 사항
 
-- [ ] **Claude API 키 발급 여부** — 주간 전략 리포트 엔진. console.anthropic.com에서 발급, 월 수천 원 수준. (기존 Gemini 재사용도 가능하나 전략 판정 품질은 Claude 권장)
-- [ ] **스티비 프로(월 29,000원) 가입 시점 결정** — 지금은 결정만. 뉴스레터 첫 발행과 동시 가입 권장
+- [x] ~~Claude API 키 발급~~ — 이미 설정돼 있음 (해결)
+- [x] ~~스티비 프로 가입~~ — **폐기 (2026-07-08 대표 확정): 뉴스레터는 자체 운영.** 구독자 관리는 기존 subscribers 테이블(/channels 명부 섹션), 발송은 Resend 기반 자체 개발(별도 건). 외부 툴 비용·가입 불필요
 
 ## 지금 안 해도 되는 것
 
@@ -76,6 +76,7 @@
 | `META_ACCESS_TOKEN` | System User 토큰 (Business Manager 발급) | 대기 |
 | `META_IG_USER_ID` | Instagram 비즈니스 계정의 IG User ID (숫자) | 대기 |
 | `ANTHROPIC_API_KEY` | Claude API 키 | ✅ 이미 설정됨 |
+| ~~스티비 API 키~~ | 폐기 — 뉴스레터 자체 운영 확정 (RESEND_API_KEY 이미 보유) | ✅ 불필요 |
 | `CRON_SECRET` | 임의 랜덤 문자열 (크론 보호 강화, 선택 — 미설정 시 Vercel 크론 헤더로 검증) | 선택 |
 
 각 수집기는 독립적으로 동작 — 변수가 들어오는 소스부터 순서대로 수집이 시작된다 (미설정 소스는 자동 skip).

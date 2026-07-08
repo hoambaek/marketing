@@ -4,6 +4,8 @@
 > 목적: 채널 전략(랜딩·블로그·인스타그램·뉴스레터)의 실행 데이터를 자동 수집하고, AI가 "우리 마케팅 방향이 맞는가"를 주기 분석해 보여주는 관리자 시스템을 plan.musedemaree.com(marketing 앱)에 구축한다.
 > 상위 전략: `/Users/hoambaek/Documents/Cursor/docs/plans/musedemaree/mdm-channel-strategy-2026-07.md` (채널 운영 전략, 2026-07-08)
 >
+> **결정 반영 (2026-07-08)**: 뉴스레터는 스티비 등 외부 툴 미사용 — 구독자 관리·제작·발송 전부 자체 시스템(기존 subscribers 테이블 + Resend). 아래 본문의 스티비 항목은 이 결정으로 대체됨.
+>
 > **구현 현황 (2026-07-08)**: Phase 1(수집 파이프라인)·Phase 2 기본(/channels 관제 페이지)·Phase 3(AI 주간 리포트) **코드 구현·빌드·동작 검증 완료**. Supabase 테이블 5개 생성 완료. 남은 것: Phase 0 계정·권한 작업(대표) → 환경변수 입력 → 배포. 체크리스트: `2026-07-08-command-center-prep-checklist.md`
 > 리서치 근거: 2026-07-08 웹 조사 2건 (Meta MCP·Instagram Graph API / 구글 애널리틱스·Vercel·스티비 API) — 본문에 반영
 
@@ -12,7 +14,7 @@
 ## 1. 결론 요약
 
 1. **연동은 전부 가능하고, 방식이 둘로 갈린다.** 페이스북·인스타그램의 오가닉 성과(도달·저장·공유·팔로우)와 게시물 발행은 **Instagram Graph API 직접 연동**(자기 소유 계정이라 심사 불필요, System User 토큰이면 만료 없음)이 정답이고, Meta 공식 MCP(2026-04 출시)는 **광고 전용**이라 광고를 시작할 때만 붙인다.
-2. **트래픽 수집의 장벽이 막 사라졌다.** Vercel Web Analytics 공식 조회 API가 2026년 6월에 공개됐고, 구글은 공식 GA(구글 애널리틱스) MCP 서버를 제공한다. GA4 Data API + Vercel API + 스티비 API + Instagram API를 **앱에 이미 있는 Vercel Cron 패턴**(ocean-data 수집과 동일)으로 매일 Supabase에 적재하면 된다.
+2. **트래픽 수집의 장벽이 막 사라졌다.** Vercel Web Analytics 공식 조회 API가 2026년 6월에 공개됐고, 구글은 공식 GA(구글 애널리틱스) MCP 서버를 제공한다. GA4 Data API + Vercel API + Instagram API를 **앱에 이미 있는 Vercel Cron 패턴**(ocean-data 수집과 동일)으로 매일 Supabase에 적재하면 된다.
 3. **AI 분석은 2층으로.** ① 자동: 주간 크론이 한 주 데이터를 모아 AI가 "전략 정합성 리포트"(채널 전략의 KPI 기준으로 판정)를 생성해 관리자 페이지에 게시 ② 대화형: Claude(이 세션)가 MCP·API로 같은 데이터를 직접 읽으며 대표와 깊이 분석. 관제 페이지는 marketing 앱에 `/channels` 신설.
 
 ---
@@ -28,7 +30,7 @@
 | **Meta 광고** (향후) | 캠페인 성과·관리 | **Meta 공식 Ads MCP** (`mcp.facebook.com/ads`, OAuth 15분 설정) | 광고 시작 시점에 연결. AI가 만든 캠페인은 PAUSED로 생성돼 사람이 켜야 함(안전). 한국 소규모 계정 롤아웃 시점 미확인 → 시작 전 접근 확인 |
 | **GA4 (랜딩+블로그)** | 세션·소스·랜딩페이지·커스텀 이벤트(cta_click, subscribe_submit) | **GA4 Data API** (서비스 계정) + 대화형은 **구글 공식 GA MCP** | 서비스 계정을 GA4 뷰어로 추가만 하면 됨. 무료 쿼터(일 20만 토큰)로 충분. 데이터 24~48시간 지연 감안 |
 | **Vercel Analytics (랜딩+블로그)** | 페이지뷰·방문자·referrer·경로별 | **Vercel Web Analytics API** (2026-06 공개, Bearer 토큰) | `visits/aggregate`, `events/aggregate`. Hobby 플랜은 커스텀 이벤트·UTM 불가(1개월 윈도우) → 커스텀 이벤트는 GA4로 일원화하면 Hobby로도 운영 가능 |
-| **뉴스레터 (스티비)** | 캠페인별 오픈·클릭, 구독자 증감 | **스티비 API + 웹훅** | 이메일 통계 API는 프로 플랜(월 29,000원~) 필요. 웹훅으로 구독/수신거부를 실시간 동기화 |
+| **뉴스레터 (자체 운영)** | 캠페인별 오픈·클릭, 구독자 증감 | **자체 발송 시스템** (subscribers 테이블 + Resend 발송 + 웹훅/자체 추적) | 외부 툴 미사용 확정(2026-07-08). 발송 기능은 별도 개발 건 — 발송 기록이 newsletter_campaigns에 직접 적재 |
 | **구글 검색 (블로그 SEO)** | 검색어별 클릭·노출·순위 | **Search Console API** (GA4와 같은 서비스 계정) | 키워드 3계층(T1/T2/T3) 가설 검증용. 요청당 25,000행, 2~3일 지연 |
 | **네이버 검색 유입** | 통계 API **없음** (서치어드바이저·블로그 통계 모두 비공개) | GA4·Vercel의 referrer(search.naver.com, blog.naver.com)로 측정 | 대안 설계. 네이버 데이터랩(검색어 트렌드)은 보조 참고 가능 |
 
@@ -49,7 +51,7 @@
   /api/cron/collect-web       매일: GA4 + Vercel Analytics → 세션·이벤트·referrer
   /api/cron/collect-social    매일: Instagram Graph API → 계정+게시물별 인사이트
   /api/cron/collect-search    매일: Search Console → 검색어별 클릭·노출·순위
-  /api/webhooks/stibee        실시간: 구독·수신거부 / 발송 후: 캠페인 통계 pull
+  (뉴스레터) 자체 발송 시스템이 newsletter_campaigns에 직접 적재 — 외부 웹훅 불필요
         │
 [저장층 — Supabase (기존 프로젝트)]
   channel_metrics_daily   채널×지표×일자 (통합 시계열)
@@ -74,10 +76,10 @@
 
 | 전략 KPI (채널 전략 문서 §3) | 데이터 소스 | 관제 화면 표현 |
 |---|---|---|
-| 명부 등록 전환 (온라인 채널의 제1 전환) | GA4 `subscribe_submit` 이벤트 + 스티비 구독자 수 | 퍼널 최상단 지표. 채널별 기여(유입 소스 → 등록) |
+| 명부 등록 전환 (온라인 채널의 제1 전환) | GA4 `subscribe_submit` 이벤트 + subscribers 테이블(자체) | 퍼널 최상단 지표. 채널별 기여(유입 소스 → 등록) |
 | 인스타 저장·DM 공유 (팔로워 수보다 우선) | Instagram Insights `saved`, `shares` | 게시물별 저장·공유 순위. 팔로워 수는 보조 지표로 강등 |
 | 블로그 키워드 3계층 검증 (T1 니치/T2 정보성/T3 고유명) | Search Console 검색어 + GA4 랜딩페이지 | 검색어를 T1/T2/T3로 태깅해 계층별 유입 추이 — Q3 캘린더 가설 검증 |
-| 뉴스레터 오픈율 40%+ / 수신거부율 | 스티비 캠페인 통계 | 레터별 오픈·클릭 + 수신거부 경보(서사 피로 조기 감지) |
+| 뉴스레터 오픈율 40%+ / 수신거부율 | 자체 발송 기록(newsletter_campaigns) + Resend 웹훅 | 레터별 오픈·클릭 + 수신거부 경보(서사 피로 조기 감지) |
 | B2B 문의·초대 신청 (판매는 B2B 전용) | GA4 `cta_click`(invite/partner) + 수동 입력(기존 tasks/issues) | 퍼널 종점. "결제"가 아니라 "문의·초대"가 전환 |
 
 ### 3-2. Supabase 스키마 (신규 5테이블)
@@ -166,7 +168,7 @@ RLS는 기존 정책(Clerk 인증 + 쓰기는 service_role API 경유)을 그대
 - [ ] **Meta**: Instagram 프로페셔널 계정 ↔ Facebook 페이지 연결 확인 → developers.facebook.com에서 앱 생성 → Business Manager에서 System User 토큰 발급 (권한: instagram_basic, instagram_manage_insights, instagram_content_publish, pages_show_list, pages_read_engagement)
 - [ ] **Google**: GCP 프로젝트에 서비스 계정 생성 → GA4 프로퍼티(G-YVXMD6VF59)에 뷰어로 추가 + Search Console 속성에 사용자로 추가 (키 하나로 둘 다)
 - [ ] **Vercel**: 액세스 토큰 발급, 현재 플랜 확인 (Hobby면 커스텀 이벤트는 GA4로 일원화 — 추가 비용 없이 운영 가능)
-- [ ] **스티비**: 플랜 확인 — 이메일 통계 API는 프로(월 29,000원~) 필요. 뉴스레터 시작 시점에 결정해도 됨
+- [x] ~~스티비~~: 폐기 — 뉴스레터 자체 운영 확정 (RESEND_API_KEY 보유)
 - [ ] 페이지 주류 분류·연령 제한은 API 설정 근거가 미확인이므로 **수동 1회 설정**
 
 ### Phase 1 — 수집 파이프라인 (개발 1~2일)
@@ -195,11 +197,11 @@ RLS는 기존 정책(Clerk 인증 + 쓰기는 service_role API 경유)을 그대
 
 | 항목 | 내용 |
 |---|---|
-| 고정 비용 | 스티비 프로 월 29,000원(뉴스레터 시작 시), Claude API 주간 리포트 호출(월 수천 원 수준), 나머지 API 전부 무료 쿼터 내 |
+| 고정 비용 | Claude API 주간 리포트 호출(월 수천 원 수준), Resend 발송료(무료 티어 시작 가능), 나머지 API 전부 무료 쿼터 내. 스티비 등 외부 뉴스레터 툴 비용 없음 |
 | Vercel 플랜 | Hobby 유지 가능(커스텀 이벤트를 GA4로 일원화하는 조건). Pro 전환 시 Vercel 쪽 커스텀 이벤트·12개월 윈도우 추가 |
 | 토큰 관리 | Meta System User 토큰은 만료 없음. GA 서비스 계정 키는 회전 정책만. 모든 시크릿은 Vercel 환경변수(코드 미포함) |
 | 데이터 지연 | GA4 24~48시간, GSC 2~3일 — "어제" 판단은 Vercel Analytics(실시간성)로, 추세 판단은 GA4로 역할 분리 |
-| 미확인 사항 | ① Meta 공식 Ads MCP의 한국 소규모 계정 롤아웃 ② 연령 게이트 API 설정 가능 여부(수동 처리) ③ 스티비 통계 API 응답 필드 상세(프로 가입 후 확인) ④ Vercel Analytics API의 플랜별 접근 명시(Hobby에서 events 엔드포인트는 사실상 불가로 간주) |
+| 미확인 사항 | ① Meta 공식 Ads MCP의 한국 소규모 계정 롤아웃 ② 연령 게이트 API 설정 가능 여부(수동 처리) ③ ~~스티비~~(폐기 — 자체 운영) ④ Vercel Analytics API의 플랜별 접근 명시(Hobby에서 events 엔드포인트는 사실상 불가로 간주) |
 | 원칙 유지 | 발행·광고 등 외부로 나가는 행위는 반드시 사람 승인 게이트를 거침(자동 발행 금지). 수집·분석은 완전 자동 |
 
 ---
@@ -209,7 +211,7 @@ RLS는 기존 정책(Clerk 인증 + 쓰기는 service_role API 경유)을 그대
 1. **플랜 승인**: 위 Phase 0~3 진행 (Phase 4는 별도 승인)
 2. **AI 리포트 엔진**: Claude API 추가(권장) vs 기존 Gemini 재사용
 3. **알림 채널**: 주간 리포트를 앱에서만 볼지, Slack/카카오톡 알림 병행할지
-4. **스티비 프로 가입 시점**: 뉴스레터 첫 발행과 동시(권장) vs 즉시
+4. ~~스티비 프로 가입~~ → 폐기 (자체 운영 확정). 대신: 뉴스레터 발송 기능(작성→명부 세그먼트→Resend 발송→기록 적재)을 별도 개발 건으로 승인 필요
 5. Phase 0의 계정·권한 작업 일정 (대표 직접 필요: Meta 앱 생성, GA 서비스 계정 권한 추가, Vercel 토큰)
 
 ---
