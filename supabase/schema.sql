@@ -822,3 +822,14 @@ ALTER TABLE content_performance ENABLE ROW LEVEL SECURITY;
 ALTER TABLE newsletter_campaigns ENABLE ROW LEVEL SECURITY;
 ALTER TABLE search_queries ENABLE ROW LEVEL SECURITY;
 ALTER TABLE ai_reports ENABLE ROW LEVEL SECURITY;
+
+-- ═══════════════════════════════════════════════════════════════
+-- 자기보고 어트리뷰션 (2026-07-09, Tier 1) — HDYHAU 다크소셜 측정
+-- 원격 적용: apply_migration 'add_referral_source_attribution'
+-- ═══════════════════════════════════════════════════════════════
+ALTER TABLE invitations ADD COLUMN IF NOT EXISTS referral_source TEXT;
+ALTER TABLE invitations ADD COLUMN IF NOT EXISTS referral_tag TEXT;
+ALTER TABLE partner_inquiries ADD COLUMN IF NOT EXISTS referral_source TEXT;
+ALTER TABLE partner_inquiries ADD COLUMN IF NOT EXISTS referral_tag TEXT;
+ALTER TABLE subscribers ADD COLUMN IF NOT EXISTS referral_source TEXT;
+ALTER TABLE subscribers ADD COLUMN IF NOT EXISTS referral_tag TEXT;
