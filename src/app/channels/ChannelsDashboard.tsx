@@ -16,6 +16,7 @@ import {
   Sparkles,
   BarChart3,
   Database,
+  Route,
 } from 'lucide-react';
 
 const containerVariants = {
@@ -49,10 +50,16 @@ export interface SourceState {
 
 type AdminData = Omit<React.ComponentProps<typeof AdminDashboard>, 'embedded'>;
 
+export interface TrafficSlice {
+  label: string;
+  value: number;
+}
+
 export interface ChannelsData {
   sources: SourceState[];
   funnel: { discovery: StatCard; witness: StatCard; relation: StatCard; invite: StatCard };
   kpi: { igSaved: StatCard; igShares: StatCard; blogSessions: StatCard };
+  traffic: { channelGroups: TrafficSlice[]; referrers: TrafficSlice[] };
   report: {
     week_start: string;
     generated_at: string;
@@ -139,8 +146,68 @@ const SOURCE_ICONS: Record<string, React.ReactNode> = {
   gsc: <Database className="w-3.5 h-3.5 sm:w-4 sm:h-4" />,
 };
 
+// 유입 소스 가로 바 리스트 (라벨 · 비중 바 · 값)
+function TrafficList({
+  title,
+  sub,
+  icon,
+  slices,
+  accent,
+}: {
+  title: string;
+  sub: string;
+  icon: React.ReactNode;
+  slices: TrafficSlice[];
+  accent: string;
+}) {
+  const total = slices.reduce((s, x) => s + x.value, 0);
+  return (
+    <div className="relative rounded-xl sm:rounded-2xl overflow-hidden">
+      <div className="absolute inset-0 bg-gradient-to-br from-white/[0.04] to-white/[0.01] backdrop-blur-sm" />
+      <div className="absolute inset-0 border border-white/[0.06] rounded-xl sm:rounded-2xl" />
+      <div className="relative p-4 sm:p-6">
+        <div className="flex items-center gap-2 sm:gap-3 mb-4 sm:mb-5">
+          <div className={`p-1.5 sm:p-2.5 rounded-lg sm:rounded-xl bg-white/[0.04] border border-white/[0.06] ${accent} [&>svg]:w-3.5 [&>svg]:h-3.5 sm:[&>svg]:w-5 sm:[&>svg]:h-5`}>
+            {icon}
+          </div>
+          <div className="min-w-0">
+            <p className="text-[11px] sm:text-sm font-medium text-white/70">{title}</p>
+            <p className="text-[9px] sm:text-[11px] text-white/25">{sub}</p>
+          </div>
+        </div>
+
+        {total === 0 ? (
+          <p className="py-6 text-center text-[11px] sm:text-xs text-white/25">데이터 수집 전</p>
+        ) : (
+          <div className="space-y-2.5 sm:space-y-3">
+            {slices.map((s) => {
+              const pct = Math.round((s.value / total) * 100);
+              return (
+                <div key={s.label}>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-[11px] sm:text-sm text-white/70 truncate pr-2">{s.label}</span>
+                    <span className="text-[10px] sm:text-xs text-white/40 shrink-0 tabular-nums">
+                      {s.value.toLocaleString()} · {pct}%
+                    </span>
+                  </div>
+                  <div className="h-1.5 rounded-full bg-white/[0.05] overflow-hidden">
+                    <div
+                      className={`h-full rounded-full bg-gradient-to-r ${accent.replace('text-', 'from-').replace('/70', '')} to-white/20`}
+                      style={{ width: `${Math.max(pct, 2)}%` }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function ChannelsDashboard({ data }: { data: ChannelsData }) {
-  const { sources, funnel, kpi, report, hasData, admin } = data;
+  const { sources, funnel, kpi, traffic, report, hasData, admin } = data;
 
   return (
     <div className="min-h-screen pb-20">
@@ -370,6 +437,45 @@ export function ChannelsDashboard({ data }: { data: ChannelsData }) {
                 </motion.div>
               );
             })}
+          </motion.div>
+        </div>
+      </section>
+
+      {/* 유입 소스 */}
+      <section className="px-4 sm:px-6 lg:px-8 mb-6 sm:mb-10">
+        <div className="max-w-6xl mx-auto">
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.45 }}
+            className="text-white/40 text-[10px] sm:text-xs uppercase tracking-[0.2em] mb-3 sm:mb-4"
+          >
+            Traffic Sources · 최근 7일 · 어디서 왔는가
+          </motion.p>
+          <motion.div
+            variants={containerVariants}
+            initial="hidden"
+            animate="visible"
+            className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-5"
+          >
+            <motion.div variants={itemVariants}>
+              <TrafficList
+                title="채널 그룹 (GA4)"
+                sub="검색 · SNS · 직접 · 외부 링크"
+                icon={<Route className="text-violet-400" />}
+                slices={traffic.channelGroups}
+                accent="text-violet-400/70"
+              />
+            </motion.div>
+            <motion.div variants={itemVariants}>
+              <TrafficList
+                title="유입 도메인 (Vercel)"
+                sub="네이버 등 실제 유입 출처 — API 없는 채널 포함"
+                icon={<Globe className="text-emerald-400" />}
+                slices={traffic.referrers}
+                accent="text-emerald-400/70"
+              />
+            </motion.div>
           </motion.div>
         </div>
       </section>

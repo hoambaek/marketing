@@ -20,6 +20,7 @@ interface MetricRow {
   channel: string;
   source: string;
   metric: string;
+  dimension: Record<string, string> | null;
   value: number;
 }
 
@@ -42,6 +43,49 @@ function combine(...stats: StatCard[]): StatCard {
   };
 }
 
+// GA4 채널 그룹(영문) → 한글 라벨
+const CHANNEL_GROUP_KR: Record<string, string> = {
+  'Organic Search': '검색 (구글)',
+  'Direct': '직접 유입',
+  'Organic Social': 'SNS',
+  'Social': 'SNS',
+  'Referral': '외부 링크',
+  'Organic Video': '동영상',
+  'Email': '이메일',
+  'Paid Search': '검색 광고',
+  'Paid Social': 'SNS 광고',
+  'Unassigned': '미분류',
+  '(other)': '기타',
+};
+
+/** dimension의 특정 키로 최근 N일 값을 그룹핑해 상위 순 정렬 */
+function aggregateByDim(
+  metrics: MetricRow[],
+  metric: string,
+  dimKey: string,
+  days = 7,
+  labelMap?: Record<string, string>
+): { label: string; value: number }[] {
+  const cutoff = new Date(Date.now() - days * 86400_000).toISOString().slice(0, 10);
+  const acc = new Map<string, number>();
+  for (const m of metrics) {
+    if (m.metric !== metric || m.date < cutoff) continue;
+    const raw = m.dimension?.[dimKey];
+    if (!raw) continue;
+    const label = labelMap?.[raw] ?? raw;
+    acc.set(label, (acc.get(label) ?? 0) + Number(m.value));
+  }
+  return [...acc.entries()]
+    .map(([label, value]) => ({ label, value }))
+    .sort((a, b) => b.value - a.value);
+}
+
+/** referrer 호스트명을 읽기 좋게 (빈 값·self 정리) */
+function cleanReferrer(host: string): string | null {
+  if (!host || host === '(direct)' || host === '(none)') return null;
+  return host.replace(/^www\./, '');
+}
+
 async function loadData(): Promise<ChannelsData> {
   let metrics: MetricRow[] = [];
   let report: ChannelsData['report'] = null;
@@ -53,9 +97,9 @@ async function loadData(): Promise<ChannelsData> {
     const [metricsRes, reportRes, bb, partner, invites, subs] = await Promise.all([
       supabaseAdmin
         .from('channel_metrics_daily')
-        .select('date, channel, source, metric, value')
+        .select('date, channel, source, metric, dimension, value')
         .gte('date', since)
-        .limit(3000),
+        .limit(4000),
       supabaseAdmin
         .from('ai_reports')
         .select('week_start, generated_at, verdict, summary_md')
@@ -103,6 +147,15 @@ async function loadData(): Promise<ChannelsData> {
       igSaved: delta(metrics, 'instagram', 'sum_saved'),
       igShares: delta(metrics, 'instagram', 'sum_shares'),
       blogSessions: delta(metrics, 'blog', 'sessions'),
+    },
+    traffic: {
+      // GA4 채널 그룹별 세션 (최근 7일) — 어디서 왔는가
+      channelGroups: aggregateByDim(metrics, 'sessions', 'channelGroup', 7, CHANNEL_GROUP_KR),
+      // Vercel referrer 도메인별 방문자 (최근 7일) — 네이버 등 실제 유입 도메인
+      referrers: aggregateByDim(metrics, 'referrer_visitors', 'referrer', 7)
+        .map((r) => ({ label: cleanReferrer(r.label), value: r.value }))
+        .filter((r): r is { label: string; value: number } => r.label !== null)
+        .slice(0, 8),
     },
     report,
     hasData: metrics.length > 0,
