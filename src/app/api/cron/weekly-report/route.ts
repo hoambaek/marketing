@@ -23,6 +23,7 @@ import { kstDaysAgo } from '@/lib/marketing/store';
 import { tagReferral } from '@/lib/marketing/referral-tags';
 import { checkDataFreshness, freshnessSummary } from '@/lib/marketing/quality';
 import { ANALYST_TOOLS, runAnalystTool } from '@/lib/marketing/analyst-tools';
+import { sendReportEmail } from '@/lib/marketing/report-email';
 
 export const maxDuration = 300;
 
@@ -272,12 +273,20 @@ export async function GET(request: Request) {
     );
     if (error) throw new Error(`ai_reports 저장 실패: ${error.message}`);
 
+    // 리포트 메일 발송 (실패해도 크론은 성공 — 대시보드 저장이 본체)
+    const emailSent = await sendReportEmail({
+      weekStart,
+      verdict: report.verdict,
+      summaryMd: report.summary_md,
+    });
+
     return NextResponse.json({
       success: true,
       weekStart,
       verdict: report.verdict,
       dataQuality: quality.allFresh ? 'fresh' : `degraded: ${quality.degradedSources.join(', ')}`,
       toolCallCount: report.toolCalls.length,
+      emailSent,
     });
   } catch (e) {
     console.error('[Cron] 주간 리포트 오류:', e);
