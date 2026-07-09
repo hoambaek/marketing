@@ -189,7 +189,7 @@ async function runAnalystAgent(payload: unknown): Promise<{
       },
       body: JSON.stringify({
         model: 'claude-sonnet-5',
-        max_tokens: 4000,
+        max_tokens: 8000,
         system: ANALYST_PROMPT,
         tools: ANALYST_TOOLS,
         messages,
@@ -212,14 +212,27 @@ async function runAnalystAgent(payload: unknown): Promise<{
       continue;
     }
 
+    // 최종 응답에서 JSON 파싱 — 실패하면 즉시 던지지 않고 JSON만 다시 내라고 요구 (남은 턴 내 재시도)
     const text = data.content.find((b) => b.type === 'text')?.text ?? '';
     const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error('Claude 응답에서 JSON을 찾지 못함');
-    const parsed = JSON.parse(jsonMatch[0]);
-    if (!parsed.verdict || !parsed.summary_md) throw new Error('Claude 응답 형식 불일치');
-    return { verdict: parsed.verdict, summary_md: parsed.summary_md, toolCalls };
+    if (jsonMatch) {
+      try {
+        const parsed = JSON.parse(jsonMatch[0]);
+        if (parsed.verdict && parsed.summary_md) {
+          return { verdict: parsed.verdict, summary_md: parsed.summary_md, toolCalls };
+        }
+      } catch {
+        // JSON 파싱 실패(잘림 등) — 아래 재요구로 진행
+      }
+    }
+    messages.push({ role: 'assistant', content: data.content });
+    messages.push({
+      role: 'user',
+      content:
+        '출력 형식 위반. 지금까지의 분석을 바탕으로 {"verdict": "...", "summary_md": "..."} JSON 객체 하나만 출력하라. 다른 텍스트·툴 호출 금지.',
+    });
   }
-  throw new Error(`툴 루프가 ${MAX_TURNS}회 안에 종료되지 않음`);
+  throw new Error(`툴 루프가 ${MAX_TURNS}회 안에 유효한 JSON을 내지 못함`);
 }
 
 export async function GET(request: Request) {
