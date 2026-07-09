@@ -24,6 +24,7 @@ import { tagReferral } from '@/lib/marketing/referral-tags';
 import { checkDataFreshness, freshnessSummary } from '@/lib/marketing/quality';
 import { ANALYST_TOOLS, runAnalystTool } from '@/lib/marketing/analyst-tools';
 import { sendReportEmail } from '@/lib/marketing/report-email';
+import { renderSummaryMd, type ReportStructure } from '@/lib/marketing/report-email-template';
 
 export const maxDuration = 300;
 
@@ -135,20 +136,33 @@ const ANALYST_PROMPT = `당신은 뮤즈드마레(해저숙성 샴페인·전통
 - on-track이고 특이 신호가 없으면 툴 없이 바로 리포트를 써도 된다.
 - 이상 신호(급락·급증·0건)가 보이면 최소 1회는 드릴다운으로 원인을 확인하라. 최대 6회 이내로 조회를 마쳐라.
 
-## 출력 형식 (마지막 응답은 JSON만, 다른 텍스트 금지)
+## 출력 형식 (마지막 응답은 아래 JSON 객체 하나만, 다른 텍스트 금지)
 {
   "verdict": "on-track" | "watch" | "off-track",
-  "summary_md": "마크다운 리포트"
+  "headline": "판정 이유 한 문장 (데이터 신뢰 저하가 있으면 여기서 언급)",
+  "funnel": [
+    {"label": "발견", "sub": "검색 클릭 + 인스타 도달", "current": 숫자, "previous": 숫자},
+    {"label": "목격", "sub": "랜딩 세션", "current": 숫자, "previous": 숫자},
+    {"label": "관계", "sub": "명부 등록", "current": 숫자, "previous": 숫자},
+    {"label": "초대·문의", "sub": "초대 신청 + B2B 문의", "current": 숫자, "previous": 숫자}
+  ],
+  "channels": [
+    {"name": "채널명", "status": "good" | "watch" | "bad" | "no-data", "comment": "전략상 역할 수행 여부 한두 문장"}
+  ],
+  "anomalies": [
+    {"title": "이상 신호 제목", "detail": "드릴다운 근거 수치를 포함한 설명"}
+  ],
+  "actions": [
+    {"approval": true|false, "text": "실행 항목"}
+  ]
 }
 
-summary_md 구조:
-1. **판정 한 줄** — verdict의 이유 (데이터 신뢰 저하 시 경고 먼저)
-2. **퍼널** — 발견(검색 클릭+인스타 도달) → 목격(랜딩 세션) → 관계(명부 등록) → 초대·문의, 각 단계 전주 대비
-3. **채널별 진단** — 각 채널이 전략상 역할을 하고 있는가
-4. **이상 신호와 원인 분석** — 드릴다운했으면 근거 수치와 함께, 없으면 "없음"
-5. **다음 주 액션** — 3개 이하, 실행 가능한 형태. 각 항목 앞에 [자동] 또는 [승인 필요] 태그를 붙여라 (콘텐츠 발행·외부 발송·아웃리치는 항상 [승인 필요])
-
-규칙: 데이터에 없는 수치를 지어내지 마라. 데이터가 부족한 채널은 "데이터 수집 전"으로 표기하라. 판정이 애매하면 watch를 선택하라.`;
+작성 규칙:
+- funnel의 current/previous는 주간 데이터에서 그대로 계산한 숫자만 (지어내기 금지, 없으면 0)
+- channels는 블로그·인스타그램·랜딩·검색 등 데이터가 있는 채널 전부. 데이터 없는 채널은 status "no-data"
+- anomalies는 없으면 빈 배열 []. 있으면 반드시 조회로 확인한 근거 수치를 detail에 포함
+- actions는 3개 이하. 콘텐츠 발행·외부 발송·아웃리치는 항상 approval true
+- 판정이 애매하면 verdict는 watch`;
 
 interface ClaudeContentBlock {
   type: string;
@@ -163,10 +177,24 @@ interface ClaudeResponse {
   content: ClaudeContentBlock[];
 }
 
-/** 툴 루프를 돌며 최종 JSON 리포트를 얻는다 */
+/** 구조화 리포트 형식 검증 — 이메일·대시보드 렌더러가 기대하는 필드가 다 있는지 */
+function isValidReport(p: Record<string, unknown>): boolean {
+  return (
+    typeof p.verdict === 'string' &&
+    typeof p.headline === 'string' &&
+    Array.isArray(p.funnel) &&
+    p.funnel.length > 0 &&
+    (p.funnel as Record<string, unknown>[]).every(
+      (f) => typeof f.label === 'string' && typeof f.sub === 'string' && !isNaN(Number(f.current)) && !isNaN(Number(f.previous))
+    ) &&
+    Array.isArray(p.channels) &&
+    Array.isArray(p.actions)
+  );
+}
+
+/** 툴 루프를 돌며 최종 구조화 리포트를 얻는다 */
 async function runAnalystAgent(payload: unknown): Promise<{
-  verdict: string;
-  summary_md: string;
+  report: ReportStructure;
   toolCalls: { name: string; input: Record<string, unknown> }[];
 }> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
@@ -218,8 +246,18 @@ async function runAnalystAgent(payload: unknown): Promise<{
     if (jsonMatch) {
       try {
         const parsed = JSON.parse(jsonMatch[0]);
-        if (parsed.verdict && parsed.summary_md) {
-          return { verdict: parsed.verdict, summary_md: parsed.summary_md, toolCalls };
+        if (isValidReport(parsed)) {
+          return {
+            report: {
+              verdict: parsed.verdict,
+              headline: parsed.headline,
+              funnel: parsed.funnel,
+              channels: parsed.channels,
+              anomalies: Array.isArray(parsed.anomalies) ? parsed.anomalies : [],
+              actions: parsed.actions,
+            },
+            toolCalls,
+          };
         }
       } catch {
         // JSON 파싱 실패(잘림 등) — 아래 재요구로 진행
@@ -229,7 +267,7 @@ async function runAnalystAgent(payload: unknown): Promise<{
     messages.push({
       role: 'user',
       content:
-        '출력 형식 위반. 지금까지의 분석을 바탕으로 {"verdict": "...", "summary_md": "..."} JSON 객체 하나만 출력하라. 다른 텍스트·툴 호출 금지.',
+        '출력 형식 위반. 지금까지의 분석을 바탕으로 시스템 프롬프트의 출력 형식(verdict, headline, funnel, channels, anomalies, actions)을 갖춘 JSON 객체 하나만 출력하라. 다른 텍스트·툴 호출 금지.',
     });
   }
   throw new Error(`툴 루프가 ${MAX_TURNS}회 안에 유효한 JSON을 내지 못함`);
@@ -272,15 +310,18 @@ export async function GET(request: Request) {
       topContentBySavesShares: content,
     };
 
-    const report = await runAnalystAgent(payload);
+    const { report, toolCalls } = await runAnalystAgent(payload);
+
+    // 대시보드용 마크다운은 구조화 리포트에서 생성 — 이메일과 내용 동기 보장
+    const summaryMd = renderSummaryMd(report, quality.degradedSources);
 
     const { error } = await supabaseAdmin.from('ai_reports').upsert(
       {
         week_start: weekStart,
         generated_at: new Date().toISOString(),
         verdict: report.verdict,
-        summary_md: report.summary_md,
-        metrics_snapshot: { ...payload, analystToolCalls: report.toolCalls },
+        summary_md: summaryMd,
+        metrics_snapshot: { ...payload, structuredReport: report, analystToolCalls: toolCalls },
       },
       { onConflict: 'week_start' }
     );
@@ -289,8 +330,8 @@ export async function GET(request: Request) {
     // 리포트 메일 발송 (실패해도 크론은 성공 — 대시보드 저장이 본체)
     const emailSent = await sendReportEmail({
       weekStart,
-      verdict: report.verdict,
-      summaryMd: report.summary_md,
+      report,
+      degradedSources: quality.degradedSources,
     });
 
     return NextResponse.json({
@@ -298,7 +339,7 @@ export async function GET(request: Request) {
       weekStart,
       verdict: report.verdict,
       dataQuality: quality.allFresh ? 'fresh' : `degraded: ${quality.degradedSources.join(', ')}`,
-      toolCallCount: report.toolCalls.length,
+      toolCallCount: toolCalls.length,
       emailSent,
     });
   } catch (e) {
