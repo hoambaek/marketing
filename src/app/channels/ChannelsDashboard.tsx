@@ -18,6 +18,8 @@ import {
   Database,
   Route,
   MessageCircleHeart,
+  AlertTriangle,
+  Siren,
 } from 'lucide-react';
 
 const containerVariants = {
@@ -47,6 +49,22 @@ export interface SourceState {
   name: string;
   configured: boolean;
   lastDate?: string;
+  /** 데이터 품질 게이트: 허용 지연 초과 (신뢰 저하) */
+  stale?: boolean;
+  staleDays?: number;
+}
+
+export interface AlertItem {
+  id: number;
+  detected_at: string;
+  metric_key: string;
+  label: string;
+  severity: 'warning' | 'critical';
+  direction: 'drop' | 'spike' | 'zero';
+  current_value: number | null;
+  baseline_value: number | null;
+  consecutive_days: number | null;
+  investigation_md: string | null;
 }
 
 type AdminData = Omit<React.ComponentProps<typeof AdminDashboard>, 'embedded'>;
@@ -58,6 +76,7 @@ export interface TrafficSlice {
 
 export interface ChannelsData {
   sources: SourceState[];
+  alerts: AlertItem[];
   funnel: { discovery: StatCard; witness: StatCard; relation: StatCard; invite: StatCard };
   kpi: { igSaved: StatCard; igShares: StatCard; blogSessions: StatCard };
   traffic: { channelGroups: TrafficSlice[]; referrers: TrafficSlice[]; selfReported: TrafficSlice[] };
@@ -208,7 +227,7 @@ function TrafficList({
 }
 
 export function ChannelsDashboard({ data }: { data: ChannelsData }) {
-  const { sources, funnel, kpi, traffic, report, hasData, admin } = data;
+  const { sources, alerts, funnel, kpi, traffic, report, hasData, admin } = data;
 
   return (
     <div className="min-h-screen pb-20">
@@ -280,6 +299,56 @@ export function ChannelsDashboard({ data }: { data: ChannelsData }) {
         </div>
       </section>
 
+      {/* 이상탐지 경보 (Tier 3) — 열린 경보만, 정상 복귀 시 자동 해소 */}
+      {alerts.length > 0 && (
+        <section className="px-4 sm:px-6 lg:px-8 mb-4 sm:mb-6">
+          <div className="max-w-6xl mx-auto space-y-2 sm:space-y-3">
+            {alerts.map((a) => {
+              const critical = a.severity === 'critical';
+              const dirLabel = a.direction === 'drop' ? '급락' : a.direction === 'spike' ? '급증' : '0건 연속';
+              return (
+                <motion.div
+                  key={a.id}
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className={`relative rounded-xl sm:rounded-2xl overflow-hidden border ${
+                    critical ? 'border-red-500/30 bg-red-500/[0.07]' : 'border-amber-500/25 bg-amber-500/[0.06]'
+                  }`}
+                >
+                  <div className="relative p-3 sm:p-5 flex items-start gap-3 sm:gap-4">
+                    <div
+                      className={`p-1.5 sm:p-2.5 rounded-lg sm:rounded-xl shrink-0 ${
+                        critical ? 'bg-red-500/15 text-red-400' : 'bg-amber-500/15 text-amber-400'
+                      }`}
+                    >
+                      {critical ? <Siren className="w-4 h-4 sm:w-5 sm:h-5" /> : <AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5" />}
+                    </div>
+                    <div className="min-w-0">
+                      <p className={`text-xs sm:text-sm font-semibold ${critical ? 'text-red-400' : 'text-amber-400'}`}>
+                        {a.label} {dirLabel}
+                        <span className="ml-2 text-[10px] sm:text-xs font-normal text-white/35">
+                          {new Date(a.detected_at).toLocaleString('ko-KR')} 감지
+                        </span>
+                      </p>
+                      <p className="text-[11px] sm:text-xs text-white/50 mt-0.5">
+                        현재 {a.current_value?.toLocaleString() ?? '-'} · 베이스라인 {a.baseline_value?.toLocaleString() ?? '-'}
+                        {a.consecutive_days ? ` · ${a.consecutive_days}일 연속` : ''}
+                      </p>
+                      {a.investigation_md && (
+                        <p className="text-[11px] sm:text-xs text-white/60 mt-1.5 leading-relaxed">
+                          <span className="text-white/35">AI 가설 · </span>
+                          {a.investigation_md}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </motion.div>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
       {/* 수집기 상태 - Pills */}
       <section className="px-4 sm:px-6 lg:px-8 mb-4 sm:mb-6">
         <div className="max-w-6xl mx-auto">
@@ -297,20 +366,28 @@ export function ChannelsDashboard({ data }: { data: ChannelsData }) {
                   <div
                     key={s.key}
                     className={`flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl text-[11px] sm:text-sm font-medium whitespace-nowrap border ${
-                      s.configured
-                        ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
-                        : 'text-white/40 border-white/[0.08]'
+                      !s.configured
+                        ? 'text-white/40 border-white/[0.08]'
+                        : s.stale
+                          ? 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                          : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
                     }`}
                   >
                     <span
                       className={`w-1.5 h-1.5 rounded-full ${
-                        s.configured ? 'bg-emerald-400' : 'bg-white/20'
+                        !s.configured ? 'bg-white/20' : s.stale ? 'bg-amber-400' : 'bg-emerald-400'
                       }`}
                     />
                     {SOURCE_ICONS[s.key]}
                     <span>{s.name}</span>
                     <span className="text-[9px] sm:text-[10px] text-white/30 font-normal">
-                      {s.configured ? (s.lastDate ? `적재 ${s.lastDate}` : '첫 수집 대기') : '연동 대기'}
+                      {!s.configured
+                        ? '연동 대기'
+                        : s.stale
+                          ? `⚠️ 신뢰 저하 · ${s.lastDate ? `마지막 적재 ${s.lastDate}` : '적재 없음'}`
+                          : s.lastDate
+                            ? `적재 ${s.lastDate}`
+                            : '첫 수집 대기'}
                     </span>
                   </div>
                 ))}

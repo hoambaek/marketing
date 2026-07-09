@@ -19,6 +19,9 @@
       "maxDuration": 60
     },
     "src/app/api/cron/weekly-report/route.ts": {
+      "maxDuration": 300
+    },
+    "src/app/api/cron/anomaly-check/route.ts": {
       "maxDuration": 120
     }
   },
@@ -42,6 +45,10 @@
     {
       "path": "/api/cron/weekly-report",
       "schedule": "0 23 * * 0"
+    },
+    {
+      "path": "/api/cron/anomaly-check",
+      "schedule": "30 7 * * *"
     }
   ]
 }

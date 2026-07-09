@@ -7,11 +7,8 @@
  */
 
 import { supabaseAdmin } from '@/lib/supabase/admin';
-import { isGa4Configured } from '@/lib/marketing/ga4';
-import { isVercelConfigured } from '@/lib/marketing/vercel-analytics';
-import { isInstagramConfigured } from '@/lib/marketing/instagram';
-import { isGscConfigured } from '@/lib/marketing/gsc';
-import { ChannelsDashboard, type ChannelsData, type StatCard } from './ChannelsDashboard';
+import { checkDataFreshness } from '@/lib/marketing/quality';
+import { ChannelsDashboard, type ChannelsData, type StatCard, type AlertItem } from './ChannelsDashboard';
 
 export const dynamic = 'force-dynamic';
 
@@ -89,13 +86,14 @@ function cleanReferrer(host: string): string | null {
 async function loadData(): Promise<ChannelsData> {
   let metrics: MetricRow[] = [];
   let report: ChannelsData['report'] = null;
-  const lastDates: Record<string, string> = {};
   let admin: ChannelsData['admin'] = { brandbook: [], partner: [], invitations: [], subscribers: [] };
   let selfReportedSlices: { label: string; value: number }[] = [];
+  let alerts: AlertItem[] = [];
+  const freshness = await checkDataFreshness();
 
   if (supabaseAdmin) {
     const since = new Date(Date.now() - 14 * 86400_000).toISOString().slice(0, 10);
-    const [metricsRes, reportRes, bb, partner, invites, subs] = await Promise.all([
+    const [metricsRes, reportRes, bb, partner, invites, subs, alertsRes] = await Promise.all([
       supabaseAdmin
         .from('channel_metrics_daily')
         .select('date, channel, source, metric, dimension, value')
@@ -111,9 +109,16 @@ async function loadData(): Promise<ChannelsData> {
       supabaseAdmin.from('partner_inquiries').select('*').order('created_at', { ascending: false }),
       supabaseAdmin.from('invitations').select('*').order('created_at', { ascending: false }),
       supabaseAdmin.from('subscribers').select('*').order('subscribed_at', { ascending: false }),
+      supabaseAdmin
+        .from('marketing_alerts')
+        .select('id, detected_at, metric_key, label, severity, direction, current_value, baseline_value, consecutive_days, investigation_md')
+        .eq('status', 'open')
+        .order('detected_at', { ascending: false })
+        .limit(10),
     ]);
     metrics = (metricsRes.data ?? []) as MetricRow[];
     report = reportRes.data;
+    alerts = (alertsRes.data ?? []) as AlertItem[];
     admin = {
       brandbook: bb.data ?? [],
       partner: partner.data ?? [],
@@ -133,18 +138,19 @@ async function loadData(): Promise<ChannelsData> {
       .map(([label, value]) => ({ label, value }))
       .sort((a, b) => b.value - a.value)
       .slice(0, 8);
-    for (const m of metrics) {
-      if (!lastDates[m.source] || m.date > lastDates[m.source]) lastDates[m.source] = m.date;
-    }
   }
 
   return {
-    sources: [
-      { key: 'ga4', name: 'GA4', configured: isGa4Configured(), lastDate: lastDates['ga4'] },
-      { key: 'vercel', name: 'Vercel', configured: isVercelConfigured(), lastDate: lastDates['vercel'] },
-      { key: 'ig_graph', name: 'Instagram', configured: isInstagramConfigured(), lastDate: lastDates['ig_graph'] },
-      { key: 'gsc', name: 'Search Console', configured: isGscConfigured(), lastDate: lastDates['gsc'] },
-    ],
+    // 데이터 품질 게이트(Tier 2-1): 신선도 실패 소스는 stale로 표시
+    sources: freshness.map((f) => ({
+      key: f.source,
+      name: f.name,
+      configured: f.configured,
+      lastDate: f.lastDate ?? undefined,
+      stale: f.configured && !f.ok,
+      staleDays: f.staleDays ?? undefined,
+    })),
+    alerts,
     funnel: {
       discovery: combine(delta(metrics, 'search', 'clicks'), delta(metrics, 'instagram', 'sum_reach')),
       witness: delta(metrics, 'landing', 'sessions'),
