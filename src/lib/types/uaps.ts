@@ -219,6 +219,8 @@ export interface TastingSubmission {
   predictionId: string | null;
   productId: string;
   productCategory?: string | null;  // 예측 조인 — 6축 라벨 카테고리 현지화용
+  productName?: string | null;      // aging_products 조인 — 검토 화면 표시용
+  productLinked?: boolean;          // product_id가 aging_products에 실존하는지 (승인 시 카테고리 귀속 가능 여부)
   // 기록자
   recorderName: string;
   recorderAffiliation: string | null;

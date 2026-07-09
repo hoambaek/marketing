@@ -176,9 +176,31 @@ export async function fetchTastingSubmissions(
   type JoinedRow = DBTastingSubmission & {
     aging_predictions?: { product_category: string | null } | { product_category: string | null }[] | null;
   };
-  return (data as JoinedRow[]).map((row) => {
+  const rows = data as JoinedRow[];
+
+  // product_id는 aging_products와 FK가 없어(폴백 'unknown' 허용) 실존 여부를 별도 조회한다.
+  // 승인 시 카테고리 귀속이 가능한지 검토 화면에서 확인할 수 있게 productName/productLinked를 내려준다.
+  const productIds = [...new Set(rows.map((r) => r.product_id))];
+  const nameMap = new Map<string, string>();
+  if (productIds.length > 0) {
+    const { data: prods, error: prodErr } = await supabaseAdmin
+      .from('aging_products')
+      .select('id, product_name')
+      .in('id', productIds);
+    if (prodErr) {
+      dbLogger.warn('시음 제출: 제품 연결 확인 조회 실패 (목록은 그대로 반환):', prodErr);
+    }
+    for (const p of prods ?? []) nameMap.set(p.id, p.product_name);
+  }
+
+  return rows.map((row) => {
     const j = Array.isArray(row.aging_predictions) ? row.aging_predictions[0] : row.aging_predictions;
-    return { ...mapDb(row), productCategory: j?.product_category ?? null };
+    return {
+      ...mapDb(row),
+      productCategory: j?.product_category ?? null,
+      productName: nameMap.get(row.product_id) ?? null,
+      productLinked: nameMap.has(row.product_id),
+    };
   });
 }
 
@@ -186,10 +208,14 @@ export async function fetchTastingSubmissions(
  * 제출 승인 → retrieval_results로 복사 후 status=approved.
  * (Supabase JS는 다중 문 트랜잭션을 직접 지원하지 않아 순차 실행:
  *  retrieval 저장 성공 시에만 submission을 approved로 갱신한다.)
+ *
+ * overrideProductId: 제품 미연결 제출을 승인할 때 검토자가 지정한 제품 ID.
+ * aging_products에 실존하는지 검증 후 retrieval_results와 제출 행 양쪽에 반영한다.
  */
 export async function approveTastingSubmission(
-  id: string
-): Promise<{ ok: boolean; retrievalId?: string }> {
+  id: string,
+  overrideProductId?: string
+): Promise<{ ok: boolean; retrievalId?: string; error?: string }> {
   if (!supabaseAdmin) return { ok: false };
 
   const { data: sub, error: subErr } = await supabaseAdmin
@@ -204,11 +230,26 @@ export async function approveTastingSubmission(
   }
   const s = sub as DBTastingSubmission;
 
+  // 0. 제품 재지정 시 실존 검증 (미연결 제출을 고아 데이터로 승인하는 것 방지)
+  let productId = s.product_id;
+  if (overrideProductId) {
+    const { data: prod, error: prodErr } = await supabaseAdmin
+      .from('aging_products')
+      .select('id')
+      .eq('id', overrideProductId)
+      .single();
+    if (prodErr || !prod) {
+      dbLogger.warn('승인 실패: 지정한 제품이 존재하지 않음', overrideProductId);
+      return { ok: false, error: '지정한 제품을 찾을 수 없습니다.' };
+    }
+    productId = overrideProductId;
+  }
+
   // 1. retrieval_results로 복사
   const { data: ret, error: retErr } = await supabaseAdmin
     .from('retrieval_results')
     .insert({
-      product_id: s.product_id,
+      product_id: productId,
       retrieval_date: s.retrieval_date,
       actual_duration_months: s.actual_duration_months ?? 0,
       actual_fruity: s.actual_fruity,
@@ -240,13 +281,14 @@ export async function approveTastingSubmission(
     return { ok: false };
   }
 
-  // 2. 제출을 approved로 갱신
+  // 2. 제출을 approved로 갱신 (재지정된 제품 ID도 함께 기록해 추적 가능하게)
   const { error: updErr } = await supabaseAdmin
     .from('tasting_submissions')
     .update({
       status: 'approved',
       reviewed_at: new Date().toISOString(),
       approved_retrieval_id: ret.id,
+      product_id: productId,
     })
     .eq('id', id);
 

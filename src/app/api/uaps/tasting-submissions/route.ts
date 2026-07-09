@@ -25,21 +25,22 @@ export async function GET(req: NextRequest) {
 
 // 승인 / 거부
 export async function POST(req: NextRequest) {
-  let body: { action?: string; id?: string };
+  let body: { action?: string; id?: string; productId?: string };
   try {
     body = await req.json();
   } catch {
     return NextResponse.json({ error: '잘못된 요청입니다.' }, { status: 400 });
   }
-  const { action, id } = body;
+  const { action, id, productId } = body;
   if (!id || (action !== 'approve' && action !== 'reject')) {
     return NextResponse.json({ error: 'action과 id가 필요합니다.' }, { status: 400 });
   }
 
   if (action === 'approve') {
-    const result = await approveTastingSubmission(id);
+    // productId: 제품 미연결 제출 승인 시 검토자가 지정한 연결 대상 제품
+    const result = await approveTastingSubmission(id, productId || undefined);
     if (!result.ok) {
-      return NextResponse.json({ error: '승인에 실패했습니다.' }, { status: 422 });
+      return NextResponse.json({ error: result.error ?? '승인에 실패했습니다.' }, { status: 422 });
     }
     return NextResponse.json({ ok: true, retrievalId: result.retrievalId });
   }
