@@ -28,7 +28,7 @@ export async function generateMetadata({
 
   const { productName, categoryLabel } = resolveTastingDisplay(ctx);
   const title = `${productName} · 비교 시음 기록 | Muse de Marée`;
-  const description = `${categoryLabel}의 해저 숙성본과 지상 보관 대조군을 블라인드로 비교 시음한 결과를 기록해 주세요.`;
+  const description = `${categoryLabel}의 해저 숙성본과 지상 보관 대조군을 비교 시음한 결과를 기록해 주세요.`;
 
   return {
     title,
@@ -117,7 +117,7 @@ export default async function TastingSubmitPage({
         </div>
 
         <p className="text-white/40 text-sm leading-relaxed">
-          {categoryLabel}의 해저 숙성본과 지상 보관 대조군을 블라인드로 비교 시음한 결과를 기록해 주세요.
+          {categoryLabel}의 해저 숙성본과 지상 보관 대조군을 비교 시음한 결과를 기록해 주세요.
           제출하신 내용은 내부 검토 후 데이터에 반영됩니다.
         </p>
       </section>
