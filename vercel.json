@@ -12,6 +12,12 @@
     "src/app/api/cron/collect-web/route.ts": {
       "maxDuration": 60
     },
+    "src/app/api/cron/collect-all/route.ts": {
+      "maxDuration": 300
+    },
+    "src/app/api/cron/analyze/route.ts": {
+      "maxDuration": 300
+    },
     "src/app/api/cron/collect-social/route.ts": {
       "maxDuration": 60
     },
@@ -27,28 +33,12 @@
   },
   "crons": [
     {
-      "path": "/api/cron/ocean-data",
-      "schedule": "0 1 * * *"
-    },
-    {
-      "path": "/api/cron/collect-social",
-      "schedule": "30 0 * * *"
-    },
-    {
-      "path": "/api/cron/collect-search",
-      "schedule": "0 2 * * *"
-    },
-    {
-      "path": "/api/cron/collect-web",
+      "path": "/api/cron/collect-all",
       "schedule": "0 7 * * *"
     },
     {
-      "path": "/api/cron/weekly-report",
-      "schedule": "0 23 * * 0"
-    },
-    {
-      "path": "/api/cron/anomaly-check",
-      "schedule": "30 7 * * *"
+      "path": "/api/cron/analyze",
+      "schedule": "40 7 * * *"
     }
   ]
 }
