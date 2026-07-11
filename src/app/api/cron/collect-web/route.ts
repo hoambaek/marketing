@@ -1,8 +1,8 @@
 /**
  * 웹 트래픽 일일 수집 크론 (GA4 + Vercel Analytics)
  *
- * Vercel Cron에서 매일 KST 16:00 (UTC 07:00) 호출.
- * - GA4: 24~48시간 처리 지연 때문에 D-2 데이터 수집
+ * Vercel Cron에서 매일 KST 아침 07시대 (UTC 22:00) 호출.
+ * - GA4: 24~48시간 처리 지연이 있어 아침 수집 기준 완성이 보장되는 D-3 데이터 수집
  * - Vercel Analytics: 거의 실시간이므로 D-1 데이터 수집
  * 소스별로 환경변수 미설정 시 해당 소스만 건너뛴다 (부분 성공 허용).
  */
@@ -40,9 +40,9 @@ export async function GET(request: Request) {
   const result: Record<string, unknown> = {};
   const errors: string[] = [];
 
-  // ── GA4 (D-2) ──
+  // ── GA4 (D-3) ──
   if (isGa4Configured()) {
-    const date = kstDaysAgo(2);
+    const date = kstDaysAgo(3);
     try {
       const rows: MetricRow[] = [];
       const [traffic, events, landings] = await Promise.all([

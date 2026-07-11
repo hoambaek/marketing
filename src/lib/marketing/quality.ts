@@ -26,9 +26,9 @@ export interface SourceFreshness {
   ok: boolean;
 }
 
-// 소스별 허용 지연: 수집기 자체가 D-1~D-2 데이터를 넣고, GSC는 원천이 2~3일 늦는다
+// 소스별 허용 지연: 수집기 자체가 D-1~D-3 데이터를 넣고, GSC는 원천이 2~3일 늦는다
 const SOURCE_SPECS: { source: SourceFreshness['source']; name: string; maxLagDays: number; isConfigured: () => boolean }[] = [
-  { source: 'ga4', name: 'GA4', maxLagDays: 3, isConfigured: isGa4Configured },
+  { source: 'ga4', name: 'GA4', maxLagDays: 4, isConfigured: isGa4Configured },
   { source: 'vercel', name: 'Vercel', maxLagDays: 2, isConfigured: isVercelConfigured },
   { source: 'ig_graph', name: 'Instagram', maxLagDays: 2, isConfigured: isInstagramConfigured },
   { source: 'gsc', name: 'Search Console', maxLagDays: 5, isConfigured: isGscConfigured },

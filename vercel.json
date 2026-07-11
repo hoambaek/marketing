@@ -40,7 +40,7 @@
     },
     {
       "path": "/api/cron/collect-web",
-      "schedule": "0 7 * * *"
+      "schedule": "0 22 * * *"
     },
     {
       "path": "/api/cron/anomaly-check",
