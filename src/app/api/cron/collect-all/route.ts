@@ -29,6 +29,10 @@ async function callCron(origin: string, name: string): Promise<unknown> {
   const headers: Record<string, string> = cronSecret
     ? { authorization: `Bearer ${cronSecret}` }
     : { 'x-vercel-cron': '1' };
+  // 크론의 origin은 Deployment Protection이 걸린 *.vercel.app 배포 URL이라
+  // 우회 헤더 없이는 내부 호출이 SSO 302로 막힌다
+  const bypass = process.env.VERCEL_AUTOMATION_BYPASS_SECRET;
+  if (bypass) headers['x-vercel-protection-bypass'] = bypass;
   const res = await fetch(`${origin}/api/cron/${name}`, { headers, cache: 'no-store' });
   const body = await res.json().catch(() => ({ raw: 'non-json response' }));
   if (!res.ok) throw new Error(`${res.status}: ${JSON.stringify(body)}`);
