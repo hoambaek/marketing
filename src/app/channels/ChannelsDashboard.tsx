@@ -1,5 +1,7 @@
 'use client';
 
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import ReactMarkdown from 'react-markdown';
 import { Footer } from '@/components/layout/Footer';
@@ -20,7 +22,49 @@ import {
   MessageCircleHeart,
   AlertTriangle,
   Siren,
+  RefreshCw,
 } from 'lucide-react';
+
+/** 수집기 4종을 즉시 실행하는 수동 갱신 버튼 (POST /api/admin/refresh) */
+function RefreshAllButton() {
+  const router = useRouter();
+  const [busy, setBusy] = useState(false);
+  const [note, setNote] = useState<string | null>(null);
+
+  async function run() {
+    if (busy) return;
+    setBusy(true);
+    setNote(null);
+    try {
+      const res = await fetch('/api/admin/refresh', { method: 'POST' });
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data) throw new Error('요청 실패');
+      const failed: string[] = data.errors ?? [];
+      setNote(
+        failed.length === 0
+          ? `완료 ${new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}`
+          : `일부 실패: ${failed.join(', ')}`,
+      );
+      router.refresh();
+    } catch {
+      setNote('갱신 실패');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <button
+      onClick={run}
+      disabled={busy}
+      className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl text-[11px] sm:text-sm font-medium whitespace-nowrap border border-[#b7916e]/30 text-[#b7916e] hover:bg-[#b7916e]/10 transition-colors disabled:opacity-60 shrink-0 cursor-pointer"
+    >
+      <RefreshCw className={`w-3.5 h-3.5 ${busy ? 'animate-spin' : ''}`} />
+      <span>{busy ? '수집 중…' : '지금 갱신'}</span>
+      {note && <span className="text-[9px] sm:text-[10px] text-white/40 font-normal">{note}</span>}
+    </button>
+  );
+}
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -362,6 +406,7 @@ export function ChannelsDashboard({ data }: { data: ChannelsData }) {
             <div className="absolute inset-0 border border-white/[0.06] rounded-xl sm:rounded-2xl" />
             <div className="relative p-2 sm:p-4">
               <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto scrollbar-hide pb-1">
+                <RefreshAllButton />
                 {sources.map((s) => (
                   <div
                     key={s.key}

@@ -3,6 +3,9 @@
     "src/app/api/upload/route.ts": {
       "maxDuration": 60
     },
+    "src/app/api/admin/refresh/route.ts": {
+      "maxDuration": 120
+    },
     "src/app/api/cron/ocean-data/route.ts": {
       "maxDuration": 60
     },
