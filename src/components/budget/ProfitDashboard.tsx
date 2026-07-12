@@ -28,6 +28,7 @@ import {
   type TierCalcInput,
 } from './profit-model';
 import InsightCards from './InsightCards';
+import LeverRanking from './LeverRanking';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // 상수 — 제품 정의 (2026 라인업)
@@ -371,6 +372,13 @@ export default function ProfitDashboard({ year }: { year: number }) {
 
       {/* ── A. 전략 인사이트 카드 (규칙 기반 처방 층) ── */}
       <InsightCards rows={rows} />
+
+      {/* ── B. 수익 레버 랭킹 (민감도 토네이도) ── */}
+      <LeverRanking
+        calcInputs={calcInputs}
+        fixedCost={fixedCost}
+        targetMarginPct={settings.targetMarginPct}
+      />
 
       {/* ── ① 손익 요약 밴드 ── */}
       <motion.div
