@@ -27,6 +27,7 @@ import {
   type PnLMode,
   type TierCalcInput,
 } from './profit-model';
+import InsightCards from './InsightCards';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // 상수 — 제품 정의 (2026 라인업)
@@ -368,6 +369,9 @@ export default function ProfitDashboard({ year }: { year: number }) {
         </span>
       </div>
 
+      {/* ── A. 전략 인사이트 카드 (규칙 기반 처방 층) ── */}
+      <InsightCards rows={rows} />
+
       {/* ── ① 손익 요약 밴드 ── */}
       <motion.div
         key={settings.pnlMode}
@@ -438,7 +442,7 @@ export default function ProfitDashboard({ year }: { year: number }) {
       </div>
 
       {/* ── ② 제품별 권장가 역산 ── */}
-      <div>
+      <div id="price-reco">
         <div className="flex items-center gap-2 mb-3 sm:mb-4">
           <Layers className="w-4 h-4 text-white/50" />
           <h3 className="text-sm sm:text-base font-medium text-white/80">제품별 권장 공급가</h3>
@@ -579,7 +583,7 @@ export default function ProfitDashboard({ year }: { year: number }) {
       </div>
 
       {/* ── ③ 손익분기 게이지 ── */}
-      <div>
+      <div id="breakeven-gauge">
         <div className="flex items-center gap-2 mb-3 sm:mb-4">
           <Gauge className="w-4 h-4 text-white/50" />
           <h3 className="text-sm sm:text-base font-medium text-white/80">손익분기 진행</h3>
