@@ -30,6 +30,39 @@ export interface ProfitSnapshotInput {
   tiers: ProfitSnapshotTier[];
 }
 
+export interface ProfitSnapshotRecord extends ProfitSnapshotInput {
+  snapshotDate: string;
+}
+
+export async function fetchProfitSnapshots(year: number): Promise<ProfitSnapshotRecord[]> {
+  if (!supabaseAdmin) return [];
+
+  const { data, error } = await supabaseAdmin
+    .from('profit_snapshots')
+    .select(
+      'year, month, snapshot_date, revenue, variable_cost, contribution, fixed_cost, net_profit, tiers'
+    )
+    .eq('year', year)
+    .order('month', { ascending: true });
+
+  if (error) {
+    dbLogger.error('profit_snapshots 조회 실패', error);
+    return [];
+  }
+
+  return (data || []).map((d) => ({
+    year: d.year,
+    month: d.month,
+    snapshotDate: d.snapshot_date,
+    revenue: Number(d.revenue),
+    variableCost: Number(d.variable_cost),
+    contribution: Number(d.contribution),
+    fixedCost: Number(d.fixed_cost),
+    netProfit: Number(d.net_profit),
+    tiers: (d.tiers as ProfitSnapshotTier[]) || [],
+  }));
+}
+
 export async function upsertProfitSnapshot(input: ProfitSnapshotInput): Promise<boolean> {
   if (!supabaseAdmin) {
     dbLogger.warn('profit_snapshots: service_role 미설정으로 스냅샷을 건너뜁니다.');

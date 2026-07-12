@@ -1,8 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import {
+  fetchProfitSnapshots,
   upsertProfitSnapshot,
   type ProfitSnapshotInput,
 } from '@/lib/supabase/database/profit-snapshots';
+
+// 월별 손익 스냅샷 조회 — 순익 추이 차트용 (service_role 경유, Clerk 미들웨어가 보호)
+export async function GET(req: NextRequest) {
+  const year = parseInt(req.nextUrl.searchParams.get('year') || '', 10);
+  if (!Number.isFinite(year)) {
+    return NextResponse.json({ error: 'year가 필요합니다.' }, { status: 400 });
+  }
+  const snapshots = await fetchProfitSnapshots(year);
+  return NextResponse.json({ snapshots });
+}
 
 // 월별 손익 스냅샷 upsert — service_role 경유 (Clerk 미들웨어가 보호)
 export async function POST(req: NextRequest) {

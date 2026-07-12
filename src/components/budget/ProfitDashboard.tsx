@@ -32,6 +32,8 @@ import {
 import InsightCards from './InsightCards';
 import LeverRanking from './LeverRanking';
 import PortfolioMatrix from './PortfolioMatrix';
+import PnLWaterfall from './PnLWaterfall';
+import ProfitTrend from './ProfitTrend';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // 상수 — 제품 정의 (2026 라인업)
@@ -570,6 +572,12 @@ export default function ProfitDashboard({ year }: { year: number }) {
           순익률 {totals.netMarginPct.toFixed(1)}% · 부가세는 pass-through(매입세액공제)라 손익에서 제외 · 고정비는 아래 실집행 지출에서 자동 반영
         </span>
       </div>
+
+      {/* ── 손익 워터폴: 매출 → 순익 구조 분해 ── */}
+      <PnLWaterfall totals={totals} isTarget={isTarget} />
+
+      {/* ── 월별 순익 추이 (profit_snapshots) ── */}
+      <ProfitTrend year={year} />
 
       {/* ── ② 제품별 권장가 역산 ── */}
       <div id="price-reco">
