@@ -618,15 +618,14 @@ export default function ProfitDashboard({ year }: { year: number }) {
                   {/* 제품 액센트 틴트 (좌상단에서 은은하게) */}
                   <div
                     className="absolute inset-0"
-                    style={{ background: `linear-gradient(135deg, ${accent}1f, transparent 55%)` }}
+                    style={{ background: `linear-gradient(135deg, ${accent}24, transparent 55%)` }}
                   />
-                  <div className="absolute inset-0 border border-white/[0.08] rounded-xl sm:rounded-2xl" />
-                  {/* 제품 액센트 스트라이프 */}
+                  {/* 제품 액센트 — 얇은 컬러 테두리 */}
                   <div
-                    className="absolute left-0 top-0 bottom-0 w-[3px]"
-                    style={{ background: accent }}
+                    className="absolute inset-0 border rounded-xl sm:rounded-2xl"
+                    style={{ borderColor: `${accent}4d` }}
                   />
-                  <div className="relative p-3 sm:p-4 pl-4 sm:pl-5">
+                  <div className="relative p-3 sm:p-4">
                     <div className="flex items-start justify-between gap-3 mb-2.5">
                       <div className="flex items-center gap-2 min-w-0">
                         <div
