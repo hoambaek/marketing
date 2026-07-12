@@ -52,6 +52,11 @@ const ExpenseLineChart = dynamic(() => import('@/components/ExpenseLineChart'), 
   ssr: false,
 });
 
+const ProfitDashboard = dynamic(() => import('@/components/budget/ProfitDashboard'), {
+  loading: () => <div className="h-96 bg-white/[0.02] rounded-2xl animate-pulse" />,
+  ssr: false,
+});
+
 // ═══════════════════════════════════════════════════════════════════════════
 // 애니메이션 변형
 // ═══════════════════════════════════════════════════════════════════════════
@@ -541,6 +546,26 @@ export default function BudgetPage() {
               </div>
             </motion.div>
           </motion.div>
+        </div>
+      </section>
+
+      {/* Profit & Recommended-Price Dashboard */}
+      <section className="px-4 sm:px-6 lg:px-8 mb-8 sm:mb-12">
+        <div className="max-w-6xl mx-auto">
+          <ProfitDashboard year={selectedYear} />
+        </div>
+      </section>
+
+      {/* Divider — 실집행 내역은 고정비 원천 */}
+      <section className="px-4 sm:px-6 lg:px-8 mb-3 sm:mb-5">
+        <div className="max-w-6xl mx-auto">
+          <div className="flex items-center gap-3">
+            <div className="h-px flex-1 bg-white/[0.06]" />
+            <span className="text-[10px] sm:text-xs text-white/40 tracking-wider uppercase">
+              실집행 내역 · 고정비 원천
+            </span>
+            <div className="h-px flex-1 bg-white/[0.06]" />
+          </div>
         </div>
       </section>
 
