@@ -76,12 +76,15 @@ interface TierOverride {
   targetQty?: number;
 }
 
+type PnLMode = 'actual' | 'target';
+
 interface ProfitSettings {
   targetMarginPct: number; // 손익분기 위에 가산할 목표 마진율 (%)
   overrides: Record<string, TierOverride>; // tierId -> override
+  pnlMode: PnLMode; // 손익 밴드 기준: 실적(판매분) vs 목표(목표수량 다 팔 때)
 }
 
-const DEFAULT_SETTINGS: ProfitSettings = { targetMarginPct: 25, overrides: {} };
+const DEFAULT_SETTINGS: ProfitSettings = { targetMarginPct: 25, overrides: {}, pnlMode: 'actual' };
 
 function loadSettings(year: number): ProfitSettings {
   if (typeof window === 'undefined') return DEFAULT_SETTINGS;
@@ -92,6 +95,7 @@ function loadSettings(year: number): ProfitSettings {
     return {
       targetMarginPct: typeof parsed.targetMarginPct === 'number' ? parsed.targetMarginPct : 25,
       overrides: parsed.overrides || {},
+      pnlMode: parsed.pnlMode === 'target' ? 'target' : 'actual',
     };
   } catch {
     return DEFAULT_SETTINGS;
@@ -250,6 +254,7 @@ export default function ProfitDashboard({ year }: { year: number }) {
   );
 
   const setMargin = (pct: number) => persist({ ...settings, targetMarginPct: pct });
+  const setPnlMode = (mode: PnLMode) => persist({ ...settings, pnlMode: mode });
   const setOverride = (tierId: string, patch: TierOverride) =>
     persist({
       ...settings,
@@ -296,6 +301,11 @@ export default function ProfitDashboard({ year }: { year: number }) {
       const actualVarCost = r.sold * varCost;
       const actualContribution = actualRevenue - actualVarCost;
 
+      // 목표 (목표수량 다 팔았을 때)
+      const targetRevenue = r.targetQty * r.b2bPrice;
+      const targetVarCost = r.targetQty * varCost;
+      const targetContribution = targetRevenue - targetVarCost;
+
       // 현재 공급가 마진 (변동원가 대비, 고정비 배분 전)
       const grossMarginPct = r.b2bPrice > 0 ? (contributionPerBottle / r.b2bPrice) * 100 : 0;
 
@@ -313,6 +323,9 @@ export default function ProfitDashboard({ year }: { year: number }) {
         actualRevenue,
         actualVarCost,
         actualContribution,
+        targetRevenue,
+        targetVarCost,
+        targetContribution,
         grossMarginPct,
         allocatedFixed,
         consumerPrice,
@@ -321,17 +334,19 @@ export default function ProfitDashboard({ year }: { year: number }) {
     });
   }, [settings, variableCostByTier, fixedCost, mounted, isInitialized, getProductSummary]);
 
-  // 전사 합계
+  // 전사 합계 — 실적/목표 모드에 따라 판매수량 vs 목표수량 사용
   const totals = useMemo(() => {
-    const revenue = rows.reduce((s, r) => s + r.actualRevenue, 0);
-    const varCost = rows.reduce((s, r) => s + r.actualVarCost, 0);
+    const useTarget = settings.pnlMode === 'target';
+    const revenue = rows.reduce((s, r) => s + (useTarget ? r.targetRevenue : r.actualRevenue), 0);
+    const varCost = rows.reduce((s, r) => s + (useTarget ? r.targetVarCost : r.actualVarCost), 0);
     const contribution = revenue - varCost;
     const netProfit = contribution - fixedCost;
     const netMarginPct = revenue > 0 ? (netProfit / revenue) * 100 : 0;
     return { revenue, varCost, contribution, netProfit, netMarginPct };
-  }, [rows, fixedCost]);
+  }, [rows, fixedCost, settings.pnlMode]);
 
   const activeRows = rows.filter((r) => r.targetQty > 0 || r.sold > 0);
+  const isTarget = settings.pnlMode === 'target';
 
   return (
     <div className="space-y-6 sm:space-y-8">
@@ -373,18 +388,54 @@ export default function ProfitDashboard({ year }: { year: number }) {
         </div>
       </div>
 
+      {/* ── 실적/목표 토글 ── */}
+      <div className="flex items-center justify-between gap-3">
+        <div className="inline-flex p-1 bg-white/[0.03] border border-white/[0.06] rounded-xl">
+          {([
+            { id: 'actual', label: '실적' },
+            { id: 'target', label: '목표' },
+          ] as { id: PnLMode; label: string }[]).map((m) => (
+            <button
+              key={m.id}
+              onClick={() => setPnlMode(m.id)}
+              className={`px-4 sm:px-5 py-1.5 text-xs sm:text-sm font-medium rounded-lg transition-all ${
+                settings.pnlMode === m.id
+                  ? 'bg-[#b7916e] text-white'
+                  : 'text-white/40 hover:text-white/70'
+              }`}
+            >
+              {m.label}
+            </button>
+          ))}
+        </div>
+        <span className="text-[10px] sm:text-xs text-white/40 text-right">
+          {isTarget ? '목표수량을 다 팔았을 때의 예상 손익' : '실제 판매·지출 기준 손익'}
+        </span>
+      </div>
+
       {/* ── ① 손익 요약 밴드 ── */}
       <motion.div
+        key={settings.pnlMode}
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-3"
       >
-        <PnLCard label="실매출 (판매분)" value={formatCompact(totals.revenue)} tone="gold" hint="판매수량 × 공급가" />
-        <PnLCard label="변동원가" value={formatCompact(totals.varCost)} tone="neutral" hint="판매수량 × 병당원가" />
+        <PnLCard
+          label={isTarget ? '예상매출 (목표)' : '실매출 (판매분)'}
+          value={formatCompact(totals.revenue)}
+          tone="gold"
+          hint={isTarget ? '목표수량 × 공급가' : '판매수량 × 공급가'}
+        />
+        <PnLCard
+          label="변동원가"
+          value={formatCompact(totals.varCost)}
+          tone="neutral"
+          hint={isTarget ? '목표수량 × 병당원가' : '판매수량 × 병당원가'}
+        />
         <PnLCard label="공헌이익" value={formatCompact(totals.contribution)} tone={totals.contribution >= 0 ? 'positive' : 'negative'} hint="매출 − 변동원가" />
         <PnLCard label="고정비 (실집행)" value={formatCompact(fixedCost)} tone="negative" hint="연간 실지출 총액" />
         <PnLCard
-          label="순익"
+          label={isTarget ? '예상순익 (목표)' : '순익'}
           value={formatCompact(totals.netProfit)}
           tone={totals.netProfit >= 0 ? 'positive' : 'negative'}
           hint="공헌이익 − 고정비"
