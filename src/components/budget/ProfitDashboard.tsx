@@ -21,6 +21,12 @@ import { useInventoryStore } from '@/lib/store/inventory-store';
 import { fetchCostCalculatorSettingsByYear } from '@/lib/supabase/database';
 import { isSupabaseConfigured } from '@/lib/supabase/client';
 import { logger } from '@/lib/logger';
+import {
+  computeRows,
+  computeTotals,
+  type PnLMode,
+  type TierCalcInput,
+} from './profit-model';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // 상수 — 제품 정의 (2026 라인업)
@@ -75,8 +81,6 @@ interface TierOverride {
   b2bPrice?: number;
   targetQty?: number;
 }
-
-type PnLMode = 'actual' | 'target';
 
 interface ProfitSettings {
   targetMarginPct: number; // 손익분기 위에 가산할 목표 마진율 (%)
@@ -260,89 +264,41 @@ export default function ProfitDashboard({ year }: { year: number }) {
       overrides: { ...settings.overrides, [tierId]: { ...settings.overrides[tierId], ...patch } },
     });
 
+  // 계산 입력 — 순수 모델(profit-model.ts)에 넘길 형태로 정규화
+  const calcInputs = useMemo<TierCalcInput[]>(
+    () =>
+      PROFIT_TIERS.map((tier) => {
+        const ov = settings.overrides[tier.id] || {};
+        const b2bPrice = ov.b2bPrice ?? tier.b2bPrice;
+        const summary = mounted && isInitialized ? getProductSummary(tier.productId) : null;
+        const stockTotal = summary?.total ?? 0;
+        const sold = summary?.sold ?? 0;
+        const targetQty = ov.targetQty ?? (stockTotal > 0 ? stockTotal : tier.defaultQuantity);
+        return {
+          id: tier.id,
+          nameKo: tier.nameKo,
+          b2bPrice,
+          varCost: variableCostByTier[tier.id] ?? tier.fallbackCost,
+          sold,
+          stockTotal,
+          targetQty,
+          consumerPrice: tier.consumerPrice,
+        };
+      }),
+    [settings.overrides, variableCostByTier, mounted, isInitialized, getProductSummary]
+  );
+
   // 제품별 계산
-  const rows = useMemo(() => {
-    const marginMultiplier = 1 + settings.targetMarginPct / 100;
-
-    // 목표매출 합계 (고정비 배분 기준)
-    const withTarget = PROFIT_TIERS.map((tier) => {
-      const ov = settings.overrides[tier.id] || {};
-      const b2bPrice = ov.b2bPrice ?? tier.b2bPrice;
-      const summary = mounted && isInitialized ? getProductSummary(tier.productId) : null;
-      const stockTotal = summary?.total ?? 0;
-      const sold = summary?.sold ?? 0;
-      const targetQty = ov.targetQty ?? (stockTotal > 0 ? stockTotal : tier.defaultQuantity);
-      return { tier, b2bPrice, sold, stockTotal, targetQty };
-    });
-
-    const totalTargetRevenue = withTarget.reduce((s, r) => s + r.targetQty * r.b2bPrice, 0);
-
-    return withTarget.map((r) => {
-      const varCost = variableCostByTier[r.tier.id] ?? r.tier.fallbackCost;
-      const contributionPerBottle = r.b2bPrice - varCost;
-
-      // 고정비 배분 = 전사 고정비 × 목표매출 비중
-      const revenueShare = totalTargetRevenue > 0 ? (r.targetQty * r.b2bPrice) / totalTargetRevenue : 0;
-      const allocatedFixed = fixedCost * revenueShare;
-      const allocatedFixedPerBottle = r.targetQty > 0 ? allocatedFixed / r.targetQty : 0;
-
-      // 손익분기 공급가 = 병당 변동원가 + 병당 배분 고정비
-      const breakEvenPrice = varCost + allocatedFixedPerBottle;
-      // 권장 공급가 = 손익분기 위에 목표마진 가산
-      const recommendedPrice = breakEvenPrice * marginMultiplier;
-
-      // 손익분기 병수 = 배분 고정비 ÷ 병당 공헌이익 (현재 공급가 기준)
-      const breakEvenBottles =
-        contributionPerBottle > 0 ? allocatedFixed / contributionPerBottle : Infinity;
-
-      // 실적 (판매수량 기준)
-      const actualRevenue = r.sold * r.b2bPrice;
-      const actualVarCost = r.sold * varCost;
-      const actualContribution = actualRevenue - actualVarCost;
-
-      // 목표 (목표수량 다 팔았을 때)
-      const targetRevenue = r.targetQty * r.b2bPrice;
-      const targetVarCost = r.targetQty * varCost;
-      const targetContribution = targetRevenue - targetVarCost;
-
-      // 현재 공급가 마진 (변동원가 대비, 고정비 배분 전)
-      const grossMarginPct = r.b2bPrice > 0 ? (contributionPerBottle / r.b2bPrice) * 100 : 0;
-
-      // 채널 흡수 이득 = 소비자가(참고) − B2B 공급가 (전통 유통이면 도소매가 가져갈 몫)
-      const consumerPrice = r.tier.consumerPrice;
-      const channelAbsorb = Math.max(0, consumerPrice - r.b2bPrice);
-
-      return {
-        ...r,
-        varCost,
-        contributionPerBottle,
-        breakEvenPrice,
-        recommendedPrice,
-        breakEvenBottles,
-        actualRevenue,
-        actualVarCost,
-        actualContribution,
-        targetRevenue,
-        targetVarCost,
-        targetContribution,
-        grossMarginPct,
-        allocatedFixed,
-        consumerPrice,
-        channelAbsorb,
-      };
-    });
-  }, [settings, variableCostByTier, fixedCost, mounted, isInitialized, getProductSummary]);
+  const rows = useMemo(
+    () => computeRows(calcInputs, fixedCost, settings.targetMarginPct),
+    [calcInputs, fixedCost, settings.targetMarginPct]
+  );
 
   // 전사 합계 — 실적/목표 모드에 따라 판매수량 vs 목표수량 사용
-  const totals = useMemo(() => {
-    const useTarget = settings.pnlMode === 'target';
-    const revenue = rows.reduce((s, r) => s + (useTarget ? r.targetRevenue : r.actualRevenue), 0);
-    const varCost = rows.reduce((s, r) => s + (useTarget ? r.targetVarCost : r.actualVarCost), 0);
-    const contribution = revenue - varCost;
-    const netProfit = contribution - fixedCost;
-    const netMarginPct = revenue > 0 ? (netProfit / revenue) * 100 : 0;
-    return { revenue, varCost, contribution, netProfit, netMarginPct };
-  }, [rows, fixedCost, settings.pnlMode]);
+  const totals = useMemo(
+    () => computeTotals(rows, fixedCost, settings.pnlMode),
+    [rows, fixedCost, settings.pnlMode]
+  );
 
   const activeRows = rows.filter((r) => r.targetQty > 0 || r.sold > 0);
   const isTarget = settings.pnlMode === 'target';
@@ -500,7 +456,7 @@ export default function ProfitDashboard({ year }: { year: number }) {
               const marginPositive = r.contributionPerBottle >= 0;
               return (
                 <motion.div
-                  key={r.tier.id}
+                  key={r.id}
                   initial={{ opacity: 0, y: 12 }}
                   animate={{ opacity: 1, y: 0 }}
                   className="relative rounded-xl sm:rounded-2xl overflow-hidden"
@@ -512,7 +468,7 @@ export default function ProfitDashboard({ year }: { year: number }) {
                       <div className="flex items-center gap-2 min-w-0">
                         <div className="w-1.5 h-1.5 rounded-full bg-[#b7916e] shrink-0" />
                         <div className="min-w-0">
-                          <p className="text-sm sm:text-base font-medium text-white/90 truncate">{r.tier.nameKo}</p>
+                          <p className="text-sm sm:text-base font-medium text-white/90 truncate">{r.nameKo}</p>
                           <p className="text-[10px] sm:text-xs text-white/40">
                             재고 {formatKRW(r.stockTotal)}병 · 판매 {formatKRW(r.sold)}병
                           </p>
@@ -566,7 +522,7 @@ export default function ProfitDashboard({ year }: { year: number }) {
                           value={formatKRW(r.b2bPrice)}
                           onChange={(e) => {
                             const num = parseInt(e.target.value.replace(/[^0-9]/g, ''), 10) || 0;
-                            setOverride(r.tier.id, { b2bPrice: num });
+                            setOverride(r.id, { b2bPrice: num });
                           }}
                           className={`w-full mt-1 px-2.5 py-1.5 sm:px-3 sm:py-2 bg-white/[0.04] border rounded-lg text-sm text-right text-white focus:outline-none transition-colors ${
                             belowBreakEven ? 'border-rose-500/40 focus:border-rose-500/60' : 'border-white/[0.08] focus:border-[#b7916e]/50'
@@ -581,7 +537,7 @@ export default function ProfitDashboard({ year }: { year: number }) {
                           value={formatKRW(r.targetQty)}
                           onChange={(e) => {
                             const num = parseInt(e.target.value.replace(/[^0-9]/g, ''), 10) || 0;
-                            setOverride(r.tier.id, { targetQty: num });
+                            setOverride(r.id, { targetQty: num });
                           }}
                           className="w-full mt-1 px-2.5 py-1.5 sm:px-3 sm:py-2 bg-white/[0.04] border border-white/[0.08] rounded-lg text-sm text-right text-white focus:outline-none focus:border-[#b7916e]/50 transition-colors"
                         />
@@ -635,12 +591,12 @@ export default function ProfitDashboard({ year }: { year: number }) {
             const cleared = finite && r.sold >= r.breakEvenBottles;
             const remaining = finite ? Math.max(0, Math.ceil(r.breakEvenBottles - r.sold)) : Infinity;
             return (
-              <div key={r.tier.id} className="relative rounded-xl overflow-hidden">
+              <div key={r.id} className="relative rounded-xl overflow-hidden">
                 <div className="absolute inset-0 bg-white/[0.02]" />
                 <div className="absolute inset-0 border border-white/[0.06] rounded-xl" />
                 <div className="relative p-3 sm:p-4">
                   <div className="flex items-center justify-between mb-2">
-                    <p className="text-xs sm:text-sm text-white/70 truncate">{r.tier.nameKo}</p>
+                    <p className="text-xs sm:text-sm text-white/70 truncate">{r.nameKo}</p>
                     <p className={`text-[10px] sm:text-xs ${cleared ? 'text-emerald-400' : 'text-white/50'}`}>
                       {!finite
                         ? '공급가 ≤ 원가'
@@ -687,9 +643,9 @@ export default function ProfitDashboard({ year }: { year: number }) {
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3">
               {activeRows.map((r) => (
-                <div key={r.tier.id} className="flex items-center justify-between p-2.5 sm:p-3 bg-white/[0.03] border border-white/[0.06] rounded-lg">
+                <div key={r.id} className="flex items-center justify-between p-2.5 sm:p-3 bg-white/[0.03] border border-white/[0.06] rounded-lg">
                   <div className="min-w-0">
-                    <p className="text-xs sm:text-sm text-white/80 truncate">{r.tier.nameKo}</p>
+                    <p className="text-xs sm:text-sm text-white/80 truncate">{r.nameKo}</p>
                     <p className="text-[9px] sm:text-[10px] text-white/40">
                       소비자 {formatKRW(r.consumerPrice)} · B2B {formatKRW(r.b2bPrice)}
                     </p>
