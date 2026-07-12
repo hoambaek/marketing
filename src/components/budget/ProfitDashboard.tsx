@@ -14,6 +14,8 @@ import {
   Info,
   Coins,
   ArrowRight,
+  Save,
+  Check,
 } from 'lucide-react';
 import { useShallow } from 'zustand/react/shallow';
 import { useBudgetStore } from '@/lib/store/budget-store';
@@ -105,6 +107,24 @@ function loadSettings(year: number): ProfitSettings {
     };
   } catch {
     return DEFAULT_SETTINGS;
+  }
+}
+
+// ── 시나리오 슬롯 (보수·기본·공격) — 현재 설정 스냅샷을 저장/불러오기 ──
+const SCENARIO_SLOTS = [
+  { id: 'conservative', label: '보수' },
+  { id: 'base', label: '기본' },
+  { id: 'aggressive', label: '공격' },
+] as const;
+
+type ScenarioMap = Partial<Record<string, ProfitSettings>>;
+
+function loadScenarios(year: number): ScenarioMap {
+  if (typeof window === 'undefined') return {};
+  try {
+    return JSON.parse(window.localStorage.getItem(`muse-profit-scenarios-${year}`) || '{}');
+  } catch {
+    return {};
   }
 }
 
@@ -260,6 +280,28 @@ export default function ProfitDashboard({ year }: { year: number }) {
 
   const setMargin = (pct: number) => persist({ ...settings, targetMarginPct: pct });
   const setPnlMode = (mode: PnLMode) => persist({ ...settings, pnlMode: mode });
+
+  // 시나리오 슬롯 — 가격·수량·마진 설정 묶음을 저장해 두고 전환
+  const [scenarios, setScenarios] = useState<ScenarioMap>({});
+  const [scenarioFlash, setScenarioFlash] = useState<string | null>(null);
+  useEffect(() => {
+    setScenarios(loadScenarios(year));
+  }, [year]);
+
+  const saveScenario = (slotId: string) => {
+    const next = { ...scenarios, [slotId]: settings };
+    setScenarios(next);
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(`muse-profit-scenarios-${year}`, JSON.stringify(next));
+    }
+    setScenarioFlash(slotId);
+    window.setTimeout(() => setScenarioFlash(null), 1500);
+  };
+
+  const loadScenario = (slotId: string) => {
+    const s = scenarios[slotId];
+    if (s) persist(s);
+  };
   const setOverride = (tierId: string, patch: TierOverride) =>
     persist({
       ...settings,
@@ -416,8 +458,8 @@ export default function ProfitDashboard({ year }: { year: number }) {
         </span>
       </div>
 
-      {/* ── 목표마진 슬라이더 ── */}
-      <div className="relative rounded-xl sm:rounded-2xl overflow-hidden">
+      {/* ── C. 시뮬레이터: 목표마진 슬라이더 + 시나리오 슬롯 ── */}
+      <div id="profit-simulator" className="relative rounded-xl sm:rounded-2xl overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-[#b7916e]/[0.08] to-transparent" />
         <div className="absolute inset-0 border border-[#b7916e]/20 rounded-xl sm:rounded-2xl" />
         <div className="relative p-3 sm:p-5">
@@ -445,6 +487,48 @@ export default function ProfitDashboard({ year }: { year: number }) {
             <span>0% (손익분기)</span>
             <span>30%</span>
             <span>60%</span>
+          </div>
+
+          {/* 시나리오 슬롯 — 현재 가격·수량·마진 설정을 저장/전환 */}
+          <div className="mt-3 pt-3 border-t border-white/[0.06] flex items-center gap-2 flex-wrap">
+            <span className="text-[10px] sm:text-xs text-white/40">시나리오</span>
+            {SCENARIO_SLOTS.map((slot) => {
+              const saved = !!scenarios[slot.id];
+              const flashed = scenarioFlash === slot.id;
+              return (
+                <div
+                  key={slot.id}
+                  className={`inline-flex items-center rounded-lg border overflow-hidden transition-colors ${
+                    saved ? 'border-[#b7916e]/40 bg-[#b7916e]/[0.08]' : 'border-white/[0.08] bg-white/[0.03]'
+                  }`}
+                >
+                  <button
+                    onClick={() => loadScenario(slot.id)}
+                    disabled={!saved}
+                    title={saved ? '이 시나리오 불러오기' : '아직 저장된 설정 없음'}
+                    className={`px-2.5 py-1 text-[11px] sm:text-xs transition-colors ${
+                      saved ? 'text-[#d4c4a8] hover:bg-[#b7916e]/15' : 'text-white/30 cursor-default'
+                    }`}
+                  >
+                    {slot.label}
+                  </button>
+                  <button
+                    onClick={() => saveScenario(slot.id)}
+                    title="현재 설정을 이 슬롯에 저장"
+                    className="px-1.5 py-1 border-l border-white/[0.06] text-white/35 hover:text-[#d4c4a8] transition-colors"
+                  >
+                    {flashed ? (
+                      <Check className="w-3 h-3 text-emerald-400" />
+                    ) : (
+                      <Save className="w-3 h-3" />
+                    )}
+                  </button>
+                </div>
+              );
+            })}
+            <span className="text-[9px] sm:text-[10px] text-white/25">
+              가격·수량·마진 설정 묶음 저장 (이 기기)
+            </span>
           </div>
         </div>
       </div>
