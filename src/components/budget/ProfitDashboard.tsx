@@ -63,6 +63,16 @@ const PROFIT_TIERS: ProfitTier[] = [
 const DEPRECIATION_YEARS = 4;
 const LOSS_RATE = 0.03;
 
+// 제품 고유 액센트 — 카드·도트 식별용 (항상 제품명이 옆에 있어 색 단독 식별 아님)
+// 다크 서피스에서 서로 겹치지 않게 뮤트 톤으로 고정 배정, 순서 불변.
+const TIER_ACCENTS: Record<string, string> = {
+  entry: '#b7916e', // 브론즈 (브랜드 기본)
+  bdb: '#7fa4c0', // 뮤트 스틸블루
+  'atome-1y': '#94a878', // 세이지
+  'atome-2y': '#a488c0', // 뮤트 바이올렛
+  magnum: '#6fa8a0', // 뮤트 틸
+};
+
 // ═══════════════════════════════════════════════════════════════════════════
 // 유틸
 // ═══════════════════════════════════════════════════════════════════════════
@@ -590,12 +600,13 @@ export default function ProfitDashboard({ year }: { year: number }) {
             제품 데이터가 없습니다. 재고를 등록하면 자동 반영됩니다.
           </div>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-2.5 sm:gap-3">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
             {activeRows.map((r) => {
               const belowBreakEven = r.b2bPrice < r.breakEvenPrice;
               const modeQty = isTarget ? r.targetQty : r.sold;
               const marginAmount = isTarget ? r.targetContribution : r.actualContribution;
               const marginPositive = r.contributionPerBottle >= 0;
+              const accent = TIER_ACCENTS[r.id] ?? '#b7916e';
               return (
                 <motion.div
                   key={r.id}
@@ -604,13 +615,26 @@ export default function ProfitDashboard({ year }: { year: number }) {
                   className="relative rounded-xl sm:rounded-2xl overflow-hidden"
                 >
                   <div className="absolute inset-0 bg-gradient-to-br from-white/[0.03] to-white/[0.01] backdrop-blur-sm" />
-                  <div className="absolute inset-0 border border-white/[0.06] rounded-xl sm:rounded-2xl" />
-                  <div className="relative p-3 sm:p-4">
+                  {/* 제품 액센트 틴트 (좌상단에서 은은하게) */}
+                  <div
+                    className="absolute inset-0"
+                    style={{ background: `linear-gradient(135deg, ${accent}1f, transparent 55%)` }}
+                  />
+                  <div className="absolute inset-0 border border-white/[0.08] rounded-xl sm:rounded-2xl" />
+                  {/* 제품 액센트 스트라이프 */}
+                  <div
+                    className="absolute left-0 top-0 bottom-0 w-[3px]"
+                    style={{ background: accent }}
+                  />
+                  <div className="relative p-3 sm:p-4 pl-4 sm:pl-5">
                     <div className="flex items-start justify-between gap-3 mb-2.5">
                       <div className="flex items-center gap-2 min-w-0">
-                        <div className="w-1.5 h-1.5 rounded-full bg-[#b7916e] shrink-0" />
+                        <div
+                          className="w-2 h-2 rounded-full shrink-0"
+                          style={{ background: accent }}
+                        />
                         <div className="min-w-0">
-                          <p className="text-sm font-medium text-white/90 truncate">{r.nameKo}</p>
+                          <p className="text-sm font-medium text-white truncate">{r.nameKo}</p>
                           <p className="text-[10px] sm:text-[11px] text-white/40">
                             재고 {formatKRW(r.stockTotal)}병 · 판매 {formatKRW(r.sold)}병
                           </p>
