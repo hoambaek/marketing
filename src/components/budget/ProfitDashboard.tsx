@@ -590,7 +590,7 @@ export default function ProfitDashboard({ year }: { year: number }) {
             제품 데이터가 없습니다. 재고를 등록하면 자동 반영됩니다.
           </div>
         ) : (
-          <div className="space-y-2.5 sm:space-y-3">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-2.5 sm:gap-3">
             {activeRows.map((r) => {
               const belowBreakEven = r.b2bPrice < r.breakEvenPrice;
               const modeQty = isTarget ? r.targetQty : r.sold;
@@ -605,13 +605,13 @@ export default function ProfitDashboard({ year }: { year: number }) {
                 >
                   <div className="absolute inset-0 bg-gradient-to-br from-white/[0.03] to-white/[0.01] backdrop-blur-sm" />
                   <div className="absolute inset-0 border border-white/[0.06] rounded-xl sm:rounded-2xl" />
-                  <div className="relative p-3 sm:p-5">
-                    <div className="flex items-start justify-between gap-3 mb-3">
+                  <div className="relative p-3 sm:p-4">
+                    <div className="flex items-start justify-between gap-3 mb-2.5">
                       <div className="flex items-center gap-2 min-w-0">
                         <div className="w-1.5 h-1.5 rounded-full bg-[#b7916e] shrink-0" />
                         <div className="min-w-0">
-                          <p className="text-sm sm:text-base font-medium text-white/90 truncate">{r.nameKo}</p>
-                          <p className="text-[10px] sm:text-xs text-white/40">
+                          <p className="text-sm font-medium text-white/90 truncate">{r.nameKo}</p>
+                          <p className="text-[10px] sm:text-[11px] text-white/40">
                             재고 {formatKRW(r.stockTotal)}병 · 판매 {formatKRW(r.sold)}병
                           </p>
                         </div>
@@ -620,7 +620,7 @@ export default function ProfitDashboard({ year }: { year: number }) {
                       <div className="text-right shrink-0">
                         <p className="text-[9px] sm:text-[10px] text-white/40 uppercase tracking-wider">권장 공급가</p>
                         <p
-                          className="text-lg sm:text-2xl text-[#d4c4a8]"
+                          className="text-lg sm:text-xl text-[#d4c4a8]"
                                                  >
                           {formatKRW(r.recommendedPrice)}
                           <span className="text-[10px] sm:text-xs text-white/30"> 원</span>
@@ -629,26 +629,26 @@ export default function ProfitDashboard({ year }: { year: number }) {
                     </div>
 
                     {/* 가격 사슬: 변동원가 → 손익분기 → 권장가 */}
-                    <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap text-[10px] sm:text-xs mb-3">
-                      <span className="px-2 py-1 rounded-lg bg-white/[0.04] text-white/60">
+                    <div className="flex items-center gap-1.5 flex-wrap text-[10px] sm:text-[11px] mb-2.5">
+                      <span className="px-2 py-0.5 rounded-lg bg-white/[0.04] text-white/60">
                         변동원가 {formatKRW(r.varCost)}
                       </span>
                       <ArrowRight className="w-3 h-3 text-white/20" />
-                      <span className="px-2 py-1 rounded-lg bg-white/[0.04] text-white/60">
+                      <span className="px-2 py-0.5 rounded-lg bg-white/[0.04] text-white/60">
                         손익분기 {formatKRW(r.breakEvenPrice)}
                       </span>
                       <ArrowRight className="w-3 h-3 text-white/20" />
-                      <span className="px-2 py-1 rounded-lg bg-[#b7916e]/15 text-[#d4c4a8]">
+                      <span className="px-2 py-0.5 rounded-lg bg-[#b7916e]/15 text-[#d4c4a8]">
                         권장 {formatKRW(r.recommendedPrice)}
                       </span>
                     </div>
 
                     {/* 총 판매금액 = 공급가 × 수량 (모드별) */}
-                    <div className="flex items-center justify-between mb-3 px-3 py-2 rounded-lg bg-[#b7916e]/[0.08] border border-[#b7916e]/15">
-                      <span className="text-[10px] sm:text-xs text-white/50">
-                        {isTarget ? '예상 판매금액' : '판매금액'} · 공급가 {formatKRW(r.b2bPrice)} × {formatKRW(isTarget ? r.targetQty : r.sold)}병
+                    <div className="flex items-center justify-between mb-2.5 px-3 py-1.5 rounded-lg bg-[#b7916e]/[0.08] border border-[#b7916e]/15">
+                      <span className="text-[10px] sm:text-[11px] text-white/50">
+                        {isTarget ? '예상 판매금액' : '판매금액'} · {formatKRW(r.b2bPrice)} × {formatKRW(isTarget ? r.targetQty : r.sold)}병
                       </span>
-                      <span className="text-sm sm:text-lg text-[#d4c4a8] tabular-nums">
+                      <span className="text-sm sm:text-base text-[#d4c4a8] tabular-nums">
                         {formatKRW(isTarget ? r.targetRevenue : r.actualRevenue)}
                         <span className="text-[10px] text-white/30"> 원</span>
                       </span>
@@ -666,7 +666,7 @@ export default function ProfitDashboard({ year }: { year: number }) {
                             const num = parseInt(e.target.value.replace(/[^0-9]/g, ''), 10) || 0;
                             setOverride(r.id, { b2bPrice: num });
                           }}
-                          className={`w-full mt-1 px-2.5 py-1.5 sm:px-3 sm:py-2 bg-white/[0.04] border rounded-lg text-sm text-right text-white focus:outline-none transition-colors ${
+                          className={`w-full mt-1 px-2.5 py-1.5 bg-white/[0.04] border rounded-lg text-sm text-right text-white focus:outline-none transition-colors ${
                             belowBreakEven ? 'border-rose-500/40 focus:border-rose-500/60' : 'border-white/[0.08] focus:border-[#b7916e]/50'
                           }`}
                         />
@@ -681,26 +681,26 @@ export default function ProfitDashboard({ year }: { year: number }) {
                             const num = parseInt(e.target.value.replace(/[^0-9]/g, ''), 10) || 0;
                             setOverride(r.id, { targetQty: num });
                           }}
-                          className="w-full mt-1 px-2.5 py-1.5 sm:px-3 sm:py-2 bg-white/[0.04] border border-white/[0.08] rounded-lg text-sm text-right text-white focus:outline-none focus:border-[#b7916e]/50 transition-colors"
+                          className="w-full mt-1 px-2.5 py-1.5 bg-white/[0.04] border border-white/[0.08] rounded-lg text-sm text-right text-white focus:outline-none focus:border-[#b7916e]/50 transition-colors"
                         />
                       </label>
                     </div>
 
-                    {/* 마진율 · 마진액 (크게) */}
-                    <div className="mt-3 grid grid-cols-2 gap-2">
-                      <div className={`p-2.5 sm:p-3 rounded-lg border ${marginPositive ? 'bg-emerald-500/[0.08] border-emerald-500/15' : 'bg-rose-500/[0.08] border-rose-500/20'}`}>
-                        <p className="text-[10px] sm:text-xs text-white/40">현재 마진율</p>
-                        <p className={`text-xl sm:text-2xl ${marginPositive ? 'text-emerald-400' : 'text-rose-400'}`}>
+                    {/* 마진율 · 마진액 */}
+                    <div className="mt-2.5 grid grid-cols-2 gap-2">
+                      <div className={`p-2 sm:p-2.5 rounded-lg border ${marginPositive ? 'bg-emerald-500/[0.08] border-emerald-500/15' : 'bg-rose-500/[0.08] border-rose-500/20'}`}>
+                        <p className="text-[10px] sm:text-[11px] text-white/40">현재 마진율</p>
+                        <p className={`text-lg sm:text-xl ${marginPositive ? 'text-emerald-400' : 'text-rose-400'}`}>
                           {r.grossMarginPct.toFixed(1)}
-                          <span className="text-xs sm:text-sm"> %</span>
+                          <span className="text-xs"> %</span>
                         </p>
                         <p className="text-[9px] sm:text-[10px] text-white/30">병당 마진 {formatKRW(r.contributionPerBottle)}원</p>
                       </div>
-                      <div className={`p-2.5 sm:p-3 rounded-lg border ${marginPositive ? 'bg-emerald-500/[0.08] border-emerald-500/15' : 'bg-rose-500/[0.08] border-rose-500/20'}`}>
-                        <p className="text-[10px] sm:text-xs text-white/40">{isTarget ? '예상 마진액' : '실제 마진액'}</p>
-                        <p className={`text-xl sm:text-2xl ${marginAmount >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                      <div className={`p-2 sm:p-2.5 rounded-lg border ${marginPositive ? 'bg-emerald-500/[0.08] border-emerald-500/15' : 'bg-rose-500/[0.08] border-rose-500/20'}`}>
+                        <p className="text-[10px] sm:text-[11px] text-white/40">{isTarget ? '예상 마진액' : '실제 마진액'}</p>
+                        <p className={`text-lg sm:text-xl ${marginAmount >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
                           {formatKRW(marginAmount)}
-                          <span className="text-xs sm:text-sm"> 원</span>
+                          <span className="text-xs"> 원</span>
                         </p>
                         <p className="text-[9px] sm:text-[10px] text-white/30">{formatKRW(modeQty)}병 기준 (매출 − 변동원가)</p>
                       </div>
