@@ -345,6 +345,40 @@ export default function ProfitDashboard({ year }: { year: number }) {
     [rows, fixedCost, settings.pnlMode]
   );
 
+  // 월별 손익 스냅샷 적재 — Phase 3 손익 브리지(기간 비교) 대비 데이터 축적.
+  // 현재 연도를 볼 때만, 마지막 변경 후 4초 디바운스로 이번 달 행을 upsert.
+  // 월이 끝나면 마지막 기록이 곧 월말 스냅샷이 된다.
+  useEffect(() => {
+    if (!mounted || costStatus === 'loading') return;
+    const now = new Date();
+    if (year !== now.getFullYear()) return;
+    const timer = window.setTimeout(() => {
+      const actual = computeTotals(rows, fixedCost, 'actual');
+      fetch('/api/budget/profit-snapshot', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          year,
+          month: now.getMonth() + 1,
+          revenue: actual.revenue,
+          variableCost: actual.varCost,
+          contribution: actual.contribution,
+          fixedCost,
+          netProfit: actual.netProfit,
+          tiers: rows.map((r) => ({
+            id: r.id,
+            nameKo: r.nameKo,
+            b2bPrice: r.b2bPrice,
+            varCost: r.varCost,
+            sold: r.sold,
+            targetQty: r.targetQty,
+          })),
+        }),
+      }).catch((error) => logger.error('손익 스냅샷 적재 실패', error));
+    }, 4000);
+    return () => window.clearTimeout(timer);
+  }, [rows, fixedCost, year, mounted, costStatus]);
+
   const activeRows = rows.filter((r) => r.targetQty > 0 || r.sold > 0);
   const isTarget = settings.pnlMode === 'target';
 
