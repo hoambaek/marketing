@@ -31,6 +31,7 @@ import {
 } from './profit-model';
 import InsightCards from './InsightCards';
 import LeverRanking from './LeverRanking';
+import PortfolioMatrix from './PortfolioMatrix';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // 상수 — 제품 정의 (2026 라인업)
@@ -422,42 +423,6 @@ export default function ProfitDashboard({ year }: { year: number }) {
         targetMarginPct={settings.targetMarginPct}
       />
 
-      {/* ── ① 손익 요약 밴드 ── */}
-      <motion.div
-        key={settings.pnlMode}
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-3"
-      >
-        <PnLCard
-          label={isTarget ? '예상매출 (목표)' : '실매출 (판매분)'}
-          value={formatCompact(totals.revenue)}
-          tone="gold"
-          hint={isTarget ? '목표수량 × 공급가' : '판매수량 × 공급가'}
-        />
-        <PnLCard
-          label="변동원가"
-          value={formatCompact(totals.varCost)}
-          tone="neutral"
-          hint={isTarget ? '목표수량 × 병당원가' : '판매수량 × 병당원가'}
-        />
-        <PnLCard label="공헌이익" value={formatCompact(totals.contribution)} tone={totals.contribution >= 0 ? 'positive' : 'negative'} hint="매출 − 변동원가" />
-        <PnLCard label="고정비 (실집행)" value={formatCompact(fixedCost)} tone="negative" hint="연간 실지출 총액" />
-        <PnLCard
-          label={isTarget ? '예상순익 (목표)' : '순익'}
-          value={formatCompact(totals.netProfit)}
-          tone={totals.netProfit >= 0 ? 'positive' : 'negative'}
-          hint="공헌이익 − 고정비"
-          large
-        />
-      </motion.div>
-      <div className="flex items-center gap-2 text-[10px] sm:text-xs text-white/40 -mt-3">
-        <Info className="w-3 h-3 shrink-0" />
-        <span>
-          순익률 {totals.netMarginPct.toFixed(1)}% · 부가세는 pass-through(매입세액공제)라 손익에서 제외 · 고정비는 아래 실집행 지출에서 자동 반영
-        </span>
-      </div>
-
       {/* ── C. 시뮬레이터: 목표마진 슬라이더 + 시나리오 슬롯 ── */}
       <div id="profit-simulator" className="relative rounded-xl sm:rounded-2xl overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-[#b7916e]/[0.08] to-transparent" />
@@ -531,6 +496,45 @@ export default function ProfitDashboard({ year }: { year: number }) {
             </span>
           </div>
         </div>
+      </div>
+
+      {/* ── D. 제품 포트폴리오 매트릭스 (메뉴 엔지니어링 4분면) ── */}
+      <PortfolioMatrix rows={rows} />
+
+      {/* ── ① 손익 요약 밴드 ── */}
+      <motion.div
+        key={settings.pnlMode}
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-3"
+      >
+        <PnLCard
+          label={isTarget ? '예상매출 (목표)' : '실매출 (판매분)'}
+          value={formatCompact(totals.revenue)}
+          tone="gold"
+          hint={isTarget ? '목표수량 × 공급가' : '판매수량 × 공급가'}
+        />
+        <PnLCard
+          label="변동원가"
+          value={formatCompact(totals.varCost)}
+          tone="neutral"
+          hint={isTarget ? '목표수량 × 병당원가' : '판매수량 × 병당원가'}
+        />
+        <PnLCard label="공헌이익" value={formatCompact(totals.contribution)} tone={totals.contribution >= 0 ? 'positive' : 'negative'} hint="매출 − 변동원가" />
+        <PnLCard label="고정비 (실집행)" value={formatCompact(fixedCost)} tone="negative" hint="연간 실지출 총액" />
+        <PnLCard
+          label={isTarget ? '예상순익 (목표)' : '순익'}
+          value={formatCompact(totals.netProfit)}
+          tone={totals.netProfit >= 0 ? 'positive' : 'negative'}
+          hint="공헌이익 − 고정비"
+          large
+        />
+      </motion.div>
+      <div className="flex items-center gap-2 text-[10px] sm:text-xs text-white/40 -mt-3">
+        <Info className="w-3 h-3 shrink-0" />
+        <span>
+          순익률 {totals.netMarginPct.toFixed(1)}% · 부가세는 pass-through(매입세액공제)라 손익에서 제외 · 고정비는 아래 실집행 지출에서 자동 반영
+        </span>
       </div>
 
       {/* ── ② 제품별 권장가 역산 ── */}
