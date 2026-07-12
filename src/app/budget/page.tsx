@@ -57,6 +57,10 @@ const ProfitDashboard = dynamic(() => import('@/components/budget/ProfitDashboar
   ssr: false,
 });
 
+const MonthlyCashflow = dynamic(() => import('@/components/budget/MonthlyCashflow'), {
+  ssr: false,
+});
+
 // ═══════════════════════════════════════════════════════════════════════════
 // 애니메이션 변형
 // ═══════════════════════════════════════════════════════════════════════════
@@ -561,6 +565,13 @@ export default function BudgetPage() {
             </span>
             <div className="h-px flex-1 bg-white/[0.06]" />
           </div>
+        </div>
+      </section>
+
+      {/* 월별 수입·지출 추이 */}
+      <section className="px-4 sm:px-6 lg:px-8 mb-6 sm:mb-8">
+        <div className="max-w-6xl mx-auto">
+          <MonthlyCashflow year={selectedYear} />
         </div>
       </section>
 
