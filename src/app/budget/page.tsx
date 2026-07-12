@@ -373,7 +373,6 @@ export default function BudgetPage() {
                       ? 'bg-[#b7916e] text-white'
                       : 'text-white/40 hover:text-white/80 hover:bg-white/[0.04]'
                   }`}
-                  style={{ fontFamily: "var(--font-cormorant), serif" }}
                 >
                   {year}
                 </button>
@@ -475,7 +474,6 @@ export default function BudgetPage() {
                 </div>
                 <p
                   className="text-xl sm:text-3xl text-white/90"
-                  style={{ fontFamily: "var(--font-cormorant), 'Playfair Display', Georgia, serif" }}
                 >
                   {formatCompact(totalIncome)}
                   <span className="text-xs sm:text-base text-white/30"> 원</span>
@@ -496,7 +494,6 @@ export default function BudgetPage() {
                 </div>
                 <p
                   className="text-xl sm:text-3xl text-rose-400"
-                  style={{ fontFamily: "var(--font-cormorant), 'Playfair Display', Georgia, serif" }}
                 >
                   {formatCompact(totalSpent)}
                   <span className="text-xs sm:text-base text-rose-400/50"> 원</span>
@@ -517,7 +514,6 @@ export default function BudgetPage() {
                 </div>
                 <p
                   className={`text-xl sm:text-3xl ${remaining >= 0 ? 'text-emerald-400' : 'text-red-400'}`}
-                  style={{ fontFamily: "var(--font-cormorant), 'Playfair Display', Georgia, serif" }}
                 >
                   {formatCompact(Math.abs(remaining))}
                   <span className={`text-xs sm:text-base ${remaining >= 0 ? 'text-emerald-400/50' : 'text-red-400/50'}`}> 원</span>
@@ -538,7 +534,6 @@ export default function BudgetPage() {
                 </div>
                 <p
                   className={`text-xl sm:text-3xl ${utilizationRate > 100 ? 'text-red-400' : utilizationRate > 80 ? 'text-amber-400' : 'text-blue-400'}`}
-                  style={{ fontFamily: "var(--font-cormorant), 'Playfair Display', Georgia, serif" }}
                 >
                   {utilizationRate.toFixed(1)}
                   <span className={`text-xs sm:text-base ${utilizationRate > 100 ? 'text-red-400/50' : utilizationRate > 80 ? 'text-amber-400/50' : 'text-blue-400/50'}`}> %</span>
@@ -646,8 +641,7 @@ export default function BudgetPage() {
                           </div>
                           <div className="text-right">
                             <p className={`text-lg sm:text-2xl font-medium ${cat.percentage > 100 ? 'text-red-400' : 'text-white/90'}`}
-                              style={{ fontFamily: "var(--font-cormorant), 'Playfair Display', Georgia, serif" }}
-                            >
+                                        >
                               {cat.percentage.toFixed(1)}%
                             </p>
                             <p className={`text-[10px] sm:text-xs ${cat.remaining >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
@@ -714,8 +708,7 @@ export default function BudgetPage() {
                         </div>
                         <p
                           className="text-sm sm:text-base text-white/90"
-                          style={{ fontFamily: "var(--font-cormorant), 'Playfair Display', Georgia, serif" }}
-                        >
+                                >
                           {formatCompact(month.spent)}
                         </p>
                         <p className="text-[9px] text-white/30 mt-1">

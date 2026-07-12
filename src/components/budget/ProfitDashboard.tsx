@@ -140,7 +140,6 @@ function PnLCard({
         <p className="text-[10px] sm:text-xs text-white/40 mb-1.5 sm:mb-2">{label}</p>
         <p
           className={`${large ? 'text-2xl sm:text-4xl' : 'text-lg sm:text-2xl'} ${toneColor} tracking-tight`}
-          style={{ fontFamily: "var(--font-cormorant), 'Playfair Display', Georgia, serif" }}
         >
           {value}
           <span className="text-xs sm:text-sm text-white/30"> {suffix}</span>
@@ -461,8 +460,7 @@ export default function ProfitDashboard({ year }: { year: number }) {
             </div>
             <span
               className="text-lg sm:text-2xl text-[#d4c4a8]"
-              style={{ fontFamily: "var(--font-cormorant), serif" }}
-            >
+                         >
               {settings.targetMarginPct}%
             </span>
           </div>
@@ -497,6 +495,9 @@ export default function ProfitDashboard({ year }: { year: number }) {
           <div className="space-y-2.5 sm:space-y-3">
             {activeRows.map((r) => {
               const belowBreakEven = r.b2bPrice < r.breakEvenPrice;
+              const modeQty = isTarget ? r.targetQty : r.sold;
+              const marginAmount = isTarget ? r.targetContribution : r.actualContribution;
+              const marginPositive = r.contributionPerBottle >= 0;
               return (
                 <motion.div
                   key={r.tier.id}
@@ -522,8 +523,7 @@ export default function ProfitDashboard({ year }: { year: number }) {
                         <p className="text-[9px] sm:text-[10px] text-white/40 uppercase tracking-wider">권장 공급가</p>
                         <p
                           className="text-lg sm:text-2xl text-[#d4c4a8]"
-                          style={{ fontFamily: "var(--font-cormorant), serif" }}
-                        >
+                                                 >
                           {formatKRW(r.recommendedPrice)}
                           <span className="text-[10px] sm:text-xs text-white/30"> 원</span>
                         </p>
@@ -542,6 +542,17 @@ export default function ProfitDashboard({ year }: { year: number }) {
                       <ArrowRight className="w-3 h-3 text-white/20" />
                       <span className="px-2 py-1 rounded-lg bg-[#b7916e]/15 text-[#d4c4a8]">
                         권장 {formatKRW(r.recommendedPrice)}
+                      </span>
+                    </div>
+
+                    {/* 총 판매금액 = 공급가 × 수량 (모드별) */}
+                    <div className="flex items-center justify-between mb-3 px-3 py-2 rounded-lg bg-[#b7916e]/[0.08] border border-[#b7916e]/15">
+                      <span className="text-[10px] sm:text-xs text-white/50">
+                        {isTarget ? '예상 판매금액' : '판매금액'} · 공급가 {formatKRW(r.b2bPrice)} × {formatKRW(isTarget ? r.targetQty : r.sold)}병
+                      </span>
+                      <span className="text-sm sm:text-lg text-[#d4c4a8] tabular-nums">
+                        {formatKRW(isTarget ? r.targetRevenue : r.actualRevenue)}
+                        <span className="text-[10px] text-white/30"> 원</span>
                       </span>
                     </div>
 
@@ -577,15 +588,32 @@ export default function ProfitDashboard({ year }: { year: number }) {
                       </label>
                     </div>
 
-                    {/* 현재 공급가 상태 */}
-                    <div className="mt-2.5 flex items-center justify-between text-[10px] sm:text-xs">
-                      <span className={belowBreakEven ? 'text-rose-400' : 'text-emerald-400'}>
-                        {belowBreakEven
-                          ? `현재가가 손익분기보다 ${formatKRW(r.breakEvenPrice - r.b2bPrice)}원 낮음`
-                          : `현재가 마진 ${r.grossMarginPct.toFixed(1)}% (변동원가 대비)`}
-                      </span>
-                      <span className="text-white/40">병당 공헌이익 {formatKRW(r.contributionPerBottle)}원</span>
+                    {/* 마진율 · 마진액 (크게) */}
+                    <div className="mt-3 grid grid-cols-2 gap-2">
+                      <div className={`p-2.5 sm:p-3 rounded-lg border ${marginPositive ? 'bg-emerald-500/[0.08] border-emerald-500/15' : 'bg-rose-500/[0.08] border-rose-500/20'}`}>
+                        <p className="text-[10px] sm:text-xs text-white/40">현재 마진율</p>
+                        <p className={`text-xl sm:text-2xl ${marginPositive ? 'text-emerald-400' : 'text-rose-400'}`}>
+                          {r.grossMarginPct.toFixed(1)}
+                          <span className="text-xs sm:text-sm"> %</span>
+                        </p>
+                        <p className="text-[9px] sm:text-[10px] text-white/30">병당 마진 {formatKRW(r.contributionPerBottle)}원</p>
+                      </div>
+                      <div className={`p-2.5 sm:p-3 rounded-lg border ${marginPositive ? 'bg-emerald-500/[0.08] border-emerald-500/15' : 'bg-rose-500/[0.08] border-rose-500/20'}`}>
+                        <p className="text-[10px] sm:text-xs text-white/40">{isTarget ? '예상 마진액' : '실제 마진액'}</p>
+                        <p className={`text-xl sm:text-2xl ${marginAmount >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                          {formatKRW(marginAmount)}
+                          <span className="text-xs sm:text-sm"> 원</span>
+                        </p>
+                        <p className="text-[9px] sm:text-[10px] text-white/30">{formatKRW(modeQty)}병 기준 (매출 − 변동원가)</p>
+                      </div>
                     </div>
+
+                    {/* 손익분기 경고 */}
+                    {belowBreakEven && (
+                      <p className="mt-2 text-[10px] sm:text-xs text-rose-400">
+                        ⚠ 현재가가 손익분기보다 {formatKRW(r.breakEvenPrice - r.b2bPrice)}원 낮음 (고정비 배분 포함)
+                      </p>
+                    )}
                   </div>
                 </motion.div>
               );
