@@ -6,22 +6,9 @@
  * - renderSummaryMd: 대시보드(/channels)용 마크다운
  */
 
-export interface FunnelStep {
-  label: string;
-  sub: string;
-  current: number;
-  previous: number;
-}
-
-export interface ChannelDiagnosis {
-  name: string;
-  status: 'good' | 'watch' | 'bad' | 'no-data';
-  comment: string;
-}
-
-export interface Anomaly {
-  title: string;
-  detail: string;
+export interface Direction {
+  area: string;
+  text: string;
 }
 
 export interface ActionItem {
@@ -31,10 +18,11 @@ export interface ActionItem {
 
 export interface ReportStructure {
   verdict: string;
-  headline: string;
-  funnel: FunnelStep[];
-  channels: ChannelDiagnosis[];
-  anomalies: Anomaly[];
+  /** 이번 주 전체 상황 서술 (수치 없이) */
+  situation: string;
+  /** 이번 주 집중할 단 하나의 방향 */
+  focus: string;
+  directions: Direction[];
   actions: ActionItem[];
 }
 
@@ -46,24 +34,6 @@ const VERDICT_STYLE: Record<string, { label: string; bg: string; color: string }
   watch: { label: 'WATCH', bg: '#fdf3e0', color: '#9a6b15' },
   'off-track': { label: 'OFF TRACK', bg: '#fdeaea', color: '#b03a37' },
 };
-
-const STATUS_META: Record<ChannelDiagnosis['status'], { dot: string; label: string }> = {
-  good: { dot: '#2e9e63', label: '정상' },
-  watch: { dot: '#d99a26', label: '주의' },
-  bad: { dot: '#c24b47', label: '이상' },
-  'no-data': { dot: '#9aa1ad', label: '수집 전' },
-};
-
-function deltaHtml(current: number, previous: number): string {
-  if (current === 0 && previous === 0) {
-    return '<span style="font-size:12px;color:#9aa1ad">데이터 수집 전</span>';
-  }
-  const diff = current - previous;
-  if (diff === 0) return '<span style="font-size:12px;color:#9aa1ad">전주와 동일</span>';
-  const color = diff > 0 ? '#1e7d4e' : '#b03a37';
-  const arrow = diff > 0 ? '▲' : '▼';
-  return `<span style="font-size:12px;color:${color};font-weight:600">${arrow} ${Math.abs(diff).toLocaleString()}</span> <span style="font-size:11px;color:#9aa1ad">전주 ${previous.toLocaleString()}</span>`;
-}
 
 /** 섹션 제목 공통 스타일 */
 function sectionTitle(title: string): string {
@@ -88,51 +58,19 @@ export function renderReportEmailHtml(params: {
         </td></tr>`
       : '';
 
-  // 퍼널 2×2 카드
-  const funnelCells = report.funnel.map((f, i) => {
-    return `<td width="50%" valign="top" style="padding:8px">
-      <div style="background:#f9f7f3;border:1px solid #ece5da;border-radius:12px;padding:16px 18px">
-        <p style="margin:0;font-size:11px;color:#8a6a48;font-weight:700;letter-spacing:1px">${i + 1} · ${esc(f.label)}</p>
-        <p style="margin:2px 0 10px;font-size:11px;color:#9aa1ad">${esc(f.sub)}</p>
-        <p style="margin:0 0 4px;font-size:28px;color:#1c2536;font-weight:600;font-family:Georgia,'Times New Roman',serif">${Number(f.current).toLocaleString()}</p>
-        ${deltaHtml(Number(f.current), Number(f.previous))}
-      </div>
-    </td>`;
-  });
-  const funnelRows: string[] = [];
-  for (let i = 0; i < funnelCells.length; i += 2) {
-    funnelRows.push(`<tr>${funnelCells[i]}${funnelCells[i + 1] ?? '<td width="50%"></td>'}</tr>`);
-  }
-
-  // 채널별 진단 테이블
-  const channelRows = report.channels
-    .map((c) => {
-      const s = STATUS_META[c.status] ?? STATUS_META['no-data'];
-      return `<tr>
-        <td valign="top" style="padding:10px 0;border-top:1px solid #f0ebe2;white-space:nowrap">
-          <span style="display:inline-block;width:8px;height:8px;border-radius:99px;background:${s.dot};margin-right:8px"></span>
-          <span style="font-size:13px;font-weight:700;color:#1c2536">${esc(c.name)}</span>
-          <span style="font-size:11px;color:#9aa1ad;margin-left:6px">${s.label}</span>
+  // 이번 주 방향 — 영역 라벨 + 서술
+  const directionsHtml = report.directions
+    .map(
+      (d) => `<tr>
+        <td valign="top" style="padding:9px 14px 9px 0;border-top:1px solid #f0ebe2;white-space:nowrap">
+          <span style="display:inline-block;background:#f4ead9;color:#8a6a48;font-size:11px;font-weight:700;padding:3px 10px;border-radius:99px">${esc(d.area)}</span>
         </td>
-        <td valign="top" style="padding:10px 0 10px 16px;border-top:1px solid #f0ebe2;font-size:13px;color:#4a5266;line-height:1.6">${esc(c.comment)}</td>
-      </tr>`;
-    })
+        <td valign="top" style="padding:10px 0 9px;border-top:1px solid #f0ebe2;font-size:14px;color:#2a3040;line-height:1.65">${esc(d.text)}</td>
+      </tr>`
+    )
     .join('');
 
-  // 이상 신호
-  const anomaliesHtml =
-    report.anomalies.length === 0
-      ? `<p style="margin:0;font-size:13px;color:#1e7d4e">✓ 이번 주 이상 신호 없음</p>`
-      : report.anomalies
-          .map(
-            (a) => `<div style="background:#fdf3e0;border:1px solid #f0dcb2;border-radius:10px;padding:12px 16px;margin-bottom:8px">
-              <p style="margin:0 0 4px;font-size:13px;font-weight:700;color:#9a6b15">${esc(a.title)}</p>
-              <p style="margin:0;font-size:13px;color:#6b5a2e;line-height:1.6">${esc(a.detail)}</p>
-            </div>`
-          )
-          .join('');
-
-  // 다음 주 액션
+  // 이번 주 착수할 작업
   const actionsHtml = report.actions
     .map((a) => {
       const chip = a.approval
@@ -140,7 +78,7 @@ export function renderReportEmailHtml(params: {
         : '<span style="display:inline-block;background:#eceff3;color:#55607a;font-size:11px;font-weight:700;padding:2px 9px;border-radius:99px;white-space:nowrap">자동</span>';
       return `<tr>
         <td valign="top" style="padding:8px 12px 8px 0;border-top:1px solid #f0ebe2">${chip}</td>
-        <td valign="top" style="padding:9px 0 8px;border-top:1px solid #f0ebe2;font-size:13px;color:#2a3040;line-height:1.6">${esc(a.text)}</td>
+        <td valign="top" style="padding:9px 0 8px;border-top:1px solid #f0ebe2;font-size:14px;color:#2a3040;line-height:1.65">${esc(a.text)}</td>
       </tr>`;
     })
     .join('');
@@ -151,35 +89,30 @@ export function renderReportEmailHtml(params: {
     <!-- 헤더 -->
     <tr><td style="background:#0d1525;padding:26px 30px">
       <p style="margin:0;font-size:11px;letter-spacing:3px;color:#b7916e;text-transform:uppercase">Muse de Marée · Marketing Intelligence</p>
-      <p style="margin:8px 0 0;font-size:21px;color:#f4efe8;font-weight:600">주간 애널리스트 리포트</p>
-      <p style="margin:6px 0 0;font-size:13px;color:#8b93a5">${esc(weekStart)} 주 시작 · 매주 월요일 08:00 자동 생성</p>
+      <p style="margin:8px 0 0;font-size:21px;color:#f4efe8;font-weight:600">주간 방향 브리핑</p>
+      <p style="margin:6px 0 0;font-size:13px;color:#8b93a5">${esc(weekStart)} 주 시작 · 이번 주 무엇을 준비할지</p>
     </td></tr>
-    <!-- 판정 -->
-    <tr><td style="padding:24px 30px 18px">
-      <table role="presentation" cellpadding="0" cellspacing="0"><tr>
-        <td valign="middle" style="padding-right:12px"><span style="display:inline-block;background:${v.bg};color:${v.color};font-size:12px;font-weight:700;letter-spacing:1px;padding:6px 14px;border-radius:999px;white-space:nowrap">${esc(v.label)}</span></td>
-        <td valign="middle" style="font-size:14px;color:#2a3040;line-height:1.6;font-weight:600">${esc(report.headline)}</td>
-      </tr></table>
+    <!-- 판정 + 상황 -->
+    <tr><td style="padding:24px 30px 6px">
+      <span style="display:inline-block;background:${v.bg};color:${v.color};font-size:12px;font-weight:700;letter-spacing:1px;padding:6px 14px;border-radius:999px;white-space:nowrap">${esc(v.label)}</span>
+      <p style="margin:14px 0 0;font-size:15px;color:#2a3040;line-height:1.75">${esc(report.situation)}</p>
     </td></tr>
     ${qualityBanner}
-    <!-- 퍼널 -->
-    <tr><td style="padding:6px 22px 10px">
-      <div style="padding:0 8px">${sectionTitle('Funnel · 최근 7일')}</div>
-      <table role="presentation" cellpadding="0" cellspacing="0" width="100%">${funnelRows.join('')}</table>
+    <!-- 이번 주 초점 -->
+    <tr><td style="padding:14px 30px 8px">
+      <div style="background:#0d1525;border-radius:12px;padding:18px 20px">
+        <p style="margin:0 0 6px;font-size:11px;letter-spacing:2.5px;color:#b7916e;text-transform:uppercase;font-weight:700">이번 주 초점</p>
+        <p style="margin:0;font-size:16px;color:#f4efe8;line-height:1.6;font-weight:600">${esc(report.focus)}</p>
+      </div>
     </td></tr>
-    <!-- 채널별 진단 -->
-    <tr><td style="padding:16px 30px 8px">
-      ${sectionTitle('채널별 진단')}
-      <table role="presentation" cellpadding="0" cellspacing="0" width="100%">${channelRows}</table>
-    </td></tr>
-    <!-- 이상 신호 -->
+    <!-- 준비 방향 -->
     <tr><td style="padding:20px 30px 8px">
-      ${sectionTitle('이상 신호')}
-      ${anomaliesHtml}
+      ${sectionTitle('준비 방향')}
+      <table role="presentation" cellpadding="0" cellspacing="0" width="100%">${directionsHtml}</table>
     </td></tr>
-    <!-- 다음 주 액션 -->
+    <!-- 이번 주 착수 -->
     <tr><td style="padding:20px 30px 10px">
-      ${sectionTitle('다음 주 액션')}
+      ${sectionTitle('이번 주 착수')}
       <table role="presentation" cellpadding="0" cellspacing="0" width="100%">${actionsHtml}</table>
     </td></tr>
     <!-- 푸터 -->
@@ -193,31 +126,21 @@ export function renderReportEmailHtml(params: {
 </div>`;
 }
 
-/** 대시보드(/channels)용 마크다운 — 같은 구조에서 생성해 이메일과 내용 동기 보장 */
+/** 대시보드(/channels)용 마크다운 — 같은 구조에서 생성해 이메일과 내용 동기 보장.
+ *  수치 나열 대신 "이번 주 무엇을 준비할지"만. */
 export function renderSummaryMd(report: ReportStructure, degradedSources: string[]): string {
   const lines: string[] = [];
   if (degradedSources.length > 0) {
-    lines.push(`> ⚠️ **데이터 신뢰 저하**: ${degradedSources.join(', ')} — 해당 채널 수치는 참고만.`, '');
+    lines.push(`> ⚠️ **데이터 신뢰 저하**: ${degradedSources.join(', ')} — 해당 채널은 참고만.`, '');
   }
-  lines.push(`**판정** — ${report.headline}`, '');
-  lines.push('## 퍼널 (최근 7일, 전주 대비)');
-  for (const [i, f] of report.funnel.entries()) {
-    const diff = Number(f.current) - Number(f.previous);
-    const deltaStr =
-      f.current === 0 && f.previous === 0
-        ? '데이터 수집 전'
-        : `${diff >= 0 ? '+' : ''}${diff.toLocaleString()} (전주 ${Number(f.previous).toLocaleString()})`;
-    lines.push(`${i + 1}. **${f.label}** (${f.sub}): ${Number(f.current).toLocaleString()} — ${deltaStr}`);
+  lines.push(report.situation, '');
+  lines.push(`## 이번 주 초점`);
+  lines.push(report.focus, '');
+  lines.push('## 준비 방향');
+  for (const d of report.directions) {
+    lines.push(`- **${d.area}** — ${d.text}`);
   }
-  lines.push('', '## 채널별 진단');
-  const statusEmoji: Record<string, string> = { good: '✅', watch: '⚠️', bad: '⛔', 'no-data': '⏳' };
-  for (const c of report.channels) {
-    lines.push(`- ${statusEmoji[c.status] ?? '⏳'} **${c.name}**: ${c.comment}`);
-  }
-  lines.push('', '## 이상 신호');
-  if (report.anomalies.length === 0) lines.push('- 없음');
-  else for (const a of report.anomalies) lines.push(`- **${a.title}** — ${a.detail}`);
-  lines.push('', '## 다음 주 액션');
+  lines.push('', '## 이번 주 착수');
   for (const a of report.actions) {
     lines.push(`- ${a.approval ? '[승인 필요]' : '[자동]'} ${a.text}`);
   }

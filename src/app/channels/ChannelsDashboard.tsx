@@ -25,33 +25,53 @@ import {
   RefreshCw,
 } from 'lucide-react';
 
-/** 수집기 4종을 즉시 실행하는 수동 갱신 버튼 (POST /api/admin/refresh) */
+/**
+ * 수동 갱신 버튼 — 수집기 4종 실행 후 이어서 주간 리포트까지 생성한다.
+ * 1) POST /api/admin/refresh (수집) → 2) POST /api/admin/generate-report (최신 데이터로 리포트)
+ * 리포트는 수집이 끝난 뒤 돌아야 최신 데이터를 반영하므로 순차 실행한다.
+ */
 function RefreshAllButton() {
   const router = useRouter();
-  const [busy, setBusy] = useState(false);
+  const [phase, setPhase] = useState<'idle' | 'collecting' | 'analyzing'>('idle');
   const [note, setNote] = useState<string | null>(null);
 
   async function run() {
-    if (busy) return;
-    setBusy(true);
+    if (phase !== 'idle') return;
     setNote(null);
+    setPhase('collecting');
     try {
       const res = await fetch('/api/admin/refresh', { method: 'POST' });
       const data = await res.json().catch(() => null);
-      if (!res.ok || !data) throw new Error('요청 실패');
+      if (!res.ok || !data) throw new Error('수집 요청 실패');
       const failed: string[] = data.errors ?? [];
+
+      // 수집 후 최신 데이터로 주간 리포트 재생성 (수집 실패해도 있는 데이터로 진행)
+      setPhase('analyzing');
+      let reportNote = '';
+      try {
+        const rres = await fetch('/api/admin/generate-report', { method: 'POST' });
+        const rdata = await rres.json().catch(() => null);
+        if (rres.ok && rdata?.success) reportNote = ' · 리포트 갱신';
+        else if (rdata?.reason) reportNote = ` · 리포트 skip(${rdata.reason})`;
+        else reportNote = ' · 리포트 실패';
+      } catch {
+        reportNote = ' · 리포트 실패';
+      }
+
+      const time = new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
       setNote(
-        failed.length === 0
-          ? `완료 ${new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}`
-          : `일부 실패: ${failed.join(', ')}`,
+        (failed.length === 0 ? `완료 ${time}` : `수집 일부 실패: ${failed.join(', ')}`) + reportNote,
       );
       router.refresh();
     } catch {
       setNote('갱신 실패');
     } finally {
-      setBusy(false);
+      setPhase('idle');
     }
   }
+
+  const busy = phase !== 'idle';
+  const label = phase === 'collecting' ? '수집 중…' : phase === 'analyzing' ? '리포트 분석 중…' : '지금 갱신';
 
   return (
     <button
@@ -60,7 +80,7 @@ function RefreshAllButton() {
       className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl text-[11px] sm:text-sm font-medium whitespace-nowrap border border-[#b7916e]/30 text-[#b7916e] hover:bg-[#b7916e]/10 transition-colors disabled:opacity-60 shrink-0 cursor-pointer"
     >
       <RefreshCw className={`w-3.5 h-3.5 ${busy ? 'animate-spin' : ''}`} />
-      <span>{busy ? '수집 중…' : '지금 갱신'}</span>
+      <span>{label}</span>
       {note && <span className="text-[9px] sm:text-[10px] text-white/40 font-normal">{note}</span>}
     </button>
   );
@@ -672,8 +692,8 @@ export function ChannelsDashboard({ data }: { data: ChannelsData }) {
                   <Sparkles className="w-10 h-10 sm:w-12 sm:h-12 mx-auto mb-4 text-[#b7916e]/30" />
                   <p className="text-white/40 text-sm sm:text-base font-light">
                     {hasData
-                      ? '첫 주간 리포트는 다음 월요일 오전 8시에 생성됩니다'
-                      : '수집기 연동 후 데이터가 쌓이면 매주 월요일 리포트가 자동 생성됩니다'}
+                      ? '매주 월요일 자동 생성 · 지금 보려면 상단 “지금 갱신”을 누르세요'
+                      : '수집기 연동 후 데이터가 쌓이면 리포트를 생성할 수 있습니다'}
                   </p>
                 </div>
               )}

@@ -136,33 +136,34 @@ const ANALYST_PROMPT = `당신은 뮤즈드마레(해저숙성 샴페인·전통
 - on-track이고 특이 신호가 없으면 툴 없이 바로 리포트를 써도 된다.
 - 이상 신호(급락·급증·0건)가 보이면 최소 1회는 드릴다운으로 원인을 확인하라. 최대 6회 이내로 조회를 마쳐라.
 
+## 리포트의 목적 (가장 중요)
+대표는 수치를 이미 대시보드에서 직접 본다. **이 리포트에 숫자를 나열하지 마라.** 조회로 전체 상황을 파악한 뒤, "그래서 이번 주에 어떤 방향으로 무엇을 준비해야 하는가"만 말하라. 지표 요약이 아니라 실행 브리핑이다.
+
+## 방향 판단 원칙
+- 우리 플랜은 "증거가 본체, 광고는 그림자"다. 트래픽 늘리기가 아니라 기록을 쌓고 B2B 관계로 잇는 것이 목표. 그 방향에 지금 무엇이 부족한지를 본다.
+- 큰 레버 하나만: 이번 주 판단의 근거가 된 가장 중요한 신호 하나를 골라 그것을 중심으로 방향을 잡아라. 여러 신호를 평평하게 나열하지 마라.
+- 저트래픽이라 대부분의 주간 변동은 노이즈다. "지난주와 비슷하니 계속 하던 걸 하라"도 완전히 유효한 결론이다. 억지로 새 일을 만들지 마라.
+- 액션은 구체적이어야 한다. "콘텐츠를 늘려라"(X) → "T2 키워드 '샴페인 보관 온도'로 블로그 1편, 인양 일지와 엮어서"(O).
+
 ## 출력 형식 (마지막 응답은 아래 JSON 객체 하나만, 다른 텍스트 금지)
 {
   "verdict": "on-track" | "watch" | "off-track",
-  "headline": "판정 이유 한 문장 (데이터 신뢰 저하가 있으면 여기서 언급)",
-  "funnel": [
-    {"label": "발견", "sub": "검색 클릭 + 인스타 도달", "current": 숫자, "previous": 숫자},
-    {"label": "목격", "sub": "랜딩 세션", "current": 숫자, "previous": 숫자},
-    {"label": "관계", "sub": "명부 등록", "current": 숫자, "previous": 숫자},
-    {"label": "초대·문의", "sub": "초대 신청 + B2B 문의", "current": 숫자, "previous": 숫자}
-  ],
-  "channels": [
-    {"name": "채널명", "status": "good" | "watch" | "bad" | "no-data", "comment": "전략상 역할 수행 여부 한두 문장"}
-  ],
-  "anomalies": [
-    {"title": "이상 신호 제목", "detail": "드릴다운 근거 수치를 포함한 설명"}
+  "situation": "이번 주 전체 상황을 2~3문장으로. 숫자 대신 '무슨 일이 일어나고 있는지'를 서술. 데이터 신뢰 저하가 있으면 여기서 한 번만 언급.",
+  "focus": "이번 주 방향을 한 문장으로. 우리가 지금 집중해야 할 단 하나.",
+  "directions": [
+    {"area": "블로그" | "인스타그램" | "뉴스레터" | "B2B" | "검색" | "전반", "text": "이 영역에서 준비할 방향 (수치가 아니라 무엇을 왜)"}
   ],
   "actions": [
-    {"approval": true|false, "text": "실행 항목"}
+    {"approval": true|false, "text": "이번 주에 실제로 착수할 구체적 작업"}
   ]
 }
 
 작성 규칙:
-- funnel의 current/previous는 주간 데이터에서 그대로 계산한 숫자만 (지어내기 금지, 없으면 0)
-- channels는 블로그·인스타그램·랜딩·검색 등 데이터가 있는 채널 전부. 데이터 없는 채널은 status "no-data"
-- anomalies는 없으면 빈 배열 []. 있으면 반드시 조회로 확인한 근거 수치를 detail에 포함
-- actions는 3개 이하. 콘텐츠 발행·외부 발송·아웃리치는 항상 approval true
-- 판정이 애매하면 verdict는 watch`;
+- situation·focus·directions·actions 어디에도 원시 수치(방문 수, 클릭 수 등)를 적지 마라. 방향과 판단만.
+- directions는 2~4개. 지금 신호가 있는 영역만. 움직일 이유 없는 영역은 넣지 마라.
+- actions는 3개 이하, 이번 주에 바로 착수 가능한 것만. 콘텐츠 발행·외부 발송·아웃리치는 항상 approval true.
+- 이상 신호(수집 실패·급락 등)가 있으면 situation 첫 문장에 넣고, 관련 대응을 actions 맨 앞에 둬라.
+- 판정이 애매하면 verdict는 watch. on-track이면 "방향 유지"를 focus로 명시해도 된다.`;
 
 interface ClaudeContentBlock {
   type: string;
@@ -181,13 +182,12 @@ interface ClaudeResponse {
 function isValidReport(p: Record<string, unknown>): boolean {
   return (
     typeof p.verdict === 'string' &&
-    typeof p.headline === 'string' &&
-    Array.isArray(p.funnel) &&
-    p.funnel.length > 0 &&
-    (p.funnel as Record<string, unknown>[]).every(
-      (f) => typeof f.label === 'string' && typeof f.sub === 'string' && !isNaN(Number(f.current)) && !isNaN(Number(f.previous))
+    typeof p.situation === 'string' &&
+    typeof p.focus === 'string' &&
+    Array.isArray(p.directions) &&
+    (p.directions as Record<string, unknown>[]).every(
+      (d) => typeof d.area === 'string' && typeof d.text === 'string'
     ) &&
-    Array.isArray(p.channels) &&
     Array.isArray(p.actions)
   );
 }
@@ -250,10 +250,9 @@ async function runAnalystAgent(payload: unknown): Promise<{
           return {
             report: {
               verdict: parsed.verdict,
-              headline: parsed.headline,
-              funnel: parsed.funnel,
-              channels: parsed.channels,
-              anomalies: Array.isArray(parsed.anomalies) ? parsed.anomalies : [],
+              situation: parsed.situation,
+              focus: parsed.focus,
+              directions: parsed.directions,
               actions: parsed.actions,
             },
             toolCalls,
@@ -267,81 +266,98 @@ async function runAnalystAgent(payload: unknown): Promise<{
     messages.push({
       role: 'user',
       content:
-        '출력 형식 위반. 지금까지의 분석을 바탕으로 시스템 프롬프트의 출력 형식(verdict, headline, funnel, channels, anomalies, actions)을 갖춘 JSON 객체 하나만 출력하라. 다른 텍스트·툴 호출 금지.',
+        '출력 형식 위반. 지금까지의 분석을 바탕으로 시스템 프롬프트의 출력 형식(verdict, situation, focus, directions, actions)을 갖춘 JSON 객체 하나만 출력하라. 다른 텍스트·툴 호출 금지.',
     });
   }
   throw new Error(`툴 루프가 ${MAX_TURNS}회 안에 유효한 JSON을 내지 못함`);
+}
+
+export type WeeklyReportResult =
+  | { status: 'skip'; reason: string }
+  | {
+      status: 'ok';
+      weekStart: string;
+      verdict: string;
+      dataQuality: string;
+      toolCallCount: number;
+      emailSent: boolean;
+    };
+
+/**
+ * 주간 방향 브리핑 생성 — 크론과 수동 실행(/api/admin/generate-report)이 공유한다.
+ * 품질 게이트 → 주간 집계 → 애널리스트 에이전트 → ai_reports 저장 → 메일 발송.
+ * @param sendEmail 수동 실행에서 메일을 건너뛰고 싶을 때 false (기본 true)
+ */
+export async function generateWeeklyReport(sendEmail = true): Promise<WeeklyReportResult> {
+  if (!supabaseAdmin) throw new Error('Supabase admin 미설정');
+
+  // 0단계: 데이터 품질 게이트 — 소스별 신선도 확인 (모든 분석의 0번)
+  const freshness = await checkDataFreshness();
+  const quality = freshnessSummary(freshness);
+
+  // 자기보고 어트리뷰션 태깅 (referral_tag 비어있는 행을 규칙으로 채움)
+  await backfillReferralTags();
+
+  const metrics = await aggregateWeeks();
+  if (metrics.length === 0) {
+    return { status: 'skip', reason: '수집된 데이터 없음 — 수집기 연동 후 자동 시작' };
+  }
+
+  const content = await topContent();
+  const weekStart = kstDaysAgo(7);
+  const payload = {
+    weekStart,
+    dataQuality: {
+      allFresh: quality.allFresh,
+      degradedSources: quality.degradedSources,
+      detail: quality.lines,
+    },
+    metrics,
+    topContentBySavesShares: content,
+  };
+
+  const { report, toolCalls } = await runAnalystAgent(payload);
+
+  // 대시보드용 마크다운은 구조화 리포트에서 생성 — 이메일과 내용 동기 보장
+  const summaryMd = renderSummaryMd(report, quality.degradedSources);
+
+  const { error } = await supabaseAdmin.from('ai_reports').upsert(
+    {
+      week_start: weekStart,
+      generated_at: new Date().toISOString(),
+      verdict: report.verdict,
+      summary_md: summaryMd,
+      metrics_snapshot: { ...payload, structuredReport: report, analystToolCalls: toolCalls },
+    },
+    { onConflict: 'week_start' }
+  );
+  if (error) throw new Error(`ai_reports 저장 실패: ${error.message}`);
+
+  // 리포트 메일 발송 (실패해도 전체는 성공 — 대시보드 저장이 본체)
+  const emailSent = sendEmail
+    ? await sendReportEmail({ weekStart, report, degradedSources: quality.degradedSources })
+    : false;
+
+  return {
+    status: 'ok',
+    weekStart,
+    verdict: report.verdict,
+    dataQuality: quality.allFresh ? 'fresh' : `degraded: ${quality.degradedSources.join(', ')}`,
+    toolCallCount: toolCalls.length,
+    emailSent,
+  };
 }
 
 export async function GET(request: Request) {
   if (!verifyCronSecret(request)) {
     return NextResponse.json({ error: '인증 실패' }, { status: 401 });
   }
-  if (!supabaseAdmin) {
-    return NextResponse.json({ error: 'Supabase admin 미설정' }, { status: 500 });
-  }
-
   try {
-    // 0단계: 데이터 품질 게이트 — 소스별 신선도 확인 (모든 분석의 0번)
-    const freshness = await checkDataFreshness();
-    const quality = freshnessSummary(freshness);
-
-    // 자기보고 어트리뷰션 태깅 (referral_tag 비어있는 행을 규칙으로 채움)
-    await backfillReferralTags();
-
-    const metrics = await aggregateWeeks();
-    if (metrics.length === 0) {
-      return NextResponse.json({
-        success: true,
-        result: 'skip (수집된 데이터 없음 — 수집기 연동 후 자동 시작)',
-      });
+    const result = await generateWeeklyReport();
+    if (result.status === 'skip') {
+      return NextResponse.json({ success: true, result: `skip (${result.reason})` });
     }
-
-    const content = await topContent();
-    const weekStart = kstDaysAgo(7);
-    const payload = {
-      weekStart,
-      dataQuality: {
-        allFresh: quality.allFresh,
-        degradedSources: quality.degradedSources,
-        detail: quality.lines,
-      },
-      metrics,
-      topContentBySavesShares: content,
-    };
-
-    const { report, toolCalls } = await runAnalystAgent(payload);
-
-    // 대시보드용 마크다운은 구조화 리포트에서 생성 — 이메일과 내용 동기 보장
-    const summaryMd = renderSummaryMd(report, quality.degradedSources);
-
-    const { error } = await supabaseAdmin.from('ai_reports').upsert(
-      {
-        week_start: weekStart,
-        generated_at: new Date().toISOString(),
-        verdict: report.verdict,
-        summary_md: summaryMd,
-        metrics_snapshot: { ...payload, structuredReport: report, analystToolCalls: toolCalls },
-      },
-      { onConflict: 'week_start' }
-    );
-    if (error) throw new Error(`ai_reports 저장 실패: ${error.message}`);
-
-    // 리포트 메일 발송 (실패해도 크론은 성공 — 대시보드 저장이 본체)
-    const emailSent = await sendReportEmail({
-      weekStart,
-      report,
-      degradedSources: quality.degradedSources,
-    });
-
-    return NextResponse.json({
-      success: true,
-      weekStart,
-      verdict: report.verdict,
-      dataQuality: quality.allFresh ? 'fresh' : `degraded: ${quality.degradedSources.join(', ')}`,
-      toolCallCount: toolCalls.length,
-      emailSent,
-    });
+    return NextResponse.json({ success: true, ...result });
   } catch (e) {
     console.error('[Cron] 주간 리포트 오류:', e);
     return NextResponse.json(
