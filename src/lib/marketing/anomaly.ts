@@ -128,12 +128,25 @@ function checkRelative(
   };
 }
 
-function checkZeroConversions(rows: DailyRow[]): AnomalyAlert | null {
-  // 전환 이벤트(landing+blog subscribe_submit·cta_click) 일별 합계
+/**
+ * 전환 0건 판정 — GA4 이벤트와 실물 폼 제출을 함께 본다.
+ * GA4 이벤트(subscribe_submit·cta_click)는 저볼륨 익명화로 실제 전환이 있어도 0으로 숨을 수 있어,
+ * 실물 폼 제출(subscribers·invitations·partner_inquiries)을 KST 날짜별로 합산해 대조한다.
+ * 둘 중 하나라도 있으면 그날은 전환 발생으로 본다 (2026-07-15: GA4만 보던 오탐 수정).
+ * @param formSubmitsByDate KST 날짜(YYYY-MM-DD) → 실물 폼 제출 건수
+ */
+function checkZeroConversions(
+  rows: DailyRow[],
+  formSubmitsByDate: Map<string, number>
+): AnomalyAlert | null {
+  // GA4 전환 이벤트 + 실물 폼 제출을 KST 일별로 합산
   const series = new Map<string, number>();
   for (const r of rows) {
     if (!CONVERSION_METRICS.includes(r.metric)) continue;
     series.set(r.date, (series.get(r.date) ?? 0) + Number(r.value));
+  }
+  for (const [date, count] of formSubmitsByDate) {
+    series.set(date, (series.get(date) ?? 0) + count);
   }
   const recent = evalDates(2, ZERO_CONVERSION_DAYS); // GA4 D-2 지연 감안
   // 평가일 데이터 자체가 없으면(수집 실패) 품질 게이트 영역
@@ -166,10 +179,44 @@ function checkZeroConversions(rows: DailyRow[]): AnomalyAlert | null {
     consecutive_days: ZERO_CONVERSION_DAYS,
     detail: {
       recentDates: recent,
-      rule: `전환 이벤트 0건 ${ZERO_CONVERSION_DAYS}일 연속 (절대 임계)`,
+      rule: `전환 0건 ${ZERO_CONVERSION_DAYS}일 연속 (GA4 이벤트 + 실물 폼 제출 합산, 절대 임계)`,
       baselineDailyAvg: dailyAvg,
     },
   };
+}
+
+/**
+ * 실물 폼 제출(명부·초대·문의)을 KST 날짜별 건수로 집계한다.
+ * timestamptz(UTC)를 Asia/Seoul 날짜로 변환해 GA4 이벤트의 KST 일자와 맞춘다.
+ */
+async function fetchFormSubmitsByKstDate(since: string): Promise<Map<string, number>> {
+  const byDate = new Map<string, number>();
+  if (!supabaseAdmin) return byDate;
+
+  const sources: { table: string; ts: string }[] = [
+    { table: 'subscribers', ts: 'subscribed_at' },
+    { table: 'invitations', ts: 'created_at' },
+    { table: 'partner_inquiries', ts: 'created_at' },
+  ];
+
+  for (const { table, ts } of sources) {
+    // since(KST 날짜)의 자정을 UTC로 넉넉히 잡아 조회 (KST 변환은 아래에서)
+    const { data, error } = await supabaseAdmin
+      .from(table)
+      .select(ts)
+      .gte(ts, `${since}T00:00:00+09:00`);
+    if (error) continue; // 한 테이블 실패해도 나머지는 진행 (전환 신호는 합집합)
+    for (const row of (data ?? []) as unknown as Record<string, string | null>[]) {
+      const raw = row[ts];
+      if (!raw) continue;
+      // UTC → KST 날짜 (YYYY-MM-DD)
+      const kstDate = new Date(new Date(raw).getTime() + 9 * 60 * 60 * 1000)
+        .toISOString()
+        .slice(0, 10);
+      byDate.set(kstDate, (byDate.get(kstDate) ?? 0) + 1);
+    }
+  }
+  return byDate;
 }
 
 export interface AnomalyRunResult {
@@ -191,6 +238,9 @@ export async function runAnomalyDetection(): Promise<AnomalyRunResult> {
   if (error) throw new Error(error.message);
   const rows = (data ?? []) as DailyRow[];
 
+  // 실물 폼 제출을 KST 날짜별로 집계 (GA4 이벤트가 저볼륨 익명화로 0일 때의 실제 전환 신호)
+  const formSubmitsByDate = await fetchFormSubmitsByKstDate(since);
+
   // 현재 열린 경보 (회복 윈도: 열려있는 동안 같은 지표 재발화 금지)
   const { data: openData } = await supabaseAdmin
     .from('marketing_alerts')
@@ -201,7 +251,7 @@ export async function runAnomalyDetection(): Promise<AnomalyRunResult> {
 
   const candidates: (AnomalyAlert | null)[] = [
     ...WATCHED_SERIES.map((spec) => checkRelative(rows, spec)),
-    checkZeroConversions(rows),
+    checkZeroConversions(rows, formSubmitsByDate),
   ];
 
   const fired: AnomalyAlert[] = [];
