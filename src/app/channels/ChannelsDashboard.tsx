@@ -23,6 +23,7 @@ import {
   AlertTriangle,
   Siren,
   RefreshCw,
+  X,
 } from 'lucide-react';
 
 /**
@@ -83,6 +84,98 @@ function RefreshAllButton() {
       <span>{label}</span>
       {note && <span className="text-[9px] sm:text-[10px] text-white/40 font-normal">{note}</span>}
     </button>
+  );
+}
+
+/** 이상탐지 경보 목록 — 대표가 확인 후 각 경보를 닫을 수 있다 (POST /api/admin/alerts/dismiss) */
+function AlertsSection({ alerts }: { alerts: AlertItem[] }) {
+  // 닫은 경보는 즉시 화면에서 제거(낙관적) — 서버 반영은 뒤에서
+  const [dismissed, setDismissed] = useState<Set<number>>(new Set());
+  const [busyId, setBusyId] = useState<number | null>(null);
+
+  const visible = alerts.filter((a) => !dismissed.has(a.id));
+  if (visible.length === 0) return null;
+
+  async function dismiss(id: number) {
+    if (busyId !== null) return;
+    setBusyId(id);
+    setDismissed((prev) => new Set(prev).add(id)); // 낙관적 제거
+    try {
+      const res = await fetch('/api/admin/alerts/dismiss', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ id }),
+      });
+      if (!res.ok) throw new Error('닫기 실패');
+    } catch {
+      // 실패하면 되돌린다
+      setDismissed((prev) => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  return (
+    <section className="px-4 sm:px-6 lg:px-8 mb-4 sm:mb-6">
+      <div className="max-w-6xl mx-auto space-y-2 sm:space-y-3">
+        {visible.map((a) => {
+          const critical = a.severity === 'critical';
+          const dirLabel = a.direction === 'drop' ? '급락' : a.direction === 'spike' ? '급증' : '0건 연속';
+          return (
+            <motion.div
+              key={a.id}
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              className={`relative rounded-xl sm:rounded-2xl overflow-hidden border ${
+                critical ? 'border-red-500/30 bg-red-500/[0.07]' : 'border-amber-500/25 bg-amber-500/[0.06]'
+              }`}
+            >
+              <div className="relative p-3 sm:p-5 flex items-start gap-3 sm:gap-4">
+                <div
+                  className={`p-1.5 sm:p-2.5 rounded-lg sm:rounded-xl shrink-0 ${
+                    critical ? 'bg-red-500/15 text-red-400' : 'bg-amber-500/15 text-amber-400'
+                  }`}
+                >
+                  {critical ? <Siren className="w-4 h-4 sm:w-5 sm:h-5" /> : <AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5" />}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className={`text-xs sm:text-sm font-semibold ${critical ? 'text-red-400' : 'text-amber-400'}`}>
+                    {a.label} {dirLabel}
+                    <span className="ml-2 text-[10px] sm:text-xs font-normal text-white/35">
+                      {new Date(a.detected_at).toLocaleString('ko-KR')} 감지
+                    </span>
+                  </p>
+                  <p className="text-[11px] sm:text-xs text-white/50 mt-0.5">
+                    현재 {a.current_value?.toLocaleString() ?? '-'} · 베이스라인 {a.baseline_value?.toLocaleString() ?? '-'}
+                    {a.consecutive_days ? ` · ${a.consecutive_days}일 연속` : ''}
+                  </p>
+                  {a.investigation_md && (
+                    <p className="text-[11px] sm:text-xs text-white/60 mt-1.5 leading-relaxed">
+                      <span className="text-white/35">AI 가설 · </span>
+                      {a.investigation_md}
+                    </p>
+                  )}
+                </div>
+                <button
+                  onClick={() => dismiss(a.id)}
+                  disabled={busyId === a.id}
+                  aria-label="경보 닫기"
+                  title="확인함 · 닫기"
+                  className="shrink-0 p-1.5 rounded-lg text-white/40 hover:text-white/80 hover:bg-white/10 transition-colors disabled:opacity-40 cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </motion.div>
+          );
+        })}
+      </div>
+    </section>
   );
 }
 
@@ -363,55 +456,8 @@ export function ChannelsDashboard({ data }: { data: ChannelsData }) {
         </div>
       </section>
 
-      {/* 이상탐지 경보 (Tier 3) — 열린 경보만, 정상 복귀 시 자동 해소 */}
-      {alerts.length > 0 && (
-        <section className="px-4 sm:px-6 lg:px-8 mb-4 sm:mb-6">
-          <div className="max-w-6xl mx-auto space-y-2 sm:space-y-3">
-            {alerts.map((a) => {
-              const critical = a.severity === 'critical';
-              const dirLabel = a.direction === 'drop' ? '급락' : a.direction === 'spike' ? '급증' : '0건 연속';
-              return (
-                <motion.div
-                  key={a.id}
-                  initial={{ opacity: 0, y: -10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className={`relative rounded-xl sm:rounded-2xl overflow-hidden border ${
-                    critical ? 'border-red-500/30 bg-red-500/[0.07]' : 'border-amber-500/25 bg-amber-500/[0.06]'
-                  }`}
-                >
-                  <div className="relative p-3 sm:p-5 flex items-start gap-3 sm:gap-4">
-                    <div
-                      className={`p-1.5 sm:p-2.5 rounded-lg sm:rounded-xl shrink-0 ${
-                        critical ? 'bg-red-500/15 text-red-400' : 'bg-amber-500/15 text-amber-400'
-                      }`}
-                    >
-                      {critical ? <Siren className="w-4 h-4 sm:w-5 sm:h-5" /> : <AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5" />}
-                    </div>
-                    <div className="min-w-0">
-                      <p className={`text-xs sm:text-sm font-semibold ${critical ? 'text-red-400' : 'text-amber-400'}`}>
-                        {a.label} {dirLabel}
-                        <span className="ml-2 text-[10px] sm:text-xs font-normal text-white/35">
-                          {new Date(a.detected_at).toLocaleString('ko-KR')} 감지
-                        </span>
-                      </p>
-                      <p className="text-[11px] sm:text-xs text-white/50 mt-0.5">
-                        현재 {a.current_value?.toLocaleString() ?? '-'} · 베이스라인 {a.baseline_value?.toLocaleString() ?? '-'}
-                        {a.consecutive_days ? ` · ${a.consecutive_days}일 연속` : ''}
-                      </p>
-                      {a.investigation_md && (
-                        <p className="text-[11px] sm:text-xs text-white/60 mt-1.5 leading-relaxed">
-                          <span className="text-white/35">AI 가설 · </span>
-                          {a.investigation_md}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                </motion.div>
-              );
-            })}
-          </div>
-        </section>
-      )}
+      {/* 이상탐지 경보 (Tier 3) — 열린 경보만, 정상 복귀 시 자동 해소 + 대표 수동 닫기 */}
+      <AlertsSection alerts={alerts} />
 
       {/* 수집기 상태 - Pills */}
       <section className="px-4 sm:px-6 lg:px-8 mb-4 sm:mb-6">
