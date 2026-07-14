@@ -37,6 +37,41 @@ export interface GscQueryRow {
   tier: string | null;
 }
 
+export interface GscDailyTotal {
+  clicks: number;
+  impressions: number;
+  ctr: number;
+  position: number;
+}
+
+/**
+ * 차원 없는 일 합계 조회.
+ * query 차원은 GSC 저볼륨 익명화 때문에 노출이 적으면 행이 통째로 숨어 빈 응답이 된다
+ * (2026-07-14 실측: 같은 기간을 query·page 차원으로 조회하면 0행, 합계로 조회하면 노출 15·클릭 2).
+ * 일 단위 추이 적재는 반드시 이 합계를 쓴다. 행이 없으면 그날 검색 노출 0.
+ */
+export async function fetchDailyTotal(
+  site: { site: 'landing' | 'blog'; url: string },
+  date: string
+): Promise<GscDailyTotal | null> {
+  const token = await getGoogleAccessToken(SCOPE);
+  const res = await fetch(
+    `https://www.googleapis.com/webmasters/v3/sites/${encodeURIComponent(site.url)}/searchAnalytics/query`,
+    {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ startDate: date, endDate: date, rowLimit: 1 }),
+    }
+  );
+  if (!res.ok) throw new Error(`GSC total 실패 (${res.status}): ${await res.text()}`);
+  const data = await res.json();
+  const row = (data.rows ?? [])[0] as
+    | { clicks: number; impressions: number; ctr: number; position: number }
+    | undefined;
+  if (!row) return null;
+  return { clicks: row.clicks, impressions: row.impressions, ctr: row.ctr, position: row.position };
+}
+
 export async function fetchSearchQueries(
   site: { site: 'landing' | 'blog'; url: string },
   date: string

@@ -7,7 +7,7 @@
  */
 
 import { NextResponse } from 'next/server';
-import { isGscConfigured, gscSites, fetchSearchQueries } from '@/lib/marketing/gsc';
+import { isGscConfigured, gscSites, fetchSearchQueries, fetchDailyTotal } from '@/lib/marketing/gsc';
 import { upsertSearchQueries, upsertMetrics, kstDaysAgo, type MetricRow } from '@/lib/marketing/store';
 
 export const maxDuration = 60;
@@ -37,26 +37,23 @@ export async function GET(request: Request) {
 
   for (const site of gscSites()) {
     try {
+      // 검색어 상세(계층 태깅)는 search_queries 테이블로 — 저볼륨에선 익명화로 빈 배열일 수 있음
       const queries = await fetchSearchQueries(site, date);
       const upserted = await upsertSearchQueries(queries);
 
-      // 계층별 합계를 channel_metrics_daily에도 적재 (추이 그래프용)
-      const tierTotals: Record<string, { clicks: number; impressions: number }> = {};
-      for (const q of queries) {
-        const tier = q.tier ?? 'untagged';
-        tierTotals[tier] = tierTotals[tier] ?? { clicks: 0, impressions: 0 };
-        tierTotals[tier].clicks += q.clicks;
-        tierTotals[tier].impressions += q.impressions;
-      }
-      const rows: MetricRow[] = [];
-      for (const [tier, t] of Object.entries(tierTotals)) {
-        rows.push(
-          { date, channel: 'search', source: 'gsc', metric: 'clicks', dimension: { site: site.site, tier }, value: t.clicks },
-          { date, channel: 'search', source: 'gsc', metric: 'impressions', dimension: { site: site.site, tier }, value: t.impressions }
-        );
+      // 일 추이는 차원 없는 합계로 적재 — query 차원은 저볼륨 익명화로 행이 숨어
+      // "적재 없음(신뢰 저하)" 오탐의 원인이었다. 노출 0인 날도 0으로 적재해
+      // "수집 정상·값 0"과 "수집 실패"를 구분한다. (계층별 집계는 search_queries에서 파생)
+      const total = await fetchDailyTotal(site, date);
+      const rows: MetricRow[] = [
+        { date, channel: 'search', source: 'gsc', metric: 'clicks', dimension: { site: site.site }, value: total?.clicks ?? 0 },
+        { date, channel: 'search', source: 'gsc', metric: 'impressions', dimension: { site: site.site }, value: total?.impressions ?? 0 },
+      ];
+      if (total) {
+        rows.push({ date, channel: 'search', source: 'gsc', metric: 'avg_position', dimension: { site: site.site }, value: total.position });
       }
       await upsertMetrics(rows);
-      result[site.site] = { date, queries: upserted };
+      result[site.site] = { date, queries: upserted, totals: total ?? 'no impressions' };
     } catch (e) {
       errors.push(`${site.site}: ${e instanceof Error ? e.message : String(e)}`);
     }
