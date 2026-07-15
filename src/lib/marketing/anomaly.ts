@@ -31,8 +31,19 @@ const WATCHED_SERIES: { key: string; label: string; channel: string; metric: str
   { key: 'instagram|sum_reach', label: '인스타 도달', channel: 'instagram', metric: 'sum_reach', lagDays: 2 },
 ];
 
-/** 절대 임계 감시: 전환 이벤트 합계가 N일 연속 0 (베이스라인에 전환이 있던 경우만) */
-const CONVERSION_METRICS = ['event:subscribe_submit', 'event:cta_click'];
+/**
+ * 절대 임계 감시: 전환 합계가 N일 연속 0 (베이스라인에 전환이 있던 경우만).
+ * subscribe_submit은 여기 넣지 않는다 — 같은 전환이 실물 폼 제출(subscribers)로도 잡혀
+ * 이중 계상되기 때문. DB 쪽이 지연도 없고 GA4 저볼륨 익명화도 안 타는 정본이다.
+ * 남은 cta_click은 GA4에만 있는 신호(링크 클릭)라 유지한다.
+ */
+const CONVERSION_METRICS = ['event:cta_click'];
+
+/**
+ * GA4 수집 지연 — collect-web이 kstDaysAgo(3)을 수집하므로 D-3이 최신이다.
+ * D-2를 평가하면 "데이터 미수집"을 "전환 0건"으로 오독한다 (2026-07-15 오탐 원인).
+ */
+const GA4_LAG_DAYS = 3;
 
 export interface AnomalyAlert {
   metric_key: string;
@@ -129,10 +140,9 @@ function checkRelative(
 }
 
 /**
- * 전환 0건 판정 — GA4 이벤트와 실물 폼 제출을 함께 본다.
- * GA4 이벤트(subscribe_submit·cta_click)는 저볼륨 익명화로 실제 전환이 있어도 0으로 숨을 수 있어,
- * 실물 폼 제출(subscribers·invitations·partner_inquiries)을 KST 날짜별로 합산해 대조한다.
- * 둘 중 하나라도 있으면 그날은 전환 발생으로 본다 (2026-07-15: GA4만 보던 오탐 수정).
+ * 전환 0건 판정 — 실물 폼 제출(DB)이 정본이고, GA4 cta_click을 보조로 더한다.
+ * GA4는 D-3까지만 수집되고 저볼륨 익명화도 타므로 단독 근거로 쓰지 않는다.
+ * 실물 폼 제출(명부·초대·문의·브랜드북)은 지연이 없어 그날의 전환을 바로 반영한다.
  * @param formSubmitsByDate KST 날짜(YYYY-MM-DD) → 실물 폼 제출 건수
  */
 function checkZeroConversions(
@@ -148,7 +158,7 @@ function checkZeroConversions(
   for (const [date, count] of formSubmitsByDate) {
     series.set(date, (series.get(date) ?? 0) + count);
   }
-  const recent = evalDates(2, ZERO_CONVERSION_DAYS); // GA4 D-2 지연 감안
+  const recent = evalDates(GA4_LAG_DAYS, ZERO_CONVERSION_DAYS);
   // 평가일 데이터 자체가 없으면(수집 실패) 품질 게이트 영역
   if (recent.some((d) => !rows.some((r) => r.date === d))) return null;
 
@@ -156,22 +166,23 @@ function checkZeroConversions(
   if (recentSum > 0) return null;
 
   // 베이스라인 기간에 전환이 거의 없었다면 0건은 정상 (알림 없음)
-  const baselineStart = kstDaysAgo(2 + BASELINE_DAYS);
+  const baselineStart = kstDaysAgo(GA4_LAG_DAYS + BASELINE_DAYS);
   let baselineTotal = 0;
-  let baselineDays = 0;
   const recentSet = new Set(recent);
   for (const [date, value] of series) {
     if (date >= baselineStart && !recentSet.has(date) && date < recent[0]) {
       baselineTotal += value;
-      baselineDays += 1;
     }
   }
-  const dailyAvg = baselineDays > 0 ? baselineTotal / baselineDays : 0;
+  // 분모는 반드시 달력 일수 — series에는 전환이 있던 날짜만 들어 있어서
+  // 항목 수를 세면 "전환이 있던 날의 평균"이 되어 항상 1 이상이 나온다.
+  // 그러면 아래 저트래픽 가드가 영구히 무력화된다 (2026-07-15 오탐 원인).
+  const dailyAvg = baselineTotal / BASELINE_DAYS;
   if (dailyAvg < 0.5) return null; // 주 3~4건 미만 규모면 0건 연속은 판정 불가
 
   return {
     metric_key: 'conversions|zero',
-    label: '전환(명부·초대·문의) 이벤트',
+    label: '전환(명부·초대·문의·브랜드북)',
     severity: 'critical',
     direction: 'zero',
     current_value: 0,
@@ -179,7 +190,7 @@ function checkZeroConversions(
     consecutive_days: ZERO_CONVERSION_DAYS,
     detail: {
       recentDates: recent,
-      rule: `전환 0건 ${ZERO_CONVERSION_DAYS}일 연속 (GA4 이벤트 + 실물 폼 제출 합산, 절대 임계)`,
+      rule: `전환 0건 ${ZERO_CONVERSION_DAYS}일 연속 (실물 폼 제출 + GA4 cta_click, D-${GA4_LAG_DAYS} 기준, 절대 임계)`,
       baselineDailyAvg: dailyAvg,
     },
   };
@@ -193,10 +204,13 @@ async function fetchFormSubmitsByKstDate(since: string): Promise<Map<string, num
   const byDate = new Map<string, number>();
   if (!supabaseAdmin) return byDate;
 
+  // 랜딩 폼(landing/src/lib/forms.ts)이 쓰는 테이블 전부 + 블로그 명부(subscribers).
+  // brandbook_requests 누락 시 브랜드북 신청이 전환으로 안 세진다.
   const sources: { table: string; ts: string }[] = [
     { table: 'subscribers', ts: 'subscribed_at' },
     { table: 'invitations', ts: 'created_at' },
     { table: 'partner_inquiries', ts: 'created_at' },
+    { table: 'brandbook_requests', ts: 'created_at' },
   ];
 
   for (const { table, ts } of sources) {
