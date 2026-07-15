@@ -373,7 +373,7 @@ export async function fetchKhoaBuoyData(options?: {
   reqDate?: string;
   min?: number;
   numOfRows?: number;
-}): Promise<{ crsp: number | null; crdir: number | null }[]> {
+}): Promise<{ obsrvnDt: string; crsp: number | null; crdir: number | null }[]> {
   const apiKey = process.env.KHOA_API_KEY;
   if (!apiKey) throw new Error('KHOA_API_KEY 환경변수가 설정되지 않았습니다.');
 
@@ -392,11 +392,12 @@ export async function fetchKhoaBuoyData(options?: {
   const codeMatch = xml.match(/<resultCode>(\d+)<\/resultCode>/);
   if (codeMatch && codeMatch[1] !== '00') return [];
 
-  const items: { crsp: number | null; crdir: number | null }[] = [];
+  const items: { obsrvnDt: string; crsp: number | null; crdir: number | null }[] = [];
   const itemRegex = /<item>([\s\S]*?)<\/item>/g;
   let match;
   while ((match = itemRegex.exec(xml)) !== null) {
     items.push({
+      obsrvnDt: match[1].match(/<obsrvnDt>([^<]*)<\/obsrvnDt>/)?.[1] ?? '',
       crsp: parseXmlNumber(match[1], 'crsp'),
       crdir: parseXmlNumber(match[1], 'crdir'),
     });

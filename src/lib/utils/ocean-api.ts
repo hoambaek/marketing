@@ -369,9 +369,10 @@ export async function fetchKhoaHybridData(): Promise<{
     const hasPressure = hasKhoaItems && items.some(i => i.atmpr !== null);
     const hasTide = hasKhoaItems && items.some(i => i.bscTdlvHgt !== null);
 
-    // 완도항 부이에서 최신 유속 추출
-    const buoySpeeds = buoyItems.map(i => i.crsp).filter((v): v is number => v !== null);
-    const buoyDirs = buoyItems.map(i => i.crdir).filter((v): v is number => v !== null);
+    // 완도항 부이에서 최신 유속 추출 — 응답이 관측시각 내림차순이라 오름차순으로 돌려놓고 마지막을 집는다
+    const buoyAsc = [...buoyItems].sort((a, b) => (a.obsrvnDt < b.obsrvnDt ? -1 : 1));
+    const buoySpeeds = buoyAsc.map(i => i.crsp).filter((v): v is number => v !== null);
+    const buoyDirs = buoyAsc.map(i => i.crdir).filter((v): v is number => v !== null);
     const buoyCurrent = buoySpeeds.length > 0 ? {
       speed: buoySpeeds[buoySpeeds.length - 1],
       direction: buoyDirs.length > 0 ? buoyDirs[buoyDirs.length - 1] : 0,

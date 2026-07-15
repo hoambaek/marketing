@@ -414,8 +414,11 @@ export const useOceanDataStore = create<OceanDataState>((set, get) => ({
         speed: number; direction: number; type: string; time: string;
       } | null;
 
-      // KHOA 최신 관측 항목 (시간 내림차순이면 0번, 아니면 마지막)
-      const latestKhoa = khoaItems.length > 0 ? khoaItems[khoaItems.length - 1] : null;
+      // KHOA 최신 관측 항목 — 응답이 관측시각 내림차순이라 마지막을 집으면
+      // 당일 가장 오래된 값이 잡힌다. 순서에 기대지 않고 시각으로 직접 고른다.
+      const latestKhoa = khoaItems.length > 0
+        ? khoaItems.reduce((a, b) => (b.obsrvnDt > a.obsrvnDt ? b : a))
+        : null;
 
       // 수온: KHOA 우선 + 40m 깊이 보정
       const surfaceTemp = latestKhoa?.wtem ?? omSeaTemp;
