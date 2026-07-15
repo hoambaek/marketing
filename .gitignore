@@ -58,3 +58,9 @@ data/
 
 # Supabase
 supabase/.temp/
+mdm-sa-key.json
+.gstack/
+
+# 작업 중 산출물·임시 스크립트 — 커밋 대상 아님 (CLAUDE.md 실전 작업 규칙)
+outputs/
+tmp/
