@@ -232,6 +232,7 @@ export async function approveTastingSubmission(
 
   // 0. 제품 재지정 시 실존 검증 (미연결 제출을 고아 데이터로 승인하는 것 방지)
   let productId = s.product_id;
+  let predictionId = s.prediction_id;
   if (overrideProductId) {
     const { data: prod, error: prodErr } = await supabaseAdmin
       .from('aging_products')
@@ -243,6 +244,23 @@ export async function approveTastingSubmission(
       return { ok: false, error: '지정한 제품을 찾을 수 없습니다.' };
     }
     productId = overrideProductId;
+
+    // 원래 prediction_id는 제출 링크가 가리키던 (다른) 제품의 예측이므로 그대로 복사하면
+    // 제품과 예측이 어긋난 실측이 생긴다 — 베이지안 업데이트·RMSE가 prediction_id로 짝을 맞춘다.
+    // 재지정 제품의 최신 예측으로 교체하고, 예측이 없으면 연결 없이 승인한다.
+    if (overrideProductId !== s.product_id) {
+      const { data: latestPred, error: predErr } = await supabaseAdmin
+        .from('aging_predictions')
+        .select('id')
+        .eq('product_id', overrideProductId)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (predErr) {
+        dbLogger.warn('승인: 재지정 제품의 예측 조회 실패 — 예측 연결 없이 진행', predErr);
+      }
+      predictionId = latestPred?.id ?? null;
+    }
   }
 
   // 1. retrieval_results로 복사
@@ -271,7 +289,7 @@ export async function approveTastingSubmission(
         ? `[${s.recorder_name} · ${s.recorder_affiliation}] ${s.tasting_notes ?? ''}`.trim()
         : `[${s.recorder_name}] ${s.tasting_notes ?? ''}`.trim(),
       is_simulated: false,
-      prediction_id: s.prediction_id,
+      prediction_id: predictionId,
     })
     .select('id')
     .single();
@@ -281,7 +299,7 @@ export async function approveTastingSubmission(
     return { ok: false };
   }
 
-  // 2. 제출을 approved로 갱신 (재지정된 제품 ID도 함께 기록해 추적 가능하게)
+  // 2. 제출을 approved로 갱신 (재지정된 제품·예측 ID도 함께 기록해 추적 가능하게)
   const { error: updErr } = await supabaseAdmin
     .from('tasting_submissions')
     .update({
@@ -289,6 +307,7 @@ export async function approveTastingSubmission(
       reviewed_at: new Date().toISOString(),
       approved_retrieval_id: ret.id,
       product_id: productId,
+      prediction_id: predictionId,
     })
     .eq('id', id);
 
