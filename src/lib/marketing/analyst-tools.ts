@@ -22,7 +22,7 @@ export const ANALYST_TOOLS = [
       properties: {
         channel: { type: 'string', description: '채널 필터 (생략 시 전체)' },
         metric: { type: 'string', description: '지표 필터 (생략 시 전체)' },
-        source: { type: 'string', description: '소스 필터: ga4|vercel|ig_graph|gsc (생략 시 전체)' },
+        source: { type: 'string', description: '소스 필터: ga4|vercel|ig_graph|gsc|naver_openapi(네이버 트렌드·버즈) (생략 시 전체)' },
         date_from: { type: 'string', description: 'YYYY-MM-DD (필수)' },
         date_to: { type: 'string', description: 'YYYY-MM-DD (필수)' },
         group_by: {

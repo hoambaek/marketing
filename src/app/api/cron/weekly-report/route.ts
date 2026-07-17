@@ -67,12 +67,15 @@ async function aggregateWeeks(): Promise<MetricAgg[]> {
   const mid = kstDaysAgo(7);
   const { data, error } = await supabaseAdmin
     .from('channel_metrics_daily')
-    .select('date, channel, metric, value')
+    .select('date, channel, source, metric, value')
     .gte('date', from);
   if (error) throw new Error(error.message);
 
   const agg = new Map<string, MetricAgg>();
   for (const row of data ?? []) {
+    // 네이버는 전용 블록(naverSearchIntelligence)으로 제공 — 누적 스냅샷(blog_total)이
+    // 주간 합산되면 왜곡되고, 상대지수(trend_ratio)가 GSC 지표와 섞이면 판단을 오염시킨다
+    if (row.source === 'naver_openapi') continue;
     const key = `${row.channel}|${row.metric}`;
     const entry = agg.get(key) ?? { channel: row.channel, metric: row.metric, thisWeek: 0, prevWeek: 0 };
     if (row.date >= mid) entry.thisWeek += Number(row.value);
@@ -110,6 +113,63 @@ async function topContent(): Promise<Record<string, unknown>[]> {
     .slice(0, 5);
 }
 
+/** 네이버 검색 인텔리전스 주간 요약 — 성장 조율 결정 규칙(카테고리 스파이크·브랜드 역추적·버즈)의 입력 */
+async function naverWeekly(): Promise<Record<string, unknown> | null> {
+  if (!supabaseAdmin) return null;
+  const { data } = await supabaseAdmin
+    .from('channel_metrics_daily')
+    .select('date, metric, dimension, value')
+    .eq('source', 'naver_openapi')
+    .gte('date', kstDaysAgo(28))
+    .limit(1000);
+  const rows = (data ?? []) as { date: string; metric: string; dimension: Record<string, string> | null; value: number }[];
+  if (rows.length === 0) return null;
+
+  const mid = kstDaysAgo(7);
+  const r1 = (n: number) => Math.round(n * 10) / 10;
+  const sumIndex = (group: string, from: string, to?: string) =>
+    rows
+      .filter((r) => r.metric === 'trend_ratio' && r.dimension?.group === group && r.date >= from && (!to || r.date < to))
+      .reduce((s, r) => s + Number(r.value), 0);
+
+  // 브랜드 검색이 임계치를 넘어 "잡힌" 날짜들 — 직전 활동 역추적의 단서
+  const brandDates = rows
+    .filter((r) => r.metric === 'trend_ratio' && r.dimension?.group === '뮤즈드마레' && Number(r.value) > 0)
+    .map((r) => r.date)
+    .sort();
+  const catPoints = rows.filter((r) => r.metric === 'trend_ratio' && r.dimension?.group === '해저숙성');
+  const catPeak = catPoints.length
+    ? catPoints.reduce((a, b) => (Number(a.value) >= Number(b.value) ? a : b))
+    : null;
+
+  // 블로그 버즈: 쿼리별 최신 누적치와 7일 전 대비 신규 포스트 수
+  const buzz: Record<string, unknown> = {};
+  for (const q of new Set(rows.filter((r) => r.metric === 'blog_total').map((r) => r.dimension?.query ?? ''))) {
+    if (!q) continue;
+    const snaps = rows
+      .filter((r) => r.metric === 'blog_total' && r.dimension?.query === q)
+      .sort((a, b) => a.date.localeCompare(b.date));
+    const latest = snaps[snaps.length - 1];
+    const base = [...snaps].reverse().find((s) => s.date <= mid);
+    buzz[q] = { total: Number(latest.value), weekNew: base ? Number(latest.value) - Number(base.value) : null };
+  }
+
+  return {
+    note: '지수는 상댓값(수집 구간 최대=100). 값이 없는 날은 검색량 임계치 미만(사실상 0).',
+    categoryIndex: {
+      thisWeek: r1(sumIndex('해저숙성', mid)),
+      prevWeek: r1(sumIndex('해저숙성', kstDaysAgo(14), mid)),
+      last28dPeak: catPeak ? { date: catPeak.date, ratio: Number(catPeak.value) } : null,
+    },
+    brandIndex: {
+      thisWeek: r1(sumIndex('뮤즈드마레', mid)),
+      prevWeek: r1(sumIndex('뮤즈드마레', kstDaysAgo(14), mid)),
+      detectedDatesLast28d: brandDates,
+    },
+    blogBuzz: buzz,
+  };
+}
+
 const ANALYST_PROMPT = `당신은 뮤즈드마레(해저숙성 샴페인·전통주 럭셔리 브랜드)의 마케팅 애널리스트 에이전트다.
 주간 데이터를 채널 운영 전략 기준으로 판정하되, 이상 신호가 보이면 제공된 조회 툴로 스스로 원인을 파고들어라.
 
@@ -119,6 +179,7 @@ const ANALYST_PROMPT = `당신은 뮤즈드마레(해저숙성 샴페인·전통
 - 인스타그램: 팔로워 수보다 저장(saved)·공유(shares)가 상위 지표. 주류 계정은 추천 피드 제외라 팔로워 성장 정체는 정상.
 - 블로그: 키워드 3계층 — T1(해저숙성 등 니치 소유형), T2(샴페인 보관법 등 정보성, 유입 볼륨의 본체), T3(고유명). T2가 볼륨을, T1이 정확도를 담당하는 게 정상 패턴.
 - 뉴스레터: 오픈율은 Apple MPP로 부풀려져 신뢰 불가 — 클릭을 1차 지표로 본다.
+- 네이버(naverSearchIntelligence 블록): 카테고리(해저숙성) 지수 = 시장 수요 관측, 브랜드(뮤즈드마레) 지수·블로그 버즈 = 인지 신호. 지수는 상댓값이고 값이 없는 날은 집계 임계치 미만이다. 카테고리 버즈 대비 브랜드 언급 포스트 수가 "검색 수요 앞에 우리 콘텐츠가 있는가"의 척도다.
 
 ## 진단 결정 트리 (이 순서로만 판단하라)
 0. **데이터 품질**: 함께 제공된 "데이터 신선도" 결과를 먼저 확인. 신뢰 저하 소스가 있으면 그 소스가 담당하는 채널의 판정은 보류하고, 리포트 맨 앞에 "⚠️ 데이터 신뢰 저하: [소스]" 경고를 넣어라. 지표 하락이 실제 하락인지 수집 실패인지 구분이 최우선이다.
@@ -131,6 +192,15 @@ const ANALYST_PROMPT = `당신은 뮤즈드마레(해저숙성 샴페인·전통
 - 우리는 저트래픽 브랜드다. 주간 수십~수백 단위 변동은 대부분 노이즈다. 통계적 판정을 흉내 내지 마라.
 - 네 역할은 "판정 기계"가 아니라 "정성 패턴의 가설 생성자"다. 표본이 작으면 반드시 "표본 부족 — 방향성 참고만"을 명시하라.
 - 큰 레버만 지적하라: 명백한 고장, 여러 기간 일관된 트렌드, 절대량이 있는 지표. 소수점 전환율 차이는 무시.
+
+## 성장 조율 결정 규칙 (2026-07-17 확정 — 어떤 신호가 어떤 행동을 만드는가)
+확정 진단: 현재 병목은 퍼널 1단계 '발견'이다. 들어온 방문의 행동률(CTA·구독·문의)은 건강하므로 랜딩 개선·전환율 최적화를 제안하지 마라. 액션은 발견(검색·콘텐츠·버즈)을 늘리는 쪽에 집중한다.
+1. 네이버 카테고리 지수가 이번 주 스파이크 → 그 주 액션에 해저숙성 계열 키워드 콘텐츠 발행을 넣는다. 수요 파도가 칠 때 그 앞에 콘텐츠를 세우는 것이 원칙이다.
+2. 네이버 브랜드 지수가 잡힌 날(detectedDatesLast28d)이 새로 생기면 → 그 직전 1~2주의 오프라인·PR·발행 활동과 대조하는 확인 액션을 넣는다. 무엇이 브랜드 검색을 만드는지 역추적하는 것이 브랜드 인지 전략의 첫 데이터다.
+3. 구글(GSC)은 클릭이 아니라 노출수·평균 순위의 4주 추세로 콘텐츠 축적 효과를 판단한다. 클릭 1~2건 차이로 판정하지 마라.
+4. 카테고리 블로그 버즈 대비 브랜드 언급이 0건인 상태가 지속되는 동안, 네이버에 노출될 콘텐츠 발행은 상시 후보 액션이다 — 카테고리 검색자가 우리를 만날 경로가 없다는 뜻이므로.
+5. 첫 발생 이벤트(첫 저장, 첫 문의, 첫 브랜드 버즈 증가)는 표본 크기와 무관하게 즉시 신호다. 무엇이 그것을 만들었는지 기록·재현하는 액션을 붙여라.
+6. 비율 지표는 4주 누적으로만 판단한다. 주간 단위로 읽을 것은 스파이크와 0→1 신호뿐이다.
 
 ## 툴 사용 규칙
 - on-track이고 특이 신호가 없으면 툴 없이 바로 리포트를 써도 된다.
@@ -151,7 +221,7 @@ const ANALYST_PROMPT = `당신은 뮤즈드마레(해저숙성 샴페인·전통
   "situation": "이번 주 전체 상황을 2~3문장으로. 숫자 대신 '무슨 일이 일어나고 있는지'를 서술. 데이터 신뢰 저하가 있으면 여기서 한 번만 언급.",
   "focus": "이번 주 방향을 한 문장으로. 우리가 지금 집중해야 할 단 하나.",
   "directions": [
-    {"area": "블로그" | "인스타그램" | "뉴스레터" | "B2B" | "검색" | "전반", "text": "이 영역에서 준비할 방향 (수치가 아니라 무엇을 왜)"}
+    {"area": "블로그" | "인스타그램" | "뉴스레터" | "B2B" | "검색" | "네이버" | "전반", "text": "이 영역에서 준비할 방향 (수치가 아니라 무엇을 왜)"}
   ],
   "actions": [
     {"approval": true|false, "text": "이번 주에 실제로 착수할 구체적 작업"}
@@ -162,6 +232,7 @@ const ANALYST_PROMPT = `당신은 뮤즈드마레(해저숙성 샴페인·전통
 - situation·focus·directions·actions 어디에도 원시 수치(방문 수, 클릭 수 등)를 적지 마라. 방향과 판단만.
 - directions는 2~4개. 지금 신호가 있는 영역만. 움직일 이유 없는 영역은 넣지 마라.
 - actions는 3개 이하, 이번 주에 바로 착수 가능한 것만. 콘텐츠 발행·외부 발송·아웃리치는 항상 approval true.
+- **결론의 본체는 actions다.** 대표가 이 리포트에서 가져갈 것은 판정이 아니라 이번 주 할 일이다. 각 액션은 "무엇을 / 어떤 채널·키워드로 / 왜 지금(근거가 된 신호)"이 한 문장 안에 들어가야 한다. 근거 신호가 성장 조율 결정 규칙의 몇 번에 해당하는지 판단하고 그 규칙에 맞는 액션을 우선하라.
 - 이상 신호(수집 실패·급락 등)가 있으면 situation 첫 문장에 넣고, 관련 대응을 actions 맨 앞에 둬라.
 - 판정이 애매하면 verdict는 watch. on-track이면 "방향 유지"를 focus로 명시해도 된다.`;
 
@@ -304,6 +375,7 @@ export async function generateWeeklyReport(sendEmail = true): Promise<WeeklyRepo
   }
 
   const content = await topContent();
+  const naver = await naverWeekly();
   const weekStart = kstDaysAgo(7);
   const payload = {
     weekStart,
@@ -314,6 +386,7 @@ export async function generateWeeklyReport(sendEmail = true): Promise<WeeklyRepo
     },
     metrics,
     topContentBySavesShares: content,
+    naverSearchIntelligence: naver ?? '수집 전 (collect-naver 첫 실행 대기)',
   };
 
   const { report, toolCalls } = await runAnalystAgent(payload);
