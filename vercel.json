@@ -21,6 +21,9 @@
     "src/app/api/cron/collect-search/route.ts": {
       "maxDuration": 60
     },
+    "src/app/api/cron/collect-naver/route.ts": {
+      "maxDuration": 60
+    },
     "src/app/api/cron/weekly-report/route.ts": {
       "maxDuration": 300
     },
@@ -39,6 +42,10 @@
     },
     {
       "path": "/api/cron/collect-search",
+      "schedule": "0 22 * * *"
+    },
+    {
+      "path": "/api/cron/collect-naver",
       "schedule": "0 22 * * *"
     },
     {

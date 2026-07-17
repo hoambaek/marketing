@@ -8,7 +8,7 @@ import { supabaseAdmin } from '@/lib/supabase/admin';
 export interface MetricRow {
   date: string;
   channel: 'landing' | 'blog' | 'instagram' | 'newsletter' | 'search';
-  source: 'ga4' | 'vercel' | 'ig_graph' | 'stibee' | 'gsc';
+  source: 'ga4' | 'vercel' | 'ig_graph' | 'stibee' | 'gsc' | 'naver_openapi';
   metric: string;
   dimension?: Record<string, string>;
   value: number;

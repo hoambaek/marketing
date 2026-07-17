@@ -8,6 +8,7 @@
 
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { checkDataFreshness } from '@/lib/marketing/quality';
+import { BUZZ_QUERIES } from '@/lib/marketing/naver';
 import { ChannelsDashboard, type ChannelsData, type StatCard, type AlertItem } from './ChannelsDashboard';
 
 export const dynamic = 'force-dynamic';
@@ -83,8 +84,65 @@ function cleanReferrer(host: string): string | null {
   return host.replace(/^www\./, '');
 }
 
+/**
+ * 네이버 검색 인텔리전스 집계 — collect-naver가 적재한 trend_ratio(일간)·blog_total(스냅샷)로
+ * 브랜드 vs 카테고리 시계열과 버즈 카드를 만든다.
+ * 데이터랩은 검색량 임계치 미만인 날짜를 아예 반환하지 않으므로 차트 축은 0으로 채운다.
+ */
+function buildNaver(rows: MetricRow[], days = 90): ChannelsData['naver'] {
+  const dates: string[] = [];
+  for (let i = days - 1; i >= 0; i--) {
+    dates.push(new Date(Date.now() - i * 86400_000).toISOString().slice(0, 10));
+  }
+
+  const trend = new Map<string, { brand: number; category: number }>(
+    dates.map((d) => [d, { brand: 0, category: 0 }]),
+  );
+  for (const m of rows) {
+    if (m.metric !== 'trend_ratio') continue;
+    const slot = trend.get(m.date);
+    if (!slot) continue;
+    if (m.dimension?.group === '뮤즈드마레') slot.brand = Number(m.value);
+    if (m.dimension?.group === '해저숙성') slot.category = Number(m.value);
+  }
+  const series = dates.map((date) => ({ date, ...trend.get(date)! }));
+
+  const sumRange = (key: 'brand' | 'category', from: number, to: number) =>
+    series.slice(series.length - from, series.length - to).reduce((s, p) => s + p[key], 0);
+  // 상대 지수 합은 소수가 길어지므로 표시용으로 1자리 반올림
+  const stat = (key: 'brand' | 'category'): StatCard => ({
+    cur: Math.round(sumRange(key, 7, 0) * 10) / 10,
+    prev: Math.round(sumRange(key, 14, 7) * 10) / 10,
+  });
+
+  // 버즈: 쿼리별 최신 스냅샷과 7일 전(이하 가장 가까운) 스냅샷의 차 = 주간 신규 포스트 수
+  const weekAgo = new Date(Date.now() - 7 * 86400_000).toISOString().slice(0, 10);
+  const buzz = BUZZ_QUERIES.map((query) => {
+    const snaps = rows
+      .filter((m) => m.metric === 'blog_total' && m.dimension?.query === query)
+      .sort((a, b) => a.date.localeCompare(b.date));
+    if (snaps.length === 0) return { label: query, total: null, weekDelta: null };
+    const latest = snaps[snaps.length - 1];
+    const baseline = [...snaps].reverse().find((s) => s.date <= weekAgo);
+    return {
+      label: query,
+      total: Number(latest.value),
+      weekDelta: baseline ? Number(latest.value) - Number(baseline.value) : null,
+    };
+  });
+
+  return {
+    hasData: rows.length > 0,
+    series,
+    brand: stat('brand'),
+    category: stat('category'),
+    buzz,
+  };
+}
+
 async function loadData(): Promise<ChannelsData> {
   let metrics: MetricRow[] = [];
+  let naverRows: MetricRow[] = [];
   let report: ChannelsData['report'] = null;
   let admin: ChannelsData['admin'] = { brandbook: [], partner: [], invitations: [], subscribers: [] };
   let selfReportedSlices: { label: string; value: number }[] = [];
@@ -93,12 +151,20 @@ async function loadData(): Promise<ChannelsData> {
 
   if (supabaseAdmin) {
     const since = new Date(Date.now() - 14 * 86400_000).toISOString().slice(0, 10);
-    const [metricsRes, reportRes, bb, partner, invites, subs, alertsRes] = await Promise.all([
+    const naverSince = new Date(Date.now() - 90 * 86400_000).toISOString().slice(0, 10);
+    const [metricsRes, naverRes, reportRes, bb, partner, invites, subs, alertsRes] = await Promise.all([
       supabaseAdmin
         .from('channel_metrics_daily')
         .select('date, channel, source, metric, dimension, value')
         .gte('date', since)
         .limit(4000),
+      // 네이버 트렌드는 차트용으로 더 긴 구간이 필요해 별도 조회 (90일 × 2그룹 + 버즈 3행/일)
+      supabaseAdmin
+        .from('channel_metrics_daily')
+        .select('date, channel, source, metric, dimension, value')
+        .eq('source', 'naver_openapi')
+        .gte('date', naverSince)
+        .limit(2000),
       supabaseAdmin
         .from('ai_reports')
         .select('week_start, generated_at, verdict, summary_md')
@@ -117,6 +183,7 @@ async function loadData(): Promise<ChannelsData> {
         .limit(10),
     ]);
     metrics = (metricsRes.data ?? []) as MetricRow[];
+    naverRows = (naverRes.data ?? []) as MetricRow[];
     report = reportRes.data;
     alerts = (alertsRes.data ?? []) as AlertItem[];
     admin = {
@@ -179,6 +246,7 @@ async function loadData(): Promise<ChannelsData> {
       // 자기보고 어트리뷰션 (전체 기간) — 다크소셜·AI유입 등 측정 사각 보완
       selfReported: selfReportedSlices,
     },
+    naver: buildNaver(naverRows),
     report,
     hasData: metrics.length > 0,
     admin,

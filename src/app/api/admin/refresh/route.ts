@@ -11,7 +11,7 @@ import { NextResponse } from 'next/server';
 
 export const maxDuration = 120;
 
-const COLLECTORS = ['ocean-data', 'collect-social', 'collect-search', 'collect-web'] as const;
+const COLLECTORS = ['ocean-data', 'collect-social', 'collect-search', 'collect-web', 'collect-naver'] as const;
 
 export async function POST(request: Request) {
   const cronSecret = process.env.CRON_SECRET;

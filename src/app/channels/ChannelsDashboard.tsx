@@ -4,6 +4,15 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import ReactMarkdown from 'react-markdown';
+import {
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+} from 'recharts';
 import { Footer } from '@/components/layout/Footer';
 import AdminDashboard from '@/app/admin/AdminDashboard';
 import {
@@ -24,6 +33,8 @@ import {
   Siren,
   RefreshCw,
   X,
+  Search,
+  TrendingUp,
 } from 'lucide-react';
 
 /**
@@ -231,12 +242,30 @@ export interface TrafficSlice {
   value: number;
 }
 
+export interface NaverBuzzItem {
+  label: string;
+  /** 블로그 총 검색 결과 수 (누적) — 스냅샷이 아직 없으면 null */
+  total: number | null;
+  /** 최근 7일 신규 포스트 수 — 7일 전 기준 스냅샷이 없으면 null */
+  weekDelta: number | null;
+}
+
+export interface NaverData {
+  hasData: boolean;
+  /** 최근 90일 일간 상대 검색 지수 (구간 최댓값=100, 임계치 미만 날짜는 0) */
+  series: { date: string; brand: number; category: number }[];
+  brand: StatCard;
+  category: StatCard;
+  buzz: NaverBuzzItem[];
+}
+
 export interface ChannelsData {
   sources: SourceState[];
   alerts: AlertItem[];
   funnel: { discovery: StatCard; witness: StatCard; relation: StatCard; invite: StatCard };
   kpi: { igSaved: StatCard; igShares: StatCard; blogSessions: StatCard };
   traffic: { channelGroups: TrafficSlice[]; referrers: TrafficSlice[]; selfReported: TrafficSlice[] };
+  naver: NaverData;
   report: {
     week_start: string;
     generated_at: string;
@@ -321,6 +350,7 @@ const SOURCE_ICONS: Record<string, React.ReactNode> = {
   vercel: <Globe className="w-3.5 h-3.5 sm:w-4 sm:h-4" />,
   ig_graph: <Instagram className="w-3.5 h-3.5 sm:w-4 sm:h-4" />,
   gsc: <Database className="w-3.5 h-3.5 sm:w-4 sm:h-4" />,
+  naver_openapi: <Search className="w-3.5 h-3.5 sm:w-4 sm:h-4" />,
 };
 
 // 유입 소스 가로 바 리스트 (라벨 · 비중 바 · 값)
@@ -383,8 +413,195 @@ function TrafficList({
   );
 }
 
+/** 네이버 트렌드 차트 툴팁 — 다크 글래스 스타일 */
+function NaverTooltip({
+  active,
+  payload,
+  label,
+}: {
+  active?: boolean;
+  payload?: { name?: string; value?: number | string; color?: string }[];
+  label?: string;
+}) {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="rounded-lg border border-white/10 bg-[#0d1525]/95 px-3 py-2 text-[11px] shadow-xl backdrop-blur-sm">
+      <p className="text-white/50 mb-1">{label}</p>
+      {payload.map((p) => (
+        <p key={p.name} style={{ color: p.color }}>
+          {p.name} · {Number(p.value).toFixed(1)}
+        </p>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * 네이버 검색 인텔리전스 — 브랜드(뮤즈드마레) vs 카테고리(해저숙성) 검색 추이와 블로그 버즈.
+ * 데이터랩 ratio는 상댓값(구간 최댓값=100)이고, 값이 없는 날은 집계 임계치 미만이라 0으로 표시된다.
+ */
+function NaverSection({ naver }: { naver: NaverData }) {
+  const STATS = [
+    { key: 'brand' as const, label: '뮤즈드마레', sub: '브랜드 검색 지수 · 7일 합', color: '#b7916e' },
+    { key: 'category' as const, label: '해저숙성', sub: '카테고리 검색 지수 · 7일 합', color: '#60a5fa' },
+  ];
+
+  return (
+    <section className="px-4 sm:px-6 lg:px-8 mb-6 sm:mb-10">
+      <div className="max-w-6xl mx-auto">
+        <motion.p
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.48 }}
+          className="text-white/40 text-[10px] sm:text-xs uppercase tracking-[0.2em] mb-3 sm:mb-4"
+        >
+          Naver Search · 브랜드 vs 카테고리 · 최근 90일
+        </motion.p>
+
+        {!naver.hasData ? (
+          <motion.div variants={itemVariants} initial="hidden" animate="visible" className="relative rounded-xl sm:rounded-2xl overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-br from-white/[0.04] to-white/[0.01] backdrop-blur-sm" />
+            <div className="absolute inset-0 border border-white/[0.06] rounded-xl sm:rounded-2xl" />
+            <div className="relative py-8 sm:py-10 text-center">
+              <Search className="w-8 h-8 mx-auto mb-3 text-[#03c75a]/40" />
+              <p className="text-white/40 text-xs sm:text-sm font-light">
+                첫 수집 대기 — 상단 &ldquo;지금 갱신&rdquo;을 누르면 네이버 데이터랩·블로그 버즈를 수집합니다
+              </p>
+            </div>
+          </motion.div>
+        ) : (
+          <motion.div
+            variants={containerVariants}
+            initial="hidden"
+            animate="visible"
+            className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-5"
+          >
+            {/* 검색 추이 차트 */}
+            <motion.div variants={itemVariants} className="lg:col-span-2 relative rounded-xl sm:rounded-2xl overflow-hidden">
+              <div className="absolute inset-0 bg-gradient-to-br from-white/[0.04] to-white/[0.01] backdrop-blur-sm" />
+              <div className="absolute inset-0 border border-white/[0.06] rounded-xl sm:rounded-2xl" />
+              <div className="relative p-4 sm:p-6">
+                <div className="flex items-center justify-between gap-2 mb-4 sm:mb-5 flex-wrap">
+                  <div className="flex items-center gap-2 sm:gap-3">
+                    <div className="p-1.5 sm:p-2.5 rounded-lg sm:rounded-xl bg-white/[0.04] border border-white/[0.06] text-[#03c75a] [&>svg]:w-3.5 [&>svg]:h-3.5 sm:[&>svg]:w-5 sm:[&>svg]:h-5">
+                      <Search />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-[11px] sm:text-sm font-medium text-white/70">검색 관심도 추이 (데이터랩)</p>
+                      <p className="text-[9px] sm:text-[11px] text-white/25">일간 상대 지수 · 구간 최댓값=100 · 0은 집계 임계치 미만</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 text-[10px] sm:text-[11px]">
+                    {STATS.map((s) => (
+                      <span key={s.key} className="flex items-center gap-1.5 text-white/50">
+                        <span className="w-2 h-2 rounded-full" style={{ backgroundColor: s.color }} />
+                        {s.label}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="h-52 sm:h-64">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={naver.series} margin={{ top: 4, right: 4, left: -18, bottom: 0 }}>
+                      <defs>
+                        <linearGradient id="naverCategoryFill" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#60a5fa" stopOpacity={0.25} />
+                          <stop offset="100%" stopColor="#60a5fa" stopOpacity={0.02} />
+                        </linearGradient>
+                        <linearGradient id="naverBrandFill" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#b7916e" stopOpacity={0.35} />
+                          <stop offset="100%" stopColor="#b7916e" stopOpacity={0.02} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="2 6" stroke="#ffffff0a" vertical={false} />
+                      <XAxis
+                        dataKey="date"
+                        tickLine={false}
+                        axisLine={false}
+                        tickMargin={8}
+                        minTickGap={28}
+                        tick={{ fill: '#ffffff45', fontSize: 10 }}
+                        tickFormatter={(d: string) => d.slice(5).replace('-', '.')}
+                      />
+                      <YAxis tickLine={false} axisLine={false} tickMargin={4} tick={{ fill: '#ffffff45', fontSize: 10 }} />
+                      <Tooltip content={<NaverTooltip />} />
+                      <Area type="monotone" dataKey="category" name="해저숙성" stroke="#60a5fa" strokeWidth={1.5} fill="url(#naverCategoryFill)" />
+                      <Area type="monotone" dataKey="brand" name="뮤즈드마레" stroke="#b7916e" strokeWidth={1.75} fill="url(#naverBrandFill)" />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            </motion.div>
+
+            {/* 검색 지수 카드 + 블로그 버즈 */}
+            <motion.div variants={itemVariants} className="flex flex-col gap-3 sm:gap-5">
+              <div className="grid grid-cols-2 gap-3 sm:gap-5">
+                {STATS.map((s) => {
+                  const stat = naver[s.key];
+                  return (
+                    <div key={s.key} className="relative rounded-xl sm:rounded-2xl overflow-hidden">
+                      <div className="absolute inset-0 bg-gradient-to-br from-white/[0.04] to-white/[0.01] backdrop-blur-sm" />
+                      <div className="absolute inset-0 border border-white/[0.06] rounded-xl sm:rounded-2xl" />
+                      <div className="relative p-3 sm:p-4">
+                        <div className="flex items-center gap-1.5 mb-2">
+                          <TrendingUp className="w-3 h-3" style={{ color: s.color }} />
+                          <p className="text-[10px] sm:text-xs text-white/50 truncate">{s.label}</p>
+                        </div>
+                        <p
+                          className="text-lg sm:text-2xl text-white/90 mb-0.5"
+                          style={{ fontFamily: "var(--font-cormorant), 'Playfair Display', Georgia, serif" }}
+                        >
+                          {stat.cur.toLocaleString()}
+                        </p>
+                        {/* 수집은 됐지만 값이 0인 주간은 "수집 전"이 아니라 임계치 미만이다 */}
+                        {stat.cur === 0 && stat.prev === 0 ? (
+                          <span className="text-[10px] sm:text-xs text-white/25">7일 내 집계 없음</span>
+                        ) : (
+                          <Delta {...stat} />
+                        )}
+                        <p className="text-[9px] text-white/25 mt-1 hidden sm:block">{s.sub}</p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="relative rounded-xl sm:rounded-2xl overflow-hidden flex-1">
+                <div className="absolute inset-0 bg-gradient-to-br from-white/[0.04] to-white/[0.01] backdrop-blur-sm" />
+                <div className="absolute inset-0 border border-white/[0.06] rounded-xl sm:rounded-2xl" />
+                <div className="relative p-4 sm:p-5">
+                  <p className="text-[11px] sm:text-sm font-medium text-white/70 mb-1">블로그 버즈</p>
+                  <p className="text-[9px] sm:text-[11px] text-white/25 mb-3 sm:mb-4">키워드 언급 포스트 누적 · 최근 7일 신규</p>
+                  <div className="space-y-2.5 sm:space-y-3">
+                    {naver.buzz.map((b) => (
+                      <div key={b.label} className="flex items-center justify-between gap-2">
+                        <span className="text-[11px] sm:text-xs text-white/60 truncate">{b.label}</span>
+                        <span className="shrink-0 tabular-nums text-right">
+                          <span className="text-[12px] sm:text-sm text-white/85">{b.total === null ? '—' : b.total.toLocaleString()}</span>
+                          <span
+                            className={`ml-2 text-[10px] sm:text-[11px] ${
+                              b.weekDelta === null ? 'text-white/25' : b.weekDelta > 0 ? 'text-emerald-400' : 'text-white/35'
+                            }`}
+                          >
+                            {b.weekDelta === null ? '기준 수집 중' : `+${b.weekDelta.toLocaleString()} · 7일`}
+                          </span>
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </div>
+    </section>
+  );
+}
+
 export function ChannelsDashboard({ data }: { data: ChannelsData }) {
-  const { sources, alerts, funnel, kpi, traffic, report, hasData, admin } = data;
+  const { sources, alerts, funnel, kpi, traffic, naver, report, hasData, admin } = data;
 
   return (
     <div className="min-h-screen pb-20">
@@ -677,6 +894,9 @@ export function ChannelsDashboard({ data }: { data: ChannelsData }) {
           </motion.div>
         </div>
       </section>
+
+      {/* 네이버 검색 인텔리전스 — 브랜드 vs 카테고리 검색 추이 + 블로그 버즈 */}
+      <NaverSection naver={naver} />
 
       {/* AI 주간 리포트 */}
       <section className="px-4 sm:px-6 lg:px-8">

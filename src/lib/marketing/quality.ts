@@ -4,18 +4,19 @@ import { isGa4Configured } from '@/lib/marketing/ga4';
 import { isVercelConfigured } from '@/lib/marketing/vercel-analytics';
 import { isInstagramConfigured } from '@/lib/marketing/instagram';
 import { isGscConfigured } from '@/lib/marketing/gsc';
+import { isNaverConfigured } from '@/lib/marketing/naver';
 import { kstDaysAgo } from '@/lib/marketing/store';
 
 /**
  * 데이터 품질 게이트 (Tier 2-1) — 모든 분석의 0번 단계
  *
  * 소스별 마지막 적재일을 확인해 "신선도"를 판정한다.
- * 4개 소스 중 하나만 배치가 조용히 실패해도 주간 리포트 전체가 오염되므로,
+ * 소스 하나만 배치가 조용히 실패해도 주간 리포트 전체가 오염되므로,
  * 리포트 생성 전에 반드시 이 게이트를 통과시키고 실패 소스는 "신뢰 저하"로 표기한다.
  */
 
 export interface SourceFreshness {
-  source: 'ga4' | 'vercel' | 'ig_graph' | 'gsc';
+  source: 'ga4' | 'vercel' | 'ig_graph' | 'gsc' | 'naver_openapi';
   name: string;
   configured: boolean;
   lastDate: string | null;
@@ -32,6 +33,7 @@ const SOURCE_SPECS: { source: SourceFreshness['source']; name: string; maxLagDay
   { source: 'vercel', name: 'Vercel', maxLagDays: 2, isConfigured: isVercelConfigured },
   { source: 'ig_graph', name: 'Instagram', maxLagDays: 2, isConfigured: isInstagramConfigured },
   { source: 'gsc', name: 'Search Console', maxLagDays: 5, isConfigured: isGscConfigured },
+  { source: 'naver_openapi', name: 'Naver', maxLagDays: 2, isConfigured: isNaverConfigured },
 ];
 
 function daysBetween(from: string, to: string): number {
