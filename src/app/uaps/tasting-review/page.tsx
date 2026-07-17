@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useMemo, useState, useCallback, Suspense } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { ArrowLeft, Check, X, Loader2, Inbox, Link2, AlertTriangle } from 'lucide-react';
 import { PRODUCTS } from '@/lib/types';
 import type { AgingProduct, TastingSubmission, TastingSubmissionStatus } from '@/lib/types/uaps';
@@ -29,12 +30,122 @@ const TABS: { value: TastingSubmissionStatus; label: string }[] = [
   { value: 'rejected', label: '거부됨' },
 ];
 
-export default function TastingReviewPage() {
+interface ProductGroup {
+  id: string;
+  name: string;
+  category: string | null;
+  linked: boolean;
+  items: TastingSubmission[];
+}
+
+function SubmissionCard({
+  s,
+  pending,
+  busy,
+  onApprove,
+  onReject,
+}: {
+  s: TastingSubmission;
+  pending: boolean;
+  busy: boolean;
+  onApprove: () => void;
+  onReject: () => void;
+}) {
+  return (
+    <div className="rounded-2xl border border-white/[0.08] bg-white/[0.015] p-5">
+      {/* 헤더 */}
+      <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
+        <div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-sm font-medium text-white/85">{s.recorderName}</span>
+            {s.recorderAffiliation && (
+              <span className="text-[11px] text-white/35">· {s.recorderAffiliation}</span>
+            )}
+          </div>
+          <p className="text-[11px] text-white/35 mt-0.5 flex items-center gap-x-1.5 gap-y-1 flex-wrap">
+            <span className="inline-flex items-center gap-1">
+              {s.productLinked ? (
+                <Link2 className="w-3 h-3 shrink-0" style={{ color: `${GOLD}cc` }} aria-label="제품 연결됨" />
+              ) : (
+                <AlertTriangle className="w-3 h-3 shrink-0 text-amber-400/90" aria-hidden />
+              )}
+              <span className={s.productLinked ? 'text-white/55' : 'text-amber-300/80'}>
+                {s.productName ?? productName(s.productId)}
+              </span>
+            </span>
+            {!s.productLinked && (
+              <span
+                className="inline-flex items-center px-1.5 py-px rounded border border-amber-500/30 bg-amber-500/[0.07] text-amber-300/80 text-[10px] leading-relaxed"
+                title="product_id가 제품 DB(aging_products)에 없습니다. 승인해도 제품·카테고리에 연결되지 않는 고아 데이터가 됩니다."
+              >
+                제품 미연결
+              </span>
+            )}
+            <span>
+              · 패널 {s.tastingPanelSize}명
+              {s.retrievalDate && ` · ${s.retrievalDate}`}
+              {s.actualDurationMonths != null && ` · ${s.actualDurationMonths}개월`}
+            </span>
+          </p>
+        </div>
+        {pending && (
+          <div className="flex gap-2">
+            <button onClick={onApprove} disabled={busy}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs transition-all disabled:opacity-50"
+              style={{ borderColor: `${GOLD}40`, color: GOLD, backgroundColor: `${GOLD}0c` }}>
+              {busy ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
+              승인
+            </button>
+            <button onClick={onReject} disabled={busy}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-white/15 text-white/45 text-xs hover:text-white/70 hover:border-white/25 transition-all disabled:opacity-50">
+              <X className="w-3 h-3" />거부
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* 6축 비교 */}
+      <div className="rounded-xl border border-white/[0.06] overflow-hidden">
+        <div className="grid grid-cols-[1fr_auto_auto] gap-x-4 px-3 py-1.5 bg-white/[0.02] border-b border-white/[0.06]">
+          <span className="text-[9px] font-mono text-white/25 uppercase tracking-widest">풍미 축</span>
+          <span className="text-[9px] font-mono text-white/25 uppercase tracking-widest w-12 text-right" style={{ color: `${GOLD}99` }}>해저</span>
+          <span className="text-[9px] font-mono text-white/25 uppercase tracking-widest w-12 text-right">지상</span>
+        </div>
+        {getFlavorAxes(s.productCategory).map((axis, i) => {
+          const a = AXES[i];
+          const u = s[a.key] as number | null;
+          const t = s[a.tKey] as number | null;
+          return (
+            <div key={a.key} className="grid grid-cols-[1fr_auto_auto] gap-x-4 px-3 py-1.5 border-b border-white/[0.03] last:border-0 items-center">
+              <span className="text-[12px] text-white/50">{axis.label}</span>
+              <span className="text-[12px] font-mono w-12 text-right tabular-nums" style={{ color: GOLD }}>{u ?? '—'}</span>
+              <span className="text-[12px] font-mono text-white/45 w-12 text-right tabular-nums">{t ?? '—'}</span>
+            </div>
+          );
+        })}
+        <div className="grid grid-cols-[1fr_auto_auto] gap-x-4 px-3 py-1.5 bg-white/[0.02] items-center">
+          <span className="text-[12px] text-white/70 font-medium">종합 선호도</span>
+          <span className="text-[12px] font-mono w-12 text-right tabular-nums font-semibold" style={{ color: GOLD }}>{s.actualOverallQuality ?? '—'}</span>
+          <span className="text-[12px] font-mono text-white/55 w-12 text-right tabular-nums font-semibold">{s.terrestrialOverallQuality ?? '—'}</span>
+        </div>
+      </div>
+
+      {s.tastingNotes && (
+        <p className="text-[12px] text-white/45 leading-relaxed mt-3 whitespace-pre-wrap">{s.tastingNotes}</p>
+      )}
+    </div>
+  );
+}
+
+function TastingReview() {
+  const searchParams = useSearchParams();
   const [tab, setTab] = useState<TastingSubmissionStatus>('pending');
   const [list, setList] = useState<TastingSubmission[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [busyId, setBusyId] = useState<string | null>(null);
+  // 제품 필터 — 대시보드에서 제품을 선택한 채 넘어오면 그 제품만 보인다 (?product=)
+  const [productFilter, setProductFilter] = useState<string>(searchParams.get('product') ?? 'all');
 
   // 제품 미연결 제출 승인용 — 카테고리·제품 선택 모달
   const [linkTarget, setLinkTarget] = useState<TastingSubmission | null>(null);
@@ -64,6 +175,29 @@ export default function TastingReviewPage() {
   }, []);
 
   useEffect(() => { load(tab); }, [tab, load]);
+
+  // 제품별 그룹 — 현재 탭 목록에서 파생 (제출 순서 유지)
+  const groups = useMemo<ProductGroup[]>(() => {
+    const map = new Map<string, ProductGroup>();
+    for (const s of list) {
+      let g = map.get(s.productId);
+      if (!g) {
+        g = {
+          id: s.productId,
+          name: s.productName ?? productName(s.productId),
+          category: s.productCategory ?? null,
+          linked: s.productLinked !== false,
+          items: [],
+        };
+        map.set(s.productId, g);
+      }
+      g.items.push(s);
+    }
+    return [...map.values()];
+  }, [list]);
+
+  const visibleGroups = productFilter === 'all' ? groups : groups.filter(g => g.id === productFilter);
+  const tabLabel = TABS.find(t => t.value === tab)?.label ?? '';
 
   async function act(id: string, action: 'approve' | 'reject', productId?: string) {
     setBusyId(id);
@@ -129,7 +263,7 @@ export default function TastingReviewPage() {
 
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-12">
         {/* 탭 */}
-        <div className="flex gap-1 rounded-xl bg-white/[0.03] border border-white/[0.06] p-1 mb-6 w-fit">
+        <div className="flex gap-1 rounded-xl bg-white/[0.03] border border-white/[0.06] p-1 mb-4 w-fit">
           {TABS.map(t => (
             <button key={t.value} onClick={() => setTab(t.value)}
               className={`px-4 py-1.5 rounded-lg text-xs font-medium transition-all ${
@@ -139,6 +273,36 @@ export default function TastingReviewPage() {
             </button>
           ))}
         </div>
+
+        {/* 제품 필터 — 어느 제품의 제출인지 섞이지 않게 나눠 본다 */}
+        {!loading && groups.length > 0 && (
+          <div className="flex gap-1.5 flex-wrap mb-6">
+            <button
+              onClick={() => setProductFilter('all')}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs transition-all"
+              style={productFilter === 'all'
+                ? { borderColor: `${GOLD}40`, color: GOLD, backgroundColor: `${GOLD}0c` }
+                : { borderColor: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.4)' }}
+            >
+              전체
+              <span className="font-mono tabular-nums opacity-70">{list.length}</span>
+            </button>
+            {groups.map(g => (
+              <button
+                key={g.id}
+                onClick={() => setProductFilter(g.id)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs transition-all max-w-[240px]"
+                style={productFilter === g.id
+                  ? { borderColor: `${GOLD}40`, color: GOLD, backgroundColor: `${GOLD}0c` }
+                  : { borderColor: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.4)' }}
+              >
+                {!g.linked && <AlertTriangle className="w-3 h-3 shrink-0 text-amber-400/90" aria-hidden />}
+                <span className="truncate">{g.name}</span>
+                <span className="font-mono tabular-nums opacity-70 shrink-0">{g.items.length}</span>
+              </button>
+            ))}
+          </div>
+        )}
 
         {error && (
           <div className="rounded-xl border border-red-500/15 bg-red-500/[0.04] px-4 py-3 mb-4">
@@ -155,91 +319,51 @@ export default function TastingReviewPage() {
             <Inbox className="w-8 h-8 mb-3" />
             <p className="text-sm">{tab === 'pending' ? '대기 중인 제출이 없습니다.' : '항목이 없습니다.'}</p>
           </div>
+        ) : visibleGroups.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20 text-white/25">
+            <Inbox className="w-8 h-8 mb-3" />
+            <p className="text-sm mb-4">선택한 제품의 {tabLabel} 제출이 없습니다.</p>
+            <button
+              onClick={() => setProductFilter('all')}
+              className="px-4 py-1.5 rounded-full border border-white/15 text-white/45 text-xs hover:text-white/70 hover:border-white/25 transition-all"
+            >
+              전체 보기
+            </button>
+          </div>
         ) : (
-          <div className="space-y-3">
-            {list.map(s => (
-              <div key={s.id} className="rounded-2xl border border-white/[0.08] bg-white/[0.015] p-5">
-                {/* 헤더 */}
-                <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
-                  <div>
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-sm font-medium text-white/85">{s.recorderName}</span>
-                      {s.recorderAffiliation && (
-                        <span className="text-[11px] text-white/35">· {s.recorderAffiliation}</span>
-                      )}
-                    </div>
-                    <p className="text-[11px] text-white/35 mt-0.5 flex items-center gap-x-1.5 gap-y-1 flex-wrap">
-                      <span className="inline-flex items-center gap-1">
-                        {s.productLinked ? (
-                          <Link2 className="w-3 h-3 shrink-0" style={{ color: `${GOLD}cc` }} aria-label="제품 연결됨" />
-                        ) : (
-                          <AlertTriangle className="w-3 h-3 shrink-0 text-amber-400/90" aria-hidden />
-                        )}
-                        <span className={s.productLinked ? 'text-white/55' : 'text-amber-300/80'}>
-                          {s.productName ?? productName(s.productId)}
-                        </span>
-                      </span>
-                      {!s.productLinked && (
-                        <span
-                          className="inline-flex items-center px-1.5 py-px rounded border border-amber-500/30 bg-amber-500/[0.07] text-amber-300/80 text-[10px] leading-relaxed"
-                          title="product_id가 제품 DB(aging_products)에 없습니다. 승인해도 제품·카테고리에 연결되지 않는 고아 데이터가 됩니다."
-                        >
-                          제품 미연결
-                        </span>
-                      )}
-                      <span>
-                        · 패널 {s.tastingPanelSize}명
-                        {s.retrievalDate && ` · ${s.retrievalDate}`}
-                        {s.actualDurationMonths != null && ` · ${s.actualDurationMonths}개월`}
-                      </span>
-                    </p>
-                  </div>
-                  {tab === 'pending' && (
-                    <div className="flex gap-2">
-                      <button onClick={() => (s.productLinked === false ? openLinkModal(s) : act(s.id, 'approve'))} disabled={busyId === s.id}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs transition-all disabled:opacity-50"
-                        style={{ borderColor: `${GOLD}40`, color: GOLD, backgroundColor: `${GOLD}0c` }}>
-                        {busyId === s.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
-                        승인
-                      </button>
-                      <button onClick={() => act(s.id, 'reject')} disabled={busyId === s.id}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-white/15 text-white/45 text-xs hover:text-white/70 hover:border-white/25 transition-all disabled:opacity-50">
-                        <X className="w-3 h-3" />거부
-                      </button>
-                    </div>
+          <div className="space-y-8">
+            {visibleGroups.map(g => (
+              <section key={g.id}>
+                {/* 제품 그룹 헤더 */}
+                <div className="flex items-baseline gap-2.5 flex-wrap mb-3 pb-2 border-b border-white/[0.06]">
+                  {g.category && (
+                    <span className="text-[9px] font-mono text-white/25 uppercase tracking-widest">
+                      {categoryLabel(g.category)}
+                    </span>
+                  )}
+                  <h2 className="text-lg text-white/80 font-light leading-tight" style={{ fontFamily: 'Cormorant Garamond, serif' }}>
+                    {g.name}
+                  </h2>
+                  <span className="text-[11px] text-white/30 font-mono tabular-nums">{g.items.length}건</span>
+                  {!g.linked && (
+                    <span className="inline-flex items-center gap-1 px-1.5 py-px rounded border border-amber-500/30 bg-amber-500/[0.07] text-amber-300/80 text-[10px]">
+                      <AlertTriangle className="w-3 h-3" aria-hidden />제품 미연결
+                    </span>
                   )}
                 </div>
-
-                {/* 6축 비교 */}
-                <div className="rounded-xl border border-white/[0.06] overflow-hidden">
-                  <div className="grid grid-cols-[1fr_auto_auto] gap-x-4 px-3 py-1.5 bg-white/[0.02] border-b border-white/[0.06]">
-                    <span className="text-[9px] font-mono text-white/25 uppercase tracking-widest">풍미 축</span>
-                    <span className="text-[9px] font-mono text-white/25 uppercase tracking-widest w-12 text-right" style={{ color: `${GOLD}99` }}>해저</span>
-                    <span className="text-[9px] font-mono text-white/25 uppercase tracking-widest w-12 text-right">지상</span>
-                  </div>
-                  {getFlavorAxes(s.productCategory).map((axis, i) => {
-                    const a = AXES[i];
-                    const u = s[a.key] as number | null;
-                    const t = s[a.tKey] as number | null;
-                    return (
-                      <div key={a.key} className="grid grid-cols-[1fr_auto_auto] gap-x-4 px-3 py-1.5 border-b border-white/[0.03] last:border-0 items-center">
-                        <span className="text-[12px] text-white/50">{axis.label}</span>
-                        <span className="text-[12px] font-mono w-12 text-right tabular-nums" style={{ color: GOLD }}>{u ?? '—'}</span>
-                        <span className="text-[12px] font-mono text-white/45 w-12 text-right tabular-nums">{t ?? '—'}</span>
-                      </div>
-                    );
-                  })}
-                  <div className="grid grid-cols-[1fr_auto_auto] gap-x-4 px-3 py-1.5 bg-white/[0.02] items-center">
-                    <span className="text-[12px] text-white/70 font-medium">종합 선호도</span>
-                    <span className="text-[12px] font-mono w-12 text-right tabular-nums font-semibold" style={{ color: GOLD }}>{s.actualOverallQuality ?? '—'}</span>
-                    <span className="text-[12px] font-mono text-white/55 w-12 text-right tabular-nums font-semibold">{s.terrestrialOverallQuality ?? '—'}</span>
-                  </div>
+                <div className="space-y-3">
+                  {g.items.map(s => (
+                    <SubmissionCard
+                      key={s.id}
+                      s={s}
+                      pending={tab === 'pending'}
+                      busy={busyId === s.id}
+                      onApprove={() => (s.productLinked === false ? openLinkModal(s) : act(s.id, 'approve'))}
+                      onReject={() => act(s.id, 'reject')}
+                    />
+                  ))}
                 </div>
-
-                {s.tastingNotes && (
-                  <p className="text-[12px] text-white/45 leading-relaxed mt-3 whitespace-pre-wrap">{s.tastingNotes}</p>
-                )}
-              </div>
+              </section>
             ))}
           </div>
         )}
@@ -331,5 +455,14 @@ export default function TastingReviewPage() {
         </div>
       )}
     </main>
+  );
+}
+
+export default function TastingReviewPage() {
+  // useSearchParams는 Suspense 경계가 필요하다 (?product= 진입 필터)
+  return (
+    <Suspense fallback={<main className="min-h-screen bg-[#0a0b0d]" />}>
+      <TastingReview />
+    </Suspense>
   );
 }

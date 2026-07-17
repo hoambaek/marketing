@@ -837,20 +837,24 @@ export default function CategoryUAPSPage() {
                         setLinkCopied(true);
                         setTimeout(() => setLinkCopied(false), 2000);
                       } catch {
-                        window.prompt('기록자에게 전달할 링크', `${window.location.origin}/tasting/${latestPrediction.id}`);
+                        window.prompt(`'${selectedProduct.productName}' 기록자에게 전달할 링크`, `${window.location.origin}/tasting/${latestPrediction.id}`);
                       }
                     }}
                     disabled={!latestPrediction}
                     className="flex items-center gap-1.5 bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 rounded-lg px-3 py-2 sm:py-1.5 text-xs font-medium text-emerald-400 transition-all disabled:opacity-30 shrink-0"
-                    title={!latestPrediction ? '예측을 먼저 실행하세요' : '외부 기록자용 공개 입력 링크 복사'}
+                    title={!latestPrediction ? '예측을 먼저 실행하세요' : `'${selectedProduct.productName}' 전용 시음 입력 링크 복사 — 이 링크로 제출된 기록은 이 제품에 연결됩니다`}
                   >
                     {linkCopied ? <Check className="w-3 h-3" /> : <Link2 className="w-3 h-3" />}
-                    {linkCopied ? '복사됨' : '시음 기록 링크'}
+                    {linkCopied ? (
+                      <span className="inline-flex items-center gap-1">
+                        복사됨<span className="max-w-[140px] truncate opacity-70">· {selectedProduct.productName}</span>
+                      </span>
+                    ) : '시음 기록 링크'}
                   </button>
                   <Link
-                    href="/uaps/tasting-review"
+                    href={`/uaps/tasting-review?product=${selectedProductId}`}
                     className="flex items-center gap-1.5 bg-white/[0.04] hover:bg-white/[0.08] border border-white/15 hover:border-white/25 rounded-lg px-3 py-2 sm:py-1.5 text-xs font-medium text-white/50 hover:text-white/80 transition-all shrink-0"
-                    title="시음 기록 링크로 받은 평가 승인/거부"
+                    title={`'${selectedProduct.productName}'로 제출된 평가만 필터해서 검토`}
                   >
                     <Inbox className="w-3 h-3" />
                     제출 검토
