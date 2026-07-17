@@ -77,14 +77,17 @@ interface OceanDataState {
   setSelectedDate: (date: string | null) => void;
   setAgingDepth: (depth: number) => void;
 
-  fetchOceanData: (view?: OceanDataView) => Promise<void>;
+  fetchOceanData: (
+    view?: OceanDataView,
+    range?: { startDate: string; endDate: string }
+  ) => Promise<void>;
   fetchCurrentConditions: () => Promise<void>;
   loadSalinityRecords: () => Promise<void>;
   loadHistoricalOceanStats: () => Promise<void>;
 
   addSalinityRecord: (salinity: number, depth?: number, notes?: string) => Promise<void>;
   updateDailySalinity: (date: string, salinity: number) => Promise<void>;
-  saveDataToSupabase: () => Promise<void>;
+  saveDataToSupabase: (rows: OceanDataDaily[]) => Promise<void>;
 
   clearError: () => void;
 }
@@ -111,8 +114,8 @@ export const useOceanDataStore = create<OceanDataState>((set, get) => ({
 
   // Actions
   setCurrentView: (view) => {
+    // fetch는 페이지의 useEffect가 기간(range)과 함께 트리거한다
     set({ currentView: view });
-    get().fetchOceanData(view);
   },
 
   setSelectedDate: (date) => set({ selectedDate: date }),
@@ -131,24 +134,44 @@ export const useOceanDataStore = create<OceanDataState>((set, get) => ({
     }
   },
 
-  fetchOceanData: async (view) => {
+  fetchOceanData: async (view, range) => {
     const currentView = view || get().currentView;
     set({ isLoading: true, error: null });
 
     try {
-      const { startDate, endDate } = getDateRange(currentView);
+      const { startDate, endDate } = range ?? getDateRange(currentView);
 
-      // Fetch from Open-Meteo API
-      const response = await fetch(
-        `/api/ocean-data?start_date=${startDate}&end_date=${endDate}`
-      );
+      // Open-Meteo forecast 엔드포인트는 최근 ~92일까지만 응답하므로 API 요청 구간을
+      // 최근 90일로 클램프하고, 그 밖의 과거 구간은 Supabase 백필 데이터(2025-01-01~)로 채운다
+      const todayStr = new Date().toISOString().split('T')[0];
+      const apiLimitDate = new Date();
+      apiLimitDate.setDate(apiLimitDate.getDate() - 90);
+      const apiEarliest = apiLimitDate.toISOString().split('T')[0];
+      const apiStart = startDate > apiEarliest ? startDate : apiEarliest;
+      const apiEnd = endDate < todayStr ? endDate : todayStr;
+      const useApi = apiStart <= apiEnd;
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to fetch ocean data');
+      // Supabase 저장 데이터: KHOA 필드(염분·조위·조류) 보존 + API 미지원 과거 구간의 소스
+      const { useSupabase, agingDepth } = get();
+      let savedRows: OceanDataDaily[] = [];
+      if (useSupabase) {
+        savedRows = (await fetchOceanDataDaily(startDate, endDate)) ?? [];
       }
 
-      const data = await response.json();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let data: any = {};
+      if (useApi) {
+        const response = await fetch(
+          `/api/ocean-data?start_date=${apiStart}&end_date=${apiEnd}`
+        );
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Failed to fetch ocean data');
+        }
+
+        data = await response.json();
+      }
 
       // Process hourly data
       const hourlyData: OceanDataHourly[] = [];
@@ -178,18 +201,11 @@ export const useOceanDataStore = create<OceanDataState>((set, get) => ({
         dailyMap.set(date, existing);
       }
 
-      // Load existing data from Supabase to preserve KHOA fields (salinity, tide, current)
-      const { useSupabase } = get();
+      // Supabase 기존 데이터 맵 (KHOA 필드 폴백용)
       const existingDataMap = new Map<string, OceanDataDaily>();
-
-      if (useSupabase) {
-        const savedData = await fetchOceanDataDaily(startDate, endDate);
-        if (savedData) {
-          savedData.forEach((d) => {
-            existingDataMap.set(d.date, d);
-          });
-        }
-      }
+      savedRows.forEach((d) => {
+        existingDataMap.set(d.date, d);
+      });
 
       // KHOA 데이터 일별 집계 준비
       interface KhoaItem {
@@ -231,7 +247,8 @@ export const useOceanDataStore = create<OceanDataState>((set, get) => ({
       const hasKhoa = khoaItems.length > 0;
 
       const dailyData: OceanDataDaily[] = [];
-      const { agingDepth } = get();
+      // DB 저장용 (수온은 표층값 유지 — 저장은 표층, 40m 보정은 읽는 쪽 규약)
+      const persistRows: OceanDataDaily[] = [];
 
       dailyMap.forEach((hours, date) => {
         const seaTemps = hours.map((h) => h.seaTemperature);
@@ -325,7 +342,7 @@ export const useOceanDataStore = create<OceanDataState>((set, get) => ({
           dataSource = tempStats.avg !== null ? 'hybrid' : 'khoa';
         }
 
-        dailyData.push({
+        const displayRow: OceanDataDaily = {
           id: `local-${date}`,
           date,
           seaTemperatureAvg: finalTempAvg,
@@ -349,17 +366,47 @@ export const useOceanDataStore = create<OceanDataState>((set, get) => ({
           depth: agingDepth,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
+        };
+        dailyData.push(displayRow);
+        persistRows.push({
+          ...displayRow,
+          seaTemperatureAvg: surfaceTempAvg,
+          seaTemperatureMin: surfaceTempMin,
+          seaTemperatureMax: surfaceTempMax,
         });
       });
+
+      // API가 못 채운 과거 날짜는 Supabase 백필 행으로 채움
+      // (DB에는 표층 수온이 저장돼 있으므로 표시 시 40m 보정 적용)
+      const apiDates = new Set(dailyData.map((d) => d.date));
+      for (const row of savedRows) {
+        if (apiDates.has(row.date)) continue;
+        const month = parseInt(row.date.split('-')[1], 10) || 1;
+        dailyData.push({
+          ...row,
+          seaTemperatureAvg:
+            row.seaTemperatureAvg !== null
+              ? estimateBottomTemperature(row.seaTemperatureAvg, 40, month)
+              : null,
+          seaTemperatureMin:
+            row.seaTemperatureMin !== null
+              ? estimateBottomTemperature(row.seaTemperatureMin, 40, month)
+              : null,
+          seaTemperatureMax:
+            row.seaTemperatureMax !== null
+              ? estimateBottomTemperature(row.seaTemperatureMax, 40, month)
+              : null,
+        });
+      }
 
       // Sort by date descending
       dailyData.sort((a, b) => b.date.localeCompare(a.date));
 
       set({ hourlyData, dailyData, isLoading: false });
 
-      // Auto-save to Supabase in background
-      if (useSupabase && dailyData.length > 0) {
-        get().saveDataToSupabase();
+      // 새로 수집한 API 구간만 백그라운드 저장 (과거 구간 재저장 방지)
+      if (useSupabase && persistRows.length > 0) {
+        get().saveDataToSupabase(persistRows);
       }
     } catch (error) {
       storeLogger.error('Error fetching ocean data:', error);
@@ -558,15 +605,16 @@ export const useOceanDataStore = create<OceanDataState>((set, get) => ({
     }
   },
 
-  saveDataToSupabase: async () => {
-    const { dailyData, useSupabase } = get();
-    if (!useSupabase || dailyData.length === 0) return;
+  saveDataToSupabase: async (rows) => {
+    const { useSupabase } = get();
+    // 주의: rows의 수온은 표층값이어야 한다 (DB 규약 — 40m 보정값 저장 금지)
+    if (!useSupabase || rows.length === 0) return;
 
     set({ isSaving: true });
 
     try {
       // Save each day's data (upsert to handle existing records)
-      for (const day of dailyData) {
+      for (const day of rows) {
         await upsertOceanDataDaily({
           date: day.date,
           seaTemperatureAvg: day.seaTemperatureAvg,

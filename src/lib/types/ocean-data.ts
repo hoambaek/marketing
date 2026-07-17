@@ -13,7 +13,7 @@ export const WANDO_COORDINATES = {
 export const DEFAULT_AGING_DEPTH = 30;
 
 // 시간 뷰 타입
-export type OceanDataView = 'daily' | 'monthly' | 'full_cycle';
+export type OceanDataView = 'daily' | 'monthly' | 'full_cycle' | 'annual';
 
 // 해양 데이터 (시간별)
 export interface OceanDataHourly {

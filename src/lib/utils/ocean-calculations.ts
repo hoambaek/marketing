@@ -122,7 +122,7 @@ export function formatTimeKR(date: Date | string): string {
 /**
  * Get date range for different view types
  */
-export function getDateRange(view: 'daily' | 'monthly' | 'full_cycle'): {
+export function getDateRange(view: 'daily' | 'monthly' | 'full_cycle' | 'annual'): {
   startDate: string;
   endDate: string;
 } {
@@ -149,6 +149,12 @@ export function getDateRange(view: 'daily' | 'monthly' | 'full_cycle'): {
       const cycleAgo = new Date(now);
       cycleAgo.setDate(cycleAgo.getDate() - 90);
       startDate = cycleAgo.toISOString().split('T')[0];
+      break;
+    case 'annual':
+      // Last 365 days (1년 숙성 주기)
+      const yearAgo = new Date(now);
+      yearAgo.setDate(yearAgo.getDate() - 365);
+      startDate = yearAgo.toISOString().split('T')[0];
       break;
     default:
       startDate = endDate;

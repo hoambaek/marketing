@@ -64,11 +64,20 @@ import {
 } from '@/lib/utils/uaps-live-coefficients';
 
 // View options
-const VIEW_OPTIONS: { value: OceanDataView; label: string; days: string }[] = [
-  { value: 'daily', label: '주간', days: '7일' },
-  { value: 'monthly', label: '월간', days: '30일' },
-  { value: 'full_cycle', label: '숙성주기', days: '90일' },
+const VIEW_OPTIONS: {
+  value: OceanDataView;
+  label: string;
+  days: string;
+  periodDays: number;
+}[] = [
+  { value: 'daily', label: '주간', days: '7일', periodDays: 7 },
+  { value: 'monthly', label: '월간', days: '30일', periodDays: 30 },
+  { value: 'full_cycle', label: '숙성주기', days: '90일', periodDays: 90 },
+  { value: 'annual', label: '1년 주기', days: '365일', periodDays: 365 },
 ];
+
+// Supabase 백필 데이터 시작일 — 이보다 과거로는 이동 불가
+const DATA_START_DATE = '2025-01-01';
 
 // Floating particles component for oceanic atmosphere
 function OceanParticles() {
@@ -414,7 +423,7 @@ export default function DataLogPage() {
   } = useOceanDataStore();
 
   const [showViewDropdown, setShowViewDropdown] = useState(false);
-  // 3개월 단위 기간 오프셋 (0=현재, 1=3개월 전, 2=6개월 전, ...)
+  // 뷰 길이 단위 기간 오프셋 (0=현재, 1=한 구간 전, 2=두 구간 전, ...)
   const [periodOffset, setPeriodOffset] = useState(0);
 
   // 모바일 감지 (차트 YAxis 너비 조정용)
@@ -428,25 +437,40 @@ export default function DataLogPage() {
   const yAxisWidth = isMobile ? 35 : 55;
   const chartFontSize = isMobile ? 9 : 11;
 
-  // 기간 범위 계산
+  const currentViewOption =
+    VIEW_OPTIONS.find((v) => v.value === currentView) ?? VIEW_OPTIONS[2];
+  const periodDays = currentViewOption.periodDays;
+
+  // 기간 범위 계산 (오프셋 단위 = 현재 뷰 길이)
   const periodRange = useMemo(() => {
     const end = new Date();
-    end.setDate(end.getDate() - periodOffset * 90);
+    end.setDate(end.getDate() - periodOffset * periodDays);
     const start = new Date(end);
-    start.setDate(start.getDate() - 90);
+    start.setDate(start.getDate() - periodDays);
+    const fmt = (d: Date) =>
+      `${String(d.getFullYear()).slice(2)}.${d.getMonth() + 1}.${d.getDate()}`;
     return {
       startDate: start.toISOString().split('T')[0],
       endDate: end.toISOString().split('T')[0],
-      label: `${start.toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })} ~ ${end.toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })}`,
+      label: `${fmt(start)} ~ ${fmt(end)}`,
       isLatest: periodOffset === 0,
     };
-  }, [periodOffset]);
+  }, [periodOffset, periodDays]);
 
-  // Initial data fetch
+  // 데이터 시작일(백필 한계) 이전으로는 더 이동 불가
+  const isEarliest = periodRange.startDate <= DATA_START_DATE;
+
+  // Initial fetch + 뷰/기간 변경 시 재조회
+  useEffect(() => {
+    fetchOceanData(currentView, {
+      startDate: periodRange.startDate,
+      endDate: periodRange.endDate,
+    });
+  }, [currentView, periodRange.startDate, periodRange.endDate, fetchOceanData]);
+
   useEffect(() => {
     fetchCurrentConditions();
-    fetchOceanData();
-  }, [fetchCurrentConditions, fetchOceanData]);
+  }, [fetchCurrentConditions]);
 
   // UAPS coefficients calculation
   const uapsCoeffs = useMemo(() => {
@@ -504,7 +528,7 @@ export default function DataLogPage() {
     }));
   }, [dailyData]);
 
-  // 월별 염분 분포 (box plot용) — 최근 8개월
+  // 월별 염분 분포 (box plot용) — 최근 12개월 (연간 뷰 대응)
   const salinityMonthly = useMemo(() => {
     const byMonth: Record<string, number[]> = {};
     for (const d of dailyData) {
@@ -519,7 +543,7 @@ export default function DataLogPage() {
     };
     return Object.keys(byMonth)
       .sort()
-      .slice(-8)
+      .slice(-12)
       .map((m) => {
         const s = [...byMonth[m]].sort((a, b) => a - b);
         const q1 = quantile(s, 0.25);
@@ -538,10 +562,11 @@ export default function DataLogPage() {
 
   const handleRefresh = () => {
     fetchCurrentConditions();
-    fetchOceanData();
+    fetchOceanData(currentView, {
+      startDate: periodRange.startDate,
+      endDate: periodRange.endDate,
+    });
   };
-
-  const currentViewOption = VIEW_OPTIONS.find((v) => v.value === currentView);
 
   // 데이터 소스 상태 표시
   const dataSourceLabel = useMemo(() => {
@@ -679,6 +704,7 @@ export default function DataLogPage() {
                             key={option.value}
                             onClick={() => {
                               setCurrentView(option.value);
+                              setPeriodOffset(0);
                               setShowViewDropdown(false);
                             }}
                             className={`w-full px-4 py-3 text-left text-sm hover:bg-white/5 transition-colors flex justify-between items-center ${
@@ -696,12 +722,13 @@ export default function DataLogPage() {
                   </AnimatePresence>
                 </div>
 
-                {/* Period navigation (3개월 단위 이동) */}
+                {/* Period navigation (뷰 길이 단위 이동) */}
                 <div className="flex items-center gap-1">
                   <button
                     onClick={() => setPeriodOffset((p) => p + 1)}
-                    className="p-2.5 bg-white/5 border border-white/10 rounded-xl hover:bg-white/[0.08] transition-colors"
-                    title="이전 3개월"
+                    disabled={isEarliest}
+                    className="p-2.5 bg-white/5 border border-white/10 rounded-xl hover:bg-white/[0.08] transition-colors disabled:opacity-30"
+                    title={`이전 ${currentViewOption.days}`}
                   >
                     <ChevronLeft className="w-4 h-4 text-white/50" />
                   </button>
@@ -712,7 +739,7 @@ export default function DataLogPage() {
                     onClick={() => setPeriodOffset((p) => Math.max(0, p - 1))}
                     disabled={periodRange.isLatest}
                     className="p-2.5 bg-white/5 border border-white/10 rounded-xl hover:bg-white/[0.08] transition-colors disabled:opacity-30"
-                    title="다음 3개월"
+                    title={`다음 ${currentViewOption.days}`}
                   >
                     <ChevronRight className="w-4 h-4 text-white/50" />
                   </button>
