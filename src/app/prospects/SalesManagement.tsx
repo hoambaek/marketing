@@ -9,24 +9,27 @@
  */
 
 import { useSearchParams, useRouter } from 'next/navigation';
-import { Store, Wine } from 'lucide-react';
+import { Store, Wine, CupSoda } from 'lucide-react';
 import { ProspectsView, type Prospect } from './ProspectsView';
 import { LiquorView, type LiquorCandidate } from './LiquorView';
+import { NonAlcoholView, type NonAlcoholCandidate } from './NonAlcoholView';
 
 export function SalesManagement({
-  prospects, liquors,
+  prospects, liquors, nonalcs,
 }: {
   prospects: Prospect[];
   liquors: LiquorCandidate[];
+  nonalcs: NonAlcoholCandidate[];
 }) {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const tab = searchParams.get('tab') === 'liquor' ? 'liquor' : 'prospects';
+  const tabParam = searchParams.get('tab');
+  const tab = tabParam === 'liquor' ? 'liquor' : tabParam === 'nonalc' ? 'nonalc' : 'prospects';
 
-  const switchTab = (t: 'prospects' | 'liquor') => {
+  const switchTab = (t: 'prospects' | 'liquor' | 'nonalc') => {
     const params = new URLSearchParams(searchParams.toString());
-    if (t === 'liquor') params.set('tab', 'liquor');
-    else params.delete('tab');
+    if (t === 'prospects') params.delete('tab');
+    else params.set('tab', t);
     router.replace(`/prospects?${params.toString()}`, { scroll: false });
   };
 
@@ -42,9 +45,18 @@ export function SalesManagement({
         <TabButton active={tab === 'liquor'} onClick={() => switchTab('liquor')} icon={<Wine className="w-4 h-4" />}>
           전통주 <span className="text-white/40">{liquors.length}</span>
         </TabButton>
+        <TabButton active={tab === 'nonalc'} onClick={() => switchTab('nonalc')} icon={<CupSoda className="w-4 h-4" />}>
+          무알콜 <span className="text-white/40">{nonalcs.length}</span>
+        </TabButton>
       </div>
 
-      {tab === 'prospects' ? <ProspectsView prospects={prospects} /> : <LiquorView liquors={liquors} />}
+      {tab === 'prospects' ? (
+        <ProspectsView prospects={prospects} />
+      ) : tab === 'liquor' ? (
+        <LiquorView liquors={liquors} />
+      ) : (
+        <NonAlcoholView items={nonalcs} />
+      )}
     </div>
   );
 }

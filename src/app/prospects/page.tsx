@@ -12,15 +12,17 @@ import { supabaseAdmin } from '@/lib/supabase/admin';
 import { SalesManagement } from './SalesManagement';
 import type { Prospect } from './ProspectsView';
 import type { LiquorCandidate } from './LiquorView';
+import type { NonAlcoholCandidate } from './NonAlcoholView';
 
 export const dynamic = 'force-dynamic';
 
 export default async function ProspectsPage() {
   let prospects: Prospect[] = [];
   let liquors: LiquorCandidate[] = [];
+  let nonalcs: NonAlcoholCandidate[] = [];
 
   if (supabaseAdmin) {
-    const [pRes, lRes] = await Promise.all([
+    const [pRes, lRes, nRes] = await Promise.all([
       supabaseAdmin
         .from('prospects')
         .select(
@@ -35,14 +37,22 @@ export default async function ProspectsPage() {
         )
         .order('pick_grade', { ascending: true })
         .order('name', { ascending: true }),
+      supabaseAdmin
+        .from('nonalcoholic_candidates')
+        .select(
+          'id,name,category,origin,sourcing_tier,domestic_available,aging_applicable,pick_grade,pick_reason,evidence_urls,notes',
+        )
+        .order('pick_grade', { ascending: true })
+        .order('name', { ascending: true }),
     ]);
     prospects = (pRes.data ?? []) as Prospect[];
     liquors = (lRes.data ?? []) as LiquorCandidate[];
+    nonalcs = (nRes.data ?? []) as NonAlcoholCandidate[];
   }
 
   return (
     <Suspense fallback={<div className="mx-auto max-w-7xl px-4 py-6 text-white/40 text-sm">영업관리 로딩…</div>}>
-      <SalesManagement prospects={prospects} liquors={liquors} />
+      <SalesManagement prospects={prospects} liquors={liquors} nonalcs={nonalcs} />
     </Suspense>
   );
 }
