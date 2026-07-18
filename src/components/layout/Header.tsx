@@ -20,6 +20,7 @@ const navigation: NavItem[] = [
   { name: '월별플랜', href: '/monthly-plan' },
   { name: '캘린더', href: '/calendar' },
   { name: '채널', href: '/channels' },
+  { name: '영업관리', href: '/prospects' },
   { name: '재고관리', href: '/inventory' },
   { name: '예산관리', href: '/budget' },
   { name: 'Data Log', href: '/data-log' },
