@@ -92,6 +92,7 @@ import type {
   OceanConditionsForPrediction,
   DepthSimulationResult,
 } from '@/lib/types/uaps';
+import type { RetrievalResult } from '@/lib/types/uaps';
 import {
   WINE_TYPE_LABELS,
   PRODUCT_STATUS_LABELS,
@@ -1300,8 +1301,8 @@ function RetrievalInputModal({
   // 기존 저장 데이터 로드
   useEffect(() => {
     (async () => {
-      const { fetchRetrievalResults } = await import('@/lib/supabase/database/uaps');
-      const results = await fetchRetrievalResults(product.id);
+      const res = await fetch(`/api/uaps/retrieval-results?productId=${encodeURIComponent(product.id)}`);
+      const results = (res.ok ? (await res.json()).results : []) as RetrievalResult[];
       if (!results || results.length === 0) return;
       const latest = results[0];
       setExistingId(latest.id);

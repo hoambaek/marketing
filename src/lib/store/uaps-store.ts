@@ -12,18 +12,100 @@ import type {
   TerrestrialModel,
 } from '@/lib/types/uaps';
 import { DEFAULT_COEFFICIENTS } from '@/lib/types/uaps';
-import {
-  fetchAgingProducts,
-  createAgingProduct,
-  updateAgingProduct,
-  deleteAgingProduct,
-  fetchAgingPredictions,
-  fetchTerrestrialModels,
-  fetchUAPSConfig,
-  updateUAPSConfigValue,
-  fetchWineTerrestrialDataCount,
-} from '@/lib/supabase/database/uaps';
 import { parseUAPSConfig, getTCIPrior, calculateArrheniusFRI, calculateHenryBRI } from '@/lib/utils/uaps-engine';
+
+// ═══════════════════════════════════════════════════════════════════════════
+// UAPS 테이블(aging_products/predictions·terrestrial_model·wine_terrestrial_data·
+// uaps_config)은 anon 접근을 차단했으므로 클라이언트는 /api/uaps/* 인증 라우트를
+// 경유한다 (2026-07-21 anon 노출 차단). 기존 함수 시그니처를 그대로 보존해
+// 아래 액션 본문은 변경하지 않는다.
+// ═══════════════════════════════════════════════════════════════════════════
+
+async function fetchAgingProducts(): Promise<AgingProduct[] | null> {
+  const res = await fetch('/api/uaps/products');
+  if (!res.ok) return null;
+  const data = await res.json();
+  return (data.products as AgingProduct[]) ?? null;
+}
+
+async function createAgingProduct(input: ProductInput): Promise<AgingProduct | null> {
+  const res = await fetch('/api/uaps/products', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  if (!res.ok) return null;
+  const data = await res.json();
+  return (data.product as AgingProduct) ?? null;
+}
+
+async function updateAgingProduct(
+  id: string,
+  updates: Partial<ProductInput> & { status?: string }
+): Promise<AgingProduct | null> {
+  const res = await fetch('/api/uaps/products', {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id, updates }),
+  });
+  if (!res.ok) return null;
+  const data = await res.json();
+  return (data.product as AgingProduct) ?? null;
+}
+
+async function deleteAgingProduct(id: string): Promise<boolean> {
+  const res = await fetch(`/api/uaps/products?id=${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+  });
+  if (!res.ok) return false;
+  const data = await res.json();
+  return Boolean(data.success);
+}
+
+async function fetchAgingPredictions(
+  productId?: string,
+  limit: number = 20
+): Promise<AgingPrediction[] | null> {
+  const params = new URLSearchParams();
+  if (productId) params.set('productId', productId);
+  params.set('limit', String(limit));
+  const res = await fetch(`/api/uaps/predictions?${params.toString()}`);
+  if (!res.ok) return null;
+  const data = await res.json();
+  return (data.predictions as AgingPrediction[]) ?? null;
+}
+
+async function fetchTerrestrialModels(): Promise<TerrestrialModel[] | null> {
+  const res = await fetch('/api/uaps/terrestrial-models');
+  if (!res.ok) return null;
+  const data = await res.json();
+  return (data.models as TerrestrialModel[]) ?? null;
+}
+
+async function fetchUAPSConfig(): Promise<UAPSConfig[] | null> {
+  const res = await fetch('/api/uaps/config');
+  if (!res.ok) return null;
+  const data = await res.json();
+  return (data.configs as UAPSConfig[]) ?? null;
+}
+
+async function updateUAPSConfigValue(key: string, value: string): Promise<boolean> {
+  const res = await fetch('/api/uaps/config', {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ key, value }),
+  });
+  if (!res.ok) return false;
+  const data = await res.json();
+  return Boolean(data.success);
+}
+
+async function fetchWineTerrestrialDataCount(): Promise<number> {
+  const res = await fetch('/api/uaps/wine-terrestrial-count');
+  if (!res.ok) return 0;
+  const data = await res.json();
+  return Number(data.count) || 0;
+}
 
 interface UAPSState {
   // 제품

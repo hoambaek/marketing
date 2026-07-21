@@ -4,7 +4,8 @@
  * - FlavorDictionary, UAPSConfig
  */
 
-import { supabase, isSupabaseConfigured } from '../client';
+import 'server-only';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 import { dbLogger } from '@/lib/logger';
 import type {
   AgingProduct,
@@ -21,6 +22,10 @@ import type {
   QualityWeights,
   ClosureType,
 } from '@/lib/types/uaps';
+
+// service_role(supabaseAdmin) 기반 서버 전용 모듈로 전환 (2026-07-21 anon 노출 차단).
+// 클라이언트는 이 파일을 직접 import하지 않고 /api/uaps/* 인증 라우트를 경유한다.
+const isSupabaseConfigured = () => !!supabaseAdmin;
 
 // ═══════════════════════════════════════════════════════════════════════════
 // DB 타입 정의 (snake_case)
@@ -162,7 +167,7 @@ interface DBUAPSConfig {
 export async function fetchAgingProducts(): Promise<AgingProduct[] | null> {
   if (!isSupabaseConfigured()) return null;
 
-  const { data, error } = await supabase!
+  const { data, error } = await supabaseAdmin!
     .from('aging_products')
     .select('*')
     .order('created_at', { ascending: false });
@@ -178,7 +183,7 @@ export async function fetchAgingProducts(): Promise<AgingProduct[] | null> {
 export async function fetchAgingProductById(id: string): Promise<AgingProduct | null> {
   if (!isSupabaseConfigured()) return null;
 
-  const { data, error } = await supabase!
+  const { data, error } = await supabaseAdmin!
     .from('aging_products')
     .select('*')
     .eq('id', id)
@@ -198,7 +203,7 @@ export async function createAgingProduct(
 ): Promise<AgingProduct | null> {
   if (!isSupabaseConfigured()) return null;
 
-  const { data, error } = await supabase!
+  const { data, error } = await supabaseAdmin!
     .from('aging_products')
     .insert({
       product_name: input.productName,
@@ -256,7 +261,7 @@ export async function updateAgingProduct(
   if (updates.notes !== undefined) dbUpdates.notes = updates.notes;
   if (updates.status !== undefined) dbUpdates.status = updates.status;
 
-  const { data, error } = await supabase!
+  const { data, error } = await supabaseAdmin!
     .from('aging_products')
     .update(dbUpdates)
     .eq('id', id)
@@ -274,7 +279,7 @@ export async function updateAgingProduct(
 export async function deleteAgingProduct(id: string): Promise<boolean> {
   if (!isSupabaseConfigured()) return false;
 
-  const { error } = await supabase!
+  const { error } = await supabaseAdmin!
     .from('aging_products')
     .delete()
     .eq('id', id);
@@ -297,7 +302,7 @@ export async function fetchAgingPredictions(
 ): Promise<AgingPrediction[] | null> {
   if (!isSupabaseConfigured()) return null;
 
-  let query = supabase!
+  let query = supabaseAdmin!
     .from('aging_predictions')
     .select('*')
     .order('created_at', { ascending: false })
@@ -322,7 +327,7 @@ export async function createAgingPrediction(
 ): Promise<AgingPrediction | null> {
   if (!isSupabaseConfigured()) return null;
 
-  const { data, error } = await supabase!
+  const { data, error } = await supabaseAdmin!
     .from('aging_predictions')
     .insert({
       product_id: prediction.productId,
@@ -379,7 +384,7 @@ export async function fetchWineTerrestrialData(
 ): Promise<WineTerrestrialData[] | null> {
   if (!isSupabaseConfigured()) return null;
 
-  let query = supabase!
+  let query = supabaseAdmin!
     .from('wine_terrestrial_data')
     .select('*');
 
@@ -418,7 +423,7 @@ export async function fetchWineTerrestrialData(
 export async function fetchWineTerrestrialDataCount(): Promise<number> {
   if (!isSupabaseConfigured()) return 0;
 
-  const { count, error } = await supabase!
+  const { count, error } = await supabaseAdmin!
     .from('wine_terrestrial_data')
     .select('*', { count: 'exact', head: true });
 
@@ -466,7 +471,7 @@ export async function bulkInsertWineTerrestrialData(
 
   for (let i = 0; i < dbRecords.length; i += BATCH_SIZE) {
     const batch = dbRecords.slice(i, i + BATCH_SIZE);
-    const { data, error } = await supabase!
+    const { data, error } = await supabaseAdmin!
       .from('wine_terrestrial_data')
       .insert(batch)
       .select('id');
@@ -489,7 +494,7 @@ export async function bulkInsertWineTerrestrialData(
 export async function fetchTerrestrialModels(): Promise<TerrestrialModel[] | null> {
   if (!isSupabaseConfigured()) return null;
 
-  const { data, error } = await supabase!
+  const { data, error } = await supabaseAdmin!
     .from('terrestrial_model')
     .select('*')
     .order('wine_type');
@@ -509,7 +514,7 @@ export async function fetchTerrestrialModelByTypeStage(
 ): Promise<TerrestrialModel | null> {
   if (!isSupabaseConfigured()) return null;
 
-  let query = supabase!
+  let query = supabaseAdmin!
     .from('terrestrial_model')
     .select('*')
     .eq('aging_stage', agingStage);
@@ -536,7 +541,7 @@ export async function upsertTerrestrialModel(
 ): Promise<TerrestrialModel | null> {
   if (!isSupabaseConfigured()) return null;
 
-  const { data, error } = await supabase!
+  const { data, error } = await supabaseAdmin!
     .from('terrestrial_model')
     .upsert({
       wine_type: model.wineType,
@@ -571,7 +576,7 @@ export async function upsertTerrestrialModel(
 export async function fetchFlavorDictionary(): Promise<FlavorDictionary[] | null> {
   if (!isSupabaseConfigured()) return null;
 
-  const { data, error } = await supabase!
+  const { data, error } = await supabaseAdmin!
     .from('flavor_dictionary')
     .select('*')
     .order('expert_term');
@@ -591,7 +596,7 @@ export async function fetchFlavorDictionary(): Promise<FlavorDictionary[] | null
 export async function fetchUAPSConfig(): Promise<UAPSConfig[] | null> {
   if (!isSupabaseConfigured()) return null;
 
-  const { data, error } = await supabase!
+  const { data, error } = await supabaseAdmin!
     .from('uaps_config')
     .select('*')
     .order('config_key');
@@ -610,7 +615,7 @@ export async function updateUAPSConfigValue(
 ): Promise<boolean> {
   if (!isSupabaseConfigured()) return false;
 
-  const { error } = await supabase!
+  const { error } = await supabaseAdmin!
     .from('uaps_config')
     .update({ config_value: configValue })
     .eq('config_key', configKey);
@@ -784,7 +789,7 @@ export async function bulkInsertTerrestrialData(
   for (let i = 0; i < records.length; i += BATCH_SIZE) {
     const batch = records.slice(i, i + BATCH_SIZE);
 
-    const { data, error } = await supabase!
+    const { data, error } = await supabaseAdmin!
       .from('wine_terrestrial_data')
       .insert(batch)
       .select('id');
@@ -869,7 +874,7 @@ export async function fetchRetrievalResults(
 ): Promise<RetrievalResult[] | null> {
   if (!isSupabaseConfigured()) return null;
 
-  let query = supabase!
+  let query = supabaseAdmin!
     .from('retrieval_results')
     .select('*')
     .order('created_at', { ascending: false });

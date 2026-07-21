@@ -229,8 +229,9 @@ function TastingReview() {
     if (products === null && !productsLoading) {
       setProductsLoading(true);
       try {
-        const { fetchAgingProducts } = await import('@/lib/supabase/database/uaps');
-        setProducts((await fetchAgingProducts()) ?? []);
+        const res = await fetch('/api/uaps/products');
+        const data = res.ok ? await res.json() : { products: [] };
+        setProducts((data.products as AgingProduct[]) ?? []);
       } catch {
         setProducts([]);
       } finally {
