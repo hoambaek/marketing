@@ -151,21 +151,7 @@ export type {
 } from './pricing';
 
 // UAPS (Undersea Aging Predictive System)
-export {
-  fetchAgingProducts,
-  fetchAgingProductById,
-  createAgingProduct,
-  updateAgingProduct,
-  deleteAgingProduct,
-  fetchAgingPredictions,
-  createAgingPrediction,
-  fetchWineTerrestrialData,
-  fetchWineTerrestrialDataCount,
-  bulkInsertWineTerrestrialData,
-  fetchTerrestrialModels,
-  fetchTerrestrialModelByTypeStage,
-  upsertTerrestrialModel,
-  fetchFlavorDictionary,
-  fetchUAPSConfig,
-  updateUAPSConfigValue,
-} from './uaps';
+// ⚠️ uaps.ts는 server-only(service_role)로 전환됨 (2026-07-21 anon 노출 차단).
+// 이 배럴은 클라이언트 스토어(`import * as db`)가 통째로 끌어가므로 여기서
+// 재노출하면 server-only가 클라이언트 번들로 새어 빌드가 깨진다.
+// UAPS 함수가 필요한 서버 코드는 '@/lib/supabase/database/uaps'에서 직접 import한다.
