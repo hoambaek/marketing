@@ -87,32 +87,41 @@ export async function POST(request: NextRequest) {
       apiLogger.warn('UAPS: 전문가 프로파일 생성 실패, 통계 기반 사용:', e);
     }
 
-    // 3.7. v5.0: 비교 시음 데이터로 전문가 프로파일 보정
+    // 3.7. v5.1: 비교 시음 '해저 실측'으로 전문가 프로파일 보정 (실측 70% + AI 30%)
+    // 이전(v5.0)엔 terrestrial(지상 대조군)만, 그것도 .find() 1건만 블렌딩해서
+    // 실제 해저에서 측정된 프로파일(예: 감칠맛 85)이 레이더에 반영되지 않았다.
+    // 인양된 제품은 관측값(actual)이 모델 예측을 이겨야 하므로 actual_* 6축의 패널 평균을 쓴다.
     try {
       const retrievals = await fetchRetrievalResults(productId);
-      const latestWithTerrestrial = retrievals?.find(r =>
-        !r.isSimulated && r.terrestrialFruity != null
-      );
-      if (latestWithTerrestrial) {
-        // 지상 시음 데이터가 있으면 전문가 프로파일과 블렌딩 (시음 70% + AI 30%)
-        const tasting: Record<string, number> = {
-          fruity: latestWithTerrestrial.terrestrialFruity ?? 0,
-          floralMineral: latestWithTerrestrial.terrestrialFloralMineral ?? 0,
-          yeastyAutolytic: latestWithTerrestrial.terrestrialYeastyAutolytic ?? 0,
-          acidityFreshness: latestWithTerrestrial.terrestrialAcidityFreshness ?? 0,
-          bodyTexture: latestWithTerrestrial.terrestrialBodyTexture ?? 0,
-          finishComplexity: latestWithTerrestrial.terrestrialFinishComplexity ?? 0,
+      const measured = (retrievals || []).filter(r => !r.isSimulated && r.actualBodyTexture != null);
+      if (measured.length > 0) {
+        const avg = (get: (r: (typeof measured)[number]) => number | null): number | null => {
+          const vals = measured.map(get).filter((v): v is number => v != null);
+          return vals.length > 0 ? vals.reduce((s, v) => s + v, 0) / vals.length : null;
+        };
+        const tasting: Record<string, number | null> = {
+          fruity: avg(r => r.actualFruity),
+          floralMineral: avg(r => r.actualFloralMineral),
+          yeastyAutolytic: avg(r => r.actualYeastyAutolytic),
+          acidityFreshness: avg(r => r.actualAcidityFreshness),
+          bodyTexture: avg(r => r.actualBodyTexture),
+          finishComplexity: avg(r => r.actualFinishComplexity),
         };
         if (expertProfile) {
-          // 시음 70% + AI 전문가 30% 블렌딩
+          // 실측 70% + AI 전문가 30% 블렌딩 (해당 축 실측이 없으면 기존 값 유지)
           for (const key of Object.keys(tasting)) {
-            expertProfile[key] = Math.round(tasting[key] * 0.7 + (expertProfile[key] ?? tasting[key]) * 0.3);
+            const t = tasting[key];
+            if (t == null) continue;
+            expertProfile[key] = Math.round(t * 0.7 + (expertProfile[key] ?? t) * 0.3);
           }
         } else {
-          expertProfile = tasting;
+          // 전문가 프로파일이 없으면 실측 평균으로(빈 축은 중립 50)
+          expertProfile = Object.fromEntries(
+            Object.keys(tasting).map(k => [k, Math.round(tasting[k] ?? 50)])
+          );
         }
-        expertSources = [...(expertSources || []), '비교 시음 실측'];
-        apiLogger.log('UAPS: 비교 시음 데이터로 전문가 프로파일 보정 (시음 70% + AI 30%)');
+        expertSources = [...(expertSources || []), '비교 시음 실측(해저)'];
+        apiLogger.log(`UAPS: 해저 실측 ${measured.length}건 평균으로 전문가 프로파일 보정 (실측 70% + AI 30%)`);
       }
     } catch (e) {
       apiLogger.warn('UAPS: 비교 시음 데이터 조회 실패:', e);
