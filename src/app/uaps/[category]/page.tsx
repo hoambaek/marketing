@@ -5,19 +5,6 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  ComposedChart,
-  Area,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  ReferenceArea,
-  ReferenceDot,
-  ReferenceLine,
-} from 'recharts';
-import {
   Anchor,
   Wine,
   Brain,
@@ -70,6 +57,7 @@ import { OceanConditionsCard, OptimalDepthCard, EnvironmentalImpactCard } from '
 import { SectionWrapper, CoefficientSlider } from '../components/DashboardParts';
 import { ProductModal } from '../components/ProductModal';
 import { FlavorRadar } from '../components/FlavorRadar';
+import { TimelineChart } from '../components/TimelineChart';
 import { calculateProductOceanStats } from '@/lib/utils/uaps-ocean-profile';
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -904,7 +892,7 @@ export default function CategoryUAPSPage() {
         {selectedProduct && timelineData.length > 0 && (
           <SectionWrapper title="숙성 타임라인" icon={Gauge} iconColor="#C4A052" delay={0.35}>
             <div className="h-[280px] sm:h-[400px]">
-              <TimelineChart data={timelineData} harvestWindow={harvestWindow} />
+              <TimelineChart data={timelineData} harvestWindow={harvestWindow} plannedMonths={selectedProduct?.plannedDurationMonths ?? null} />
             </div>
             {harvestWindow && (
               <div className="mt-2.5 space-y-2">
@@ -1066,92 +1054,4 @@ export default function CategoryUAPSPage() {
     </div>
   );
 }
-
-// ═══════════════════════════════════════════════════════════════════════════
-// Timeline 차트 (재사용)
-// ═══════════════════════════════════════════════════════════════════════════
-
-function TimelineChart({
-  data,
-  harvestWindow,
-}: {
-  data: { month: number; textureMaturity: number; aromaFreshness: number; offFlavorRisk: number; bubbleRefinement: number; compositeQuality?: number; gainScore?: number; lossScore?: number }[];
-  harvestWindow: { startMonths: number; endMonths: number; peakMonth: number; peakScore: number; recommendation: string } | null;
-}) {
-  const peakPoint = harvestWindow ? data.find((d) => d.month === harvestWindow.peakMonth) : null;
-
-  const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?: { value: number; dataKey: string }[]; label?: number }) => {
-    if (!active || !payload?.length) return null;
-    const get = (key: string) => payload.find((p) => p.dataKey === key)?.value;
-    const quality = get('compositeQuality');
-    const texture = get('textureMaturity');
-    const bubble = get('bubbleRefinement');
-    const aroma = get('aromaFreshness');
-    const offFlavor = get('offFlavorRisk');
-    const isPeak = harvestWindow && label === harvestWindow.peakMonth;
-    return (
-      <div className={`px-3 py-2.5 rounded-xl border backdrop-blur-md ${isPeak ? 'bg-[#C4A052]/10 border-[#C4A052]/30' : 'bg-[#0d1421]/90 border-white/[0.08]'}`}>
-        <div className="flex items-center justify-between gap-4 mb-1.5">
-          <span className={`text-[11px] font-medium ${isPeak ? 'text-[#C4A052]' : 'text-white/60'}`}>
-            {label}개월{isPeak ? ' — Peak' : ''}
-          </span>
-          {quality != null && <span className="text-sm font-mono font-medium text-[#C4A052]">{Math.round(quality)}</span>}
-        </div>
-        <div className="grid grid-cols-2 gap-x-3 gap-y-0.5">
-          {texture != null && <span className="text-[10px] text-emerald-400/60">질감 {Math.round(texture)}</span>}
-          {aroma != null && <span className="text-[10px] text-red-400/50">향 {Math.round(aroma)}</span>}
-          {bubble != null && <span className="text-[10px] text-emerald-400/60">기포 {Math.round(bubble)}</span>}
-          {offFlavor != null && <span className="text-[10px] text-red-400/50">환원취 {Math.round(offFlavor)}</span>}
-        </div>
-      </div>
-    );
-  };
-
-  return (
-    <ResponsiveContainer width="100%" height="100%">
-      <ComposedChart data={data} margin={{ top: 20, right: 12, left: -10, bottom: 5 }}>
-        <defs>
-          <linearGradient id="catQualityGradient" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#C4A052" stopOpacity={0.2} />
-            <stop offset="60%" stopColor="#C4A052" stopOpacity={0.05} />
-            <stop offset="100%" stopColor="#C4A052" stopOpacity={0} />
-          </linearGradient>
-          <linearGradient id="catGainFill" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#22c55e" stopOpacity={0.22} />
-            <stop offset="100%" stopColor="#22c55e" stopOpacity={0.02} />
-          </linearGradient>
-          <linearGradient id="catLossFill" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#ef4444" stopOpacity={0.18} />
-            <stop offset="100%" stopColor="#ef4444" stopOpacity={0.02} />
-          </linearGradient>
-          <filter id="catPeakGlow">
-            <feGaussianBlur stdDeviation="4" result="blur" />
-            <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
-          </filter>
-        </defs>
-        <CartesianGrid stroke="rgba(255,255,255,0.03)" vertical={false} />
-        <XAxis dataKey="month" tick={{ fill: 'rgba(255,255,255,0.3)', fontSize: 9 }} axisLine={{ stroke: 'rgba(255,255,255,0.06)' }} tickLine={false} label={{ value: '개월', position: 'insideBottomRight', offset: -5, fill: 'rgba(255,255,255,0.2)', fontSize: 9 }} />
-        <YAxis domain={[0, 100]} tick={{ fill: 'rgba(255,255,255,0.2)', fontSize: 9 }} axisLine={false} tickLine={false} tickCount={6} />
-        <Tooltip content={<CustomTooltip />} cursor={{ stroke: 'rgba(196,160,82,0.2)', strokeWidth: 1, strokeDasharray: '3 3' }} />
-        <Area type="monotone" dataKey="gainScore" stroke="none" fill="url(#catGainFill)" legendType="none" />
-        <Area type="monotone" dataKey="lossScore" stroke="none" fill="url(#catLossFill)" legendType="none" />
-        <Line type="monotone" dataKey="textureMaturity" stroke="#34d399" strokeWidth={1} strokeOpacity={0.4} dot={false} legendType="none" />
-        <Line type="monotone" dataKey="bubbleRefinement" stroke="#34d399" strokeWidth={1} strokeOpacity={0.3} strokeDasharray="3 4" dot={false} legendType="none" />
-        <Line type="monotone" dataKey="aromaFreshness" stroke="#f87171" strokeWidth={1} strokeOpacity={0.35} dot={false} legendType="none" />
-        <Line type="monotone" dataKey="offFlavorRisk" stroke="#f87171" strokeWidth={1} strokeOpacity={0.3} strokeDasharray="3 4" dot={false} legendType="none" />
-        <Area type="monotone" dataKey="compositeQuality" stroke="#C4A052" strokeWidth={2.5} fill="url(#catQualityGradient)" dot={false} activeDot={{ r: 4, fill: '#C4A052', stroke: 'rgba(255,255,255,0.8)', strokeWidth: 1.5 }} legendType="none" />
-        {harvestWindow && (
-          <ReferenceLine x={harvestWindow.peakMonth} stroke="#C4A052" strokeWidth={1} strokeDasharray="2 3" strokeOpacity={0.4} />
-        )}
-        {harvestWindow && peakPoint && (
-          <ReferenceDot x={harvestWindow.peakMonth} y={peakPoint.compositeQuality ?? 0} r={5} fill="#C4A052" stroke="rgba(255,255,255,0.9)" strokeWidth={2} filter="url(#catPeakGlow)" />
-        )}
-      </ComposedChart>
-    </ResponsiveContainer>
-  );
-}
-
-// ═══════════════════════════════════════════════════════════════════════════
-// 보정 계수 슬라이더
-// ═══════════════════════════════════════════════════════════════════════════
 
