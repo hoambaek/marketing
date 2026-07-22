@@ -20,8 +20,6 @@ import { buildMonthlyOceanProfiles, buildAnnualOceanProfile, type MonthlyOceanPr
 import { estimateBottomTemperature } from '@/lib/utils/uaps-ocean-profile';
 import {
   fetchOceanDataDaily,
-  upsertOceanDataDaily,
-  updateOceanDataSalinity,
   fetchSalinityRecords,
   createSalinityRecord,
 } from '@/lib/supabase/database';
@@ -595,10 +593,14 @@ export const useOceanDataStore = create<OceanDataState>((set, get) => ({
       ),
     }));
 
-    // Update in Supabase
+    // Update in Supabase (anon write 정책 제거 → 인증 라우트 경유, 2026-07-22)
     if (useSupabase) {
       try {
-        await updateOceanDataSalinity(date, salinity);
+        await fetch('/api/ocean-data', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ date, salinity }),
+        });
       } catch (error) {
         storeLogger.error('Error updating salinity in database:', error);
       }
@@ -613,31 +615,34 @@ export const useOceanDataStore = create<OceanDataState>((set, get) => ({
     set({ isSaving: true });
 
     try {
-      // Save each day's data (upsert to handle existing records)
-      for (const day of rows) {
-        await upsertOceanDataDaily({
-          date: day.date,
-          seaTemperatureAvg: day.seaTemperatureAvg,
-          seaTemperatureMin: day.seaTemperatureMin,
-          seaTemperatureMax: day.seaTemperatureMax,
-          currentVelocityAvg: day.currentVelocityAvg,
-          currentDirectionDominant: day.currentDirectionDominant,
-          waveHeightAvg: day.waveHeightAvg,
-          waveHeightMax: day.waveHeightMax,
-          wavePeriodAvg: day.wavePeriodAvg,
-          surfacePressureAvg: day.surfacePressureAvg,
-          airTemperatureAvg: day.airTemperatureAvg,
-          humidityAvg: day.humidityAvg,
-          salinity: day.salinity,
-          tideLevelAvg: day.tideLevelAvg,
-          tideLevelMin: day.tideLevelMin,
-          tideLevelMax: day.tideLevelMax,
-          tidalCurrentSpeed: day.tidalCurrentSpeed,
-          tidalCurrentDirection: day.tidalCurrentDirection,
-          dataSource: day.dataSource,
-          depth: day.depth,
-        });
-      }
+      // ocean_data_daily는 anon write 정책을 제거했으므로(2026-07-22) 인증 라우트 경유로 벌크 저장
+      const payload = rows.map((day) => ({
+        date: day.date,
+        seaTemperatureAvg: day.seaTemperatureAvg,
+        seaTemperatureMin: day.seaTemperatureMin,
+        seaTemperatureMax: day.seaTemperatureMax,
+        currentVelocityAvg: day.currentVelocityAvg,
+        currentDirectionDominant: day.currentDirectionDominant,
+        waveHeightAvg: day.waveHeightAvg,
+        waveHeightMax: day.waveHeightMax,
+        wavePeriodAvg: day.wavePeriodAvg,
+        surfacePressureAvg: day.surfacePressureAvg,
+        airTemperatureAvg: day.airTemperatureAvg,
+        humidityAvg: day.humidityAvg,
+        salinity: day.salinity,
+        tideLevelAvg: day.tideLevelAvg,
+        tideLevelMin: day.tideLevelMin,
+        tideLevelMax: day.tideLevelMax,
+        tidalCurrentSpeed: day.tidalCurrentSpeed,
+        tidalCurrentDirection: day.tidalCurrentDirection,
+        dataSource: day.dataSource,
+        depth: day.depth,
+      }));
+      await fetch('/api/ocean-data', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rows: payload }),
+      });
     } catch (error) {
       storeLogger.error('Error saving data to Supabase:', error);
     } finally {

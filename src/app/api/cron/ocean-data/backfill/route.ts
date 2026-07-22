@@ -14,10 +14,8 @@ import {
   getYesterdayKST,
   splitDateRange,
 } from '@/lib/utils/ocean-api';
-import {
-  bulkUpsertOceanDataDaily,
-  fetchExistingDates,
-} from '@/lib/supabase/database';
+import { fetchExistingDates } from '@/lib/supabase/database';
+import { bulkUpsertOceanDataDaily } from '@/lib/supabase/database/ocean-data-admin';
 
 export const maxDuration = 300; // 백필은 오래 걸릴 수 있음
 

@@ -14,7 +14,7 @@ import {
   enrichWithKhoaData,
   getYesterdayKST,
 } from '@/lib/utils/ocean-api';
-import { bulkUpsertOceanDataDaily } from '@/lib/supabase/database';
+import { bulkUpsertOceanDataDaily } from '@/lib/supabase/database/ocean-data-admin';
 
 export const maxDuration = 60;
 

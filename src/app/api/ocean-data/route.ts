@@ -6,6 +6,13 @@ import {
   fetchKhoaHybridData,
   formatHybridResponse,
 } from '@/lib/utils/ocean-api';
+import {
+  bulkUpsertOceanDataDaily,
+  updateOceanDataSalinity,
+} from '@/lib/supabase/database/ocean-data-admin';
+import type { OceanDataDaily } from '@/lib/types';
+
+type OceanDataInput = Omit<OceanDataDaily, 'id' | 'createdAt' | 'updatedAt'>;
 
 export async function GET(request: Request) {
   // 인증 확인 (Defense in Depth)
@@ -54,4 +61,36 @@ export async function GET(request: Request) {
       { status: 500 }
     );
   }
+}
+
+// ocean_data_daily 쓰기 — service_role 경유 (anon write 정책 제거, 2026-07-22)
+// POST: 데이터로그 자동저장(벌크 upsert) / PATCH: 염분 단건 수정
+export async function POST(request: Request) {
+  const { userId } = await auth();
+  if (!userId) {
+    return NextResponse.json({ error: '인증이 필요합니다.' }, { status: 401 });
+  }
+
+  const { rows } = (await request.json()) as { rows: OceanDataInput[] };
+  if (!Array.isArray(rows)) {
+    return NextResponse.json({ error: 'rows 배열이 필요합니다.' }, { status: 400 });
+  }
+
+  const upserted = await bulkUpsertOceanDataDaily(rows);
+  return NextResponse.json({ upserted });
+}
+
+export async function PATCH(request: Request) {
+  const { userId } = await auth();
+  if (!userId) {
+    return NextResponse.json({ error: '인증이 필요합니다.' }, { status: 401 });
+  }
+
+  const { date, salinity } = (await request.json()) as { date: string; salinity: number };
+  if (!date || typeof salinity !== 'number') {
+    return NextResponse.json({ error: 'date와 salinity(number)가 필요합니다.' }, { status: 400 });
+  }
+
+  const success = await updateOceanDataSalinity(date, salinity);
+  return NextResponse.json({ success });
 }
