@@ -876,6 +876,16 @@ export const CATEGORY_DEFAULT_CLOSURE: Record<string, ClosureType> = {
   spirits: 'cork_natural',
 };
 
+// 임시 숨김 카테고리 (DB product_category 기준). UI 선택지·네비·모달 드롭다운에서 제외.
+// 데이터·라우트는 유지되며, 복원하려면 이 Set을 비우면 된다. (2026-07-22 대표 지시)
+export const HIDDEN_UAPS_CATEGORIES = new Set<string>([
+  'red_wine',
+  'white_wine',
+  'whisky',
+  'green_coffee_bean',
+  'puer',
+]);
+
 // 카테고리별 활성화 에너지 매트릭스 (kJ/mol)
 export interface CategoryEaEntry {
   ea: number;           // 중앙값 (kJ/mol)
