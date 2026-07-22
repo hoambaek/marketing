@@ -122,90 +122,13 @@ import {
   OceanConditionsCard, OptimalDepthCard, EnvironmentalImpactCard,
   MonthlyProfileCard,
 } from './components/OceanCardsV3';
+import { SectionWrapper } from './components/DashboardParts';
 import { calculateProductOceanStats } from '@/lib/utils/uaps-ocean-profile';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // 공통 컴포넌트
 // ═══════════════════════════════════════════════════════════════════════════
 
-function GlowCard({
-  children,
-  className = '',
-  color = 'cyan',
-  delay = 0,
-}: {
-  children: React.ReactNode;
-  className?: string;
-  color?: 'cyan' | 'rose' | 'amber' | 'emerald';
-  delay?: number;
-}) {
-  const glowColors = {
-    cyan: 'from-cyan-500/[0.03]',
-    rose: 'from-[#B76E79]/[0.03]',
-    amber: 'from-[#C4A052]/[0.03]',
-    emerald: 'from-emerald-500/[0.03]',
-  };
-  const stripColors = {
-    cyan: 'via-cyan-400/40',
-    rose: 'via-[#B76E79]/40',
-    amber: 'via-[#C4A052]/40',
-    emerald: 'via-emerald-400/40',
-  };
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5, delay }}
-      className="relative group"
-    >
-      <div className={`absolute inset-0 bg-gradient-to-br ${glowColors[color]} to-transparent rounded-2xl blur-xl group-hover:opacity-150 transition-all`} />
-      <div className={`relative bg-[#0d1421]/60 backdrop-blur-xl border border-white/[0.06] rounded-2xl p-5 hover:border-white/[0.12] transition-all ${className}`}>
-        <div className={`absolute top-0 left-1/2 -translate-x-1/2 w-1/2 h-px bg-gradient-to-r from-transparent ${stripColors[color]} to-transparent`} />
-        {children}
-      </div>
-    </motion.div>
-  );
-}
-
-function SectionWrapper({
-  title,
-  icon: Icon,
-  children,
-  delay = 0,
-  action,
-  iconColor = '#22d3ee',
-}: {
-  title: string;
-  icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>;
-  children: React.ReactNode;
-  delay?: number;
-  action?: React.ReactNode;
-  iconColor?: string;
-}) {
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 30 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.6, delay }}
-      className="relative"
-    >
-      <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/[0.02] to-transparent rounded-3xl" />
-      <div className="relative bg-[#0d1421]/40 backdrop-blur-xl border border-white/[0.06] rounded-2xl p-4 sm:p-5">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-xl" style={{ backgroundColor: `${iconColor}15` }}>
-              <Icon className="w-5 h-5" style={{ color: iconColor }} />
-            </div>
-            <h3 className="text-lg font-medium text-white/90">{title}</h3>
-          </div>
-          {action}
-        </div>
-        {children}
-      </div>
-    </motion.div>
-  );
-}
 
 // ═══════════════════════════════════════════════════════════════════════════
 // 메인 페이지

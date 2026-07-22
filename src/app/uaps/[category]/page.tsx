@@ -83,6 +83,7 @@ import {
 import { applyAgingAdjustments } from '@/lib/utils/uaps-ai-predictor';
 import { useOceanDataStore } from '@/lib/store/ocean-data-store';
 import { OceanConditionsCard, OptimalDepthCard, EnvironmentalImpactCard } from '../components/OceanCardsV3';
+import { SectionWrapper } from '../components/DashboardParts';
 import { calculateProductOceanStats } from '@/lib/utils/uaps-ocean-profile';
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -237,77 +238,6 @@ const DEFAULT_CONFIG = CATEGORY_CONFIG['soy-sauce'];
 // 공통 컴포넌트
 // ═══════════════════════════════════════════════════════════════════════════
 
-function GlowCard({
-  children,
-  className = '',
-  accentRgb,
-  delay = 0,
-}: {
-  children: React.ReactNode;
-  className?: string;
-  accentRgb: string;
-  delay?: number;
-}) {
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5, delay }}
-      className="relative group"
-    >
-      <div
-        className="absolute inset-0 rounded-2xl blur-xl group-hover:opacity-150 transition-all"
-        style={{ background: `radial-gradient(ellipse at center, rgba(${accentRgb}, 0.04), transparent)` }}
-      />
-      <div className={`relative bg-[#0d1421]/60 backdrop-blur-xl border border-white/[0.06] rounded-2xl p-5 hover:border-white/[0.12] transition-all ${className}`}>
-        <div
-          className="absolute top-0 left-1/2 -translate-x-1/2 w-1/2 h-px"
-          style={{ background: `linear-gradient(90deg, transparent, rgba(${accentRgb}, 0.4), transparent)` }}
-        />
-        {children}
-      </div>
-    </motion.div>
-  );
-}
-
-function SectionWrapper({
-  title,
-  icon: Icon,
-  children,
-  delay = 0,
-  action,
-  iconColor,
-}: {
-  title: string;
-  icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>;
-  children: React.ReactNode;
-  delay?: number;
-  action?: React.ReactNode;
-  iconColor: string;
-}) {
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 30 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.6, delay }}
-      className="relative"
-    >
-      <div className="absolute inset-0 bg-gradient-to-br from-white/[0.01] to-transparent rounded-3xl" />
-      <div className="relative bg-[#0d1421]/40 backdrop-blur-xl border border-white/[0.06] rounded-3xl p-5 sm:p-6">
-        <div className="flex items-center justify-between mb-5">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-xl" style={{ backgroundColor: `${iconColor}18` }}>
-              <Icon className="w-5 h-5" style={{ color: iconColor }} />
-            </div>
-            <h3 className="text-lg font-medium text-white/90">{title}</h3>
-          </div>
-          {action}
-        </div>
-        {children}
-      </div>
-    </motion.div>
-  );
-}
 
 // ═══════════════════════════════════════════════════════════════════════════
 // 메인 페이지
