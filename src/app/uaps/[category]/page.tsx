@@ -348,6 +348,7 @@ export default function CategoryUAPSPage() {
     currentConditions: oceanCurrentConditions,
     historicalOceanStats,
     dailyData,
+    allDailyData,
     fetchCurrentConditions: loadOceanConditions,
     loadHistoricalOceanStats,
   } = useOceanDataStore();
@@ -426,12 +427,14 @@ export default function CategoryUAPSPage() {
 
   // 제품 투입일 기반 수심 보정 환경 통계
   const productOceanStats = useMemo(() => {
-    if (!selectedProduct || !dailyData || dailyData.length === 0) return null;
+    // 침지 기간 전체 평균 → 뷰 창 dailyData가 아니라 전체 히스토리(allDailyData) 사용 (page.tsx와 동일)
+    const source = allDailyData && allDailyData.length > 0 ? allDailyData : dailyData;
+    if (!selectedProduct || !source || source.length === 0) return null;
     const immersionDate = selectedProduct.immersionDate;
     if (!immersionDate) return null;
-    // 환경 표시는 운영 깊이 30m 기준으로 통일 (수온은 이미 30m 보정된 dailyData 사용 → 재보정 없음)
-    return calculateProductOceanStats(dailyData, immersionDate, 30);
-  }, [selectedProduct, dailyData]);
+    // 환경 표시는 운영 깊이 30m 기준으로 통일 (수온은 이미 30m 보정된 값 → 재보정 없음)
+    return calculateProductOceanStats(source, immersionDate, 30);
+  }, [selectedProduct, dailyData, allDailyData]);
 
   return (
     <div className="min-h-screen pb-20">

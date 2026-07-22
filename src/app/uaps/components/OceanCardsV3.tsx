@@ -255,18 +255,24 @@ export function OptimalDepthCard({
 
   // 작업 용이성 점수(0~100): 얕을수록 높음. 30m는 무감압 레크리에이션 다이빙 한계 →
   // 그 이하는 접근·안전·비용이 용이하고, 초과는 테크니컬 다이빙(감압·혼합기체)으로 난이도·위험 급증.
-  const workEase = (depth: number) =>
-    depth <= 30
-      ? Math.round(100 - (depth - 10) * 0.25) // 10→100, 20→98, 30→95 (완만)
-      : Math.max(0, Math.round(95 - (depth - 30) * 1.0)); // 40→85, 50→75 (완만한 감소)
+  const workEase = (depth: number) => {
+    // 작업 용이성(0~100): 20m부터 적용(10m는 숙성 깊이로 부적합). 20m 기준 100,
+    // 깊어질수록 완만 감소 — 30m는 소폭, 그 이하는 완만해서 50m도 과하게 낮지 않다.
+    if (depth <= 20) return 100;
+    if (depth <= 30) return Math.round(100 - (depth - 20) * 0.3); // 30→97
+    if (depth <= 40) return Math.round(97 - (depth - 30) * 1.0); // 40→87
+    return Math.max(0, Math.round(87 - (depth - 40) * 0.5)); // 50→82
+  };
 
-  // 종합 점수 = 숙성 품질·작업 용이성 가중 합(6:4). 깊을수록 품질↑, 얕을수록 작업성↑ →
-  // 균형점(30m)이 종합 최고점. 가산식이라 40·50m도 과하게 낮아지지 않는다.
-  const scored = depthResults.map((d) => {
-    const ease = workEase(d.depth);
-    const combined = Math.round((d.quality * 0.6 + ease * 0.4) * 10) / 10;
-    return { ...d, ease, combined };
-  });
+  // 20m 이상만 종합 산출(10m 제외). 종합 = 숙성 품질×0.6 + 작업 용이성×0.4.
+  // 깊을수록 품질↑·작업성↓ 균형점(30m)이 최고점. 가산식이라 50m도 과하게 낮아지지 않는다.
+  const scored = depthResults
+    .filter((d) => d.depth >= 20)
+    .map((d) => {
+      const ease = workEase(d.depth);
+      const combined = Math.round((d.quality * 0.6 + ease * 0.4) * 10) / 10;
+      return { ...d, ease, combined };
+    });
   const maxCombined = Math.max(...scored.map((s) => s.combined), 1);
   const best = scored.reduce((a, b) => (a.combined > b.combined ? a : b));
 
@@ -322,7 +328,7 @@ export function OptimalDepthCard({
         })}
       </div>
       <p className="text-[11px] text-white/30 mt-2.5">
-        종합 = 숙성 품질 × 작업 용이성(얕을수록↑, 30m 초과 급락). 최적 <span className="text-white/60">{best.depth}m</span>.
+        종합 = 숙성 품질 × 작업 용이성(20m 이상, 깊을수록 완만 감소). 최적 <span className="text-white/60">{best.depth}m</span>.
       </p>
     </motion.div>
   );
