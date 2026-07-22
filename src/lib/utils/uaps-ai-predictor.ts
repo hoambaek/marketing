@@ -25,9 +25,12 @@ import {
   calculateTextureMaturity,
   calculateAromaFreshness,
   calculateOffFlavorRisk,
-  calculateOptimalHarvestWindow,
   predictFlavorProfileStatistical,
 } from './uaps-engine';
+import {
+  calculateOptimalHarvestWindowRouted,
+  isFermentedCategory,
+} from './uaps-engine-yakju';
 import {
   WINE_TYPE_LABELS,
   getFlavorAxes,
@@ -703,13 +706,28 @@ export function buildPredictionResult(
   config: ParsedUAPSConfig,
   expertProfile?: Record<string, number> | null,
   expertSources?: string[] | null,
-  allModels?: TerrestrialModel[]
+  allModels?: TerrestrialModel[],
+  monthlyOceanProfiles?: MonthlyOceanProfile[] | null,
+  immersionMonth?: number,
 ): Omit<AgingPrediction, 'id' | 'createdAt'> {
   // AI 추론 보정 계수 (없으면 DEFAULT 폴백)
   const aiAgingFactors = aiResponse.agingFactors || DEFAULT_AGING_FACTORS;
   const aiQualityWeights = aiResponse.qualityWeights || DEFAULT_QUALITY_WEIGHTS;
 
-  const { startMonths, endMonths, recommendation } = calculateOptimalHarvestWindow(product, config, aiAgingFactors, aiQualityWeights);
+  const isFermented = isFermentedCategory(product.productCategory);
+
+  // dose 계절 계산용 투입 월 (immersionDate에서, 없으면 현재 월)
+  const immMonth = immersionMonth
+    ?? (product.immersionDate ? parseInt(product.immersionDate.split('-')[1], 10) : NaN);
+  const resolvedImmMonth = Number.isNaN(immMonth) ? new Date().getMonth() + 1 : immMonth;
+
+  // 카테고리 라우팅: 발효주(약주)는 dose 엔진(해양 프로파일 필요), 그 외는 샴페인 엔진(기존 동작 보존 — 해양 미전달)
+  const { startMonths, endMonths, recommendation } = isFermented
+    ? calculateOptimalHarvestWindowRouted(
+        product, config, aiAgingFactors, aiQualityWeights,
+        monthlyOceanProfiles ?? undefined, resolvedImmMonth,
+      )
+    : calculateOptimalHarvestWindowRouted(product, config, aiAgingFactors, aiQualityWeights);
 
   // AI 결과와 통계 결과를 앙상블 (AI 70% + 통계 30%)
   const statisticalFlavors = predictFlavorProfileStatistical(clusters, underseaMonths, config, product, allModels, aiAgingFactors);
@@ -761,8 +779,10 @@ export function buildPredictionResult(
     aromaFreshnessScore: aiResponse.qualityScores.aromaFreshness,
     offFlavorRiskScore: aiResponse.qualityScores.offFlavorRisk,
     overallQualityScore: aiResponse.qualityScores.overallQuality,
-    optimalHarvestStartMonths: aiResponse.harvestWindow.startMonths || startMonths,
-    optimalHarvestEndMonths: aiResponse.harvestWindow.endMonths || endMonths,
+    // 약주는 dose 엔진값을 단일 소스로 사용(AI harvestWindow 무시 → 저장 필드와 recommendation 텍스트 정합).
+    // 그 외 카테고리는 기존 동작(AI harvestWindow 우선, 없으면 엔진값).
+    optimalHarvestStartMonths: isFermented ? startMonths : (aiResponse.harvestWindow.startMonths || startMonths),
+    optimalHarvestEndMonths: isFermented ? endMonths : (aiResponse.harvestWindow.endMonths || endMonths),
     harvestRecommendation: recommendation,
     aiReasoningText: aiResponse.reasoning || null,
     aiInsightText: [aiResponse.beforeCharacter, aiResponse.afterPrediction].filter(Boolean).join('\n') || aiResponse.insight,
@@ -870,7 +890,7 @@ function buildStatisticalFallback(
     (textureMaturity * 0.35 + aromaFreshness * 0.35 + (100 - offFlavorRisk) * 0.3) * 10
   ) / 10;
 
-  const { startMonths, endMonths } = calculateOptimalHarvestWindow(product, config);
+  const { startMonths, endMonths } = calculateOptimalHarvestWindowRouted(product, config);
   const categoryLabel = PRODUCT_CATEGORY_LABELS[(product.productCategory || 'champagne') as ProductCategory] || product.wineType;
 
   return {

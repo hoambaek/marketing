@@ -26,7 +26,7 @@ export function PredictionSimulator({
   isPredicting: boolean;
   linkCopied: boolean;
   setLinkCopied: (v: boolean) => void;
-  onOpenCoefficientDialog: () => void;
+  onOpenCoefficientDialog?: () => void;
   runPrediction: (productId: string, months: number, depth?: number) => Promise<AgingPrediction | null> | void;
   accent?: string;
   accentRgb?: string;
@@ -73,6 +73,7 @@ export function PredictionSimulator({
             <div className="hidden sm:block flex-1" />
 
             <div className="flex items-center gap-2 flex-wrap">
+            {onOpenCoefficientDialog && (
             <button
               onClick={onOpenCoefficientDialog}
               className="p-2 sm:p-1.5 rounded-lg border border-white/[0.06] hover:border-white/[0.12] hover:bg-white/[0.04] text-white/30 hover:text-white/60 transition-all shrink-0"
@@ -80,6 +81,7 @@ export function PredictionSimulator({
             >
               <Settings2 className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
             </button>
+            )}
             <button
               onClick={async () => {
                 if (!latestPrediction) return;

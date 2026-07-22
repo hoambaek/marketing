@@ -122,8 +122,13 @@ export async function POST(request: NextRequest) {
     let bayesianResult: BayesianUpdateResult | null = null;
     try {
       const retrievals = await fetchRetrievalResults(productId);
+      // 베이지안 계수(TCI/FRI/BRI)는 '해저 숙성' 실측에서만 역산된다.
+      // 지상 비교시음(actualDurationMonths=0)은 해저 효과가 없어 uaps-bayesian.ts의
+      // extractCoefficientObservations가 어차피 스킵하므로, 여기서 미리 제외한다.
+      // (제외하지 않으면 withActual.length>0로 블록에 진입해 관측 0건인데도
+      //  config 계수를 DEFAULT_PRIORS로 리셋하고 'applied: N건'을 허위 보고했다.)
       const withActual = retrievals?.filter(r =>
-        !r.isSimulated && r.actualBodyTexture != null
+        !r.isSimulated && r.actualBodyTexture != null && r.actualDurationMonths > 0
       ) || [];
 
       if (withActual.length > 0) {
@@ -191,7 +196,8 @@ export async function POST(request: NextRequest) {
       config,
       expertProfile,
       expertSources,
-      models || []
+      models || [],
+      monthlyOceanProfiles,
     );
 
     // 6. DB에 저장

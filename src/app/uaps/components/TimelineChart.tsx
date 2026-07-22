@@ -12,6 +12,7 @@ import {
   ReferenceDot,
   ReferenceLine,
 } from 'recharts';
+import { getTimelineAxisLabels } from '@/lib/utils/uaps-engine-yakju';
 
 // UAPS 숙성 타임라인 & 골든 윈도우 차트 (샴페인·전 카테고리 공유).
 // 고정 팔레트(금색 종합품질·시안 계획선·초록 효율점)라 카테고리 테마색은 쓰지 않는다.
@@ -20,11 +21,15 @@ export function TimelineChart({
   data,
   harvestWindow,
   plannedMonths,
+  category,
 }: {
   data: { month: number; textureMaturity: number; aromaFreshness: number; offFlavorRisk: number; bubbleRefinement: number; compositeQuality?: number; gainScore?: number; lossScore?: number; netBenefit?: number }[];
   harvestWindow: { startMonths: number; endMonths: number; peakMonth: number; peakScore: number; recommendation: string } | null;
   plannedMonths?: number | null;
+  category?: string | null;
 }) {
+  // 카테고리별 성분 라벨 (약주는 dose 모델의 4축으로 슬롯 재명명) — 단일 소스
+  const axisLabels = getTimelineAxisLabels(category);
   const peakPoint = harvestWindow
     ? data.find((d) => d.month === harvestWindow.peakMonth)
     : null;
@@ -69,10 +74,10 @@ export function TimelineChart({
           )}
         </div>
         <div className="grid grid-cols-2 gap-x-3 gap-y-0.5">
-          {texture != null && <span className="text-[10px] text-emerald-400/60">질감 {Math.round(texture)}</span>}
-          {aroma != null && <span className="text-[10px] text-red-400/50">향 {Math.round(aroma)}</span>}
-          {bubble != null && <span className="text-[10px] text-emerald-400/60">기포 {Math.round(bubble)}</span>}
-          {offFlavor != null && <span className="text-[10px] text-red-400/50">환원취 {Math.round(offFlavor)}</span>}
+          {texture != null && <span className="text-[10px] text-emerald-400/60">{axisLabels.textureMaturity} {Math.round(texture)}</span>}
+          {aroma != null && <span className="text-[10px] text-red-400/50">{axisLabels.aromaFreshness} {Math.round(aroma)}</span>}
+          {bubble != null && <span className="text-[10px] text-emerald-400/60">{axisLabels.bubbleRefinement} {Math.round(bubble)}</span>}
+          {offFlavor != null && <span className="text-[10px] text-red-400/50">{axisLabels.offFlavorRisk} {Math.round(offFlavor)}</span>}
         </div>
       </div>
     );

@@ -73,13 +73,17 @@ import {
   HIDDEN_UAPS_CATEGORIES,
 } from '@/lib/types/uaps';
 import {
-  generateTimelineData,
-  calculateOptimalHarvestWindow,
   findSimilarClusters,
   predictFlavorProfileStatistical,
   simulateDepthQualities,
   deriveKineticFactorFromOcean,
 } from '@/lib/utils/uaps-engine';
+import {
+  generateTimelineDataRouted,
+  calculateOptimalHarvestWindowRouted,
+  getTimelineAxisLabels,
+  isFermentedCategory,
+} from '@/lib/utils/uaps-engine-yakju';
 import { applyAgingAdjustments } from '@/lib/utils/uaps-ai-predictor';
 import { useOceanDataStore } from '@/lib/store/ocean-data-store';
 import {
@@ -191,9 +195,12 @@ export default function UAPSPage() {
   const aiAgingFactors = latestPrediction?.agingFactorsJson ?? undefined;
   const aiQualityWeights = latestPrediction?.qualityWeightsJson ?? undefined;
 
+  // 약주(dose 엔진)는 샴페인 계수(TCI/FRI/BRI)를 쓰지 않으므로 보정 계수 UI를 숨긴다
+  const isFermented = isFermentedCategory(selectedProduct?.productCategory);
+
   const timelineData = useMemo(() => {
     if (!selectedProduct) return [];
-    return generateTimelineData(
+    return generateTimelineDataRouted(
       selectedProduct, config,
       aiAgingFactors, aiQualityWeights,
       monthlyOceanProfiles ?? undefined,
@@ -203,7 +210,7 @@ export default function UAPSPage() {
 
   const harvestWindow = useMemo(() => {
     if (!selectedProduct) return null;
-    return calculateOptimalHarvestWindow(
+    return calculateOptimalHarvestWindowRouted(
       selectedProduct, config,
       aiAgingFactors, aiQualityWeights,
       monthlyOceanProfiles ?? undefined,
@@ -546,7 +553,7 @@ export default function UAPSPage() {
             isPredicting={isPredicting}
             linkCopied={linkCopied}
             setLinkCopied={setLinkCopied}
-            onOpenCoefficientDialog={() => setShowCoefficientDialog(true)}
+            onOpenCoefficientDialog={isFermented ? undefined : () => setShowCoefficientDialog(true)}
             runPrediction={runPrediction}
           />
         )}
@@ -568,7 +575,7 @@ export default function UAPSPage() {
         <SectionWrapper title="숙성 타임라인" icon={Gauge} iconColor="#C4A052" delay={0.35}>
           <div className="h-[280px] sm:h-[320px] lg:h-[360px]">
             {timelineData.length > 0 ? (
-              <TimelineChart data={timelineData} harvestWindow={harvestWindow} plannedMonths={selectedProduct?.plannedDurationMonths ?? null} />
+              <TimelineChart data={timelineData} harvestWindow={harvestWindow} plannedMonths={selectedProduct?.plannedDurationMonths ?? null} category={selectedProduct?.productCategory} />
             ) : (
               <div className="h-full flex items-center justify-center">
                 <p className="text-xs text-white/20">제품을 선택하면 숙성 타임라인이 표시됩니다</p>
@@ -634,20 +641,20 @@ export default function UAPSPage() {
                 <span className="text-white/10 text-[8px] hidden sm:inline">|</span>
                 <div className="flex items-center gap-1">
                   <div className="w-3 h-px bg-emerald-400/40" />
-                  <span className="text-[9px] text-emerald-400/30">질감</span>
+                  <span className="text-[9px] text-emerald-400/30">{getTimelineAxisLabels(selectedProduct?.productCategory).textureMaturity}</span>
                 </div>
                 <div className="flex items-center gap-1">
                   <div className="w-3 h-px border-t border-dashed border-emerald-400/30" />
-                  <span className="text-[9px] text-emerald-400/30">기포</span>
+                  <span className="text-[9px] text-emerald-400/30">{getTimelineAxisLabels(selectedProduct?.productCategory).bubbleRefinement}</span>
                 </div>
                 <span className="text-white/10 text-[8px] hidden sm:inline">|</span>
                 <div className="flex items-center gap-1">
                   <div className="w-3 h-px bg-red-400/35" />
-                  <span className="text-[9px] text-red-400/30">향 감쇠</span>
+                  <span className="text-[9px] text-red-400/30">{getTimelineAxisLabels(selectedProduct?.productCategory).aromaFreshness}</span>
                 </div>
                 <div className="flex items-center gap-1">
                   <div className="w-3 h-px border-t border-dashed border-red-400/30" />
-                  <span className="text-[9px] text-red-400/30">환원취</span>
+                  <span className="text-[9px] text-red-400/30">{getTimelineAxisLabels(selectedProduct?.productCategory).offFlavorRisk}</span>
                 </div>
                 <span className="text-white/10 text-[8px] hidden sm:inline">|</span>
                 <div className="flex items-center gap-1">
@@ -751,9 +758,9 @@ export default function UAPSPage() {
           />
         </div>
 
-        {/* 보정 계수 다이얼로그 */}
+        {/* 보정 계수 다이얼로그 (샴페인 계수 — 약주에선 숨김) */}
         <AnimatePresence>
-          {showCoefficientDialog && (
+          {showCoefficientDialog && !isFermented && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
