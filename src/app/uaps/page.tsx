@@ -4,11 +4,6 @@ import { useEffect, useState, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  RadarChart,
-  Radar,
-  PolarGrid,
-  PolarAngleAxis,
-  PolarRadiusAxis,
   ComposedChart,
   Area,
   Line,
@@ -89,7 +84,6 @@ import type {
   AgingProduct,
   AgingPrediction,
   ProductInput,
-  WineType,
   ClosureType,
   OceanConditionsForPrediction,
   DepthSimulationResult,
@@ -100,8 +94,6 @@ import {
   PRODUCT_STATUS_LABELS,
   PRODUCT_STATUS_COLORS,
   MODEL_STATUS_LABELS,
-  getFlavorAxes,
-  CATEGORY_NEGATIVE_AXIS,
   CATEGORY_SUBTYPES,
   CATEGORY_EA_MAP,
   HIDDEN_UAPS_CATEGORIES,
@@ -122,6 +114,7 @@ import {
 } from './components/OceanCardsV3';
 import { SectionWrapper, CoefficientSlider } from './components/DashboardParts';
 import { ProductModal } from './components/ProductModal';
+import { FlavorRadar } from './components/FlavorRadar';
 import { calculateProductOceanStats } from '@/lib/utils/uaps-ocean-profile';
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -1175,188 +1168,6 @@ export default function UAPSPage() {
 // ═══════════════════════════════════════════════════════════════════════════
 // 제품 추가/수정 모달
 // ═══════════════════════════════════════════════════════════════════════════
-
-// ═══════════════════════════════════════════════════════════════════════════
-// Flavor Radar 차트
-// ═══════════════════════════════════════════════════════════════════════════
-
-const FALLBACK_PROFILES: Record<WineType, Record<string, number>> = {
-  blanc_de_blancs: { fruity: 70, floralMineral: 65, yeastyAutolytic: 35, acidityFreshness: 80, bodyTexture: 45, finishComplexity: 55 },
-  blanc_de_noirs:  { fruity: 55, floralMineral: 40, yeastyAutolytic: 45, acidityFreshness: 65, bodyTexture: 65, finishComplexity: 55 },
-  rose:            { fruity: 65, floralMineral: 50, yeastyAutolytic: 30, acidityFreshness: 70, bodyTexture: 50, finishComplexity: 45 },
-  blend:           { fruity: 60, floralMineral: 45, yeastyAutolytic: 40, acidityFreshness: 70, bodyTexture: 55, finishComplexity: 50 },
-  vintage:         { fruity: 40, floralMineral: 55, yeastyAutolytic: 65, acidityFreshness: 55, bodyTexture: 70, finishComplexity: 75 },
-};
-
-function FlavorRadar({
-  beforeProfile,
-  afterProfile,
-  products,
-  selectedProductId,
-  onSelectProduct,
-  category,
-}: {
-  beforeProfile: Record<string, number> | null;
-  afterProfile: Record<string, number> | null;
-  products?: { id: string; productName: string }[];
-  selectedProductId?: string | null;
-  onSelectProduct?: (id: string) => void;
-  category?: string | null;
-}) {
-  const ZERO_PROFILE: Record<string, number> = { fruity: 0, floralMineral: 0, yeastyAutolytic: 0, acidityFreshness: 0, bodyTexture: 0, finishComplexity: 0 };
-  const before = beforeProfile || ZERO_PROFILE;
-  const after = afterProfile || before;
-
-  // 음성축(이취·산화 리스크 등): 값이 낮을수록 좋음 — 라벨에 ↓ 마커, 비교표 색상 반전
-  const negIdx = category ? CATEGORY_NEGATIVE_AXIS[category] : undefined;
-
-  const radarData = getFlavorAxes(category).map((axis, i) => ({
-    axis: negIdx === i ? `${axis.label} ↓` : axis.label,
-    isNeg: negIdx === i,
-    before: Math.round(Math.min(100, Math.max(0, before[axis.key] ?? 0))),
-    after: Math.round(Math.min(100, Math.max(0, after[axis.key] ?? 0))),
-  }));
-
-  const changes = radarData.map((d) => ({
-    label: d.axis,
-    isNeg: d.isNeg,
-    before: d.before,
-    after: d.after,
-    diff: d.after - d.before,
-  }));
-
-  return (
-    <div className="flex flex-col lg:flex-row gap-4 lg:gap-0">
-      {/* 제품 번호 — 데스크탑: 좌측 세로, 모바일: 상단 가로 */}
-      {products && products.length > 0 && (
-        <div className="lg:w-[140px] flex lg:flex-col items-start">
-          <div className="flex lg:flex-col gap-1.5 flex-nowrap lg:flex-wrap overflow-x-auto lg:overflow-x-hidden lg:overflow-y-auto lg:max-h-[340px] pb-1 lg:pb-0 lg:pr-3 lg:mr-3 lg:border-r lg:border-white/[0.04]">
-            {products!.map((p, i) => (
-              <button
-                key={p.id}
-                onClick={() => onSelectProduct?.(p.id)}
-                title={p.productName}
-                className={`flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-[11px] transition-all whitespace-nowrap ${
-                  selectedProductId === p.id
-                    ? 'bg-[#B76E79]/15 border border-[#B76E79]/30 text-[#B76E79]'
-                    : 'bg-white/[0.03] border border-white/[0.06] text-white/35 hover:text-white/60 hover:border-white/[0.12]'
-                }`}
-              >
-                <span className="w-4 h-4 flex items-center justify-center rounded-full bg-white/[0.08] text-[9px] font-mono shrink-0">{i + 1}</span>
-                <span className="truncate max-w-[80px] lg:max-w-[100px]">{p.productName}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-      {/* 레이더 차트 */}
-      <div className="flex-1 h-[280px] sm:h-[320px] lg:h-[360px] relative">
-        <ResponsiveContainer width="100%" height="100%">
-          <RadarChart data={radarData} cx="50%" cy="50%" outerRadius="88%">
-            <defs>
-              <radialGradient id="radarBeforeFill" cx="50%" cy="50%" r="50%">
-                <stop offset="0%" stopColor="#22d3ee" stopOpacity={0.10} />
-                <stop offset="100%" stopColor="#22d3ee" stopOpacity={0.02} />
-              </radialGradient>
-              <radialGradient id="radarAfterFill" cx="50%" cy="50%" r="50%">
-                <stop offset="0%" stopColor="#B76E79" stopOpacity={0.35} />
-                <stop offset="100%" stopColor="#B76E79" stopOpacity={0.06} />
-              </radialGradient>
-              <filter id="radarGlow">
-                <feGaussianBlur stdDeviation="3" result="blur" />
-                <feMerge>
-                  <feMergeNode in="blur" />
-                  <feMergeNode in="SourceGraphic" />
-                </feMerge>
-              </filter>
-            </defs>
-            <PolarGrid stroke="rgba(255,255,255,0.04)" gridType="circle" />
-            <PolarAngleAxis
-              dataKey="axis"
-              tick={{ fill: 'rgba(255,255,255,0.5)', fontSize: 11, fontFamily: 'var(--font-pretendard, Pretendard, sans-serif)' }}
-              tickLine={false}
-            />
-            <PolarRadiusAxis
-              angle={90}
-              domain={[0, 100]}
-              tick={false}
-              axisLine={false}
-            />
-            <Radar
-              name="투하 전"
-              dataKey="before"
-              stroke="rgba(34,211,238,0.4)"
-              fill="url(#radarBeforeFill)"
-              strokeWidth={1}
-              strokeDasharray="4 3"
-            />
-            <Radar
-              name="AI 예측"
-              dataKey="after"
-              stroke="#B76E79"
-              fill="url(#radarAfterFill)"
-              strokeWidth={2}
-              filter="url(#radarGlow)"
-            />
-          </RadarChart>
-        </ResponsiveContainer>
-      </div>
-
-      {/* 우측 패널 — 범례 + 변화량 */}
-      <div className="lg:w-[220px] flex flex-col justify-center lg:pl-2 lg:border-l lg:border-white/[0.04]">
-        {/* 범례 */}
-        <div className="flex lg:flex-col items-center lg:items-start gap-3 lg:gap-2 mb-4 lg:mb-5">
-          <div className="flex items-center gap-2">
-            <div className="w-5 h-px border-t border-dashed border-cyan-400/50" />
-            <span className="text-[10px] text-white/40 tracking-wide">투하 전</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-5 h-[2px] rounded-full bg-[#B76E79]" />
-            <span className="text-[10px] text-white/40 tracking-wide">해저 숙성 후</span>
-          </div>
-        </div>
-
-        {/* 6축 변화량 카드 */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-1 gap-1.5">
-          {changes.map((c) => {
-            // 음성축은 리스크↓(diff<0)가 개선, 양성축은 값↑(diff>0)가 개선
-            const isPositive = c.isNeg ? c.diff < 0 : c.diff > 0;
-            const isNegative = c.isNeg ? c.diff > 0 : c.diff < 0;
-            return (
-              <div
-                key={c.label}
-                className={`flex items-center justify-between rounded-lg px-3 py-2 transition-colors ${
-                  isPositive
-                    ? 'bg-[#B76E79]/[0.06] border border-[#B76E79]/[0.12]'
-                    : isNegative
-                    ? 'bg-cyan-400/[0.04] border border-cyan-400/[0.08]'
-                    : 'bg-white/[0.02] border border-white/[0.04]'
-                }`}
-              >
-                <div className="flex flex-col">
-                  <span className="text-[9px] lg:text-[10px] text-white/30 tracking-wide leading-none mb-0.5">{c.label}</span>
-                  <div className="flex items-baseline gap-1">
-                    <span className="text-[10px] lg:text-xs text-white/20 font-mono">{c.before}</span>
-                    <span className="text-[8px] lg:text-[10px] text-white/15">→</span>
-                    <span className="text-[10px] lg:text-xs text-white/50 font-mono font-medium">{c.after}</span>
-                  </div>
-                </div>
-                <span
-                  className={`text-sm lg:text-base font-mono font-semibold tabular-nums ${
-                    isPositive ? 'text-[#B76E79]' : isNegative ? 'text-cyan-400/70' : 'text-white/15'
-                  }`}
-                  style={{ fontFamily: "var(--font-cormorant), 'Cormorant Garamond', serif" }}
-                >
-                  {c.diff > 0 ? '+' : ''}{c.diff}
-                </span>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    </div>
-  );
-}
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Timeline & Golden Window 차트

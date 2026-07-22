@@ -5,11 +5,6 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  RadarChart,
-  Radar,
-  PolarGrid,
-  PolarAngleAxis,
-  PolarRadiusAxis,
   ComposedChart,
   Area,
   Line,
@@ -51,7 +46,6 @@ import { useUAPSStore } from '@/lib/store/uaps-store';
 import type {
   AgingProduct,
   ProductInput,
-  WineType,
   ClosureType,
   OceanConditionsForPrediction,
   DepthSimulationResult,
@@ -59,8 +53,6 @@ import type {
 import {
   WINE_TYPE_LABELS,
   PRODUCT_STATUS_LABELS,
-  getFlavorAxes,
-  CATEGORY_NEGATIVE_AXIS,
   CATEGORY_EA_MAP,
   HIDDEN_UAPS_CATEGORIES,
 } from '@/lib/types/uaps';
@@ -77,6 +69,7 @@ import { useOceanDataStore } from '@/lib/store/ocean-data-store';
 import { OceanConditionsCard, OptimalDepthCard, EnvironmentalImpactCard } from '../components/OceanCardsV3';
 import { SectionWrapper, CoefficientSlider } from '../components/DashboardParts';
 import { ProductModal } from '../components/ProductModal';
+import { FlavorRadar } from '../components/FlavorRadar';
 import { calculateProductOceanStats } from '@/lib/utils/uaps-ocean-profile';
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -1069,134 +1062,6 @@ export default function CategoryUAPSPage() {
             </motion.div>
           )}
         </AnimatePresence>
-      </div>
-    </div>
-  );
-}
-
-// ═══════════════════════════════════════════════════════════════════════════
-// Flavor Radar
-// ═══════════════════════════════════════════════════════════════════════════
-
-function FlavorRadar({
-  beforeProfile,
-  afterProfile,
-  accent,
-  accentRgb,
-  category,
-}: {
-  beforeProfile: Record<string, number> | null;
-  afterProfile: Record<string, number> | null;
-  accent: string;
-  accentRgb: string;
-  category?: string | null;
-}) {
-  const fallback = { fruity: 50, floralMineral: 45, yeastyAutolytic: 40, acidityFreshness: 55, bodyTexture: 50, finishComplexity: 50 };
-  const before = beforeProfile || fallback;
-  const after = afterProfile || before;
-
-  // 음성축(이취·산화 리스크 등): 값이 낮을수록 좋음 — 라벨에 ↓ 마커, 비교표 색상 반전
-  const negIdx = category ? CATEGORY_NEGATIVE_AXIS[category] : undefined;
-
-  const radarData = getFlavorAxes(category).map((axis, i) => ({
-    axis: negIdx === i ? `${axis.label} ↓` : axis.label,
-    isNeg: negIdx === i,
-    before: Math.round(Math.min(100, Math.max(5, before[axis.key] ?? 50))),
-    after: Math.round(Math.min(100, Math.max(5, after[axis.key] ?? 50))),
-  }));
-
-  const changes = radarData.map((d) => ({
-    label: d.axis,
-    isNeg: d.isNeg,
-    before: d.before,
-    after: d.after,
-    diff: d.after - d.before,
-  }));
-
-  return (
-    <div className="flex flex-col lg:flex-row gap-4 lg:gap-0">
-      <div className="flex-1 h-[300px] sm:h-[380px] lg:h-[420px] relative">
-        <ResponsiveContainer width="100%" height="100%">
-          <RadarChart data={radarData} cx="50%" cy="50%" outerRadius="78%">
-            <defs>
-              <radialGradient id="catRadarBeforeFill" cx="50%" cy="50%" r="50%">
-                <stop offset="0%" stopColor={accent} stopOpacity={0.10} />
-                <stop offset="100%" stopColor={accent} stopOpacity={0.02} />
-              </radialGradient>
-              <radialGradient id="catRadarAfterFill" cx="50%" cy="50%" r="50%">
-                <stop offset="0%" stopColor="#B76E79" stopOpacity={0.35} />
-                <stop offset="100%" stopColor="#B76E79" stopOpacity={0.06} />
-              </radialGradient>
-              <filter id="catRadarGlow">
-                <feGaussianBlur stdDeviation="3" result="blur" />
-                <feMerge>
-                  <feMergeNode in="blur" />
-                  <feMergeNode in="SourceGraphic" />
-                </feMerge>
-              </filter>
-            </defs>
-            <PolarGrid stroke="rgba(255,255,255,0.04)" gridType="circle" />
-            <PolarAngleAxis
-              dataKey="axis"
-              tick={{ fill: 'rgba(255,255,255,0.5)', fontSize: 11, fontFamily: 'var(--font-pretendard, Pretendard, sans-serif)' }}
-              tickLine={false}
-            />
-            <PolarRadiusAxis angle={90} domain={[0, 100]} tick={false} axisLine={false} />
-            <Radar name="투하 전" dataKey="before" stroke={`rgba(${accentRgb},0.4)`} fill="url(#catRadarBeforeFill)" strokeWidth={1} strokeDasharray="4 3" />
-            <Radar name="AI 예측" dataKey="after" stroke="#B76E79" fill="url(#catRadarAfterFill)" strokeWidth={2} filter="url(#catRadarGlow)" />
-          </RadarChart>
-        </ResponsiveContainer>
-      </div>
-
-      <div className="lg:w-[220px] flex flex-col justify-center lg:pl-2 lg:border-l lg:border-white/[0.04]">
-        <div className="flex lg:flex-col items-center lg:items-start gap-3 lg:gap-2 mb-4 lg:mb-5">
-          <div className="flex items-center gap-2">
-            <div className="w-5 h-px border-t border-dashed" style={{ borderColor: `${accent}80` }} />
-            <span className="text-[10px] text-white/40 tracking-wide">투하 전</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-5 h-[2px] rounded-full bg-[#B76E79]" />
-            <span className="text-[10px] text-white/40 tracking-wide">해저 숙성 후</span>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-1 gap-1.5">
-          {changes.map((c) => {
-            // 음성축은 리스크↓(diff<0)가 개선, 양성축은 값↑(diff>0)가 개선
-            const isImprove = c.isNeg ? c.diff < 0 : c.diff > 0;
-            const isDecline = c.isNeg ? c.diff > 0 : c.diff < 0;
-            const isPositive = isImprove;
-            const isNegative = isDecline;
-            return (
-              <div
-                key={c.label}
-                className="flex items-center justify-between rounded-lg px-3 py-2 border"
-                style={{
-                  backgroundColor: isPositive ? `rgba(183,110,121,0.06)` : isNegative ? `rgba(${accentRgb},0.04)` : 'rgba(255,255,255,0.02)',
-                  borderColor: isPositive ? 'rgba(183,110,121,0.12)' : isNegative ? `rgba(${accentRgb},0.08)` : 'rgba(255,255,255,0.04)',
-                }}
-              >
-                <div className="flex flex-col">
-                  <span className="text-[9px] text-white/30 tracking-wide leading-none mb-0.5">{c.label}</span>
-                  <div className="flex items-baseline gap-1">
-                    <span className="text-[10px] text-white/20 font-mono">{c.before}</span>
-                    <span className="text-[8px] text-white/15">→</span>
-                    <span className="text-[10px] text-white/45 font-mono">{c.after}</span>
-                  </div>
-                </div>
-                <span
-                  className="text-xs font-mono font-semibold tabular-nums"
-                  style={{
-                    color: isPositive ? '#B76E79' : isNegative ? `rgba(${accentRgb},0.7)` : 'rgba(255,255,255,0.15)',
-                    fontFamily: "var(--font-cormorant), 'Cormorant Garamond', serif",
-                  }}
-                >
-                  {c.diff > 0 ? '+' : ''}{c.diff}
-                </span>
-              </div>
-            );
-          })}
-        </div>
       </div>
     </div>
   );
