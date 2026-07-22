@@ -1,7 +1,6 @@
 'use client';
 
-import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
-import { createPortal } from 'react-dom';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -122,7 +121,7 @@ import {
   OceanConditionsCard, OptimalDepthCard, EnvironmentalImpactCard,
   MonthlyProfileCard,
 } from './components/OceanCardsV3';
-import { SectionWrapper } from './components/DashboardParts';
+import { SectionWrapper, CoefficientSlider } from './components/DashboardParts';
 import { calculateProductOceanStats } from '@/lib/utils/uaps-ocean-profile';
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -2070,103 +2069,3 @@ function TimelineChart({
 // 보정 계수 슬라이더
 // ═══════════════════════════════════════════════════════════════════════════
 
-function CoefficientSlider({
-  label,
-  value,
-  onChange,
-  min,
-  max,
-  step,
-  scientificBasis,
-  recommendedValue,
-  sourceType,
-  description,
-}: {
-  label: string;
-  value: number;
-  onChange: (v: number) => void;
-  min: number;
-  max: number;
-  step: number;
-  scientificBasis?: string;
-  recommendedValue?: number;
-  sourceType?: 'hypothesis' | 'scientific';
-  description?: string;
-}) {
-  const [showTooltip, setShowTooltip] = useState(false);
-  const btnRef = useRef<HTMLButtonElement>(null);
-  const [tooltipPos, setTooltipPos] = useState({ top: 0, left: 0 });
-
-  const openTooltip = () => {
-    if (btnRef.current) {
-      const rect = btnRef.current.getBoundingClientRect();
-      setTooltipPos({
-        top: rect.top - 8,
-        left: Math.max(12, Math.min(rect.left, window.innerWidth - 300)),
-      });
-    }
-    setShowTooltip(true);
-  };
-
-  return (
-    <div>
-      <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-1.5">
-          <label className="text-xs text-white/50">{label}</label>
-          {description && (
-            <>
-              <button
-                ref={btnRef}
-                type="button"
-                onMouseEnter={openTooltip}
-                onMouseLeave={() => setShowTooltip(false)}
-                onClick={() => showTooltip ? setShowTooltip(false) : openTooltip()}
-                className="text-white/25 hover:text-white/60 transition-colors"
-              >
-                <Info className="w-3.5 h-3.5" />
-              </button>
-              {showTooltip && typeof document !== 'undefined' && createPortal(
-                <div
-                  className="fixed w-72 bg-[#12131a] border border-white/[0.12] rounded-xl p-3.5 shadow-2xl z-[9999]"
-                  style={{ top: tooltipPos.top, left: tooltipPos.left, transform: 'translateY(-100%)' }}
-                  onMouseEnter={() => setShowTooltip(true)}
-                  onMouseLeave={() => setShowTooltip(false)}
-                >
-                  <p className="text-[11px] leading-[1.7] text-white/60 whitespace-pre-line">{description}</p>
-                </div>,
-                document.body
-              )}
-            </>
-          )}
-        </div>
-        <span className="text-xs text-cyan-400 font-mono font-medium">{value.toFixed(2)}</span>
-      </div>
-      <input
-        type="range"
-        min={min}
-        max={max}
-        step={step}
-        value={value}
-        onChange={(e) => onChange(Number(e.target.value))}
-        className="w-full accent-cyan-400 h-1.5 bg-white/[0.06] rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3.5 [&::-webkit-slider-thumb]:h-3.5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-cyan-400 [&::-webkit-slider-thumb]:shadow-[0_0_6px_rgba(34,211,238,0.3)]"
-      />
-      <div className="flex justify-between text-[10px] text-white/20 mt-1">
-        <span>{min}</span>
-        {recommendedValue !== undefined && (
-          <span className="text-cyan-400/50">권장 {recommendedValue}</span>
-        )}
-        <span>{max}</span>
-      </div>
-      {scientificBasis && (
-        <div className="flex items-center gap-1.5 mt-1.5">
-          <span
-            className={`w-1.5 h-1.5 rounded-full shrink-0 ${
-              sourceType === 'scientific' ? 'bg-emerald-400' : 'bg-amber-400'
-            }`}
-          />
-          <span className="text-[10px] text-white/30">{scientificBasis}</span>
-        </div>
-      )}
-    </div>
-  );
-}

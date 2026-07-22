@@ -1,7 +1,6 @@
 'use client';
 
-import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
-import { createPortal } from 'react-dom';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -83,7 +82,7 @@ import {
 import { applyAgingAdjustments } from '@/lib/utils/uaps-ai-predictor';
 import { useOceanDataStore } from '@/lib/store/ocean-data-store';
 import { OceanConditionsCard, OptimalDepthCard, EnvironmentalImpactCard } from '../components/OceanCardsV3';
-import { SectionWrapper } from '../components/DashboardParts';
+import { SectionWrapper, CoefficientSlider } from '../components/DashboardParts';
 import { calculateProductOceanStats } from '@/lib/utils/uaps-ocean-profile';
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -1667,60 +1666,3 @@ function TimelineChart({
 // 보정 계수 슬라이더
 // ═══════════════════════════════════════════════════════════════════════════
 
-function CoefficientSlider({
-  label,
-  value,
-  onChange,
-  min,
-  max,
-  step,
-  scientificBasis,
-  recommendedValue,
-  sourceType,
-  accent,
-  accentRgb,
-}: {
-  label: string;
-  value: number;
-  onChange: (v: number) => void;
-  min: number;
-  max: number;
-  step: number;
-  scientificBasis?: string;
-  recommendedValue?: number;
-  sourceType?: 'hypothesis' | 'scientific';
-  accent: string;
-  accentRgb: string;
-}) {
-  return (
-    <div>
-      <div className="flex items-center justify-between mb-2">
-        <label className="text-xs text-white/50">{label}</label>
-        <span className="text-xs font-mono font-medium" style={{ color: accent }}>{value.toFixed(2)}</span>
-      </div>
-      <input
-        type="range"
-        min={min}
-        max={max}
-        step={step}
-        value={value}
-        onChange={(e) => onChange(Number(e.target.value))}
-        className="w-full h-1.5 bg-white/[0.06] rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3.5 [&::-webkit-slider-thumb]:h-3.5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow-lg"
-        style={{ accentColor: accent }}
-      />
-      <div className="flex justify-between text-[10px] text-white/20 mt-1">
-        <span>{min}</span>
-        {recommendedValue !== undefined && (
-          <span style={{ color: `${accent}80` }}>권장 {recommendedValue}</span>
-        )}
-        <span>{max}</span>
-      </div>
-      {scientificBasis && (
-        <div className="flex items-center gap-1.5 mt-1.5">
-          <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${sourceType === 'scientific' ? 'bg-emerald-400' : 'bg-amber-400'}`} />
-          <span className="text-[10px] text-white/30">{scientificBasis}</span>
-        </div>
-      )}
-    </div>
-  );
-}
