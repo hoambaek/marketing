@@ -314,7 +314,7 @@ export default function UAPSPage() {
 
   // 제품 투입일 기반 수심 보정 환경 통계
   const productOceanStats = useMemo(() => {
-    // 침지 기간 전체(예: 1/1~현재)를 평균하려면 뷰 창(90일)에 제한된 dailyData가 아니라
+    // 입수 기간 전체(예: 1/1~현재)를 평균하려면 뷰 창(90일)에 제한된 dailyData가 아니라
     // 전체 히스토리(allDailyData, 2025-01-01~ 30m 보정)를 사용한다. 없으면 dailyData 폴백.
     const source = allDailyData && allDailyData.length > 0 ? allDailyData : dailyData;
     if (!selectedProduct || !source || source.length === 0) return null;

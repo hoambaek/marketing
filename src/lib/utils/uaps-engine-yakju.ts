@@ -5,7 +5,7 @@
  * 약주는 성숙을 "개월"이 아니라 "누적 열노출량(thermal dose)"의 함수로 계산한다.
  *
  * dose(m) = Σ 아레니우스속도(저층수온ₘ) × Δt  (10°C 등가 개월로 정규화)
- * 침지월부터 실제 계절 수온 경로를 적분하므로, 같은 개월이라도 겨울/여름 침지가
+ * 입수월부터 실제 계절 수온 경로를 적분하므로, 같은 개월이라도 겨울/여름 입수가
  * 다른 dose·다른 피크를 갖는다(계절 자동 전이).
  *
  * 설계: docs/plans/musedemaree/2026-07-22-yakju-timeline-model-design.md
@@ -51,9 +51,9 @@ export interface YakjuAgingParams {
 }
 
 // 약주 매트릭스 물성값. dOverripe(과숙 임계 dose)는 관측 배치로 보정한다.
-// dOverripe=3.75 : 지란지교 2026-01 침지 배치(관측 최적 3개월)에 맞춰 캘리브레이션.
+// dOverripe=3.75 : 지란지교 2026-01 입수 배치(관측 최적 3개월)에 맞춰 캘리브레이션.
 //   피크=3은 저장 상수가 아니라, 이 임계에서 각 제품의 dose 경로로 argmax를 계산해 나오는 값이다.
-//   (겨울 침지 3개월 = 여름 침지 2개월처럼 계절에 따라 피크가 자동 이동)
+//   (겨울 입수 3개월 = 여름 입수 2개월처럼 계절에 따라 피크가 자동 이동)
 // 나머지 파라미터는 도메인 추론 시드값. 다중 시점 실측 전까지 status uncertain.
 export const DEFAULT_YAKJU_PARAMS: YakjuAgingParams = {
   kEster: 0.9,
@@ -84,7 +84,7 @@ export function getTimelineAxisLabels(category?: string | null): {
 const COMPOSITE_OFFSET = 35;
 
 // 약주 타임라인 표시·탐색 범위 (개월). 약주는 수개월 내 성숙하므로 12개월로 한정
-// (샴페인 36개월과 달리 — 대표 지시 2026-07-22). 피크는 저온 겨울 침지 기준 2~3개월.
+// (샴페인 36개월과 달리 — 대표 지시 2026-07-22). 피크는 저온 겨울 입수 기준 2~3개월.
 const YAKJU_MAX_MONTHS = 12;
 
 /** 이 카테고리가 dose 구동 발효주 모델을 쓰는가 (Phase 1: 약주만) */
@@ -97,7 +97,7 @@ export function isFermentedCategory(category?: string | null): boolean {
 // ═══════════════════════════════════════════════════════════════════════════
 
 /**
- * 침지월부터 1~maxMonths 각 월의 누적 dose 배열 반환 (10°C 등가 개월)
+ * 입수월부터 1~maxMonths 각 월의 누적 dose 배열 반환 (10°C 등가 개월)
  * 해양 프로파일이 없으면 10°C 평탄 가정 → dose = 경과 개월(계절 무시 폴백)
  */
 export function computeDosePath(
@@ -245,7 +245,7 @@ export function calculateOptimalHarvestWindowYakju(
   }
 
   const seasonNote = monthlyOceanProfiles && monthlyOceanProfiles.length > 0 && immersionMonth
-    ? `${immersionMonth}월 침지 기준`
+    ? `${immersionMonth}월 입수 기준`
     : '계절 미반영(해양 데이터 없음)';
   const recommendation =
     `[전통주(약주·청주)] 최적 인양 시기: ${startMonths}-${endMonths}개월 ` +

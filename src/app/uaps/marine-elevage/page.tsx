@@ -226,7 +226,7 @@ export default function MarineElevagePage() {
           </ArcStep>
 
           <ArcStep number="05" icon={Target} index={4} tag="해자 · Abyss·Immersion과 가르는 지점" title="‘담갔다’가 아니라 ‘언제 꺼낼지를 예측하는 공정 제어’">
-            <SayThis>기존 해저숙성 사례들은 고정 기간 침지예요. 저희는 다릅니다 — 해양 조건에서의 숙성 정점을 AI로 예측해서 입수·인양 시점 자체를 타게팅합니다. ‘바다에 담갔다’가 아니라 언제 꺼낼지를 예측하는 공정 제어입니다.</SayThis>
+            <SayThis>기존 해저숙성 사례들은 고정 기간 입수예요. 저희는 다릅니다 — 해양 조건에서의 숙성 정점을 AI로 예측해서 입수·인양 시점 자체를 타게팅합니다. ‘바다에 담갔다’가 아니라 언제 꺼낼지를 예측하는 공정 제어입니다.</SayThis>
             <p>이게 <span className="text-white/75">감성 브랜드와 연구 브랜드를 가르는 단 하나의 문장</span>입니다. 여기서 UAPS를 전면에 세우세요.</p>
             <Link href="/uaps/how-it-works" className="inline-flex items-center gap-1.5 text-[11px] text-white/40 hover:text-white/70 transition-colors mt-1">
               <AnchorIcon className="w-3 h-3" /> UAPS 작동 원리 보기 →

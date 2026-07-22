@@ -410,7 +410,7 @@ export default function CategoryUAPSPage() {
 
   // 제품 투입일 기반 수심 보정 환경 통계
   const productOceanStats = useMemo(() => {
-    // 침지 기간 전체 평균 → 뷰 창 dailyData가 아니라 전체 히스토리(allDailyData) 사용 (page.tsx와 동일)
+    // 입수 기간 전체 평균 → 뷰 창 dailyData가 아니라 전체 히스토리(allDailyData) 사용 (page.tsx와 동일)
     const source = allDailyData && allDailyData.length > 0 ? allDailyData : dailyData;
     if (!selectedProduct || !source || source.length === 0) return null;
     const immersionDate = selectedProduct.immersionDate;

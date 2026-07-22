@@ -58,7 +58,7 @@ interface OceanDataState {
   // Data State
   hourlyData: OceanDataHourly[];
   dailyData: OceanDataDaily[];
-  // 전체 히스토리(2025-01-01~, 30m 보정) — 뷰 창에 제한된 dailyData와 달리 침지 기간 전체 평균에 사용
+  // 전체 히스토리(2025-01-01~, 30m 보정) — 뷰 창에 제한된 dailyData와 달리 입수 기간 전체 평균에 사용
   allDailyData: OceanDataDaily[];
   salinityRecords: SalinityRecord[];
   currentConditions: CurrentOceanConditions | null;
@@ -688,7 +688,7 @@ export const useOceanDataStore = create<OceanDataState>((set, get) => ({
       const monthlyProfiles = buildMonthlyOceanProfiles(allData);
       const annualProfile = buildAnnualOceanProfile(monthlyProfiles, agingDepth);
 
-      // 전체 히스토리를 30m 보정한 배열 (침지 기간 전체 평균용 — dailyData와 동일한 보정 규약)
+      // 전체 히스토리를 30m 보정한 배열 (입수 기간 전체 평균용 — dailyData와 동일한 보정 규약)
       const allDailyData = allData.map((d) => {
         const month = parseInt(d.date.split('-')[1], 10) || 1;
         return {
