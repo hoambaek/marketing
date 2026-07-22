@@ -40,7 +40,7 @@ import {
 } from '@/lib/utils/uaps-engine';
 import { applyAgingAdjustments } from '@/lib/utils/uaps-ai-predictor';
 import { useOceanDataStore } from '@/lib/store/ocean-data-store';
-import { OceanConditionsCard, OptimalDepthCard, EnvironmentalImpactCard } from '../components/OceanCardsV3';
+import { OceanConditionsCard, OptimalDepthCard, EnvironmentalImpactCard, MonthlyProfileCard } from '../components/OceanCardsV3';
 import { SectionWrapper, CoefficientSlider } from '../components/DashboardParts';
 import { ProductModal } from '../components/ProductModal';
 import { FlavorRadar } from '../components/FlavorRadar';
@@ -245,6 +245,8 @@ export default function CategoryUAPSPage() {
   const {
     currentConditions: oceanCurrentConditions,
     historicalOceanStats,
+    monthlyOceanProfiles,
+    annualOceanProfile,
     dailyData,
     allDailyData,
     fetchCurrentConditions: loadOceanConditions,
@@ -322,6 +324,14 @@ export default function CategoryUAPSPage() {
     if (localFri !== config.fri) await updateCoefficient('fri_coefficient', localFri);
     if (localBri !== config.bri) await updateCoefficient('bri_coefficient', localBri);
   }, [localTci, localFri, localBri, config.tci, config.fri, config.bri, updateCoefficient]);
+
+  // 오늘 데이터 출처 (해양 현황 카드용)
+  const todayDataSource = useMemo(() => {
+    if (!dailyData || dailyData.length === 0) return null;
+    const today = new Date().toISOString().split('T')[0];
+    const todayRecord = dailyData.find((d) => d.date === today);
+    return todayRecord?.dataSource ?? dailyData[0]?.dataSource ?? null;
+  }, [dailyData]);
 
   // 제품 투입일 기반 수심 보정 환경 통계
   const productOceanStats = useMemo(() => {
@@ -661,10 +671,14 @@ export default function CategoryUAPSPage() {
           </SectionWrapper>
         )}
 
-        {/* v3.0: 해양 환경 카드 3종 */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        {/* ═══════════════════════════════════════════════════════════ */}
+        {/* v3.0: 해양 환경 현황 + 최적 깊이 (2열) */}
+        {/* ═══════════════════════════════════════════════════════════ */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <OceanConditionsCard
             currentConditions={oceanCurrentConditions}
+            dataSource={todayDataSource}
+            tsiScore={annualOceanProfile?.tsiScore ?? null}
             accentColor={theme.accent}
           />
           <OptimalDepthCard
@@ -686,6 +700,16 @@ export default function CategoryUAPSPage() {
               waterPressure: historicalOceanStats.waterPressure,
               salinity: historicalOceanStats.salinity,
             } : null}
+            accentColor={theme.accent}
+          />
+        </div>
+
+        {/* ═══════════════════════════════════════════════════════════ */}
+        {/* v3.1: 월별 수온 + 환경 영향도 (2열) */}
+        {/* ═══════════════════════════════════════════════════════════ */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <MonthlyProfileCard
+            monthlyProfiles={monthlyOceanProfiles}
             accentColor={theme.accent}
           />
           <EnvironmentalImpactCard
