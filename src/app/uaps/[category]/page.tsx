@@ -5,14 +5,9 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Anchor,
   Wine,
   Brain,
-  Plus,
   X,
-  Trash2,
-  Pencil,
-  Loader2,
   AlertTriangle,
   Settings2,
   Database,
@@ -32,8 +27,6 @@ import type {
   DepthSimulationResult,
 } from '@/lib/types/uaps';
 import {
-  WINE_TYPE_LABELS,
-  PRODUCT_STATUS_LABELS,
   CATEGORY_EA_MAP,
   HIDDEN_UAPS_CATEGORIES,
 } from '@/lib/types/uaps';
@@ -53,6 +46,7 @@ import { ProductModal } from '../components/ProductModal';
 import { FlavorRadar } from '../components/FlavorRadar';
 import { TimelineChart } from '../components/TimelineChart';
 import { PredictionSimulator } from '../components/PredictionSimulator';
+import { ProductListSection } from '../components/ProductListSection';
 import { calculateProductOceanStats } from '@/lib/utils/uaps-ocean-profile';
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -552,121 +546,18 @@ export default function CategoryUAPSPage() {
         {/* ═══════════════════════════════════════════════════════════ */}
         {/* 숙성 제품 리스트 */}
         {/* ═══════════════════════════════════════════════════════════ */}
-        <SectionWrapper
-          title="숙성 제품 리스트"
-          icon={Anchor}
-          iconColor={theme.accent}
-          delay={0.15}
-          action={
-            <button
-              onClick={() => setShowModal(true)}
-              className="flex items-center gap-1.5 bg-white/[0.06] hover:bg-white/[0.1] border border-white/[0.08] text-white/80 hover:text-white font-medium rounded-xl px-4 py-2 text-sm transition-all"
-            >
-              <Plus className="w-4 h-4" />
-              추가
-            </button>
-          }
-        >
-          {(() => {
-            const filtered = agingProducts.filter((p) => (p.productCategory ?? 'champagne') === categoryDbName);
-            return isLoading && agingProducts.length === 0 ? (
-            <div className="flex items-center justify-center py-16 text-white/30">
-              <Loader2 className="w-5 h-5 animate-spin mr-2" />
-              로딩 중...
-            </div>
-          ) : filtered.length === 0 ? (
-            <div className="text-center py-12">
-              <Wine className="w-8 h-8 text-white/20 mx-auto mb-3" />
-              <p className="text-white/40 text-sm">
-                이 카테고리에 등록된 제품이 없습니다.
-              </p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {filtered.map((product) => (
-                <motion.div
-                  key={product.id}
-                  whileHover={{ y: -2 }}
-                  whileTap={{ scale: 0.98 }}
-                  className="relative group"
-                >
-                  <div
-                    onClick={() => selectProduct(product.id)}
-                    role="button"
-                    tabIndex={0}
-                    onKeyDown={(e) => { if (e.key === 'Enter') selectProduct(product.id); }}
-                    className={`w-full text-left border rounded-xl p-4 transition-all cursor-pointer ${
-                      selectedProductId === product.id
-                        ? 'border-white/20 bg-white/[0.04]'
-                        : 'border-white/[0.06] bg-white/[0.02] hover:border-white/[0.12] hover:bg-white/[0.04]'
-                    }`}
-                    style={selectedProductId === product.id ? {
-                      borderColor: `rgba(${theme.accentRgb}, 0.5)`,
-                      backgroundColor: `rgba(${theme.accentRgb}, 0.06)`,
-                      boxShadow: `0 0 20px rgba(${theme.accentRgb}, 0.08)`,
-                    } : {}}
-                  >
-                    <div className="flex items-start justify-between mb-2">
-                      <h4 className="text-white font-medium text-sm truncate pr-2">
-                        {product.productName}
-                      </h4>
-                      <span
-                        className={`text-[10px] font-medium whitespace-nowrap px-2 py-0.5 rounded-full ${
-                          product.status === 'immersed'
-                            ? 'bg-white/10 text-white/50'
-                            : product.status === 'harvested'
-                              ? 'bg-amber-500/15 text-amber-400'
-                              : 'bg-white/[0.06] text-white/50'
-                        }`}
-                        style={product.status === 'immersed' ? {
-                          backgroundColor: `rgba(${theme.accentRgb}, 0.15)`,
-                          color: theme.accent,
-                        } : {}}
-                      >
-                        {PRODUCT_STATUS_LABELS[product.status]}
-                      </span>
-                    </div>
-                    <div className="flex items-end justify-between">
-                      <div className="space-y-1">
-                        <p className="text-xs text-white/40">
-                          {product.wineType
-                            ? WINE_TYPE_LABELS[product.wineType]
-                            : product.productCategory}
-                          {product.vintage ? ` · ${product.vintage}` : ''}
-                        </p>
-                        <p className="text-xs text-white/30">
-                          {product.agingDepth}m
-                          {product.plannedDurationMonths ? ` · ${product.plannedDurationMonths}개월` : ''}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-0.5" onClick={(e) => e.stopPropagation()}>
-                        <button
-                          onClick={() => setEditingProduct(product)}
-                          className="p-1.5 rounded-lg hover:bg-white/[0.06] text-white/30 hover:text-white/60 transition-colors"
-                          aria-label="수정"
-                        >
-                          <Pencil className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          onClick={() => {
-                            if (confirm(`"${product.productName}" 제품을 삭제하시겠습니까?`)) {
-                              removeAgingProduct(product.id);
-                            }
-                          }}
-                          className="p-1.5 rounded-lg hover:bg-red-500/20 text-white/30 hover:text-red-400 transition-colors"
-                          aria-label="삭제"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-          );
-          })()}
-        </SectionWrapper>
+        <ProductListSection
+          products={agingProducts}
+          filterCategory={categoryDbName}
+          isLoading={isLoading}
+          selectedProductId={selectedProductId}
+          onSelect={selectProduct}
+          onEdit={setEditingProduct}
+          onDelete={removeAgingProduct}
+          onAdd={() => setShowModal(true)}
+          accent={theme.accent}
+          accentRgb={theme.accentRgb}
+        />
 
         {/* 제품 추가/수정 모달 */}
         <AnimatePresence>

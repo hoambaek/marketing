@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import { Anchor, X, Loader2, Sparkles } from 'lucide-react';
 import {
   ProductInput,
+  ProductStatus,
   AgingProduct,
   WineType,
   ClosureType,
@@ -129,6 +130,7 @@ export function ProductModal({
   const [immersionDate, setImmersionDate] = useState(initialData?.immersionDate ?? '');
   const [plannedDurationMonths, setPlannedDurationMonths] = useState<string>(initialData?.plannedDurationMonths?.toString() ?? '');
   const [agingDepth, setAgingDepth] = useState<string>(initialData?.agingDepth?.toString() ?? '30');
+  const [status, setStatus] = useState<ProductStatus>(initialData?.status ?? 'planned');
   const [notes, setNotes] = useState(initialData?.notes ?? '');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isAISearching, setIsAISearching] = useState(false);
@@ -218,6 +220,7 @@ export function ProductModal({
       plannedDurationMonths: plannedDurationMonths ? Number(plannedDurationMonths) : null,
       agingDepth: agingDepth ? Number(agingDepth) : 30,
       terrestrialAgingYears: terrestrialAgingYears ? Number(terrestrialAgingYears) : null,
+      status,
       notes: notes.trim() || null,
     });
     setIsSubmitting(false);
@@ -482,6 +485,24 @@ export function ProductModal({
               <label className={labelClass}>숙성 깊이 (m)</label>
               <input type="number" value={agingDepth} onChange={(e) => setAgingDepth(e.target.value)} placeholder="30" className={inputClass} />
             </div>
+          </div>
+
+          {/* 상태 */}
+          <div>
+            <label className={labelClass}>상태</label>
+            <select
+              value={status}
+              onChange={(e) => setStatus(e.target.value as ProductStatus)}
+              className={inputClass}
+            >
+              <option value="planned">자동 (투하일 기준)</option>
+              <option value="immersed">숙성 중</option>
+              <option value="harvested">인양 완료</option>
+              <option value="test">테스트</option>
+            </select>
+            <p className="text-[11px] text-white/30 mt-1">
+              자동은 투하일이 지나면 &lsquo;숙성 중&rsquo;으로 표시됩니다. 인양 완료·테스트는 수동으로 고정됩니다.
+            </p>
           </div>
 
           {/* 메모 */}

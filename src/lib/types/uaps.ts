@@ -42,7 +42,7 @@ export type ClosureType =
   | 'ceramic_cap'
   | 'none';
 
-export type ProductStatus = 'planned' | 'immersed' | 'harvested';
+export type ProductStatus = 'planned' | 'immersed' | 'harvested' | 'test';
 
 export type ModelStatus = 'untrained' | 'training' | 'trained';
 
@@ -322,6 +322,8 @@ export interface ProductInput {
   agingDepth: number;
   terrestrialAgingYears: number | null;
   notes: string | null;
+  // 상태: 'planned' = 자동(투하일 기준), 나머지는 수동 지정. 미지정 시 'planned'.
+  status?: ProductStatus;
 }
 
 // 예측 실행 입력
@@ -438,13 +440,36 @@ export const PRODUCT_STATUS_LABELS: Record<ProductStatus, string> = {
   planned: '투하 예정',
   immersed: '숙성 중',
   harvested: '인양 완료',
+  test: '테스트',
 };
 
 export const PRODUCT_STATUS_COLORS: Record<ProductStatus, string> = {
   planned: 'text-blue-400',
   immersed: 'text-cyan-400',
   harvested: 'text-amber-400',
+  test: 'text-violet-400',
 };
+
+// 표시용 상태 도출.
+// status 컬럼을 "수동 지정 vs 자동" 스위치로 쓴다:
+// - 'immersed' / 'harvested' / 'test' = 수동 지정 → 그대로 존중
+// - 'planned' = 자동 모드(생성 시 기본값) → 투하일 기준으로 계산
+//   · 투하일이 오늘·과거면 '숙성 중'(immersed)
+//   · 투하일이 없거나 미래면 '투하 예정'(planned)
+// 인양 완료·테스트는 자동 전환되지 않고 수정 모달의 상태 셀렉트로만 지정된다.
+export function deriveProductStatus(product: {
+  status: ProductStatus;
+  immersionDate: string | null;
+}): ProductStatus {
+  if (product.status === 'immersed' || product.status === 'harvested' || product.status === 'test') {
+    return product.status;
+  }
+  // 'planned' = 자동
+  if (product.immersionDate && new Date(product.immersionDate) <= new Date()) {
+    return 'immersed';
+  }
+  return 'planned';
+}
 
 export const MODEL_STATUS_LABELS: Record<ModelStatus, string> = {
   untrained: '미학습',

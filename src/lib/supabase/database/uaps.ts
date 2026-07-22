@@ -218,6 +218,7 @@ export async function createAgingProduct(
       reduction_potential: input.reductionPotential,
       reduction_checks: input.reductionChecks,
       closure_type: input.closureType ?? 'cork_natural',
+      status: input.status ?? 'planned',
       immersion_date: input.immersionDate,
       planned_duration_months: input.plannedDurationMonths,
       aging_depth: input.agingDepth,
