@@ -246,15 +246,29 @@ export function OptimalDepthCard({
       <div className="bg-white/[0.02] border border-white/[0.06] rounded-2xl p-5">
         <div className="flex items-center gap-2 mb-3">
           <Anchor className="w-4 h-4" style={{ color: accentColor }} />
-          <h3 className="text-sm font-medium text-white/80">최적 깊이 추천</h3>
+          <h3 className="text-sm font-medium text-white/80">깊이별 숙성 품질</h3>
         </div>
         <p className="text-xs text-white/30">제품을 선택하면 깊이별 품질을 시뮬레이션합니다.</p>
       </div>
     );
   }
 
-  const best = depthResults.reduce((a, b) => (a.quality > b.quality ? a : b));
-  const maxQ = Math.max(...depthResults.map((d) => d.quality), 1);
+  // 작업 용이성 점수(0~100): 얕을수록 높음. 30m는 무감압 레크리에이션 다이빙 한계 →
+  // 그 이하는 접근·안전·비용이 용이하고, 초과는 테크니컬 다이빙(감압·혼합기체)으로 난이도·위험 급증.
+  const workEase = (depth: number) =>
+    depth <= 30
+      ? Math.round(100 - (depth - 10) * 0.25) // 10→100, 20→98, 30→95 (완만)
+      : Math.max(0, Math.round(95 - (depth - 30) * 1.0)); // 40→85, 50→75 (완만한 감소)
+
+  // 종합 점수 = 숙성 품질·작업 용이성 가중 합(6:4). 깊을수록 품질↑, 얕을수록 작업성↑ →
+  // 균형점(30m)이 종합 최고점. 가산식이라 40·50m도 과하게 낮아지지 않는다.
+  const scored = depthResults.map((d) => {
+    const ease = workEase(d.depth);
+    const combined = Math.round((d.quality * 0.6 + ease * 0.4) * 10) / 10;
+    return { ...d, ease, combined };
+  });
+  const maxCombined = Math.max(...scored.map((s) => s.combined), 1);
+  const best = scored.reduce((a, b) => (a.combined > b.combined ? a : b));
 
   return (
     <motion.div
@@ -265,38 +279,41 @@ export function OptimalDepthCard({
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <Anchor className="w-4 h-4" style={{ color: accentColor }} />
-          <h3 className="text-sm font-medium text-white/80">최적 깊이 추천</h3>
+          <div>
+            <h3 className="text-sm font-medium text-white/80">깊이별 종합 점수</h3>
+            <p className="text-[9px] text-white/30 mt-0.5">숙성 품질 × 작업 용이성</p>
+          </div>
         </div>
         <span className="text-[10px] text-white/25">{months}개월 기준</span>
       </div>
       <div className="space-y-2">
-        {depthResults.map((d) => {
-          const isBest = d.depth === best.depth;
-          const widthPct = Math.max(10, (d.quality / maxQ) * 100);
+        {scored.map((s) => {
+          const isBest = s.depth === best.depth;
+          const widthPct = Math.max(10, (s.combined / maxCombined) * 100);
           return (
-            <div key={d.depth} className="flex items-center gap-2.5">
+            <div key={s.depth} className="flex items-center gap-2.5">
               <span className={`text-xs w-10 text-right font-mono ${isBest ? 'text-white/90 font-medium' : 'text-white/40'}`}>
-                {d.depth}m
+                {s.depth}m
               </span>
               <div className="flex-1 bg-white/[0.04] rounded-full h-5 overflow-hidden relative">
                 <motion.div
                   initial={{ width: 0 }}
                   animate={{ width: `${widthPct}%` }}
-                  transition={{ duration: 0.6, delay: d.depth * 0.02 }}
+                  transition={{ duration: 0.6, delay: s.depth * 0.02 }}
                   className="h-full rounded-full"
                   style={{
                     backgroundColor: isBest ? accentColor : 'rgba(255,255,255,0.08)',
-                    opacity: isBest ? 0.8 : 0.5,
+                    opacity: isBest ? 0.85 : 0.5,
                   }}
                 />
                 <div className="absolute inset-0 flex items-center justify-between px-2">
                   {isBest ? (
                     <span className="text-[9px] font-medium px-1.5 py-0.5 rounded-full" style={{ backgroundColor: `${accentColor}30`, color: accentColor }}>
-                      추천
+                      최적
                     </span>
                   ) : <span />}
-                  <span className={`text-[10px] ${isBest ? 'text-white/90' : 'text-white/40'}`}>
-                    {d.quality.toFixed(1)}
+                  <span className={`text-[10px] font-medium ${isBest ? 'text-white/90' : 'text-white/40'}`}>
+                    {s.combined.toFixed(1)}
                   </span>
                 </div>
               </div>
@@ -304,11 +321,9 @@ export function OptimalDepthCard({
           );
         })}
       </div>
-      {product.agingDepth !== best.depth && (
-        <p className="text-[11px] text-white/30 mt-2.5">
-          현재 설정: {product.agingDepth}m → 최적: {best.depth}m (+{(best.quality - (depthResults.find(d => d.depth === product.agingDepth)?.quality ?? best.quality)).toFixed(1)}점)
-        </p>
-      )}
+      <p className="text-[11px] text-white/30 mt-2.5">
+        종합 = 숙성 품질 × 작업 용이성(얕을수록↑, 30m 초과 급락). 최적 <span className="text-white/60">{best.depth}m</span>.
+      </p>
     </motion.div>
   );
 }
@@ -395,15 +410,18 @@ export function EnvironmentalImpactCard({
       items.push({ label: '파고', value: `${wh.toFixed(1)} m`, target: '환경 안정성', description, rating, color: '#a78bfa' });
     }
 
-    // 파주기: 긴 주기가 유리 (에너지 낮음)
+    // 파주기: 30m 깊이 기준 — 짧은 주기는 표층에서 감쇠되어 유리,
+    // 긴 스웰만 심부까지 침투해 주의 (파장 L≈1.56·T² → z=30m 침투는 T≈6s 이상부터 유의미).
+    // 파고 카드의 "30m 감쇠 → 유리" 논리와 정합. (2026-07-22 전제 정정)
     if (oceanConditions.wavePeriod !== null) {
       const wp = oceanConditions.wavePeriod;
       let rating: Rating = '보통';
       let description: string;
-      if (wp >= 7) { rating = '유리'; description = '긴 주기 → 낮은 진동 에너지'; }
-      else if (wp >= 4) { rating = '보통'; description = '보통 주기 → 기본 수준'; }
-      else { rating = '주의'; description = '짧은 주기 → 진동 에너지 높음'; }
-      items.push({ label: '파주기', value: `${wp.toFixed(1)} s`, target: '환경 안정성', description, rating, color: '#fbbf24' });
+      if (wp <= 6) { rating = '유리'; description = '짧은 주기 → 30m 도달 전 감쇠, 환경 안정'; }
+      else if (wp <= 8) { rating = '보통'; description = '중간 주기 → 30m 일부 침투'; }
+      else { rating = '주의'; description = '긴 스웰 → 30m까지 침투, 진동 영향 가능'; }
+      // 파주기는 KHOA 부이(TW_0078)가 측정하지 않아 항상 Open-Meteo 모델 추정값 → 출처 명시
+      items.push({ label: '파주기', value: `${wp.toFixed(1)} s (모델)`, target: '환경 안정성', description, rating, color: '#fbbf24' });
     }
 
     return items;
@@ -436,12 +454,10 @@ export function EnvironmentalImpactCard({
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <BarChart3 className="w-4 h-4" style={{ color: accentColor }} />
-          <h3 className="text-sm font-medium text-white/80">환경 영향도</h3>
-          {depthInfo?.depthCorrected && (
-            <span className="text-[9px] font-medium px-1.5 py-0.5 rounded-full bg-cyan-400/10 text-cyan-400/70">
-              {depthInfo.depth}m 보정
-            </span>
-          )}
+          <div>
+            <h3 className="text-sm font-medium text-white/80">환경 영향도</h3>
+            <p className="text-[9px] text-white/30 mt-0.5">숙성 기간 평균 · 현재 수온과 다를 수 있음</p>
+          </div>
         </div>
         {depthInfo && depthInfo.dataPoints > 0 && (
           <span className="text-[10px] text-white/25">

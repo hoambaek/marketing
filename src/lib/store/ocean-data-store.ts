@@ -58,6 +58,8 @@ interface OceanDataState {
   // Data State
   hourlyData: OceanDataHourly[];
   dailyData: OceanDataDaily[];
+  // 전체 히스토리(2025-01-01~, 30m 보정) — 뷰 창에 제한된 dailyData와 달리 침지 기간 전체 평균에 사용
+  allDailyData: OceanDataDaily[];
   salinityRecords: SalinityRecord[];
   currentConditions: CurrentOceanConditions | null;
   historicalOceanStats: HistoricalOceanStats | null;
@@ -99,6 +101,7 @@ export const useOceanDataStore = create<OceanDataState>((set, get) => ({
 
   hourlyData: [],
   dailyData: [],
+  allDailyData: [],
   salinityRecords: [],
   currentConditions: null,
   historicalOceanStats: null,
@@ -245,7 +248,7 @@ export const useOceanDataStore = create<OceanDataState>((set, get) => ({
       const hasKhoa = khoaItems.length > 0;
 
       const dailyData: OceanDataDaily[] = [];
-      // DB 저장용 (수온은 표층값 유지 — 저장은 표층, 40m 보정은 읽는 쪽 규약)
+      // DB 저장용 (수온은 표층값 유지 — 저장은 표층, 30m 보정은 읽는 쪽 규약)
       const persistRows: OceanDataDaily[] = [];
 
       dailyMap.forEach((hours, date) => {
@@ -273,7 +276,7 @@ export const useOceanDataStore = create<OceanDataState>((set, get) => ({
         const khoaPressures = khoaDayItems.map(i => i.atmpr).filter((v): v is number => v !== null);
         const khoaTides = khoaDayItems.map(i => i.bscTdlvHgt).filter((v): v is number => v !== null);
 
-        // KHOA 수온 우선 → Open-Meteo 폴백 + 40m 깊이 보정
+        // KHOA 수온 우선 → Open-Meteo 폴백 + 30m 깊이 보정
         const month = parseInt(date.split('-')[1], 10) || 1;
         const surfaceTempAvg = khoaTemps.length > 0
           ? khoaTemps.reduce((s, v) => s + v, 0) / khoaTemps.length
@@ -285,9 +288,9 @@ export const useOceanDataStore = create<OceanDataState>((set, get) => ({
           ? Math.max(...khoaTemps)
           : tempStats.max;
 
-        const finalTempAvg = surfaceTempAvg !== null ? estimateBottomTemperature(surfaceTempAvg, 40, month) : null;
-        const finalTempMin = surfaceTempMin !== null ? estimateBottomTemperature(surfaceTempMin, 40, month) : null;
-        const finalTempMax = surfaceTempMax !== null ? estimateBottomTemperature(surfaceTempMax, 40, month) : null;
+        const finalTempAvg = surfaceTempAvg !== null ? estimateBottomTemperature(surfaceTempAvg, 30, month) : null;
+        const finalTempMin = surfaceTempMin !== null ? estimateBottomTemperature(surfaceTempMin, 30, month) : null;
+        const finalTempMax = surfaceTempMax !== null ? estimateBottomTemperature(surfaceTempMax, 30, month) : null;
 
         // KHOA 기압 우선 → Open-Meteo 폴백
         const finalPressureAvg = khoaPressures.length > 0
@@ -375,7 +378,7 @@ export const useOceanDataStore = create<OceanDataState>((set, get) => ({
       });
 
       // API가 못 채운 과거 날짜는 Supabase 백필 행으로 채움
-      // (DB에는 표층 수온이 저장돼 있으므로 표시 시 40m 보정 적용)
+      // (DB에는 표층 수온이 저장돼 있으므로 표시 시 30m 보정 적용)
       const apiDates = new Set(dailyData.map((d) => d.date));
       for (const row of savedRows) {
         if (apiDates.has(row.date)) continue;
@@ -384,15 +387,15 @@ export const useOceanDataStore = create<OceanDataState>((set, get) => ({
           ...row,
           seaTemperatureAvg:
             row.seaTemperatureAvg !== null
-              ? estimateBottomTemperature(row.seaTemperatureAvg, 40, month)
+              ? estimateBottomTemperature(row.seaTemperatureAvg, 30, month)
               : null,
           seaTemperatureMin:
             row.seaTemperatureMin !== null
-              ? estimateBottomTemperature(row.seaTemperatureMin, 40, month)
+              ? estimateBottomTemperature(row.seaTemperatureMin, 30, month)
               : null,
           seaTemperatureMax:
             row.seaTemperatureMax !== null
-              ? estimateBottomTemperature(row.seaTemperatureMax, 40, month)
+              ? estimateBottomTemperature(row.seaTemperatureMax, 30, month)
               : null,
         });
       }
@@ -465,11 +468,11 @@ export const useOceanDataStore = create<OceanDataState>((set, get) => ({
         ? khoaItems.reduce((a, b) => (b.obsrvnDt > a.obsrvnDt ? b : a))
         : null;
 
-      // 수온: KHOA 우선 + 40m 깊이 보정
+      // 수온: KHOA 우선 + 30m 깊이 보정
       const surfaceTemp = latestKhoa?.wtem ?? omSeaTemp;
       const currentMonth = new Date().getMonth() + 1;
       const seaTemperature = surfaceTemp !== null
-        ? estimateBottomTemperature(surfaceTemp, 40, currentMonth)
+        ? estimateBottomTemperature(surfaceTemp, 30, currentMonth)
         : null;
 
       // 기압: KHOA 우선
@@ -609,7 +612,7 @@ export const useOceanDataStore = create<OceanDataState>((set, get) => ({
 
   saveDataToSupabase: async (rows) => {
     const { useSupabase } = get();
-    // 주의: rows의 수온은 표층값이어야 한다 (DB 규약 — 40m 보정값 저장 금지)
+    // 주의: rows의 수온은 표층값이어야 한다 (DB 규약 — 30m 보정값 저장 금지)
     if (!useSupabase || rows.length === 0) return;
 
     set({ isSaving: true });
@@ -659,12 +662,12 @@ export const useOceanDataStore = create<OceanDataState>((set, get) => ({
       const allData = await fetchOceanDataDaily();
       if (!allData || allData.length === 0) return;
 
-      // 유효값만 추출하여 평균 계산 (수온은 40m 깊이 보정 적용)
+      // 유효값만 추출하여 평균 계산 (수온은 30m 깊이 보정 적용)
       const validTemps = allData
         .map(d => {
           if (d.seaTemperatureAvg === null) return null;
           const month = parseInt(d.date.split('-')[1], 10) || 1;
-          return estimateBottomTemperature(d.seaTemperatureAvg, 40, month);
+          return estimateBottomTemperature(d.seaTemperatureAvg, 30, month);
         })
         .filter((v): v is number => v !== null);
       const validVelocities = allData.map(d => d.currentVelocityAvg).filter((v): v is number => v !== null);
@@ -685,7 +688,19 @@ export const useOceanDataStore = create<OceanDataState>((set, get) => ({
       const monthlyProfiles = buildMonthlyOceanProfiles(allData);
       const annualProfile = buildAnnualOceanProfile(monthlyProfiles, agingDepth);
 
+      // 전체 히스토리를 30m 보정한 배열 (침지 기간 전체 평균용 — dailyData와 동일한 보정 규약)
+      const allDailyData = allData.map((d) => {
+        const month = parseInt(d.date.split('-')[1], 10) || 1;
+        return {
+          ...d,
+          seaTemperatureAvg: d.seaTemperatureAvg !== null ? estimateBottomTemperature(d.seaTemperatureAvg, 30, month) : null,
+          seaTemperatureMin: d.seaTemperatureMin !== null ? estimateBottomTemperature(d.seaTemperatureMin, 30, month) : null,
+          seaTemperatureMax: d.seaTemperatureMax !== null ? estimateBottomTemperature(d.seaTemperatureMax, 30, month) : null,
+        };
+      });
+
       set({
+        allDailyData,
         historicalOceanStats: {
           seaTemperature: avgTemp !== null ? Math.round(avgTemp * 100) / 100 : null,
           currentVelocity: avg(validVelocities) !== null ? Math.round(avg(validVelocities)! * 1000) / 1000 : null,

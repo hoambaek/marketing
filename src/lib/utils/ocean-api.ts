@@ -316,6 +316,8 @@ export async function enrichWithKhoaData(
         // 조류 유속: 부이 실측(TW_0078) > 조류예보(오늘만) > 관측소값 > 기존값
         tidalCurrentSpeed: buoySpeed ?? tidalSpeed ?? khoa?.currentVelocityAvg ?? day.tidalCurrentSpeed,
         tidalCurrentDirection: buoyDir ?? tidalDir ?? khoa?.currentDirectionDominant ?? day.tidalCurrentDirection,
+        // ⚠️ 파주기·파고는 KHOA가 측정하지 않음 (TW_0078 부이 필드 = 유향·유속·수온·염분뿐).
+        //    실측 소스가 없어 Open-Meteo 모델값을 그대로 사용한다 (환경 영향도에 "모델" 표기).
         // 데이터 소스 표기 (KHOA 관측·부이·예보 중 하나라도 있으면 hybrid)
         dataSource: (khoa || hasCurrentSource) ? 'hybrid' : day.dataSource,
       };

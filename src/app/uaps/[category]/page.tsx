@@ -429,7 +429,8 @@ export default function CategoryUAPSPage() {
     if (!selectedProduct || !dailyData || dailyData.length === 0) return null;
     const immersionDate = selectedProduct.immersionDate;
     if (!immersionDate) return null;
-    return calculateProductOceanStats(dailyData, immersionDate, selectedProduct.agingDepth || 30);
+    // 환경 표시는 운영 깊이 30m 기준으로 통일 (수온은 이미 30m 보정된 dailyData 사용 → 재보정 없음)
+    return calculateProductOceanStats(dailyData, immersionDate, 30);
   }, [selectedProduct, dailyData]);
 
   return (

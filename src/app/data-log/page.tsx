@@ -19,7 +19,6 @@ import {
   ScatterChart,
   Scatter,
   ZAxis,
-  ReferenceLine,
 } from 'recharts';
 import {
   Waves,
@@ -35,7 +34,6 @@ import {
   ChevronRight,
   ChevronDown,
   Anchor,
-  ArrowDown,
   Timer,
   TrendingUp,
 } from 'lucide-react';
@@ -109,17 +107,17 @@ function OceanParticles() {
 }
 
 // Depth gauge visualization (0~60m, 투입 지점 마킹)
-const DEPLOYED_DEPTHS = [20, 30, 40]; // 실제 투입 수심
+const DEPLOYED_DEPTHS = [30]; // 실제 투입 수심 (30m 단일)
 
 function DepthGauge({ depth, maxDepth = 60 }: { depth: number; maxDepth?: number }) {
   const percentage = Math.min(100, (depth / maxDepth) * 100);
 
   return (
     <div className="relative h-full w-14 flex flex-col items-center">
-      {/* Gauge track */}
+      {/* Gauge track — 수면(위)에서 심해(아래)로 채운다 */}
       <div className="relative flex-1 w-3 bg-white/5 rounded-full overflow-hidden">
         <motion.div
-          className="absolute bottom-0 w-full bg-gradient-to-t from-cyan-500 via-cyan-400 to-teal-300"
+          className="absolute top-0 w-full bg-gradient-to-b from-cyan-300 via-cyan-400 to-cyan-600"
           initial={{ height: 0 }}
           animate={{ height: `${percentage}%` }}
           transition={{ duration: 1.5, ease: 'easeOut' }}
@@ -129,37 +127,25 @@ function DepthGauge({ depth, maxDepth = 60 }: { depth: number; maxDepth?: number
           <div
             key={mark}
             className="absolute w-full h-px bg-white/10"
-            style={{ bottom: `${(mark / maxDepth) * 100}%` }}
+            style={{ top: `${(mark / maxDepth) * 100}%` }}
           />
         ))}
-        {/* 투입 지점 마킹 */}
+        {/* 투입 지점 마킹 (30m) */}
         {DEPLOYED_DEPTHS.map((d) => (
           <div
             key={`deployed-${d}`}
             className="absolute -left-1 w-5 flex items-center"
-            style={{ bottom: `${(d / maxDepth) * 100}%`, transform: 'translateY(50%)' }}
+            style={{ top: `${(d / maxDepth) * 100}%`, transform: 'translateY(-50%)' }}
           >
             <div className="w-2 h-2 rounded-full bg-[#C4A052] border border-[#C4A052]/50 shadow-[0_0_4px_rgba(196,160,82,0.4)]" />
           </div>
         ))}
       </div>
-      {/* 수심 라벨 */}
-      <div className="absolute left-[3.2rem] top-0 bottom-6 flex flex-col justify-between text-[9px] text-white/25 font-mono">
-        <span>0</span>
-        <span>30</span>
-        <span>60</span>
+      {/* 깊이 값 — 30m 단일 표시 (스케일 숫자·화살표 제거) */}
+      <div className="mt-2 text-center leading-tight">
+        <div className="text-xs font-mono text-cyan-400">{depth}m</div>
+        <div className="text-[10px] text-white/40 font-mono">DEPTH</div>
       </div>
-      {/* Current depth indicator */}
-      <motion.div
-        className="absolute right-7 flex items-center gap-1"
-        initial={{ bottom: 0 }}
-        animate={{ bottom: `${percentage}%` }}
-        transition={{ duration: 1.5, ease: 'easeOut' }}
-      >
-        <ArrowDown className="w-3 h-3 text-cyan-400" />
-        <span className="text-xs font-mono text-cyan-400">{depth}m</span>
-      </motion.div>
-      <div className="mt-2 text-[10px] text-white/40 font-mono">DEPTH</div>
     </div>
   );
 }
@@ -171,7 +157,6 @@ function DataCard({
   value,
   unit,
   color,
-  trend,
   delay = 0,
 }: {
   icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>;
@@ -179,7 +164,6 @@ function DataCard({
   value: string | number | null;
   unit: string;
   color: string;
-  trend?: 'up' | 'down' | 'stable';
   delay?: number;
 }) {
   return (
@@ -190,7 +174,7 @@ function DataCard({
       className="relative group"
     >
       <div className="absolute inset-0 bg-gradient-to-br from-white/[0.08] to-transparent rounded-2xl blur-xl group-hover:from-white/[0.12] transition-all" />
-      <div className="relative bg-[#0d1421]/80 backdrop-blur-xl border border-white/[0.06] rounded-2xl p-4 hover:border-white/[0.12] transition-all">
+      <div className="relative bg-[#0d1421]/80 backdrop-blur-xl border border-white/[0.06] rounded-2xl p-4 flex items-center gap-3 hover:border-white/[0.12] transition-all">
         {/* Glow effect */}
         <div
           className="absolute top-0 left-1/2 -translate-x-1/2 w-1/2 h-px"
@@ -199,40 +183,29 @@ function DataCard({
           }}
         />
 
-        <div className="flex items-start justify-between mb-3">
-          <div
-            className="p-2 rounded-xl"
-            style={{ backgroundColor: `${color}15` }}
-          >
-            <div style={{ color }}>
-              <Icon className="w-4 h-4" />
-            </div>
+        {/* 아이콘 — 좌측 고정 */}
+        <div
+          className="p-2 rounded-xl shrink-0"
+          style={{ backgroundColor: `${color}15` }}
+        >
+          <div style={{ color }}>
+            <Icon className="w-4 h-4" />
           </div>
-          {trend && (
-            <div
-              className={`text-xs px-2 py-0.5 rounded-full ${
-                trend === 'up'
-                  ? 'bg-emerald-500/20 text-emerald-400'
-                  : trend === 'down'
-                  ? 'bg-red-500/20 text-red-400'
-                  : 'bg-white/10 text-white/50'
-              }`}
-            >
-              {trend === 'up' ? '↑' : trend === 'down' ? '↓' : '—'}
-            </div>
-          )}
         </div>
 
-        <div className="space-y-1">
-          <p className="text-xs text-white/40 uppercase tracking-wider">{label}</p>
-          <div className="flex items-baseline gap-1.5">
+        {/* 지표 — 우측 정렬로 카드 폭을 채워 오른쪽 여백 제거 */}
+        <div className="flex-1 min-w-0 flex flex-col items-end">
+          <p className="w-full text-right text-[11px] text-white/40 uppercase tracking-wider truncate">
+            {label}
+          </p>
+          <div className="flex items-baseline gap-1">
             <span
-              className="text-2xl font-light tracking-tight"
+              className="text-2xl font-light tracking-tight leading-none"
               style={{ color }}
             >
               {value ?? '—'}
             </span>
-            <span className="text-sm text-white/30">{unit}</span>
+            <span className="text-xs text-white/30">{unit}</span>
           </div>
         </div>
       </div>
@@ -779,7 +752,7 @@ export default function DataLogPage() {
       <section className="px-4 sm:px-6 lg:px-8">
         <div className="max-w-6xl mx-auto">
 
-          {/* ── 실시간 상태 카드 (9개) ── */}
+          {/* ── 실시간 상태 카드 (8개) ── */}
           <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 mb-10">
             {/* Mobile Depth indicator */}
             <motion.div
@@ -819,8 +792,8 @@ export default function DataLogPage() {
               <DepthGauge depth={Math.max(...DEPLOYED_DEPTHS)} />
             </motion.div>
 
-            {/* Data cards grid — 9개 */}
-            <div className="flex-1 grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-3">
+            {/* Data cards grid — 8개 (4×2) */}
+            <div className="flex-1 grid grid-cols-2 sm:grid-cols-4 gap-3">
               <DataCard
                 icon={Thermometer}
                 label="수온"
@@ -844,14 +817,6 @@ export default function DataLogPage() {
                 unit="cm"
                 color="#8385b5"
                 delay={0.2}
-              />
-              <DataCard
-                icon={Gauge}
-                label="기압"
-                value={currentConditions?.surfacePressure?.toFixed(0) ?? null}
-                unit="hPa"
-                color="#99a1b0"
-                delay={0.25}
               />
               <DataCard
                 icon={Activity}
@@ -1031,21 +996,7 @@ export default function DataLogPage() {
               </ResponsiveContainer>
             </ChartWrapper>
 
-            {/* 5. 기압 — 표준선(1013 hPa) 대비 스파이크 */}
-            <ChartWrapper title="기압 변화" icon={Gauge} iconColor="#99a1b0" delay={0.6}>
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={chartData}>
-                  <CartesianGrid strokeDasharray="2 6" stroke="#ffffff0a" vertical={false} />
-                  <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={8} tick={{ fill: '#ffffff45', fontSize: chartFontSize }} />
-                  <YAxis width={yAxisWidth} tickLine={false} axisLine={false} tickMargin={8} tick={{ fill: '#ffffff45', fontSize: chartFontSize }} domain={['auto', 'auto']} unit="h" />
-                  <Tooltip content={<CustomTooltip />} />
-                  <ReferenceLine y={1013} stroke="#99a1b0" strokeDasharray="4 4" strokeOpacity={0.45} label={{ value: '표준 1013', fill: '#ffffff40', fontSize: 9, position: 'insideTopRight' }} />
-                  <Line type="monotone" dataKey="기압" stroke="#99a1b0" strokeWidth={1.5} dot={false} />
-                </LineChart>
-              </ResponsiveContainer>
-            </ChartWrapper>
-
-            {/* 6. 수압 변화 — 면적 */}
+            {/* 수압 변화 — 면적 */}
             <ChartWrapper title="수압 변화" icon={Gauge} iconColor="#bfa46a" delay={0.62}>
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={chartData}>

@@ -118,18 +118,19 @@ export function buildMonthlyOceanProfiles(
     const days = grouped.get(m)!;
     if (days.length === 0) continue;
 
-    // 수온: 40m 깊이 보정 적용 (DB에는 표층 수온이 저장됨)
+    // 수온: 입력(fetchOceanDataDaily)은 표층 raw 값 → 30m 깊이 보정 1회 적용
+    // (⚠️ 이 함수 호출부는 모두 표층 입력. store dailyData처럼 이미 보정된 값을 넘기지 말 것)
     const temps = filterValid(days.map((d) => {
       if (d.seaTemperatureAvg === null) return null;
-      return estimateBottomTemperature(d.seaTemperatureAvg, 40, m);
+      return estimateBottomTemperature(d.seaTemperatureAvg, 30, m);
     }));
     const tempMins = filterValid(days.map((d) => {
       if (d.seaTemperatureMin === null) return null;
-      return estimateBottomTemperature(d.seaTemperatureMin, 40, m);
+      return estimateBottomTemperature(d.seaTemperatureMin, 30, m);
     }));
     const tempMaxs = filterValid(days.map((d) => {
       if (d.seaTemperatureMax === null) return null;
-      return estimateBottomTemperature(d.seaTemperatureMax, 40, m);
+      return estimateBottomTemperature(d.seaTemperatureMax, 30, m);
     }));
     const salinities = filterValid(days.map((d) => d.salinity));
     const currents = filterValid(days.map((d) => d.tidalCurrentSpeed));
@@ -437,14 +438,13 @@ export function calculateProductOceanStats(
     };
   }
 
-  // 수심 보정 수온 계산
+  // 수온: dailyData는 스토어에서 이미 30m 깊이 보정된 값 → 재보정 금지 (이중 보정 방지, 2026-07-22).
+  // 환경 표시는 운영 깊이 30m 기준으로 통일한다 (data-log와 동일한 값).
   const correctedTemps: number[] = [];
   for (const day of filtered) {
     const sst = day.seaTemperatureAvg;
     if (!isValidNumber(sst)) continue;
-    const month = extractMonth(day.date);
-    const bottomTemp = estimateBottomTemperature(sst, depth, month);
-    correctedTemps.push(bottomTemp);
+    correctedTemps.push(sst);
   }
 
   // 기타 필드 수집
