@@ -96,6 +96,13 @@ export default function TastingForm({
       setStatus('error');
       return;
     }
+    // 대조군(지상) 6축이 전부 같으면 = 슬라이더 미조정(기본 50) 또는 임의 기준점.
+    // 실제 시음이 아닌 baseline 찍기를 막는다 (before/after 비교의 기준이 왜곡됨).
+    if (new Set(AXES.map(a => terrestrial[a.key])).size === 1) {
+      setErrorMsg('대조군(지상 보관) 점수가 6축 모두 같습니다. 대조군 술을 실제로 시음하고 축마다 개별 평가해 주세요.');
+      setStatus('error');
+      return;
+    }
     setStatus('submitting');
     setErrorMsg('');
 
@@ -177,11 +184,19 @@ export default function TastingForm({
         </div>
       </section>
 
+      {/* 시음 프로토콜 안내 — 대조군 우선 + 공통 척도 (시음자 간 점수 편차 방지) */}
+      <div className="rounded-xl border border-[#C4A052]/20 bg-[#C4A052]/[0.04] p-4 text-[12px] leading-relaxed text-white/60">
+        <p className="text-white/80 font-medium mb-1.5">시음 순서와 점수 기준</p>
+        <p>① 먼저 <b className="text-white/75">대조군(숙성 안 한 일반 술)</b>을 시음해 아래 &ldquo;지상 보관&rdquo; 6축을 매기고, 그다음 &ldquo;해저 숙성&rdquo; 샘플을 평가하세요.</p>
+        <p className="mt-1">② 점수 기준(6축 공통): <span className="text-white/75">20 약함 · 50 보통 · 80 강함 · 100 매우 강함</span>. 시음자마다 기준이 다르면 비교가 왜곡되니, 이 척도를 함께 씁니다.</p>
+        <p className="mt-1 text-white/40">※ 대조군을 실제 시음하지 않고 전 축을 같은 값으로 두면 제출이 막힙니다.</p>
+      </div>
+
       {/* 지상 보관 시음 */}
       <section className="rounded-2xl border border-white/[0.08] bg-white/[0.015] p-5">
         <div className="flex items-center gap-2 mb-3">
           <Warehouse className="w-4 h-4 text-white/50" />
-          <h2 className="text-[13px] font-medium text-white/80">지상 보관</h2>
+          <h2 className="text-[13px] font-medium text-white/80">지상 보관 <span className="text-[11px] text-white/40 font-normal">(대조군 — 숙성 전 기준)</span></h2>
         </div>
         {AXES.map((a, i) => (
           <ScoreSlider key={a.key} label={axisMeta[i].label} definition={axisMeta[i].definition} value={terrestrial[a.key]}

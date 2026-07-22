@@ -334,23 +334,41 @@ export default function CategoryUAPSPage() {
     return () => { cancelled = true; };
   }, [selectedProductId]);
 
-  // 숙성 전(terrestrial)·후(actual) 실측 6축 평균 — 인양 제품(실측 有) 전용
+  // 숙성 전(terrestrial)·후(actual) 실측 프로파일 — 인양 제품(실측 有) 전용
+  // 시음자별 척도 편차(대조군을 flat 50으로 놓는 등)에 견고하도록:
+  //  before = 지상 대조군 축별 중앙값(median),
+  //  after  = before + 시음자별 쌍대차(actual−terrestrial)의 중앙값
+  //  → 각자의 baseline을 자기 0점으로 삼아 상쇄. 평균+이상치보다 견고.
   const measuredProfiles = useMemo(() => {
     const measured = retrievals.filter(r => !r.isSimulated && r.actualBodyTexture != null);
     if (measured.length === 0) return null;
-    const avg = (get: (r: RetrievalResult) => number | null): number => {
-      const vals = measured.map(get).filter((v): v is number => v != null);
-      return vals.length > 0 ? Math.round(vals.reduce((s, v) => s + v, 0) / vals.length) : 50;
+    const median = (arr: number[]): number => {
+      if (arr.length === 0) return 50;
+      const s = [...arr].sort((a, b) => a - b);
+      const m = Math.floor(s.length / 2);
+      return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
     };
-    const build = (actual: boolean): Record<string, number> => ({
-      fruity:           avg(r => actual ? r.actualFruity : r.terrestrialFruity),
-      floralMineral:    avg(r => actual ? r.actualFloralMineral : r.terrestrialFloralMineral),
-      yeastyAutolytic:  avg(r => actual ? r.actualYeastyAutolytic : r.terrestrialYeastyAutolytic),
-      acidityFreshness: avg(r => actual ? r.actualAcidityFreshness : r.terrestrialAcidityFreshness),
-      bodyTexture:      avg(r => actual ? r.actualBodyTexture : r.terrestrialBodyTexture),
-      finishComplexity: avg(r => actual ? r.actualFinishComplexity : r.terrestrialFinishComplexity),
-    });
-    return { before: build(false), after: build(true) };
+    const axes: { key: string; ter: (r: RetrievalResult) => number | null; act: (r: RetrievalResult) => number | null }[] = [
+      { key: 'fruity',           ter: r => r.terrestrialFruity,           act: r => r.actualFruity },
+      { key: 'floralMineral',    ter: r => r.terrestrialFloralMineral,    act: r => r.actualFloralMineral },
+      { key: 'yeastyAutolytic',  ter: r => r.terrestrialYeastyAutolytic,  act: r => r.actualYeastyAutolytic },
+      { key: 'acidityFreshness', ter: r => r.terrestrialAcidityFreshness, act: r => r.actualAcidityFreshness },
+      { key: 'bodyTexture',      ter: r => r.terrestrialBodyTexture,      act: r => r.actualBodyTexture },
+      { key: 'finishComplexity', ter: r => r.terrestrialFinishComplexity, act: r => r.actualFinishComplexity },
+    ];
+    const before: Record<string, number> = {};
+    const after: Record<string, number> = {};
+    for (const ax of axes) {
+      const terVals = measured.map(ax.ter).filter((v): v is number => v != null);
+      const deltas = measured
+        .filter(r => ax.ter(r) != null && ax.act(r) != null)
+        .map(r => (ax.act(r) as number) - (ax.ter(r) as number));
+      const base = median(terVals);
+      const d = deltas.length > 0 ? median(deltas) : 0;
+      before[ax.key] = Math.round(base);
+      after[ax.key] = Math.round(Math.min(100, Math.max(0, base + d)));
+    }
+    return { before, after };
   }, [retrievals]);
 
   const beforeProfile = useMemo(() => {

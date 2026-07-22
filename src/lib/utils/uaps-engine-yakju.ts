@@ -83,6 +83,10 @@ export function getTimelineAxisLabels(category?: string | null): {
 // (affine 변환이라 argmax=피크 위치는 보존됨)
 const COMPOSITE_OFFSET = 35;
 
+// 약주 타임라인 표시·탐색 범위 (개월). 약주는 수개월 내 성숙하므로 12개월로 한정
+// (샴페인 36개월과 달리 — 대표 지시 2026-07-22). 피크는 저온 겨울 침지 기준 2~3개월.
+const YAKJU_MAX_MONTHS = 12;
+
 /** 이 카테고리가 dose 구동 발효주 모델을 쓰는가 (Phase 1: 약주만) */
 export function isFermentedCategory(category?: string | null): boolean {
   return ['yakju_cheongju'].includes(category ?? '');
@@ -173,10 +177,10 @@ export function generateTimelineDataYakju(
   immersionMonth?: number,
 ): (TimelineDataPoint & { compositeQuality: number; gainScore: number; lossScore: number; netBenefit: number })[] {
   const p = DEFAULT_YAKJU_PARAMS;
-  const dose = computeDosePath(product, monthlyOceanProfiles, immersionMonth, 36);
+  const dose = computeDosePath(product, monthlyOceanProfiles, immersionMonth, YAKJU_MAX_MONTHS);
   const points: (TimelineDataPoint & { compositeQuality: number; gainScore: number; lossScore: number; netBenefit: number })[] = [];
 
-  for (let m = 1; m <= 36; m += 1) {
+  for (let m = 1; m <= YAKJU_MAX_MONTHS; m += 1) {
     const a = evalAxes(dose[m - 1], p);
     const compositeQuality = round1(clamp(a.qRaw + COMPOSITE_OFFSET));
     const gainScore = round1((p.wEster * a.aroma + p.wUmami * a.umami) / (p.wEster + p.wUmami));
@@ -211,10 +215,10 @@ export function calculateOptimalHarvestWindowYakju(
   immersionMonth?: number,
 ): { startMonths: number; endMonths: number; peakMonth: number; peakScore: number; recommendation: string } {
   const p = DEFAULT_YAKJU_PARAMS;
-  const dose = computeDosePath(product, monthlyOceanProfiles, immersionMonth, 36);
+  const dose = computeDosePath(product, monthlyOceanProfiles, immersionMonth, YAKJU_MAX_MONTHS);
 
   const scores: { month: number; score: number }[] = [];
-  for (let m = 1; m <= 36; m += 1) {
+  for (let m = 1; m <= YAKJU_MAX_MONTHS; m += 1) {
     const a = evalAxes(dose[m - 1], p);
     scores.push({ month: m, score: clamp(a.qRaw + COMPOSITE_OFFSET) });
   }
