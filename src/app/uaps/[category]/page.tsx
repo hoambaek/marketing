@@ -25,6 +25,7 @@ import type {
   ClosureType,
   OceanConditionsForPrediction,
   DepthSimulationResult,
+  RetrievalResult,
 } from '@/lib/types/uaps';
 import {
   CATEGORY_EA_MAP,
@@ -320,15 +321,49 @@ export default function CategoryUAPSPage() {
     );
   }, [selectedProduct, config, aiAgingFactors, aiQualityWeights, monthlyOceanProfiles, immersionMonth]);
 
+  // 인양 실측(retrieval) 로드 — 있으면 레이더 before/after를 실측 6축 평균으로 대체
+  // (before=terrestrial 숙성 전, after=actual 숙성 후. 관측이 예측을 이긴다. 표시 전용)
+  const [retrievals, setRetrievals] = useState<RetrievalResult[]>([]);
+  useEffect(() => {
+    if (!selectedProductId) { setRetrievals([]); return; }
+    let cancelled = false;
+    fetch(`/api/uaps/retrieval-results?productId=${selectedProductId}`)
+      .then(r => (r.ok ? r.json() : { results: [] }))
+      .then(d => { if (!cancelled) setRetrievals(d.results ?? []); })
+      .catch(() => { if (!cancelled) setRetrievals([]); });
+    return () => { cancelled = true; };
+  }, [selectedProductId]);
+
+  // 숙성 전(terrestrial)·후(actual) 실측 6축 평균 — 인양 제품(실측 有) 전용
+  const measuredProfiles = useMemo(() => {
+    const measured = retrievals.filter(r => !r.isSimulated && r.actualBodyTexture != null);
+    if (measured.length === 0) return null;
+    const avg = (get: (r: RetrievalResult) => number | null): number => {
+      const vals = measured.map(get).filter((v): v is number => v != null);
+      return vals.length > 0 ? Math.round(vals.reduce((s, v) => s + v, 0) / vals.length) : 50;
+    };
+    const build = (actual: boolean): Record<string, number> => ({
+      fruity:           avg(r => actual ? r.actualFruity : r.terrestrialFruity),
+      floralMineral:    avg(r => actual ? r.actualFloralMineral : r.terrestrialFloralMineral),
+      yeastyAutolytic:  avg(r => actual ? r.actualYeastyAutolytic : r.terrestrialYeastyAutolytic),
+      acidityFreshness: avg(r => actual ? r.actualAcidityFreshness : r.terrestrialAcidityFreshness),
+      bodyTexture:      avg(r => actual ? r.actualBodyTexture : r.terrestrialBodyTexture),
+      finishComplexity: avg(r => actual ? r.actualFinishComplexity : r.terrestrialFinishComplexity),
+    });
+    return { before: build(false), after: build(true) };
+  }, [retrievals]);
+
   const beforeProfile = useMemo(() => {
+    if (measuredProfiles) return measuredProfiles.before; // 실측: 숙성 전(terrestrial)
     if (latestPrediction?.expertProfileJson) return latestPrediction.expertProfileJson;
     if (!selectedProduct || terrestrialModels.length === 0) return null;
     const clusters = findSimilarClusters(selectedProduct, terrestrialModels);
     if (clusters.length === 0) return null;
     return predictFlavorProfileStatistical(clusters, 0, config, selectedProduct);
-  }, [selectedProduct, terrestrialModels, config, latestPrediction]);
+  }, [measuredProfiles, selectedProduct, terrestrialModels, config, latestPrediction]);
 
   const afterProfile = useMemo(() => {
+    if (measuredProfiles) return measuredProfiles.after; // 실측: 숙성 후(actual)
     if (!selectedProduct) return null;
     const months = selectedProduct.plannedDurationMonths;
     if (!months) return null;
@@ -339,7 +374,7 @@ export default function CategoryUAPSPage() {
     const clusters = findSimilarClusters(selectedProduct, terrestrialModels);
     if (clusters.length === 0) return null;
     return predictFlavorProfileStatistical(clusters, months, config, selectedProduct);
-  }, [selectedProduct, terrestrialModels, config, beforeProfile, latestPrediction]);
+  }, [measuredProfiles, selectedProduct, terrestrialModels, config, beforeProfile, latestPrediction]);
 
   const handleSaveCoefficients = useCallback(async () => {
     if (localTci !== config.tci) await updateCoefficient('tci_coefficient', localTci);
@@ -636,7 +671,7 @@ export default function CategoryUAPSPage() {
         {/* ═══════════════════════════════════════════════════════════ */}
         {(beforeProfile || afterProfile) && (
           <SectionWrapper title="풍미 프로파일" icon={BarChart3} iconColor="#B76E79" delay={0.3}>
-            <FlavorRadar beforeProfile={beforeProfile} afterProfile={afterProfile} accentRgb={theme.accentRgb} accent={theme.accent} category={categoryDbName} />
+            <FlavorRadar beforeProfile={beforeProfile} afterProfile={afterProfile} accentRgb={theme.accentRgb} accent={theme.accent} category={categoryDbName} beforeLabel={measuredProfiles ? '숙성 전(지상)' : undefined} afterLabel={measuredProfiles ? '숙성 후(해저 실측)' : undefined} />
           </SectionWrapper>
         )}
 

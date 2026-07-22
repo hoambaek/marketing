@@ -87,41 +87,42 @@ export async function POST(request: NextRequest) {
       apiLogger.warn('UAPS: 전문가 프로파일 생성 실패, 통계 기반 사용:', e);
     }
 
-    // 3.7. v5.1: 비교 시음 '해저 실측'으로 전문가 프로파일 보정 (실측 70% + AI 30%)
-    // 이전(v5.0)엔 terrestrial(지상 대조군)만, 그것도 .find() 1건만 블렌딩해서
-    // 실제 해저에서 측정된 프로파일(예: 감칠맛 85)이 레이더에 반영되지 않았다.
-    // 인양된 제품은 관측값(actual)이 모델 예측을 이겨야 하므로 actual_* 6축의 패널 평균을 쓴다.
+    // 3.7. v5.2: 비교 시음의 '지상 대조군(terrestrial)'으로 전문가 프로파일 보정 (시음 70% + AI 30%)
+    // ⚠️ 여기엔 actual(해저 실측)을 넣지 않는다. actual을 넣으면 AI 예측(predicted_*)이
+    //    목표값(actual) 쪽으로 끌려가 RMSE(예측 vs 실측)가 0에 수렴 → 검증 지표가 왜곡된다.
+    //    레이더의 실측 표시(숙성 전=terrestrial/후=actual)는 클라이언트가 retrieval을 직접 평균한다.
+    //    (v5.0의 .find() 1건 → 6건 패널 평균으로만 개선)
     try {
       const retrievals = await fetchRetrievalResults(productId);
-      const measured = (retrievals || []).filter(r => !r.isSimulated && r.actualBodyTexture != null);
-      if (measured.length > 0) {
-        const avg = (get: (r: (typeof measured)[number]) => number | null): number | null => {
-          const vals = measured.map(get).filter((v): v is number => v != null);
+      const ground = (retrievals || []).filter(r => !r.isSimulated && r.terrestrialFruity != null);
+      if (ground.length > 0) {
+        const avg = (get: (r: (typeof ground)[number]) => number | null): number | null => {
+          const vals = ground.map(get).filter((v): v is number => v != null);
           return vals.length > 0 ? vals.reduce((s, v) => s + v, 0) / vals.length : null;
         };
         const tasting: Record<string, number | null> = {
-          fruity: avg(r => r.actualFruity),
-          floralMineral: avg(r => r.actualFloralMineral),
-          yeastyAutolytic: avg(r => r.actualYeastyAutolytic),
-          acidityFreshness: avg(r => r.actualAcidityFreshness),
-          bodyTexture: avg(r => r.actualBodyTexture),
-          finishComplexity: avg(r => r.actualFinishComplexity),
+          fruity: avg(r => r.terrestrialFruity),
+          floralMineral: avg(r => r.terrestrialFloralMineral),
+          yeastyAutolytic: avg(r => r.terrestrialYeastyAutolytic),
+          acidityFreshness: avg(r => r.terrestrialAcidityFreshness),
+          bodyTexture: avg(r => r.terrestrialBodyTexture),
+          finishComplexity: avg(r => r.terrestrialFinishComplexity),
         };
         if (expertProfile) {
-          // 실측 70% + AI 전문가 30% 블렌딩 (해당 축 실측이 없으면 기존 값 유지)
+          // 시음 70% + AI 전문가 30% 블렌딩 (해당 축 시음이 없으면 기존 값 유지)
           for (const key of Object.keys(tasting)) {
             const t = tasting[key];
             if (t == null) continue;
             expertProfile[key] = Math.round(t * 0.7 + (expertProfile[key] ?? t) * 0.3);
           }
         } else {
-          // 전문가 프로파일이 없으면 실측 평균으로(빈 축은 중립 50)
           expertProfile = Object.fromEntries(
             Object.keys(tasting).map(k => [k, Math.round(tasting[k] ?? 50)])
           );
         }
-        expertSources = [...(expertSources || []), '비교 시음 실측(해저)'];
-        apiLogger.log(`UAPS: 해저 실측 ${measured.length}건 평균으로 전문가 프로파일 보정 (실측 70% + AI 30%)`);
+        // 정확 문자열 '비교 시음 실측' — buildPredictionResult의 신뢰도 tastingScore가 exact match로 검사
+        expertSources = [...(expertSources || []), '비교 시음 실측'];
+        apiLogger.log(`UAPS: 지상 대조군 시음 ${ground.length}건 평균으로 전문가 프로파일 보정 (시음 70% + AI 30%)`);
       }
     } catch (e) {
       apiLogger.warn('UAPS: 비교 시음 데이터 조회 실패:', e);

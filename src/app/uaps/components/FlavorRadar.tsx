@@ -23,6 +23,8 @@ export function FlavorRadar({
   category,
   accent = '#22d3ee',
   accentRgb = '34, 211, 238',
+  beforeLabel = '투하 전',
+  afterLabel = 'AI 예측',
 }: {
   beforeProfile: Record<string, number> | null;
   afterProfile: Record<string, number> | null;
@@ -32,6 +34,8 @@ export function FlavorRadar({
   category?: string | null;
   accent?: string;
   accentRgb?: string;
+  beforeLabel?: string;
+  afterLabel?: string;
 }) {
   const ZERO_PROFILE: Record<string, number> = { fruity: 0, floralMineral: 0, yeastyAutolytic: 0, acidityFreshness: 0, bodyTexture: 0, finishComplexity: 0 };
   const before = beforeProfile || ZERO_PROFILE;
@@ -111,7 +115,7 @@ export function FlavorRadar({
             />
             <PolarRadiusAxis angle={90} domain={[0, 100]} tick={false} axisLine={false} />
             <Radar
-              name="투하 전"
+              name={beforeLabel}
               dataKey="before"
               stroke={`rgba(${accentRgb},0.4)`}
               fill="url(#radarBeforeFill)"
@@ -119,7 +123,7 @@ export function FlavorRadar({
               strokeDasharray="4 3"
             />
             <Radar
-              name="AI 예측"
+              name={afterLabel}
               dataKey="after"
               stroke="#B76E79"
               fill="url(#radarAfterFill)"
