@@ -15,9 +15,6 @@ import {
   Loader2,
   AlertTriangle,
   Settings2,
-  Play,
-  Sparkles,
-  Target,
   Database,
   Gauge,
   Save,
@@ -25,9 +22,6 @@ import {
   Info,
   ChevronDown,
   LayoutGrid,
-  Link2,
-  Inbox,
-  Check,
 } from 'lucide-react';
 import { useUAPSStore } from '@/lib/store/uaps-store';
 import type {
@@ -58,6 +52,7 @@ import { SectionWrapper, CoefficientSlider } from '../components/DashboardParts'
 import { ProductModal } from '../components/ProductModal';
 import { FlavorRadar } from '../components/FlavorRadar';
 import { TimelineChart } from '../components/TimelineChart';
+import { PredictionSimulator } from '../components/PredictionSimulator';
 import { calculateProductOceanStats } from '@/lib/utils/uaps-ocean-profile';
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -699,182 +694,18 @@ export default function CategoryUAPSPage() {
         {/* 예측 시뮬레이터 */}
         {/* ═══════════════════════════════════════════════════════════ */}
         {selectedProductId && selectedProduct && (
-          <motion.div
-            key="simulation-card"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3 }}
-            layout
-            className="relative"
-          >
-            <div className="absolute inset-0 rounded-2xl" style={{ background: `radial-gradient(ellipse at top, rgba(${theme.accentRgb}, 0.03), transparent)` }} />
-            <div className="relative bg-[#0d1421]/60 backdrop-blur-xl border border-white/[0.06] rounded-2xl overflow-hidden">
-              <div
-                className="absolute top-0 left-1/2 -translate-x-1/2 w-2/3 h-px"
-                style={{ background: `linear-gradient(90deg, transparent, rgba(${theme.accentRgb}, 0.3), transparent)` }}
-              />
-
-              {/* 시뮬레이터 행 */}
-              <div className="px-4 sm:px-5 py-3.5 border-b border-white/[0.04] space-y-3 sm:space-y-0">
-                <div className="flex items-center gap-3 sm:gap-4">
-                  <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
-                    <div className="p-1.5 rounded-lg" style={{ backgroundColor: `rgba(${theme.accentRgb}, 0.08)` }}>
-                      <Target className="w-3.5 h-3.5" style={{ color: theme.accent }} />
-                    </div>
-                    <span className="text-xs text-white/40 uppercase tracking-wider">Simulation</span>
-                  </div>
-
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-[10px] text-white/25">기간</span>
-                    <span className="text-sm font-light font-mono" style={{ color: theme.accent }}>
-                      {selectedProduct.plannedDurationMonths ?? '—'}
-                    </span>
-                    <span className="text-[10px] text-white/20">개월</span>
-                  </div>
-
-                  <div className="flex-1" />
-
-                  <div className="flex items-center gap-2 flex-wrap">
-                  <button
-                    onClick={() => setShowCoefficientDialog(true)}
-                    className="p-2 sm:p-1.5 rounded-lg border border-white/[0.06] hover:border-white/[0.12] hover:bg-white/[0.04] text-white/30 hover:text-white/60 transition-all shrink-0"
-                    title="보정 계수 설정"
-                  >
-                    <Settings2 className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
-                  </button>
-                  <button
-                    onClick={async () => {
-                      if (!latestPrediction) return;
-                      try {
-                        await navigator.clipboard.writeText(`${window.location.origin}/tasting/${latestPrediction.id}`);
-                        setLinkCopied(true);
-                        setTimeout(() => setLinkCopied(false), 2000);
-                      } catch {
-                        window.prompt(`'${selectedProduct.productName}' 기록자에게 전달할 링크`, `${window.location.origin}/tasting/${latestPrediction.id}`);
-                      }
-                    }}
-                    disabled={!latestPrediction}
-                    className="flex items-center gap-1.5 bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 rounded-lg px-3 py-2 sm:py-1.5 text-xs font-medium text-emerald-400 transition-all disabled:opacity-30 shrink-0"
-                    title={!latestPrediction ? '예측을 먼저 실행하세요' : `'${selectedProduct.productName}' 전용 시음 입력 링크 복사 — 이 링크로 제출된 기록은 이 제품에 연결됩니다`}
-                  >
-                    {linkCopied ? <Check className="w-3 h-3" /> : <Link2 className="w-3 h-3" />}
-                    {linkCopied ? (
-                      <span className="inline-flex items-center gap-1">
-                        복사됨<span className="max-w-[140px] truncate opacity-70">· {selectedProduct.productName}</span>
-                      </span>
-                    ) : '시음 기록 링크'}
-                  </button>
-                  <Link
-                    href={`/uaps/tasting-review?product=${selectedProductId}`}
-                    className="flex items-center gap-1.5 bg-white/[0.04] hover:bg-white/[0.08] border border-white/15 hover:border-white/25 rounded-lg px-3 py-2 sm:py-1.5 text-xs font-medium text-white/50 hover:text-white/80 transition-all shrink-0"
-                    title={`'${selectedProduct.productName}'로 제출된 평가만 필터해서 검토`}
-                  >
-                    <Inbox className="w-3 h-3" />
-                    제출 검토
-                  </Link>
-                  <button
-                    onClick={() => runPrediction(selectedProductId, selectedProduct.plannedDurationMonths || 18)}
-                    disabled={isPredicting || !selectedProduct.plannedDurationMonths}
-                    className="flex items-center gap-1.5 text-black font-medium rounded-lg px-3.5 py-2 sm:py-1.5 text-xs hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
-                    style={{ background: `linear-gradient(to right, ${theme.accent}e6, rgba(${theme.accentRgb}, 0.85))` }}
-                  >
-                    {isPredicting ? (
-                      <Loader2 className="w-3 h-3 animate-spin" />
-                    ) : (
-                      <Play className="w-3 h-3" />
-                    )}
-                    {isPredicting ? '분석 중' : 'AI 예측'}
-                  </button>
-                  </div>
-                </div>
-
-                {latestPrediction?.overallQualityScore != null && (
-                  <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
-                    {[
-                      { label: '종합', value: latestPrediction.overallQualityScore, color: '#C4A052' },
-                      { label: '질감', value: latestPrediction.textureMaturityScore, color: '#34d399' },
-                      { label: '향', value: latestPrediction.aromaFreshnessScore, color: theme.accent },
-                      { label: '환원취', value: latestPrediction.offFlavorRiskScore, color: '#f87171' },
-                    ].map((s) => (
-                      <div key={s.label} className="flex items-center gap-1">
-                        <div className="w-1 h-1 rounded-full" style={{ backgroundColor: s.color }} />
-                        <span className="text-[10px] text-white/30">{s.label}</span>
-                        <span className="text-xs font-mono font-medium" style={{ color: `${s.color}cc` }}>
-                          {s.value != null ? Math.round(s.value) : '—'}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* AI 인사이트 */}
-              {latestPrediction && (
-                <div className="px-5 py-3 space-y-2">
-                  {latestPrediction.aiInsightText ? (
-                    <>
-                      {latestPrediction.aiInsightText.includes('\n') ? (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                          <div className="flex items-start gap-2">
-                            <div className="p-1 rounded-md shrink-0 mt-0.5" style={{ backgroundColor: `rgba(${theme.accentRgb}, 0.06)` }}>
-                              <Wine className="w-3 h-3" style={{ color: `rgba(${theme.accentRgb}, 0.6)` }} />
-                            </div>
-                            <div className="min-w-0">
-                              <span className="text-[9px] uppercase tracking-wider" style={{ color: `rgba(${theme.accentRgb}, 0.4)` }}>Before</span>
-                              <p className="text-[11px] text-white/50 leading-relaxed mt-0.5">
-                                {latestPrediction.aiInsightText.split('\n')[0]}
-                              </p>
-                            </div>
-                          </div>
-                          <div className="flex items-start gap-2">
-                            <div className="p-1 rounded-md bg-[#B76E79]/[0.06] shrink-0 mt-0.5">
-                              <Sparkles className="w-3 h-3 text-[#B76E79]/60" />
-                            </div>
-                            <div className="min-w-0">
-                              <span className="text-[9px] text-[#B76E79]/40 uppercase tracking-wider">After</span>
-                              <p className="text-[11px] text-white/50 leading-relaxed mt-0.5">
-                                {latestPrediction.aiInsightText.split('\n').slice(1).join(' ')}
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="flex items-start gap-2">
-                          <div className="p-1.5 rounded-lg bg-[#B76E79]/[0.08] shrink-0 mt-0.5">
-                            <Sparkles className="w-3.5 h-3.5 text-[#B76E79]" />
-                          </div>
-                          <p className="text-[11px] text-white/50 leading-relaxed">
-                            {latestPrediction.aiInsightText}
-                          </p>
-                        </div>
-                      )}
-                      <div className="flex items-center justify-between">
-                        <div />
-                        {latestPrediction.predictionConfidence != null && (
-                          <div className="flex items-center gap-1.5 shrink-0">
-                            <div className="w-10 h-1 bg-white/[0.06] rounded-full overflow-hidden">
-                              <div
-                                className="h-full rounded-full transition-all"
-                                style={{
-                                  width: `${latestPrediction.predictionConfidence * 100}%`,
-                                  backgroundColor: theme.accent + '99',
-                                }}
-                              />
-                            </div>
-                            <span className="text-[9px] text-white/25 font-mono">
-                              {Math.round(latestPrediction.predictionConfidence * 100)}%
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    </>
-                  ) : (
-                    <p className="text-[11px] text-white/25 italic">AI 예측을 실행하면 투하 전·후 비교 인사이트가 표시됩니다</p>
-                  )}
-                </div>
-              )}
-            </div>
-          </motion.div>
+          <PredictionSimulator
+            selectedProductId={selectedProductId}
+            selectedProduct={selectedProduct}
+            latestPrediction={latestPrediction}
+            isPredicting={isPredicting}
+            linkCopied={linkCopied}
+            setLinkCopied={setLinkCopied}
+            onOpenCoefficientDialog={() => setShowCoefficientDialog(true)}
+            runPrediction={runPrediction}
+            accent={theme.accent}
+            accentRgb={theme.accentRgb}
+          />
         )}
 
         {/* ═══════════════════════════════════════════════════════════ */}
