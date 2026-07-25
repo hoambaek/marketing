@@ -117,7 +117,7 @@ function buildNaver(rows: MetricRow[], days = 90): ChannelsData['naver'] {
 
   // 버즈: 쿼리별 최신 스냅샷과 7일 전(이하 가장 가까운) 스냅샷의 차 = 주간 신규 포스트 수
   const weekAgo = new Date(Date.now() - 7 * 86400_000).toISOString().slice(0, 10);
-  const buzz = BUZZ_QUERIES.map((query) => {
+  const buzz = BUZZ_QUERIES.map(({ query }) => {
     const snaps = rows
       .filter((m) => m.metric === 'blog_total' && m.dimension?.query === query)
       .sort((a, b) => a.date.localeCompare(b.date));

@@ -48,32 +48,6 @@ async function getAgingAndOceanData(productId: string) {
 
 export async function GET(request: NextRequest) {
   const code = request.nextUrl.searchParams.get('code');
-  const previewProductId = request.nextUrl.searchParams.get('productId');
-
-  // 미리보기 모드: productId로 조회
-  if (previewProductId) {
-    try {
-      const product = PRODUCTS.find(p => p.id === previewProductId);
-      if (!product) {
-        return NextResponse.json({ error: '존재하지 않는 상품입니다' }, { status: 404 });
-      }
-
-      const bottle = {
-        type: 'preview' as const,
-        productId: product.id,
-        productName: product.name,
-        productNameKo: product.nameKo,
-        size: product.size,
-      };
-
-      const { agingInfo, oceanData } = await getAgingAndOceanData(product.id);
-
-      return NextResponse.json({ bottle, aging: agingInfo, oceanData });
-    } catch (error) {
-      console.error('Bottle preview API error:', error);
-      return NextResponse.json({ error: '서버 오류가 발생했습니다' }, { status: 500 });
-    }
-  }
 
   // NFC 코드 조회 모드
   if (!code || code.length < 4 || code.length > 12) {

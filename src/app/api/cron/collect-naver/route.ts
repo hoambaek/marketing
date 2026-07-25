@@ -63,14 +63,14 @@ export async function GET(request: Request) {
   try {
     const date = kstDaysAgo(0);
     const rows: MetricRow[] = [];
-    for (const query of BUZZ_QUERIES) {
+    for (const { query, exact } of BUZZ_QUERIES) {
       rows.push({
         date,
         channel: 'search',
         source: 'naver_openapi',
         metric: 'blog_total',
         dimension: { query },
-        value: await fetchBlogTotal(query),
+        value: await fetchBlogTotal(query, exact),
       });
     }
     await upsertMetrics(rows);

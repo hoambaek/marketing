@@ -29,6 +29,9 @@
     },
     "src/app/api/cron/anomaly-check/route.ts": {
       "maxDuration": 120
+    },
+    "src/app/api/cron/index-notify/route.ts": {
+      "maxDuration": 60
     }
   },
   "crons": [
@@ -59,6 +62,10 @@
     {
       "path": "/api/cron/weekly-report",
       "schedule": "0 0 * * 1"
+    },
+    {
+      "path": "/api/cron/index-notify",
+      "schedule": "0 22 * * *"
     }
   ]
 }

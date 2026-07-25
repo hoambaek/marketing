@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 
 export interface BottleDisplayData {
   bottle: {
-    type: 'numbered' | 'unit' | 'preview';
+    type: 'numbered' | 'unit';
     productName?: string;
     productNameKo?: string;
     size?: string;
