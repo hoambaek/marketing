@@ -38,7 +38,6 @@ import {
   Anchor,
   Loader2,
   Pencil,
-  Eye,
 } from 'lucide-react';
 import {
   fetchStructuresByYear,
@@ -613,8 +612,28 @@ function NfcWriteModal({
 }) {
   const [writeStatus, setWriteStatus] = useState<'idle' | 'writing' | 'success' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState('');
+  const [copied, setCopied] = useState(false);
   const nfcSupported = typeof window !== 'undefined' && 'NDEFReader' in window;
   const bottleUrl = `https://musedemaree.com/b/${nfcCode}`;
+
+  /**
+   * 쓰는 도중에는 닫지 않는다. 그 외에는 자유롭게 닫아도 된다 —
+   * 넘버링 병은 그리드에서, 배치 병은 "NFC 발급 병" 목록에서 언제든 다시 열 수 있다.
+   */
+  const guardedClose = () => {
+    if (writeStatus === 'writing') return;
+    onClose();
+  };
+
+  const copyCode = async () => {
+    try {
+      await navigator.clipboard.writeText(nfcCode);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      /* 클립보드 거부 — 화면의 코드를 직접 옮겨 적으면 된다 */
+    }
+  };
 
   useEffect(() => {
     if (isOpen) {
@@ -656,7 +675,7 @@ function NfcWriteModal({
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        onClick={onClose}
+        onClick={guardedClose}
         className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50"
       />
       <motion.div
@@ -684,7 +703,7 @@ function NfcWriteModal({
                     <p className="text-[10px] sm:text-xs text-white/30">고객 조회용 NFC 태그에 기록</p>
                   </div>
                 </div>
-                <button onClick={onClose} className="p-2 rounded-xl hover:bg-white/[0.06] text-white/40">
+                <button onClick={guardedClose} className="p-2 rounded-xl hover:bg-white/[0.06] text-white/40">
                   <X className="w-5 h-5" />
                 </button>
               </div>
@@ -697,6 +716,12 @@ function NfcWriteModal({
                 <p className="text-xs text-white/40 mb-1">NFC 코드</p>
                 <p className="text-2xl font-mono font-bold text-cyan-400 tracking-wider">{nfcCode}</p>
                 <p className="text-xs text-white/30 mt-1 break-all">{bottleUrl}</p>
+                <button
+                  onClick={copyCode}
+                  className="mt-2 px-3 py-1 rounded-lg bg-white/[0.04] border border-white/[0.1] text-white/50 hover:bg-white/[0.08] text-[11px]"
+                >
+                  {copied ? '복사됨' : '코드 복사'}
+                </button>
               </div>
 
               {writeStatus === 'idle' && (
@@ -757,7 +782,7 @@ function NfcWriteModal({
               {/* 닫기 버튼 */}
               {(writeStatus === 'idle' || writeStatus === 'error') && (
                 <button
-                  onClick={onClose}
+                  onClick={guardedClose}
                   className="w-full px-4 py-2.5 rounded-xl bg-white/[0.04] border border-white/[0.1] text-white/60 hover:bg-white/[0.08] text-sm"
                 >
                   닫기
@@ -2369,16 +2394,6 @@ function ProductCard({ product, onManage, onEditQuantity, mounted }: ProductCard
             <Package className="w-4 h-4" />
             재고 관리
           </button>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              window.open(`/b/preview/${product.id}`, '_blank');
-            }}
-            className="px-3 py-3 rounded-xl bg-cyan-500/5 border border-cyan-500/15 text-cyan-400/60 hover:bg-cyan-500/10 hover:text-cyan-400 transition-all flex items-center justify-center"
-            title="NFC 페이지 미리보기"
-          >
-            <Eye className="w-4 h-4" />
-          </button>
         </div>
       </div>
     </div>
@@ -2406,9 +2421,16 @@ function FirstEditionGrid({
 
   const handleBottleClick = (bottleNumber: number) => {
     const bottle = numberedBottles.find((b) => b.bottleNumber === bottleNumber);
-    if (bottle) {
-      setSelectedBottle(bottle);
+    if (!bottle) return;
+    // 이미 코드가 발급된 병은 NFC 모달로 재진입한다.
+    // 코드는 판매/증정 저장 시점에 DB에 박히는데, 그때 태그 쓰기가 실패하거나
+    // 모달을 그냥 닫으면 "DB엔 코드, 실물 태그엔 아무것도" 상태로 남는다.
+    if (bottle.nfcCode) {
+      setNfcCodeState(bottle.nfcCode);
+      setNfcModalOpen(true);
+      return;
     }
+    setSelectedBottle(bottle);
   };
 
   const handleSaveStatus = async (status: InventoryStatus, details?: { reservedFor?: string; soldTo?: string; giftedTo?: string; price?: number; notes?: string; soldDate?: string }) => {
@@ -2422,9 +2444,13 @@ function FirstEditionGrid({
         if (code) {
           setNfcCodeState(code);
           setNfcModalOpen(true);
+        } else {
+          // 조용히 넘기면 태그 없는 병이 판매 처리된 채로 남는다
+          alert('NFC 코드 발급에 실패했습니다. 병을 다시 눌러 재시도해 주세요.');
         }
-      } catch {
-        // NFC 실패 무시
+      } catch (e) {
+        console.error('[inventory] NFC 코드 생성 실패:', e);
+        alert('NFC 코드 발급 중 오류가 발생했습니다. 병을 다시 눌러 재시도해 주세요.');
       }
     }
 
@@ -2487,14 +2513,18 @@ function FirstEditionGrid({
             <button
               key={bottle.id}
               onClick={() => handleBottleClick(bottle.bottleNumber)}
-              className={`aspect-square rounded-lg border text-xs font-medium transition-all ${getStatusColor(bottle.status)} ${
-                bottle.status !== 'sold' && bottle.status !== 'gifted' && bottle.status !== 'damaged'
-                  ? 'cursor-pointer'
-                  : 'cursor-default'
-              }`}
-              title={`#${bottle.bottleNumber} - ${INVENTORY_STATUS_LABELS[bottle.status]}${bottle.soldTo ? ` (${bottle.soldTo})` : ''}`}
+              className={`relative aspect-square rounded-lg border text-xs font-medium transition-all cursor-pointer ${getStatusColor(bottle.status)}`}
+              title={
+                bottle.nfcCode
+                  ? `#${bottle.bottleNumber} · NFC ${bottle.nfcCode} — 눌러서 태그 쓰기/재시도`
+                  : `#${bottle.bottleNumber} - ${INVENTORY_STATUS_LABELS[bottle.status]}${bottle.soldTo ? ` (${bottle.soldTo})` : ''}`
+              }
             >
               {bottle.bottleNumber}
+              {/* 코드 발급된 병 표식 — 실물 태그 기록 여부는 알 수 없으므로 "코드 있음"만 뜻한다 */}
+              {bottle.nfcCode && (
+                <span className="absolute top-0.5 right-0.5 w-1.5 h-1.5 rounded-full bg-cyan-400" />
+              )}
             </button>
           ))}
         </div>
@@ -2528,7 +2558,7 @@ function FirstEditionGrid({
 // ═══════════════════════════════════════════════════════════════════════════
 
 export default function InventoryPage() {
-  const { initializeInventory, refreshFromSupabase, getTotalInventoryValue, getRecentTransactions, getFilteredTransactions, isLoading, sellFromBatch, reserveFromBatch, confirmReservation, cancelReservation, reportDamage, giftFromBatch, addProduct, updateProduct, getAllProducts, updateTransaction, deleteTransaction, generateNfcCode, updateBatchAgingData, inventoryBatches } = useInventoryStore();
+  const { initializeInventory, refreshFromSupabase, getTotalInventoryValue, getRecentTransactions, getFilteredTransactions, isLoading, sellFromBatch, reserveFromBatch, confirmReservation, cancelReservation, reportDamage, giftFromBatch, addProduct, updateProduct, getAllProducts, updateTransaction, deleteTransaction, generateNfcCode, updateBatchAgingData, inventoryBatches, bottleUnits } = useInventoryStore();
   const [isFirstEditionExpanded, setIsFirstEditionExpanded] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [mounted, setMounted] = useState(false);
@@ -2737,9 +2767,13 @@ export default function InventoryPage() {
         if (code) {
           setNfcCode(code);
           setNfcModalOpen(true);
+        } else {
+          // 거래는 이미 완료됐다. 조용히 넘기면 태그 없는 병이 그대로 나간다
+          alert('NFC 코드 발급에 실패했습니다. 거래는 처리됐으니 다시 시도해 주세요.');
         }
-      } catch {
-        // NFC 코드 생성 실패는 무시 (거래 자체는 완료)
+      } catch (e) {
+        console.error('[inventory] NFC 코드 생성 실패:', e);
+        alert('NFC 코드 발급 중 오류가 발생했습니다. 거래는 처리됐습니다.');
       }
     }
   };
@@ -3311,6 +3345,49 @@ export default function InventoryPage() {
 
         </div>
       </section>
+
+      {/* ── NFC 발급 병 ──
+          배치 재고에서 판매·증정된 병은 bottle_units에 쌓이는데 목록 화면이 없어,
+          NFC 모달을 닫으면 그 병에 다시 접근할 길이 없었다. 여기서 언제든 재진입한다. */}
+      {bottleUnits.length > 0 && (
+        <section className="px-4 sm:px-6 pb-10 max-w-5xl mx-auto">
+          <div className="rounded-2xl border border-white/[0.08] bg-[#0d1525] overflow-hidden">
+            <div className="px-5 py-4 border-b border-white/[0.06] flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-medium text-white/80">NFC 발급 병</h3>
+                <p className="text-[11px] text-white/35 mt-0.5">
+                  코드가 발급된 병입니다. 태그에 기록하지 못했으면 눌러서 다시 쓰세요.
+                </p>
+              </div>
+              <span className="text-xs text-white/40 font-mono">{bottleUnits.length}</span>
+            </div>
+            <div className="divide-y divide-white/[0.05] max-h-80 overflow-y-auto">
+              {bottleUnits.map((unit) => (
+                <button
+                  key={unit.id}
+                  onClick={() => {
+                    setNfcCode(unit.nfcCode);
+                    setNfcModalOpen(true);
+                  }}
+                  className="w-full px-5 py-3 flex items-center justify-between gap-3 hover:bg-white/[0.03] text-left"
+                >
+                  <span className="min-w-0">
+                    <span className="block text-sm font-mono text-cyan-400">{unit.nfcCode}</span>
+                    <span className="block text-[11px] text-white/35 truncate">
+                      {unit.productId}
+                      {unit.customerName ? ` · ${unit.customerName}` : ''}
+                      {unit.soldDate ? ` · ${unit.soldDate}` : ''}
+                    </span>
+                  </span>
+                  <span className="shrink-0 text-[10px] px-2 py-1 rounded-lg bg-white/[0.05] text-white/45">
+                    {unit.status === 'gifted' ? '증정' : '판매'}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* Footer */}
       <Footer subtitle="Inventory Management" />

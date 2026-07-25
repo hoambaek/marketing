@@ -49,6 +49,7 @@ export {
   // NFC + 숙성 데이터
   generateUniqueNfcCode,
   createBottleUnit,
+  fetchBottleUnits,
   fetchBottleByNfcCode,
   updateBatchAgingDates,
   updateNumberedBottleNfc,

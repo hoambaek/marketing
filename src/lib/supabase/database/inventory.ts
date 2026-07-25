@@ -509,6 +509,28 @@ export async function generateUniqueNfcCode(): Promise<string | null> {
   return null;
 }
 
+/**
+ * 개별 병 유닛 전량 조회 (배치 재고에서 판매·증정된 병).
+ *
+ * 이전에는 조회 함수가 없어 스토어가 생성 시점에만 메모리에 쌓았고, 새로고침하면
+ * 사라졌다 — NFC 코드는 DB에 있는데 그 병에 다시 접근할 화면이 없었다.
+ */
+export async function fetchBottleUnits(): Promise<DBBottleUnit[]> {
+  if (!isSupabaseConfigured()) return [];
+
+  const { data, error } = await supabase!
+    .from('bottle_units')
+    .select('*')
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    dbLogger.error('Error fetching bottle units:', error);
+    return [];
+  }
+
+  return (data ?? []) as DBBottleUnit[];
+}
+
 export async function createBottleUnit(
   unit: Omit<DBBottleUnit, 'nfc_registered_at' | 'created_at'>
 ): Promise<DBBottleUnit | null> {

@@ -151,6 +151,27 @@ const createInitialBatches = (): InventoryBatch[] => {
 // Zustand 스토어
 // ═══════════════════════════════════════════════════════════════════════════
 
+/** DB 행 → 앱 타입 */
+function mapDbUnitToUnit(u: {
+  id: string; product_id: string; nfc_code: string; serial_number: number | null;
+  status: 'sold' | 'gifted'; customer_name: string | null; sold_date: string | null;
+  price: number | null; notes: string | null; nfc_registered_at: string | null; created_at: string;
+}): BottleUnit {
+  return {
+    id: u.id,
+    productId: u.product_id,
+    nfcCode: u.nfc_code,
+    serialNumber: u.serial_number ?? undefined,
+    status: u.status,
+    customerName: u.customer_name ?? undefined,
+    soldDate: u.sold_date ?? undefined,
+    price: u.price ?? undefined,
+    notes: u.notes ?? undefined,
+    nfcRegisteredAt: u.nfc_registered_at ?? undefined,
+    createdAt: u.created_at,
+  };
+}
+
 export const useInventoryStore = create<InventoryState>()((set, get) => ({
       // 초기 데이터
       numberedBottles: [],
@@ -183,11 +204,12 @@ export const useInventoryStore = create<InventoryState>()((set, get) => ({
 
         try {
           // Supabase에서 데이터 로드 (항상 최신 데이터)
-          const [bottles, batches, transactions, customProducts] = await Promise.all([
+          const [bottles, batches, transactions, customProducts, units] = await Promise.all([
             db.fetchNumberedBottles(),
             db.fetchInventoryBatches(),
             db.fetchInventoryTransactions(500), // 더 많은 트랜잭션 로드
             db.fetchCustomProducts(),
+            db.fetchBottleUnits(),
           ]);
 
           // DB에서 로드한 배치 매핑
@@ -233,6 +255,7 @@ export const useInventoryStore = create<InventoryState>()((set, get) => ({
             inventoryBatches: loadedBatches.length > 0 ? loadedBatches : createInitialBatches(),
             transactions: transactions?.map(db.mapDbTransactionToTransaction) || [],
             customProducts: customProducts?.map(db.mapDbCustomProductToProduct) || [],
+            bottleUnits: units.map(mapDbUnitToUnit),
             isInitialized: true,
             isLoading: false,
             useSupabase: true,
@@ -261,11 +284,12 @@ export const useInventoryStore = create<InventoryState>()((set, get) => ({
         set({ isLoading: true });
 
         try {
-          const [bottles, batches, transactions, customProducts] = await Promise.all([
+          const [bottles, batches, transactions, customProducts, units] = await Promise.all([
             db.fetchNumberedBottles(),
             db.fetchInventoryBatches(),
             db.fetchInventoryTransactions(500),
             db.fetchCustomProducts(),
+            db.fetchBottleUnits(),
           ]);
 
           // DB에서 로드한 배치 매핑
@@ -311,6 +335,7 @@ export const useInventoryStore = create<InventoryState>()((set, get) => ({
             inventoryBatches: loadedBatches,
             transactions: transactions?.map(db.mapDbTransactionToTransaction) || [],
             customProducts: customProducts?.map(db.mapDbCustomProductToProduct) || [],
+            bottleUnits: units.map(mapDbUnitToUnit),
             isLoading: false,
           });
         } catch (error) {
