@@ -317,6 +317,7 @@ export default function CostCalculatorPage() {
   const [exchangeRate, setExchangeRate] = useState(DEFAULT_EXCHANGE_RATE);
   const [isLoadingRate, setIsLoadingRate] = useState(false);
   const [rateLastUpdated, setRateLastUpdated] = useState<string | null>(null);
+  const [rateError, setRateError] = useState<string | null>(null);
 
   // Cost inputs (in EUR for champagne, in KRW for others)
   const [shippingCost, setShippingCost] = useState(0);
@@ -341,22 +342,24 @@ export default function CostCalculatorPage() {
   const dbCostPerBottleRef = useRef<Record<string, number>>({}); // Store DB costPerBottle values
   const dbPackagingCostRef = useRef<Record<string, number>>({}); // Store DB packagingCost values per product
 
-  // Fetch current exchange rate
+  /* 환율은 서버 라우트를 거친다 — 브라우저에서 환율 API를 직접 부르면 CORS에 막힌다.
+     실패하면 기본값 1,500원이 그대로 남는데, 그걸 말없이 두면 틀린 환율로 계산한
+     원가를 맞는 값처럼 읽게 된다. 그래서 실패를 화면에 드러낸다. */
   const fetchExchangeRate = async () => {
     setIsLoadingRate(true);
+    setRateError(null);
     try {
-      // Using exchangerate-api.com free tier (or fallback to frankfurter.app)
-      const response = await fetch('https://api.frankfurter.app/latest?from=EUR&to=KRW');
-      if (response.ok) {
-        const data = await response.json();
-        if (data.rates?.KRW) {
-          setExchangeRate(Math.round(data.rates.KRW));
-          setRateLastUpdated(new Date().toLocaleString('ko-KR'));
-        }
-      }
+      const response = await fetch('/api/exchange-rate');
+      if (!response.ok) throw new Error(`status ${response.status}`);
+
+      const data = (await response.json()) as { rate?: number; date?: string | null };
+      if (typeof data.rate !== 'number') throw new Error('rate missing');
+
+      setExchangeRate(Math.round(data.rate));
+      setRateLastUpdated(data.date ? `${data.date} 유럽중앙은행 고시` : new Date().toLocaleString('ko-KR'));
     } catch (error) {
       logger.error('Failed to fetch exchange rate:', error);
-      // Keep the default or previously set rate
+      setRateError('환율을 가져오지 못했습니다. 아래 값은 직접 확인해주세요.');
     } finally {
       setIsLoadingRate(false);
     }
@@ -873,11 +876,11 @@ export default function CostCalculatorPage() {
                       <RefreshCw className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${isLoadingRate ? 'animate-spin' : ''}`} />
                     </button>
                   </div>
-                  {rateLastUpdated && (
-                    <span className="text-[10px] text-white/30">
-                      {rateLastUpdated}
-                    </span>
-                  )}
+                  {rateError ? (
+                    <span className="text-[10px] text-amber-400/70">{rateError}</span>
+                  ) : rateLastUpdated ? (
+                    <span className="text-[10px] text-white/30">{rateLastUpdated}</span>
+                  ) : null}
                 </div>
               </div>
             </motion.div>
