@@ -53,8 +53,23 @@ interface InventoryState {
 
   // NFC + 숙성 데이터 Actions
   generateNfcCode: (bottleId: string, isNumbered: boolean, details?: {
-    productId?: string; status?: 'sold' | 'gifted'; customerName?: string; soldDate?: string; price?: number; notes?: string;
+    productId?: string; status?: 'sold' | 'gifted'; customerName?: string; soldDate?: string;
+    price?: number; notes?: string; transactionId?: string;
   }) => Promise<string | null>;
+  /**
+   * 이 거래에서 아직 코드를 못 받은 병만큼 NFC 코드를 발급하고, 발급한 개수를 돌려준다.
+   *
+   * 예전에는 몇 병을 팔든 코드가 1개만 나왔다. 3병을 팔면 나머지 2병에는 붙일 태그가
+   * 없었다. 지나간 거래의 미발급분과, 기록을 초기화한 뒤 재발급하는 경로도 여기로 온다.
+   */
+  issueMissingNfcCodes: (transactionId: string, soldDate?: string) => Promise<number>;
+  /** NFC 코드로 병을 찾아 "실물 태그 기록 완료"로 표시한다. */
+  markNfcWritten: (nfcCode: string) => Promise<void>;
+  /**
+   * NFC 쓰기를 취소하고 그 병의 기록을 초기화한다.
+   * 배치 병은 유닛 자체를 삭제하고, 넘버링 병은 NFC 필드만 비운다(판매 상태는 유지).
+   */
+  resetNfcRecord: (nfcCode: string) => Promise<boolean>;
   updateBatchAgingData: (productId: string, data: {
     immersionDate?: string | null; retrievalDate?: string | null; agingDepth?: number;
   }) => Promise<void>;
@@ -72,12 +87,17 @@ interface InventoryState {
     productId: ProductType | string,
     changes: { available?: number; reserved?: number; sold?: number; gifted?: number; damaged?: number }
   ) => Promise<void>;
-  sellFromBatch: (productId: ProductType | string, quantity: number, customerName?: string, price?: number, soldDate?: string) => Promise<void>;
-  reserveFromBatch: (productId: ProductType | string, quantity: number, customerName: string) => Promise<void>;
-  confirmReservation: (productId: ProductType | string, quantity: number, customerName?: string, price?: number) => Promise<void>;
-  cancelReservation: (productId: ProductType | string, quantity: number) => Promise<void>;
-  reportDamage: (productId: ProductType | string, quantity: number, notes?: string) => Promise<void>;
-  giftFromBatch: (productId: ProductType | string, quantity: number, recipientName: string, notes?: string, soldDate?: string) => Promise<void>;
+  /**
+   * 병 단위 작업. 두 번째 인자는 수량이 아니라 그 병의 한정번호다.
+   * 성공하면 만든 거래 id를, 진행할 수 없으면 null을 돌려준다
+   * (발급되는 NFC 병을 그 거래에 묶기 위해 id가 필요하다).
+   */
+  sellFromBatch: (productId: ProductType | string, serialNumber: number, customerName?: string, price?: number, soldDate?: string) => Promise<string | null>;
+  reserveFromBatch: (productId: ProductType | string, serialNumber: number, customerName: string) => Promise<string | null>;
+  confirmReservation: (productId: ProductType | string, serialNumber: number, customerName?: string, price?: number, soldDate?: string) => Promise<string | null>;
+  cancelReservation: (productId: ProductType | string, serialNumber: number) => Promise<string | null>;
+  reportDamage: (productId: ProductType | string, serialNumber: number, notes?: string) => Promise<string | null>;
+  giftFromBatch: (productId: ProductType | string, serialNumber: number, recipientName: string, notes?: string, soldDate?: string) => Promise<string | null>;
 
   // Computed
   getProductSummary: (productId: string) => {
@@ -116,6 +136,9 @@ interface InventoryState {
 
 const generateId = () => `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
+/** 병마다 번호를 들고 있는 제품 (2025 퍼스트 에디션). 배치 제품과 처리 경로가 다르다. */
+const NUMBERED_PRODUCT_IDS = new Set<string>(PRODUCTS.filter((p) => p.isNumbered).map((p) => p.id));
+
 // ═══════════════════════════════════════════════════════════════════════════
 // 초기 데이터 생성 (로컬 폴백용)
 // ═══════════════════════════════════════════════════════════════════════════
@@ -151,25 +174,220 @@ const createInitialBatches = (): InventoryBatch[] => {
 // Zustand 스토어
 // ═══════════════════════════════════════════════════════════════════════════
 
-/** DB 행 → 앱 타입 */
-function mapDbUnitToUnit(u: {
-  id: string; product_id: string; nfc_code: string; serial_number: number | null;
-  status: 'sold' | 'gifted'; customer_name: string | null; sold_date: string | null;
-  price: number | null; notes: string | null; nfc_registered_at: string | null; created_at: string;
-}): BottleUnit {
-  return {
-    id: u.id,
-    productId: u.product_id,
-    nfcCode: u.nfc_code,
-    serialNumber: u.serial_number ?? undefined,
-    status: u.status,
-    customerName: u.customer_name ?? undefined,
-    soldDate: u.sold_date ?? undefined,
-    price: u.price ?? undefined,
-    notes: u.notes ?? undefined,
-    nfcRegisteredAt: u.nfc_registered_at ?? undefined,
-    createdAt: u.created_at,
+// ═══════════════════════════════════════════════════════════════════════════
+// 배치 제품 병 단위 처리
+// ═══════════════════════════════════════════════════════════════════════════
+
+type CounterKey = 'available' | 'reserved' | 'sold' | 'gifted' | 'damaged';
+
+type BottleActionSpec = {
+  productId: string;
+  /** 한정번호 */
+  serialNumber: number;
+  /** 재고 칸 이동. 예: 판매는 { available: -1, sold: 1 } */
+  counterDelta: Partial<Record<CounterKey, number>>;
+  txType: InventoryTransaction['type'];
+  /** create=새 병 기록, confirm=예약된 병을 고침, release=병 기록 삭제 */
+  mode: 'create' | 'confirm' | 'release';
+  status?: BottleUnit['status'];
+  customerName?: string;
+  price?: number;
+  notes?: string;
+  soldDate?: string;
+};
+
+const applyDelta = (b: InventoryBatch, d: Partial<Record<CounterKey, number>>): InventoryBatch => ({
+  ...b,
+  available: b.available + (d.available ?? 0),
+  reserved: b.reserved + (d.reserved ?? 0),
+  sold: b.sold + (d.sold ?? 0),
+  gifted: b.gifted + (d.gifted ?? 0),
+  damaged: b.damaged + (d.damaged ?? 0),
+  lastUpdated: new Date().toISOString(),
+});
+
+/** 이 거래가 병을 어느 재고 칸에 넣어 뒀는지. 예약취소·반품은 병이 보유로 돌아간 상태다. */
+const counterBucketOf = (type: string): CounterKey => {
+  switch (type) {
+    case 'sale': return 'sold';
+    case 'reservation': return 'reserved';
+    case 'gift': return 'gifted';
+    case 'damage': return 'damaged';
+    default: return 'available';
+  }
+};
+
+/** 이 거래 유형에 맞는 병 상태. null이면 병 기록이 남을 이유가 없다(보유로 복귀). */
+const unitStatusOf = (type: string): BottleUnit['status'] | null => {
+  switch (type) {
+    case 'sale': return 'sold';
+    case 'reservation': return 'reserved';
+    case 'gift': return 'gifted';
+    case 'damage': return 'damaged';
+    default: return null;
+  }
+};
+
+/** 어느 칸도 음수가 되지 않아야 한다 — 없는 재고를 팔 수는 없다 */
+const deltaFits = (b: InventoryBatch, d: Partial<Record<CounterKey, number>>): boolean => {
+  const next = applyDelta(b, d);
+  return next.available >= 0 && next.reserved >= 0 && next.sold >= 0
+    && next.gifted >= 0 && next.damaged >= 0;
+};
+
+type StoreSet = (partial: (state: InventoryState) => Partial<InventoryState>) => void;
+type StoreGet = () => InventoryState;
+
+/**
+ * 배치 제품의 병 하나를 처리한다.
+ *
+ * 재고 칸을 한 병 옮기고, 그 한정번호의 병 기록을 만들거나 고치거나 지우고,
+ * 거래를 한 줄 남긴다. 거래의 bottle_number에 한정번호가 들어가므로 거래 내역에서
+ * "앙 리유 쉬르 브뤼 #7"로 읽힌다.
+ *
+ * 성공하면 만든 거래 id를, 진행할 수 없으면 null을 준다.
+ */
+async function runBottleAction(
+  set: StoreSet,
+  get: StoreGet,
+  spec: BottleActionSpec
+): Promise<string | null> {
+  const state = get();
+  const batch = state.inventoryBatches.find((b) => b.productId === spec.productId);
+  if (!batch || !deltaFits(batch, spec.counterDelta)) return null;
+
+  const existing = state.bottleUnits.find(
+    (u) => u.productId === spec.productId && u.serialNumber === spec.serialNumber
+  );
+
+  // 이미 나간 번호에 또 붙일 수 없고, 없는 병을 확정하거나 무를 수도 없다
+  if (spec.mode === 'create' && existing) return null;
+  if (spec.mode !== 'create' && !existing) return null;
+
+  const originalBatch = { ...batch };
+  const originalUnits = state.bottleUnits;
+  const nextBatch = applyDelta(batch, spec.counterDelta);
+
+  const txId = generateId();
+  const unitId = existing?.id ?? `unit-${generateId()}`;
+  const now = new Date().toISOString();
+  const soldDate = spec.soldDate || now.split('T')[0];
+  const keepsDate = spec.status === 'sold' || spec.status === 'gifted';
+  // 예약을 확정할 때 이름을 새로 넣지 않았으면 예약자 이름을 그대로 쓴다
+  const customerName = spec.customerName ?? existing?.customerName;
+
+  const nextUnits: BottleUnit[] =
+    spec.mode === 'release'
+      ? state.bottleUnits.filter((u) => u.id !== unitId)
+      : spec.mode === 'confirm'
+        ? state.bottleUnits.map((u) =>
+            u.id === unitId
+              ? {
+                  ...u,
+                  status: spec.status ?? u.status,
+                  customerName,
+                  price: spec.price ?? u.price,
+                  notes: spec.notes ?? u.notes,
+                  soldDate,
+                  transactionId: txId,
+                }
+              : u
+          )
+        : [
+            ...state.bottleUnits,
+            {
+              id: unitId,
+              productId: spec.productId,
+              serialNumber: spec.serialNumber,
+              status: spec.status ?? 'sold',
+              customerName,
+              price: spec.price,
+              notes: spec.notes,
+              soldDate: keepsDate ? soldDate : undefined,
+              transactionId: txId,
+              createdAt: now,
+            },
+          ];
+
+  const transaction: InventoryTransaction = {
+    id: txId,
+    productId: spec.productId as ProductType,
+    bottleNumber: spec.serialNumber,
+    type: spec.txType,
+    quantity: 1,
+    customerName,
+    price: spec.price,
+    notes: spec.notes,
+    createdAt: now,
   };
+
+  // 낙관적 업데이트
+  set((s) => ({
+    inventoryBatches: s.inventoryBatches.map((b) => (b.productId === spec.productId ? nextBatch : b)),
+    bottleUnits: nextUnits,
+    transactions: [...s.transactions, transaction],
+  }));
+
+  if (!get().useSupabase) return txId;
+
+  try {
+    await db.updateInventoryBatch(spec.productId, {
+      available: nextBatch.available,
+      reserved: nextBatch.reserved,
+      sold: nextBatch.sold,
+      gifted: nextBatch.gifted,
+      damaged: nextBatch.damaged,
+    });
+
+    if (spec.mode === 'release') {
+      await db.deleteBottleUnit(unitId);
+    } else if (spec.mode === 'confirm') {
+      // 비워 둔 항목은 덮지 않는다 — 예약 때 넣은 예약자 이름이 지워지면 안 된다
+      await db.updateBottleUnit(unitId, {
+        status: spec.status ?? 'sold',
+        sold_date: soldDate,
+        transaction_id: txId,
+        ...(spec.customerName !== undefined && { customer_name: spec.customerName }),
+        ...(spec.price !== undefined && { price: spec.price }),
+        ...(spec.notes !== undefined && { notes: spec.notes }),
+      });
+    } else {
+      await db.createBottleUnit({
+        id: unitId,
+        product_id: spec.productId,
+        nfc_code: null,
+        serial_number: spec.serialNumber,
+        status: spec.status ?? 'sold',
+        customer_name: customerName ?? null,
+        sold_date: keepsDate ? soldDate : null,
+        price: spec.price ?? null,
+        notes: spec.notes ?? null,
+        transaction_id: txId,
+      });
+    }
+
+    await db.createInventoryTransaction({
+      id: txId,
+      product_id: spec.productId,
+      bottle_number: spec.serialNumber,
+      type: spec.txType,
+      quantity: 1,
+      customer_name: customerName ?? null,
+      price: spec.price ?? null,
+      notes: spec.notes ?? null,
+    });
+
+    return txId;
+  } catch (error) {
+    // 롤백 — 재고·병·거래를 모두 되돌린다
+    set((s) => ({
+      inventoryBatches: s.inventoryBatches.map((b) => (b.productId === spec.productId ? originalBatch : b)),
+      bottleUnits: originalUnits,
+      transactions: s.transactions.filter((t) => t.id !== txId),
+    }));
+    handleStoreError(error, 'InventoryStore.runBottleAction');
+    return null;
+  }
 }
 
 export const useInventoryStore = create<InventoryState>()((set, get) => ({
@@ -255,7 +473,7 @@ export const useInventoryStore = create<InventoryState>()((set, get) => ({
             inventoryBatches: loadedBatches.length > 0 ? loadedBatches : createInitialBatches(),
             transactions: transactions?.map(db.mapDbTransactionToTransaction) || [],
             customProducts: customProducts?.map(db.mapDbCustomProductToProduct) || [],
-            bottleUnits: units.map(mapDbUnitToUnit),
+            bottleUnits: units.map(db.mapDbBottleUnitToBottleUnit),
             isInitialized: true,
             isLoading: false,
             useSupabase: true,
@@ -335,7 +553,7 @@ export const useInventoryStore = create<InventoryState>()((set, get) => ({
             inventoryBatches: loadedBatches,
             transactions: transactions?.map(db.mapDbTransactionToTransaction) || [],
             customProducts: customProducts?.map(db.mapDbCustomProductToProduct) || [],
-            bottleUnits: units.map(mapDbUnitToUnit),
+            bottleUnits: units.map(db.mapDbBottleUnitToBottleUnit),
             isLoading: false,
           });
         } catch (error) {
@@ -493,18 +711,34 @@ export const useInventoryStore = create<InventoryState>()((set, get) => ({
             ),
           }));
         } else if (details?.productId) {
-          // 배치 제품 → bottle_unit 생성
+          // 병 기록이 아예 없는 옛 거래를 메우는 경로. 새 판매는 runBottleAction이 병을
+          // 먼저 만들고 코드만 붙이므로 여기로 오지 않는다.
           const unitId = `unit-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+          // 한정번호 — 1번부터 올라가며 아직 안 쓴 가장 작은 번호.
+          // DB를 우선 신뢰하고(다른 기기에서 발급했을 수 있다), 실패하면 메모리로 계산한다.
+          const localUsed = new Set(
+            get().bottleUnits
+              .filter((u) => u.productId === details.productId && u.serialNumber != null)
+              .map((u) => u.serialNumber as number)
+          );
+          let localNext = 1;
+          while (localUsed.has(localNext)) localNext++;
+          const serialNumber = get().useSupabase
+            ? (await db.getNextBottleUnitSerial(details.productId)) ?? localNext
+            : localNext;
+
           const unit = {
             id: unitId,
             product_id: details.productId,
             nfc_code: nfcCode,
-            serial_number: null,
-            status: (details.status || 'sold') as 'sold' | 'gifted',
+            serial_number: serialNumber,
+            status: (details.status || 'sold') as BottleUnit['status'],
             customer_name: details.customerName || null,
             sold_date: details.soldDate || new Date().toISOString().split('T')[0],
             price: details.price || null,
             notes: details.notes || null,
+            transaction_id: details.transactionId || null,
           };
 
           if (get().useSupabase) {
@@ -516,18 +750,135 @@ export const useInventoryStore = create<InventoryState>()((set, get) => ({
               id: unitId,
               productId: details.productId!,
               nfcCode,
+              serialNumber,
               status: unit.status,
               customerName: details.customerName,
               soldDate: unit.sold_date,
               price: details.price,
               notes: details.notes,
               nfcRegisteredAt: new Date().toISOString(),
+              transactionId: details.transactionId,
               createdAt: new Date().toISOString(),
             }],
           }));
         }
 
         return nfcCode;
+      },
+
+      issueMissingNfcCodes: async (transactionId, soldDate) => {
+        const tx = get().transactions.find((t) => t.id === transactionId);
+        if (!tx) return 0;
+        // 넘버링 병(2025 퍼스트 에디션)은 병 행 자체가 코드를 들고 있다. 여기는 배치 병 전용.
+        if (NUMBERED_PRODUCT_IDS.has(tx.productId)) return 0;
+        if (tx.type !== 'sale' && tx.type !== 'gift') return 0;
+
+        let issued = 0;
+
+        // 1) 이 거래의 병 중 아직 코드가 없는 것에 코드를 붙인다.
+        //    새 판매는 병이 먼저 만들어지고 코드가 비어 있는 상태로 여기 온다.
+        const codeless = get().bottleUnits.filter(
+          (u) => u.transactionId === transactionId && !u.nfcCode
+        );
+        for (const unit of codeless) {
+          const code = await db.generateUniqueNfcCode();
+          if (!code) break;
+          const registeredAt = new Date().toISOString();
+
+          if (get().useSupabase) {
+            const ok = await db.updateBottleUnit(unit.id, {
+              nfc_code: code,
+              nfc_registered_at: registeredAt,
+            });
+            if (!ok) break;
+          }
+
+          set((state) => ({
+            bottleUnits: state.bottleUnits.map((u) =>
+              u.id === unit.id ? { ...u, nfcCode: code, nfcRegisteredAt: registeredAt } : u
+            ),
+          }));
+          issued++;
+        }
+
+        // 2) 병 기록 자체가 모자란 옛 거래는 수량만큼 채운다.
+        //    순차 실행이어야 한다 — 한정번호가 직전 삽입 결과를 보고 매겨진다.
+        const linked = get().bottleUnits.filter((u) => u.transactionId === transactionId).length;
+        for (let i = linked; i < tx.quantity; i++) {
+          const code = await get().generateNfcCode('', false, {
+            productId: tx.productId,
+            status: tx.type === 'gift' ? 'gifted' : 'sold',
+            customerName: tx.customerName,
+            soldDate: soldDate || tx.createdAt.slice(0, 10),
+            price: tx.price,
+            notes: tx.notes,
+            transactionId,
+          });
+          if (!code) break;
+          issued++;
+        }
+
+        return issued;
+      },
+
+      markNfcWritten: async (nfcCode) => {
+        const writtenAt = new Date().toISOString();
+        const unit = get().bottleUnits.find((u) => u.nfcCode === nfcCode);
+        const bottle = get().numberedBottles.find((b) => b.nfcCode === nfcCode);
+
+        // 낙관적 업데이트 — 태그는 이미 물리적으로 기록됐다. UI가 먼저 따라가도 된다.
+        set((state) => ({
+          bottleUnits: state.bottleUnits.map((u) =>
+            u.nfcCode === nfcCode ? { ...u, nfcWrittenAt: writtenAt } : u
+          ),
+          numberedBottles: state.numberedBottles.map((b) =>
+            b.nfcCode === nfcCode ? { ...b, nfcWrittenAt: writtenAt } : b
+          ),
+        }));
+
+        if (!get().useSupabase) return;
+
+        try {
+          if (unit) await db.markBottleUnitNfcWritten(unit.id);
+          else if (bottle) await db.markNumberedBottleNfcWritten(bottle.id);
+        } catch (error) {
+          handleStoreError(error, 'InventoryStore.markNfcWritten');
+        }
+      },
+
+      /**
+       * NFC 정보만 비운다. 병 기록(한정번호·고객·판매 상태)과 재고 수량은 그대로 남는다.
+       *
+       * 병 행 자체를 지우면 재고 카운터와 어긋난다 — 팔린 것으로 세어 둔 병이
+       * 기록만 사라지기 때문이다. 판매를 무르는 건 거래 내역 수정으로 한다.
+       */
+      resetNfcRecord: async (nfcCode) => {
+        const unit = get().bottleUnits.find((u) => u.nfcCode === nfcCode);
+        const bottle = get().numberedBottles.find((b) => b.nfcCode === nfcCode);
+        if (!unit && !bottle) return false;
+
+        // DB를 먼저 비우고 성공했을 때만 화면을 바꾼다
+        if (get().useSupabase) {
+          try {
+            const ok = unit
+              ? await db.clearBottleUnitNfc(unit.id)
+              : await db.clearNumberedBottleNfc(bottle!.id);
+            if (!ok) return false;
+          } catch (error) {
+            handleStoreError(error, 'InventoryStore.resetNfcRecord');
+            return false;
+          }
+        }
+
+        const cleared = { nfcCode: undefined, nfcRegisteredAt: undefined, nfcWrittenAt: undefined };
+        set((state) => ({
+          bottleUnits: state.bottleUnits.map((u) => (u.nfcCode === nfcCode ? { ...u, ...cleared } : u)),
+          numberedBottles: state.numberedBottles.map((b) =>
+            b.nfcCode === nfcCode ? { ...b, ...cleared } : b
+          ),
+        }));
+
+        return true;
       },
 
       updateBatchAgingData: async (productId, data) => {
@@ -598,486 +949,85 @@ export const useInventoryStore = create<InventoryState>()((set, get) => ({
         }
       },
 
-      sellFromBatch: async (productId, quantity, customerName, price) => {
-        const batch = get().inventoryBatches.find((b) => b.productId === productId);
-        if (!batch || batch.available < quantity) return;
+      // ─────────────────────────────────────────────────────────────────
+      // 배치 제품 병 단위 작업
+      //
+      // 모든 병에 NFC를 붙이므로 수량 단위 입출고가 맞지 않는다. 여섯 작업이 모두
+      // "한정번호 하나를 이 칸에서 저 칸으로 옮긴다"로 같아져 runBottleAction으로 모았다.
+      // ─────────────────────────────────────────────────────────────────
 
-        // 원본 저장 (롤백용)
-        const originalBatch = { ...batch };
+      sellFromBatch: (productId, serialNumber, customerName, price, soldDate) =>
+        runBottleAction(set, get, {
+          productId: productId as string,
+          serialNumber,
+          counterDelta: { available: -1, sold: 1 },
+          txType: 'sale',
+          mode: 'create',
+          status: 'sold',
+          customerName,
+          price,
+          soldDate,
+        }),
 
-        // 낙관적 업데이트
-        set((state) => ({
-          inventoryBatches: state.inventoryBatches.map((b) =>
-            b.productId === productId
-              ? {
-                  ...b,
-                  available: b.available - quantity,
-                  sold: b.sold + quantity,
-                  lastUpdated: new Date().toISOString(),
-                }
-              : b
-          ),
-        }));
+      reserveFromBatch: (productId, serialNumber, customerName) =>
+        runBottleAction(set, get, {
+          productId: productId as string,
+          serialNumber,
+          counterDelta: { available: -1, reserved: 1 },
+          txType: 'reservation',
+          mode: 'create',
+          status: 'reserved',
+          customerName,
+        }),
 
-        // Supabase에 저장
-        if (get().useSupabase) {
-          try {
-            await db.updateInventoryBatch(productId as string, {
-              available: batch.available - quantity,
-              sold: batch.sold + quantity,
-            });
+      giftFromBatch: (productId, serialNumber, recipientName, notes, soldDate) =>
+        runBottleAction(set, get, {
+          productId: productId as string,
+          serialNumber,
+          counterDelta: { available: -1, gifted: 1 },
+          txType: 'gift',
+          mode: 'create',
+          status: 'gifted',
+          customerName: recipientName,
+          notes,
+          soldDate,
+        }),
 
-            const txId = generateId();
-            await db.createInventoryTransaction({
-              id: txId,
-              product_id: productId as string,
-              bottle_number: null,
-              type: 'sale',
-              quantity,
-              customer_name: customerName || null,
-              price: price || null,
-              notes: null,
-            });
+      reportDamage: (productId, serialNumber, notes) =>
+        runBottleAction(set, get, {
+          productId: productId as string,
+          serialNumber,
+          counterDelta: { available: -1, damaged: 1 },
+          txType: 'damage',
+          mode: 'create',
+          status: 'damaged',
+          notes,
+        }),
 
-            set((state) => ({
-              transactions: [
-                ...state.transactions,
-                {
-                  id: txId,
-                  productId: productId as ProductType,
-                  type: 'sale',
-                  quantity,
-                  customerName,
-                  price,
-                  createdAt: new Date().toISOString(),
-                },
-              ],
-            }));
-          } catch (error) {
-            // 롤백
-            set((state) => ({
-              inventoryBatches: state.inventoryBatches.map((b) =>
-                b.productId === productId ? originalBatch : b
-              ),
-            }));
-            handleStoreError(error, 'InventoryStore.sellFromBatch');
-          }
-        } else {
-          set((state) => ({
-            transactions: [
-              ...state.transactions,
-              {
-                id: generateId(),
-                productId: productId as ProductType,
-                type: 'sale',
-                quantity,
-                customerName,
-                price,
-                createdAt: new Date().toISOString(),
-              },
-            ],
-          }));
-        }
-      },
+      // 예약해 둔 그 병을 판매로 넘긴다 — 새 병을 만들지 않고 기존 행을 고친다
+      confirmReservation: (productId, serialNumber, customerName, price, soldDate) =>
+        runBottleAction(set, get, {
+          productId: productId as string,
+          serialNumber,
+          counterDelta: { reserved: -1, sold: 1 },
+          txType: 'sale',
+          mode: 'confirm',
+          status: 'sold',
+          customerName,
+          price,
+          notes: '예약 확정',
+          soldDate,
+        }),
 
-      reserveFromBatch: async (productId, quantity, customerName) => {
-        const batch = get().inventoryBatches.find((b) => b.productId === productId);
-        if (!batch || batch.available < quantity) return;
-
-        // 원본 저장 (롤백용)
-        const originalBatch = { ...batch };
-
-        // 낙관적 업데이트
-        set((state) => ({
-          inventoryBatches: state.inventoryBatches.map((b) =>
-            b.productId === productId
-              ? {
-                  ...b,
-                  available: b.available - quantity,
-                  reserved: b.reserved + quantity,
-                  lastUpdated: new Date().toISOString(),
-                }
-              : b
-          ),
-        }));
-
-        if (get().useSupabase) {
-          try {
-            await db.updateInventoryBatch(productId as string, {
-              available: batch.available - quantity,
-              reserved: batch.reserved + quantity,
-            });
-
-            const txId = generateId();
-            await db.createInventoryTransaction({
-              id: txId,
-              product_id: productId as string,
-              bottle_number: null,
-              type: 'reservation',
-              quantity,
-              customer_name: customerName,
-              price: null,
-              notes: null,
-            });
-
-            set((state) => ({
-              transactions: [
-                ...state.transactions,
-                {
-                  id: txId,
-                  productId: productId as ProductType,
-                  type: 'reservation',
-                  quantity,
-                  customerName,
-                  createdAt: new Date().toISOString(),
-                },
-              ],
-            }));
-          } catch (error) {
-            // 롤백
-            set((state) => ({
-              inventoryBatches: state.inventoryBatches.map((b) =>
-                b.productId === productId ? originalBatch : b
-              ),
-            }));
-            handleStoreError(error, 'InventoryStore.reserveFromBatch');
-          }
-        } else {
-          set((state) => ({
-            transactions: [
-              ...state.transactions,
-              {
-                id: generateId(),
-                productId: productId as ProductType,
-                type: 'reservation',
-                quantity,
-                customerName,
-                createdAt: new Date().toISOString(),
-              },
-            ],
-          }));
-        }
-      },
-
-      confirmReservation: async (productId, quantity, customerName, price) => {
-        const batch = get().inventoryBatches.find((b) => b.productId === productId);
-        if (!batch || batch.reserved < quantity) return;
-
-        // 원본 저장 (롤백용)
-        const originalBatch = { ...batch };
-
-        // 낙관적 업데이트
-        set((state) => ({
-          inventoryBatches: state.inventoryBatches.map((b) =>
-            b.productId === productId
-              ? {
-                  ...b,
-                  reserved: b.reserved - quantity,
-                  sold: b.sold + quantity,
-                  lastUpdated: new Date().toISOString(),
-                }
-              : b
-          ),
-        }));
-
-        if (get().useSupabase) {
-          try {
-            await db.updateInventoryBatch(productId as string, {
-              reserved: batch.reserved - quantity,
-              sold: batch.sold + quantity,
-            });
-
-            const txId = generateId();
-            await db.createInventoryTransaction({
-              id: txId,
-              product_id: productId as string,
-              bottle_number: null,
-              type: 'sale',
-              quantity,
-              customer_name: customerName || null,
-              price: price || null,
-              notes: '예약 확정',
-            });
-
-            set((state) => ({
-              transactions: [
-                ...state.transactions,
-                {
-                  id: txId,
-                  productId: productId as ProductType,
-                  type: 'sale',
-                  quantity,
-                  customerName,
-                  price,
-                  notes: '예약 확정',
-                  createdAt: new Date().toISOString(),
-                },
-              ],
-            }));
-          } catch (error) {
-            // 롤백
-            set((state) => ({
-              inventoryBatches: state.inventoryBatches.map((b) =>
-                b.productId === productId ? originalBatch : b
-              ),
-            }));
-            handleStoreError(error, 'InventoryStore.confirmReservation');
-          }
-        } else {
-          set((state) => ({
-            transactions: [
-              ...state.transactions,
-              {
-                id: generateId(),
-                productId: productId as ProductType,
-                type: 'sale',
-                quantity,
-                customerName,
-                price,
-                notes: '예약 확정',
-                createdAt: new Date().toISOString(),
-              },
-            ],
-          }));
-        }
-      },
-
-      cancelReservation: async (productId, quantity) => {
-        const batch = get().inventoryBatches.find((b) => b.productId === productId);
-        if (!batch || batch.reserved < quantity) return;
-
-        // 원본 저장 (롤백용)
-        const originalBatch = { ...batch };
-
-        // 낙관적 업데이트
-        set((state) => ({
-          inventoryBatches: state.inventoryBatches.map((b) =>
-            b.productId === productId
-              ? {
-                  ...b,
-                  reserved: b.reserved - quantity,
-                  available: b.available + quantity,
-                  lastUpdated: new Date().toISOString(),
-                }
-              : b
-          ),
-        }));
-
-        if (get().useSupabase) {
-          try {
-            await db.updateInventoryBatch(productId as string, {
-              reserved: batch.reserved - quantity,
-              available: batch.available + quantity,
-            });
-
-            const txId = generateId();
-            await db.createInventoryTransaction({
-              id: txId,
-              product_id: productId as string,
-              bottle_number: null,
-              type: 'cancel_reservation',
-              quantity,
-              customer_name: null,
-              price: null,
-              notes: null,
-            });
-
-            set((state) => ({
-              transactions: [
-                ...state.transactions,
-                {
-                  id: txId,
-                  productId: productId as ProductType,
-                  type: 'cancel_reservation',
-                  quantity,
-                  createdAt: new Date().toISOString(),
-                },
-              ],
-            }));
-          } catch (error) {
-            // 롤백
-            set((state) => ({
-              inventoryBatches: state.inventoryBatches.map((b) =>
-                b.productId === productId ? originalBatch : b
-              ),
-            }));
-            handleStoreError(error, 'InventoryStore.cancelReservation');
-          }
-        } else {
-          set((state) => ({
-            transactions: [
-              ...state.transactions,
-              {
-                id: generateId(),
-                productId: productId as ProductType,
-                type: 'cancel_reservation',
-                quantity,
-                createdAt: new Date().toISOString(),
-              },
-            ],
-          }));
-        }
-      },
-
-      reportDamage: async (productId, quantity, notes) => {
-        const batch = get().inventoryBatches.find((b) => b.productId === productId);
-        if (!batch || batch.available < quantity) return;
-
-        // 원본 저장 (롤백용)
-        const originalBatch = { ...batch };
-
-        // 낙관적 업데이트
-        set((state) => ({
-          inventoryBatches: state.inventoryBatches.map((b) =>
-            b.productId === productId
-              ? {
-                  ...b,
-                  available: b.available - quantity,
-                  damaged: b.damaged + quantity,
-                  lastUpdated: new Date().toISOString(),
-                }
-              : b
-          ),
-        }));
-
-        if (get().useSupabase) {
-          try {
-            await db.updateInventoryBatch(productId as string, {
-              available: batch.available - quantity,
-              damaged: batch.damaged + quantity,
-            });
-
-            const txId = generateId();
-            await db.createInventoryTransaction({
-              id: txId,
-              product_id: productId as string,
-              bottle_number: null,
-              type: 'damage',
-              quantity,
-              customer_name: null,
-              price: null,
-              notes: notes || null,
-            });
-
-            set((state) => ({
-              transactions: [
-                ...state.transactions,
-                {
-                  id: txId,
-                  productId: productId as ProductType,
-                  type: 'damage',
-                  quantity,
-                  notes,
-                  createdAt: new Date().toISOString(),
-                },
-              ],
-            }));
-          } catch (error) {
-            // 롤백
-            set((state) => ({
-              inventoryBatches: state.inventoryBatches.map((b) =>
-                b.productId === productId ? originalBatch : b
-              ),
-            }));
-            handleStoreError(error, 'InventoryStore.reportDamage');
-          }
-        } else {
-          set((state) => ({
-            transactions: [
-              ...state.transactions,
-              {
-                id: generateId(),
-                productId: productId as ProductType,
-                type: 'damage',
-                quantity,
-                notes,
-                createdAt: new Date().toISOString(),
-              },
-            ],
-          }));
-        }
-      },
-
-      giftFromBatch: async (productId, quantity, recipientName, notes) => {
-        const batch = get().inventoryBatches.find((b) => b.productId === productId);
-        if (!batch || batch.available < quantity) return;
-
-        // 원본 저장 (롤백용)
-        const originalBatch = { ...batch };
-
-        // 낙관적 업데이트
-        set((state) => ({
-          inventoryBatches: state.inventoryBatches.map((b) =>
-            b.productId === productId
-              ? {
-                  ...b,
-                  available: b.available - quantity,
-                  gifted: b.gifted + quantity,
-                  lastUpdated: new Date().toISOString(),
-                }
-              : b
-          ),
-        }));
-
-        if (get().useSupabase) {
-          try {
-            await db.updateInventoryBatch(productId as string, {
-              available: batch.available - quantity,
-              gifted: batch.gifted + quantity,
-            });
-
-            const txId = generateId();
-            await db.createInventoryTransaction({
-              id: txId,
-              product_id: productId as string,
-              bottle_number: null,
-              type: 'gift',
-              quantity,
-              customer_name: recipientName,
-              price: null,
-              notes: notes || null,
-            });
-
-            set((state) => ({
-              transactions: [
-                ...state.transactions,
-                {
-                  id: txId,
-                  productId: productId as ProductType,
-                  type: 'gift',
-                  quantity,
-                  customerName: recipientName,
-                  notes,
-                  createdAt: new Date().toISOString(),
-                },
-              ],
-            }));
-          } catch (error) {
-            // 롤백
-            set((state) => ({
-              inventoryBatches: state.inventoryBatches.map((b) =>
-                b.productId === productId ? originalBatch : b
-              ),
-            }));
-            handleStoreError(error, 'InventoryStore.giftFromBatch');
-          }
-        } else {
-          set((state) => ({
-            transactions: [
-              ...state.transactions,
-              {
-                id: generateId(),
-                productId: productId as ProductType,
-                type: 'gift',
-                quantity,
-                customerName: recipientName,
-                notes,
-                createdAt: new Date().toISOString(),
-              },
-            ],
-          }));
-        }
-      },
+      // 예약을 무르면 그 병 기록을 지운다 — 한정번호가 풀려 다시 쓸 수 있다
+      cancelReservation: (productId, serialNumber) =>
+        runBottleAction(set, get, {
+          productId: productId as string,
+          serialNumber,
+          counterDelta: { reserved: -1, available: 1 },
+          txType: 'cancel_reservation',
+          mode: 'release',
+        }),
 
       // ═══════════════════════════════════════════════════════════════════
       // Custom Product Actions
@@ -1421,129 +1371,187 @@ export const useInventoryStore = create<InventoryState>()((set, get) => ({
       },
 
       updateTransaction: async (transactionId, updates) => {
-        // 원본 저장 (롤백용)
-        const original = get().transactions.find((tx) => tx.id === transactionId);
+        const tx = get().transactions.find((t) => t.id === transactionId);
+        if (!tx) return;
+
+        // 넘버링 병(2025)은 병 행을 따로 들고 있어 여기서 손대지 않는다
+        const isBatch = !NUMBERED_PRODUCT_IDS.has(tx.productId);
+        const unit = isBatch
+          ? get().bottleUnits.find((u) => u.transactionId === transactionId)
+          : undefined;
+
+        const nextType = updates.type ?? tx.type;
+        const nextSerial = updates.bottleNumber ?? tx.bottleNumber;
+
+        // 작업 유형이 바뀌면 재고 칸도 함께 옮긴다.
+        // 예전에는 거래 행만 고쳐서 "판매 → 증정"으로 바꿔도 재고는 판매로 남았다.
+        const batch = get().inventoryBatches.find((b) => b.productId === tx.productId);
+        const counterDelta: Partial<Record<CounterKey, number>> = {};
+        if (isBatch && batch && nextType !== tx.type) {
+          const from = counterBucketOf(tx.type);
+          const to = counterBucketOf(nextType);
+          counterDelta[from] = (counterDelta[from] ?? 0) - tx.quantity;
+          counterDelta[to] = (counterDelta[to] ?? 0) + tx.quantity;
+        }
+        const movesCounters = Object.keys(counterDelta).length > 0;
+        if (movesCounters && batch && !deltaFits(batch, counterDelta)) return;
+
+        // 새 유형이 '보유'로 돌아가는 것(예약취소·반품)이면 병 기록을 지운다
+        const nextStatus = unitStatusOf(nextType);
+        const dropsUnit = !!unit && nextStatus === null;
+
+        // 롤백용 원본
+        const originalTx = { ...tx };
+        const originalBatch = batch ? { ...batch } : null;
+        const originalUnits = get().bottleUnits;
+
+        const nextBatch = batch && movesCounters ? applyDelta(batch, counterDelta) : batch;
 
         // 낙관적 업데이트
         set((state) => ({
-          transactions: state.transactions.map((tx) =>
-            tx.id === transactionId ? { ...tx, ...updates } : tx
+          transactions: state.transactions.map((t) =>
+            t.id === transactionId ? { ...t, ...updates, bottleNumber: nextSerial } : t
           ),
+          inventoryBatches: nextBatch
+            ? state.inventoryBatches.map((b) => (b.productId === tx.productId ? nextBatch : b))
+            : state.inventoryBatches,
+          bottleUnits: !unit
+            ? state.bottleUnits
+            : dropsUnit
+              ? state.bottleUnits.filter((u) => u.id !== unit.id)
+              : state.bottleUnits.map((u) =>
+                  u.id === unit.id
+                    ? {
+                        ...u,
+                        ...(nextStatus && { status: nextStatus }),
+                        ...(nextSerial != null && { serialNumber: nextSerial }),
+                        customerName: updates.customerName ?? u.customerName,
+                        price: updates.price ?? u.price,
+                        notes: updates.notes ?? u.notes,
+                      }
+                    : u
+                ),
         }));
 
-        // Supabase에 저장
-        if (get().useSupabase) {
-          try {
-            await db.updateInventoryTransaction(transactionId, {
-              product_id: updates.productId,
-              bottle_number: updates.bottleNumber ?? null,
-              type: updates.type,
-              quantity: updates.quantity,
-              customer_name: updates.customerName ?? null,
-              price: updates.price ?? null,
-              notes: updates.notes ?? null,
+        if (!get().useSupabase) return;
+
+        try {
+          await db.updateInventoryTransaction(transactionId, {
+            product_id: updates.productId,
+            bottle_number: nextSerial ?? null,
+            type: updates.type,
+            quantity: updates.quantity,
+            customer_name: updates.customerName ?? null,
+            price: updates.price ?? null,
+            notes: updates.notes ?? null,
+          });
+
+          if (nextBatch && movesCounters) {
+            await db.updateInventoryBatch(tx.productId as string, {
+              available: nextBatch.available,
+              reserved: nextBatch.reserved,
+              sold: nextBatch.sold,
+              gifted: nextBatch.gifted,
+              damaged: nextBatch.damaged,
             });
-          } catch (error) {
-            // 롤백
-            if (original) {
-              set((state) => ({
-                transactions: state.transactions.map((tx) =>
-                  tx.id === transactionId ? original : tx
-                ),
-              }));
-            }
-            handleStoreError(error, 'InventoryStore.updateTransaction');
           }
+
+          if (unit) {
+            if (dropsUnit) {
+              await db.deleteBottleUnit(unit.id);
+            } else {
+              await db.updateBottleUnit(unit.id, {
+                ...(nextStatus && { status: nextStatus }),
+                ...(nextSerial != null && { serial_number: nextSerial }),
+                ...(updates.customerName !== undefined && { customer_name: updates.customerName }),
+                ...(updates.price !== undefined && { price: updates.price }),
+                ...(updates.notes !== undefined && { notes: updates.notes }),
+              });
+            }
+          }
+        } catch (error) {
+          // 롤백
+          set((state) => ({
+            transactions: state.transactions.map((t) => (t.id === transactionId ? originalTx : t)),
+            inventoryBatches: originalBatch
+              ? state.inventoryBatches.map((b) => (b.productId === tx.productId ? originalBatch : b))
+              : state.inventoryBatches,
+            bottleUnits: originalUnits,
+          }));
+          handleStoreError(error, 'InventoryStore.updateTransaction');
         }
       },
 
+      /**
+       * 거래를 지우고 그 거래로 나간 병도 함께 되돌린다.
+       *
+       * 예전에는 재고 숫자만 되돌리고 병 기록을 남겨서, 재고상 안 판 병인데 한정번호는
+       * 계속 묶여 있고 NFC 코드도 살아 있는 상태가 됐다.
+       */
       deleteTransaction: async (transactionId) => {
-        const currentState = get();
-        const transaction = currentState.transactions.find((tx) => tx.id === transactionId);
-        if (!transaction) return;
+        const tx = get().transactions.find((t) => t.id === transactionId);
+        if (!tx) return;
 
-        const { productId, type, quantity } = transaction;
-        const batch = currentState.inventoryBatches.find((b) => b.productId === productId);
+        const isBatch = !NUMBERED_PRODUCT_IDS.has(tx.productId);
+        const linkedUnits = isBatch
+          ? get().bottleUnits.filter((u) => u.transactionId === transactionId)
+          : [];
 
-        // 원본 저장 (롤백용)
+        const batch = isBatch
+          ? get().inventoryBatches.find((b) => b.productId === tx.productId)
+          : undefined;
+
+        /*
+         * 병을 내보낸 거래(판매·예약·증정·손상)만 재고를 되돌린다.
+         * 예약취소·반품은 이미 병이 재고로 돌아간 기록이라, 지운다고 되살릴 병 정보가
+         * 없다. 숫자를 건드리면 실체 없는 예약이 생기므로 기록만 지운다.
+         */
+        const bucket = counterBucketOf(tx.type);
+        const restores = bucket !== 'available';
+        const counterDelta: Partial<Record<CounterKey, number>> = restores
+          ? { [bucket]: -tx.quantity, available: tx.quantity }
+          : {};
+
         const originalBatch = batch ? { ...batch } : null;
+        const originalUnits = get().bottleUnits;
+        const nextBatch = batch && restores ? applyDelta(batch, counterDelta) : batch;
+        const droppedIds = new Set(linkedUnits.map((u) => u.id));
 
-        // 거래 유형에 따라 재고 복원
-        if (batch) {
-          let batchUpdates: { available?: number; reserved?: number; sold?: number; gifted?: number; damaged?: number } = {};
+        // 낙관적 업데이트
+        set((state) => ({
+          transactions: state.transactions.filter((t) => t.id !== transactionId),
+          inventoryBatches: nextBatch
+            ? state.inventoryBatches.map((b) => (b.productId === tx.productId ? nextBatch : b))
+            : state.inventoryBatches,
+          bottleUnits: state.bottleUnits.filter((u) => !droppedIds.has(u.id)),
+        }));
 
-          switch (type) {
-            case 'sale':
-              // 판매 취소: sold -> available
-              batchUpdates = { sold: batch.sold - quantity, available: batch.available + quantity };
-              break;
-            case 'reservation':
-              // 예약 취소: reserved -> available
-              batchUpdates = { reserved: batch.reserved - quantity, available: batch.available + quantity };
-              break;
-            case 'gift':
-              // 증정 취소: gifted -> available
-              batchUpdates = { gifted: batch.gifted - quantity, available: batch.available + quantity };
-              break;
-            case 'damage':
-              // 손상 취소: damaged -> available
-              batchUpdates = { damaged: batch.damaged - quantity, available: batch.available + quantity };
-              break;
-            case 'cancel_reservation':
-              // 예약취소 취소: available -> reserved (원래 예약 상태로 복원)
-              batchUpdates = { available: batch.available - quantity, reserved: batch.reserved + quantity };
-              break;
-            case 'return':
-              // 반품 취소: available -> sold (원래 판매 상태로 복원)
-              batchUpdates = { available: batch.available - quantity, sold: batch.sold + quantity };
-              break;
+        if (!get().useSupabase) return;
+
+        try {
+          for (const unit of linkedUnits) {
+            await db.deleteBottleUnit(unit.id);
           }
-
-          // 낙관적 업데이트 (재고 복원 + 거래 삭제)
+          if (nextBatch && restores) {
+            await db.updateInventoryBatch(tx.productId as string, {
+              available: nextBatch.available,
+              reserved: nextBatch.reserved,
+              sold: nextBatch.sold,
+              gifted: nextBatch.gifted,
+              damaged: nextBatch.damaged,
+            });
+          }
+          await db.deleteInventoryTransaction(transactionId);
+        } catch (error) {
+          // 롤백
           set((state) => ({
-            inventoryBatches: state.inventoryBatches.map((b) =>
-              b.productId === productId
-                ? { ...b, ...batchUpdates, lastUpdated: new Date().toISOString() }
-                : b
-            ),
-            transactions: state.transactions.filter((tx) => tx.id !== transactionId),
+            transactions: [...state.transactions, tx],
+            inventoryBatches: originalBatch
+              ? state.inventoryBatches.map((b) => (b.productId === tx.productId ? originalBatch : b))
+              : state.inventoryBatches,
+            bottleUnits: originalUnits,
           }));
-
-          // Supabase에 저장
-          if (get().useSupabase) {
-            try {
-              await db.updateInventoryBatch(productId as string, batchUpdates);
-              await db.deleteInventoryTransaction(transactionId);
-            } catch (error) {
-              // 롤백
-              set((state) => ({
-                inventoryBatches: originalBatch
-                  ? state.inventoryBatches.map((b) =>
-                      b.productId === productId ? originalBatch : b
-                    )
-                  : state.inventoryBatches,
-                transactions: [...state.transactions, transaction],
-              }));
-              handleStoreError(error, 'InventoryStore.deleteTransaction');
-            }
-          }
-        } else {
-          // 배치가 없는 경우 (numbered bottles 등) - 거래만 삭제
-          set((state) => ({
-            transactions: state.transactions.filter((tx) => tx.id !== transactionId),
-          }));
-
-          if (get().useSupabase) {
-            try {
-              await db.deleteInventoryTransaction(transactionId);
-            } catch (error) {
-              // 롤백
-              set((state) => ({
-                transactions: [...state.transactions, transaction],
-              }));
-              handleStoreError(error, 'InventoryStore.deleteTransaction');
-            }
-          }
+          handleStoreError(error, 'InventoryStore.deleteTransaction');
         }
       },
 }));

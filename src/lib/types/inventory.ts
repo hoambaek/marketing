@@ -36,7 +36,10 @@ export interface NumberedBottle {
   price?: number;
   notes?: string;
   nfcCode?: string;
+  /** 코드를 발급한 시각 */
   nfcRegisteredAt?: string;
+  /** 실물 NFC 태그에 기록을 마친 시각. 없으면 코드만 발급된 상태다. */
+  nfcWrittenAt?: string;
 }
 
 // 일반 재고 (2026 제품 - 수량 추적)
@@ -55,18 +58,30 @@ export interface InventoryBatch {
   agingDepth?: number;
 }
 
-// 배치 제품 개별 병 (NFC 추적용)
+/**
+ * 배치 제품의 개별 병.
+ *
+ * 모든 병에 NFC를 붙이므로 수량 단위 입출고가 맞지 않는다. 판매·예약·증정·손상을
+ * 병 하나씩 처리하고 그 결과가 여기 한 행으로 남는다.
+ * 예약·손상 병은 아직 코드를 받지 않아 nfcCode가 없다.
+ */
 export interface BottleUnit {
   id: string;
   productId: string;
-  nfcCode: string;
+  nfcCode?: string;
+  /** 한정번호. "앙 리유 쉬르 브뤼 #3"의 3에 해당하며 제품 안에서 유일하다. */
   serialNumber?: number;
-  status: 'sold' | 'gifted';
+  status: 'reserved' | 'sold' | 'gifted' | 'damaged';
   customerName?: string;
   soldDate?: string;
   price?: number;
   notes?: string;
+  /** 코드를 발급한 시각 */
   nfcRegisteredAt?: string;
+  /** 실물 NFC 태그에 기록을 마친 시각. 없으면 코드만 발급된 상태다. */
+  nfcWrittenAt?: string;
+  /** 이 병을 발급시킨 거래 id. 거래 내역 표에서 같은 행에 묶는 기준. */
+  transactionId?: string;
   createdAt?: string;
 }
 

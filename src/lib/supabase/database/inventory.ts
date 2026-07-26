@@ -25,6 +25,7 @@ export interface DBNumberedBottle {
   notes: string | null;
   nfc_code: string | null;
   nfc_registered_at: string | null;
+  nfc_written_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -48,14 +49,19 @@ export interface DBInventoryBatch {
 export interface DBBottleUnit {
   id: string;
   product_id: string;
-  nfc_code: string;
+  /** 예약·손상 병은 아직 코드를 받지 않는다 */
+  nfc_code: string | null;
+  /** 한정번호 (제품 안에서 유일) */
   serial_number: number | null;
-  status: 'sold' | 'gifted';
+  status: 'reserved' | 'sold' | 'gifted' | 'damaged';
   customer_name: string | null;
   sold_date: string | null;
   price: number | null;
   notes: string | null;
   nfc_registered_at: string | null;
+  nfc_written_at: string | null;
+  /** 이 병을 발급시킨 거래. 옛 행은 NULL. */
+  transaction_id: string | null;
   created_at: string;
 }
 
@@ -414,6 +420,7 @@ export function mapDbBottleToBottle(dbBottle: DBNumberedBottle): NumberedBottle 
     notes: dbBottle.notes || undefined,
     nfcCode: dbBottle.nfc_code || undefined,
     nfcRegisteredAt: dbBottle.nfc_registered_at || undefined,
+    nfcWrittenAt: dbBottle.nfc_written_at || undefined,
   };
 }
 
@@ -438,7 +445,7 @@ export function mapDbBottleUnitToBottleUnit(dbUnit: DBBottleUnit): BottleUnit {
   return {
     id: dbUnit.id,
     productId: dbUnit.product_id,
-    nfcCode: dbUnit.nfc_code,
+    nfcCode: dbUnit.nfc_code || undefined,
     serialNumber: dbUnit.serial_number || undefined,
     status: dbUnit.status,
     customerName: dbUnit.customer_name || undefined,
@@ -446,6 +453,8 @@ export function mapDbBottleUnitToBottleUnit(dbUnit: DBBottleUnit): BottleUnit {
     price: dbUnit.price || undefined,
     notes: dbUnit.notes || undefined,
     nfcRegisteredAt: dbUnit.nfc_registered_at || undefined,
+    nfcWrittenAt: dbUnit.nfc_written_at || undefined,
+    transactionId: dbUnit.transaction_id || undefined,
     createdAt: dbUnit.created_at,
   };
 }
@@ -532,7 +541,7 @@ export async function fetchBottleUnits(): Promise<DBBottleUnit[]> {
 }
 
 export async function createBottleUnit(
-  unit: Omit<DBBottleUnit, 'nfc_registered_at' | 'created_at'>
+  unit: Omit<DBBottleUnit, 'nfc_registered_at' | 'nfc_written_at' | 'created_at'>
 ): Promise<DBBottleUnit | null> {
   if (!isSupabaseConfigured()) return null;
 
@@ -548,6 +557,139 @@ export async function createBottleUnit(
   }
 
   return data as DBBottleUnit;
+}
+
+/**
+ * 해당 제품의 다음 한정번호.
+ *
+ * 1번부터 올라가며 아직 안 쓴 가장 작은 번호를 준다. 기록을 지워 빈 번호가 생기면
+ * 그 자리를 먼저 채운다 — 한정 수량은 고정된 풀이라 번호를 버리면 안 된다.
+ */
+export async function getNextBottleUnitSerial(productId: string): Promise<number | null> {
+  if (!isSupabaseConfigured()) return null;
+
+  const { data, error } = await supabase!
+    .from('bottle_units')
+    .select('serial_number')
+    .eq('product_id', productId)
+    .not('serial_number', 'is', null);
+
+  if (error) {
+    dbLogger.error('Error fetching bottle unit serials:', error);
+    return null;
+  }
+
+  const used = new Set((data ?? []).map((r) => r.serial_number as number));
+  let next = 1;
+  while (used.has(next)) next++;
+  return next;
+}
+
+/** 병 하나의 상태·NFC·판매 정보를 고친다 (예약 → 확정 등). */
+export async function updateBottleUnit(
+  unitId: string,
+  updates: Partial<Omit<DBBottleUnit, 'id' | 'created_at'>>
+): Promise<boolean> {
+  if (!isSupabaseConfigured()) return false;
+
+  const { error } = await supabase!
+    .from('bottle_units')
+    .update(updates)
+    .eq('id', unitId);
+
+  if (error) {
+    dbLogger.error('Error updating bottle unit:', error);
+    return false;
+  }
+
+  return true;
+}
+
+/** 실물 태그에 기록을 마친 순간을 남긴다 (코드 발급 시각과 구분). */
+export async function markBottleUnitNfcWritten(unitId: string): Promise<boolean> {
+  if (!isSupabaseConfigured()) return false;
+
+  const { error } = await supabase!
+    .from('bottle_units')
+    .update({ nfc_written_at: new Date().toISOString() })
+    .eq('id', unitId);
+
+  if (error) {
+    dbLogger.error('Error marking bottle unit NFC written:', error);
+    return false;
+  }
+
+  return true;
+}
+
+export async function markNumberedBottleNfcWritten(bottleId: string): Promise<boolean> {
+  if (!isSupabaseConfigured()) return false;
+
+  const { error } = await supabase!
+    .from('numbered_bottles')
+    .update({ nfc_written_at: new Date().toISOString() })
+    .eq('id', bottleId);
+
+  if (error) {
+    dbLogger.error('Error marking numbered bottle NFC written:', error);
+    return false;
+  }
+
+  return true;
+}
+
+/** NFC 정보만 비운다. 병 기록(한정번호·고객·상태)은 그대로 남는다. */
+export async function clearBottleUnitNfc(unitId: string): Promise<boolean> {
+  if (!isSupabaseConfigured()) return false;
+
+  const { error } = await supabase!
+    .from('bottle_units')
+    .update({ nfc_code: null, nfc_registered_at: null, nfc_written_at: null })
+    .eq('id', unitId);
+
+  if (error) {
+    dbLogger.error('Error clearing bottle unit NFC:', error);
+    return false;
+  }
+
+  return true;
+}
+
+/**
+ * 병 기록 삭제 — 예약 취소처럼 그 병을 없던 일로 되돌릴 때만 쓴다.
+ * 한정번호가 풀려 다시 쓸 수 있게 된다.
+ */
+export async function deleteBottleUnit(unitId: string): Promise<boolean> {
+  if (!isSupabaseConfigured()) return false;
+
+  const { error } = await supabase!
+    .from('bottle_units')
+    .delete()
+    .eq('id', unitId);
+
+  if (error) {
+    dbLogger.error('Error deleting bottle unit:', error);
+    return false;
+  }
+
+  return true;
+}
+
+/** 넘버링 병의 NFC 기록만 비운다. 병 자체는 판매/증정 상태로 남는다. */
+export async function clearNumberedBottleNfc(bottleId: string): Promise<boolean> {
+  if (!isSupabaseConfigured()) return false;
+
+  const { error } = await supabase!
+    .from('numbered_bottles')
+    .update({ nfc_code: null, nfc_registered_at: null, nfc_written_at: null })
+    .eq('id', bottleId);
+
+  if (error) {
+    dbLogger.error('Error clearing numbered bottle NFC:', error);
+    return false;
+  }
+
+  return true;
 }
 
 export async function fetchBottleByNfcCode(

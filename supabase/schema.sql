@@ -168,6 +168,7 @@ CREATE TABLE IF NOT EXISTS numbered_bottles (
   notes TEXT,
   nfc_code VARCHAR(12) UNIQUE,
   nfc_registered_at TIMESTAMPTZ,
+  nfc_written_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -206,16 +207,23 @@ CREATE TABLE IF NOT EXISTS inventory_transactions (
 CREATE TABLE IF NOT EXISTS bottle_units (
   id TEXT PRIMARY KEY,
   product_id TEXT NOT NULL,
-  nfc_code VARCHAR(12) UNIQUE NOT NULL,
+  -- 예약·손상 병은 아직 코드를 받지 않는다
+  nfc_code VARCHAR(12) UNIQUE,
+  -- 한정번호 (제품 안에서 유일)
   serial_number INTEGER,
-  status TEXT NOT NULL DEFAULT 'sold' CHECK (status IN ('sold', 'gifted')),
+  status TEXT NOT NULL DEFAULT 'sold' CHECK (status IN ('reserved', 'sold', 'gifted', 'damaged')),
   customer_name TEXT,
   sold_date DATE,
   price INTEGER,
   notes TEXT,
   nfc_registered_at TIMESTAMPTZ DEFAULT NOW(),
+  nfc_written_at TIMESTAMPTZ,
+  transaction_id TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
+CREATE INDEX IF NOT EXISTS idx_bottle_units_transaction_id ON bottle_units(transaction_id);
+CREATE UNIQUE INDEX IF NOT EXISTS bottle_units_product_serial_uniq
+  ON bottle_units(product_id, serial_number) WHERE serial_number IS NOT NULL;
 
 -- 커스텀 상품
 CREATE TABLE IF NOT EXISTS custom_products (

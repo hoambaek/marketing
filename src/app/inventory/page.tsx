@@ -14,6 +14,8 @@ import {
   INVENTORY_STATUS_LABELS,
   INVENTORY_STATUS_COLORS,
   NumberedBottle,
+  InventoryTransaction,
+  BottleUnit,
 } from '@/lib/types';
 import {
   Wine,
@@ -49,6 +51,28 @@ import type { PricingTierSetting } from '@/lib/supabase/database';
 // ═══════════════════════════════════════════════════════════════════════════
 // 상품 ID → 가격 티어 ID 매핑
 // ═══════════════════════════════════════════════════════════════════════════
+
+const UNIT_STATUS_LABELS: Record<string, string> = {
+  reserved: '예약',
+  sold: '판매',
+  gifted: '증정',
+  damaged: '손상',
+};
+
+/** 거래 행에 붙거나 표 아래 고아 목록에 서는 NFC 발급 병 한 줄 */
+type NfcBottleRow = {
+  key: string;
+  nfcCode: string;
+  /** "앙 리유 쉬르 브뤼 #3" — 어떤 병의 몇 번 병인지 */
+  label: string;
+  meta: string;
+  statusLabel: string;
+  /** 실물 태그에 기록까지 마쳤는지 */
+  written: boolean;
+  /** 병 번호(넘버링) 또는 제품별 발급 순번(배치) */
+  serial?: number;
+  sortKey: string;
+};
 
 const PRODUCT_TO_PRICING_TIER: Record<string, string> = {
   'first_edition': 'first-edition',
@@ -364,25 +388,61 @@ function BatchAdjustModal({
   product,
   onAction,
   defaultPrice,
+  units,
+  customerNames,
 }: {
   isOpen: boolean;
   onClose: () => void;
   product: Product | null;
-  onAction: (action: 'sell' | 'reserve' | 'gift' | 'damage' | 'confirm' | 'cancel', quantity: number, details?: { customerName?: string; price?: number; notes?: string; soldDate?: string }) => void;
+  onAction: (action: 'sell' | 'reserve' | 'gift' | 'damage' | 'confirm' | 'cancel', serialNumber: number, details?: { customerName?: string; price?: number; notes?: string; soldDate?: string }) => void;
   defaultPrice?: number;
+  /** 이 제품의 병 기록 — 한정번호가 이미 쓰였는지, 예약 상태인지 판단한다 */
+  units: BottleUnit[];
+  /** 지금까지 쓴 고객명 (최근 순) */
+  customerNames: string[];
 }) {
   const [action, setAction] = useState<'sell' | 'reserve' | 'gift' | 'damage' | 'confirm' | 'cancel'>('sell');
-  const [quantity, setQuantity] = useState('1');
-  const [customerName, setCustomerName] = useState('');
+  /** null이면 자동 제안 번호를 그대로 쓴다. 손으로 고치면 그 값이 들어간다. */
+  const [serialInput, setSerialInput] = useState<string | null>(null);
+  /** null이면 예약자 이름을 그대로 따라간다. 입력하면 그 값이 들어간다. */
+  const [customerNameInput, setCustomerNameInput] = useState<string | null>(null);
+  const [nameFocused, setNameFocused] = useState(false);
   const [price, setPrice] = useState('');
   const [notes, setNotes] = useState('');
   const [soldDate, setSoldDate] = useState(new Date().toISOString().split('T')[0]);
 
+  /** 예약확정·예약취소는 이미 예약된 병에만 걸 수 있다 */
+  const picksReserved = action === 'confirm' || action === 'cancel';
+
+  const usedSerials = useMemo(
+    () => new Set(units.filter((u) => u.serialNumber != null).map((u) => u.serialNumber as number)),
+    [units]
+  );
+  const reservedSerials = useMemo(
+    () => units.filter((u) => u.status === 'reserved' && u.serialNumber != null)
+      .map((u) => u.serialNumber as number)
+      .sort((a, b) => a - b),
+    [units]
+  );
+
+  /**
+   * 자동으로 제안할 한정번호.
+   * 새로 내보내는 병은 1번부터 올라가며 아직 안 쓴 가장 작은 번호,
+   * 예약을 확정·취소할 때는 예약된 병 중 가장 작은 번호.
+   */
+  const suggestedSerial = useMemo(() => {
+    if (picksReserved) return reservedSerials[0];
+    let next = 1;
+    while (usedSerials.has(next)) next++;
+    return next;
+  }, [picksReserved, reservedSerials, usedSerials]);
+
   useEffect(() => {
     if (isOpen) {
       setAction('sell');
-      setQuantity('1');
-      setCustomerName('');
+      setSerialInput(null);
+      setCustomerNameInput(null);
+      setNameFocused(false);
       // 기본 판매가가 있으면 자동으로 입력
       setPrice(defaultPrice ? formatNumberWithCommas(String(defaultPrice)) : '');
       setNotes('');
@@ -397,37 +457,57 @@ function BatchAdjustModal({
     }
   }, [defaultPrice, isOpen, price]);
 
-  const handleQuantityChange = (value: string) => {
-    setQuantity(formatNumberWithCommas(value));
-  };
-
   const handlePriceChange = (value: string) => {
     setPrice(formatNumberWithCommas(value));
   };
 
+  // 손으로 고치기 전까지는 자동 제안 번호가 그대로 보인다
+  const serial = serialInput ?? (suggestedSerial != null ? String(suggestedSerial) : '');
+  const serialTouched = serialInput !== null;
+
+  const serialNumber = parseInt(serial, 10);
+
+  // 예약을 확정할 때는 예약자 이름을 미리 채워 준다 — 다시 칠 이유가 없다
+  const reservedUnit = picksReserved
+    ? units.find((u) => u.status === 'reserved' && u.serialNumber === serialNumber)
+    : undefined;
+  const customerName = customerNameInput ?? reservedUnit?.customerName ?? '';
+  const setCustomerName = setCustomerNameInput;
+  const serialValid = Number.isInteger(serialNumber) && serialNumber > 0;
+  const isReservedSerial = serialValid && reservedSerials.includes(serialNumber);
+  const isUsedSerial = serialValid && usedSerials.has(serialNumber);
+
+  /** 번호가 이 작업에 쓸 수 있는 번호인지 */
+  const serialError = !serialValid
+    ? '번호를 입력하세요'
+    : picksReserved
+      ? (isReservedSerial ? null : `#${serialNumber}는 예약된 병이 아닙니다`)
+      : (isUsedSerial ? `#${serialNumber}는 이미 나간 병입니다` : null);
+
+  const overTotal = serialValid && !!product && serialNumber > product.totalQuantity;
+
+  // 이름을 입력하는 중이면 그 글자가 들어간 것만 추린다
+  const nameSuggestions = useMemo(() => {
+    const q = customerName.trim();
+    const pool = q ? customerNames.filter((n) => n.includes(q) && n !== q) : customerNames;
+    return pool.slice(0, 6);
+  }, [customerName, customerNames]);
+
   const handleSubmit = () => {
-    const qty = parseNumberFromCommas(quantity) || 1;
-    onAction(action, qty, {
+    if (serialError) return;
+    onAction(action, serialNumber, {
       customerName: customerName || undefined,
       price: price ? parseNumberFromCommas(price) : undefined,
       notes: notes || undefined,
       soldDate: (action === 'sell' || action === 'gift' || action === 'confirm') ? soldDate : undefined,
     });
-    const actionLabels: Record<string, string> = {
-      sell: '판매 처리되었습니다',
-      reserve: '예약 처리되었습니다',
-      gift: '증정 처리되었습니다',
-      damage: '파손 처리되었습니다',
-      confirm: '예약이 확정되었습니다',
-      cancel: '예약이 취소되었습니다',
-    };
-    toast.success(actionLabels[action] || '처리되었습니다');
     onClose();
   };
 
   if (!isOpen || !product) return null;
 
   const colors = PRODUCT_COLORS[product.id];
+  const needsCustomer = action === 'sell' || action === 'reserve' || action === 'gift' || action === 'confirm';
 
   return (
     <AnimatePresence>
@@ -486,7 +566,7 @@ function BatchAdjustModal({
                   ].map((item) => (
                     <button
                       key={item.value}
-                      onClick={() => setAction(item.value as typeof action)}
+                      onClick={() => { setAction(item.value as typeof action); setSerialInput(null); setCustomerNameInput(null); }}
                       className={`px-3 py-2 sm:px-4 sm:py-2.5 rounded-xl text-xs sm:text-sm font-medium transition-all border flex items-center gap-1.5 sm:gap-2 ${
                         action === item.value
                           ? 'bg-[#b7916e]/20 border-[#b7916e]/30 text-[#d4c4a8]'
@@ -500,21 +580,73 @@ function BatchAdjustModal({
                 </div>
               </div>
 
-              {/* Quantity */}
+              {/* 한정번호 — 병마다 NFC가 붙으니 수량이 아니라 이 번호 하나로 처리한다 */}
               <div>
-                <label className="block text-xs text-white/40 uppercase tracking-wider mb-2">수량</label>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  value={quantity}
-                  onChange={(e) => handleQuantityChange(e.target.value)}
-                  placeholder="1"
-                  className="w-full px-4 py-3 rounded-xl bg-white/[0.04] border border-white/[0.1] text-white/90 focus:outline-none focus:border-[#b7916e]/50"
-                />
+                <div className="flex items-baseline justify-between mb-2">
+                  <label className="block text-xs text-white/40 uppercase tracking-wider">한정번호</label>
+                  <span className="text-[11px] text-white/25">
+                    총 {product.totalQuantity}병 · 나간 병 {usedSerials.size}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-lg text-white/30 font-mono shrink-0">#</span>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={serial}
+                    onChange={(e) => setSerialInput(e.target.value.replace(/[^0-9]/g, ''))}
+                    placeholder="번호"
+                    className={`flex-1 px-4 py-3 rounded-xl bg-white/[0.04] border text-white/90 placeholder:text-white/30 focus:outline-none ${
+                      serialError ? 'border-red-500/40 focus:border-red-500/60' : 'border-white/[0.1] focus:border-[#b7916e]/50'
+                    }`}
+                  />
+                  {serialTouched && suggestedSerial != null && String(suggestedSerial) !== serial && (
+                    <button
+                      onClick={() => setSerialInput(null)}
+                      className="px-3 py-3 rounded-xl bg-white/[0.04] border border-white/[0.1] text-white/50 hover:bg-white/[0.08] text-xs shrink-0"
+                      title="자동 번호로 되돌리기"
+                    >
+                      #{suggestedSerial}
+                    </button>
+                  )}
+                </div>
+
+                {serialError ? (
+                  <p className="text-[11px] text-red-400/80 mt-1.5">{serialError}</p>
+                ) : overTotal ? (
+                  <p className="text-[11px] text-amber-400/80 mt-1.5">
+                    한정 수량 {product.totalQuantity}병을 넘는 번호입니다. 맞는지 확인하세요.
+                  </p>
+                ) : (
+                  <p className="text-[11px] text-white/25 mt-1.5">
+                    {picksReserved
+                      ? `예약된 병 ${reservedSerials.length}개 중에서 고릅니다`
+                      : '빈 번호를 자동으로 채웁니다. 직접 고쳐도 됩니다.'}
+                  </p>
+                )}
+
+                {/* 예약된 병 바로 고르기 */}
+                {picksReserved && reservedSerials.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 mt-2">
+                    {reservedSerials.slice(0, 12).map((n) => (
+                      <button
+                        key={n}
+                        onClick={() => setSerialInput(String(n))}
+                        className={`px-2 py-1 rounded-lg text-[11px] font-mono border transition-all ${
+                          n === serialNumber
+                            ? 'bg-[#b7916e]/20 border-[#b7916e]/40 text-[#d4c4a8]'
+                            : 'bg-white/[0.04] border-white/[0.1] text-white/45 hover:bg-white/[0.08]'
+                        }`}
+                      >
+                        #{n}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Customer Name */}
-              {(action === 'sell' || action === 'reserve' || action === 'gift' || action === 'confirm') && (
+              {needsCustomer && (
                 <div>
                   <label className="block text-xs text-white/40 uppercase tracking-wider mb-2">
                     {action === 'reserve' ? '예약자' : action === 'gift' ? '수령인' : '고객명'}
@@ -523,9 +655,29 @@ function BatchAdjustModal({
                     type="text"
                     value={customerName}
                     onChange={(e) => setCustomerName(e.target.value)}
+                    onFocus={() => setNameFocused(true)}
+                    // 목록을 누르는 순간 blur가 먼저 오므로 조금 늦게 닫는다
+                    onBlur={() => setTimeout(() => setNameFocused(false), 150)}
                     placeholder="이름 입력"
+                    autoComplete="off"
                     className="w-full px-4 py-3 rounded-xl bg-white/[0.04] border border-white/[0.1] text-white/90 placeholder:text-white/30 focus:outline-none focus:border-[#b7916e]/50"
                   />
+                  {/* 겹쳐 띄우면 모달 스크롤 영역에 잘린다. 아래로 밀어내고 같이 스크롤시킨다. */}
+                  {nameFocused && nameSuggestions.length > 0 && (
+                    <div className="mt-1.5 rounded-xl bg-white/[0.02] border border-white/[0.08] overflow-hidden">
+                      <p className="px-4 pt-2 pb-1 text-[10px] text-white/25">전에 입력한 이름</p>
+                      {nameSuggestions.map((name) => (
+                        <button
+                          key={name}
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => { setCustomerName(name); setNameFocused(false); }}
+                          className="w-full px-4 py-2 text-left text-sm text-white/70 hover:bg-white/[0.06] transition-colors"
+                        >
+                          {name}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -583,10 +735,11 @@ function BatchAdjustModal({
                 </button>
                 <button
                   onClick={handleSubmit}
-                  className="flex-1 px-4 py-2.5 sm:py-3 rounded-xl bg-[#b7916e]/20 border border-[#b7916e]/30 text-[#d4c4a8] hover:bg-[#b7916e]/30 flex items-center justify-center gap-2 text-sm sm:text-base"
+                  disabled={!!serialError}
+                  className="flex-1 px-4 py-2.5 sm:py-3 rounded-xl bg-[#b7916e]/20 border border-[#b7916e]/30 text-[#d4c4a8] hover:bg-[#b7916e]/30 flex items-center justify-center gap-2 text-sm sm:text-base disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-[#b7916e]/20"
                 >
                   <Check className="w-4 h-4" />
-                  확인
+                  {serialValid ? `#${serialNumber} 확인` : '확인'}
                 </button>
               </div>
             </div>
@@ -604,21 +757,39 @@ function BatchAdjustModal({
 function NfcWriteModal({
   isOpen,
   onClose,
-  nfcCode,
+  bottles,
+  initialCode,
+  missingCount = 0,
+  onIssueMore,
+  onWritten,
+  onReset,
 }: {
   isOpen: boolean;
   onClose: () => void;
-  nfcCode: string;
+  /** 이 모달이 다루는 병들. 한 거래에서 여러 병이 나갔으면 전부 들어온다. */
+  bottles: NfcBottleRow[];
+  /** 처음 띄울 병의 코드 */
+  initialCode: string;
+  /** 이 거래에서 아직 코드를 못 받은 병 수 */
+  missingCount?: number;
+  onIssueMore?: () => void;
+  onWritten?: (nfcCode: string) => void;
+  onReset?: (nfcCode: string) => void;
 }) {
   const [writeStatus, setWriteStatus] = useState<'idle' | 'writing' | 'success' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState('');
   const [copied, setCopied] = useState(false);
+  const [confirmReset, setConfirmReset] = useState(false);
+  const [index, setIndex] = useState(0);
   const nfcSupported = typeof window !== 'undefined' && 'NDEFReader' in window;
+
+  const active = bottles[index];
+  const nfcCode = active?.nfcCode ?? '';
   const bottleUrl = `https://musedemaree.com/b/${nfcCode}`;
 
   /**
    * 쓰는 도중에는 닫지 않는다. 그 외에는 자유롭게 닫아도 된다 —
-   * 넘버링 병은 그리드에서, 배치 병은 "NFC 발급 병" 목록에서 언제든 다시 열 수 있다.
+   * 넘버링 병은 그리드에서, 배치 병은 거래 내역의 NFC 열에서 언제든 다시 열 수 있다.
    */
   const guardedClose = () => {
     if (writeStatus === 'writing') return;
@@ -635,27 +806,46 @@ function NfcWriteModal({
     }
   };
 
-  useEffect(() => {
-    if (isOpen) {
-      setWriteStatus('idle');
-      setErrorMessage('');
-    }
-  }, [isOpen]);
+  const goTo = (next: number) => {
+    if (writeStatus === 'writing') return;
+    setIndex(next);
+    setWriteStatus('idle');
+    setErrorMessage('');
+    setConfirmReset(false);
+  };
 
   useEffect(() => {
-    if (writeStatus === 'success') {
-      const timer = setTimeout(() => onClose(), 2000);
-      return () => clearTimeout(timer);
-    }
-  }, [writeStatus, onClose]);
+    if (!isOpen) return;
+    setWriteStatus('idle');
+    setErrorMessage('');
+    setConfirmReset(false);
+    const start = bottles.findIndex((b) => b.nfcCode === initialCode);
+    setIndex(start >= 0 ? start : 0);
+    // 열릴 때 한 번만 자리를 잡는다. 이후 목록이 늘어나도 보던 병을 유지한다.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, initialCode]);
+
+  useEffect(() => {
+    if (writeStatus !== 'success') return;
+    const timer = setTimeout(() => {
+      // 여러 병을 연달아 쓰는 중이면 다음 미기록 병으로 넘어간다
+      const next = bottles.findIndex((b, i) => i > index && !b.written);
+      if (next >= 0) goTo(next);
+      else onClose();
+    }, 1400);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [writeStatus]);
 
   const handleWrite = async () => {
+    if (!nfcCode) return;
     setWriteStatus('writing');
     try {
       const { writeNfcTag } = await import('@/lib/utils/nfc-writer');
       const result = await writeNfcTag(nfcCode);
       if (result.success) {
         setWriteStatus('success');
+        onWritten?.(nfcCode);
       } else {
         setWriteStatus('error');
         setErrorMessage(result.error || 'NFC 쓰기 실패');
@@ -700,7 +890,11 @@ function NfcWriteModal({
                   </div>
                   <div>
                     <h3 className="font-medium text-cyan-400 text-sm sm:text-base">NFC 태그 등록</h3>
-                    <p className="text-[10px] sm:text-xs text-white/30">고객 조회용 NFC 태그에 기록</p>
+                    <p className="text-[10px] sm:text-xs text-white/30">
+                      {bottles.length > 1
+                        ? `${bottles.length}병 중 ${index + 1}번째 · 기록 ${bottles.filter((b) => b.written).length}/${bottles.length}`
+                        : '고객 조회용 NFC 태그에 기록'}
+                    </p>
                   </div>
                 </div>
                 <button onClick={guardedClose} className="p-2 rounded-xl hover:bg-white/[0.06] text-white/40">
@@ -711,20 +905,89 @@ function NfcWriteModal({
 
             {/* Body */}
             <div className="p-4 sm:p-6 space-y-4">
-              {/* NFC 코드 표시 */}
-              <div className="text-center">
-                <p className="text-xs text-white/40 mb-1">NFC 코드</p>
-                <p className="text-2xl font-mono font-bold text-cyan-400 tracking-wider">{nfcCode}</p>
-                <p className="text-xs text-white/30 mt-1 break-all">{bottleUrl}</p>
-                <button
-                  onClick={copyCode}
-                  className="mt-2 px-3 py-1 rounded-lg bg-white/[0.04] border border-white/[0.1] text-white/50 hover:bg-white/[0.08] text-[11px]"
-                >
-                  {copied ? '복사됨' : '코드 복사'}
-                </button>
-              </div>
+              {/* 어떤 병인지 — 코드만 보면 실물과 대조할 수가 없다 */}
+              {active && (
+                <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] px-3 py-3">
+                  <div className="flex items-center gap-2">
+                    {/* 여러 병을 연달아 쓸 때 앞뒤로 넘긴다 */}
+                    {bottles.length > 1 && (
+                      <button
+                        onClick={() => goTo((index - 1 + bottles.length) % bottles.length)}
+                        className="p-1.5 rounded-lg text-white/30 hover:text-white/70 hover:bg-white/[0.06] shrink-0"
+                        title="이전 병"
+                      >
+                        <ChevronRight className="w-4 h-4 rotate-180" />
+                      </button>
+                    )}
+                    <div className="flex-1 text-center min-w-0">
+                      <p className="text-sm font-medium text-white/85 truncate">{active.label}</p>
+                      {active.meta && <p className="text-[11px] text-white/35 mt-0.5 truncate">{active.meta}</p>}
+                      <span
+                        className={`inline-block mt-2 text-[10px] px-2 py-0.5 rounded-full border ${
+                          active.written
+                            ? 'bg-emerald-500/10 border-emerald-500/25 text-emerald-400/90'
+                            : 'bg-amber-500/10 border-amber-500/25 text-amber-400/90'
+                        }`}
+                      >
+                        {active.written ? '태그 쓰기 완료' : '태그 미기록'}
+                      </span>
+                    </div>
+                    {bottles.length > 1 && (
+                      <button
+                        onClick={() => goTo((index + 1) % bottles.length)}
+                        className="p-1.5 rounded-lg text-white/30 hover:text-white/70 hover:bg-white/[0.06] shrink-0"
+                        title="다음 병"
+                      >
+                        <ChevronRight className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
 
-              {writeStatus === 'idle' && (
+                  {/* 병 선택 점 — 어느 병이 남았는지 한눈에 */}
+                  {bottles.length > 1 && (
+                    <div className="flex items-center justify-center gap-1.5 mt-3 flex-wrap">
+                      {bottles.map((b, i) => (
+                        <button
+                          key={b.key}
+                          onClick={() => goTo(i)}
+                          title={`${b.label} · ${b.written ? '쓰기 완료' : '미기록'}`}
+                          className={`w-2 h-2 rounded-full transition-all ${
+                            b.written ? 'bg-emerald-400' : 'bg-amber-400'
+                          } ${i === index ? 'ring-2 ring-white/40 ring-offset-2 ring-offset-[#0d1525]' : 'opacity-50'}`}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* 이 거래의 남은 병 — 예전에는 몇 병을 팔든 코드가 1개만 나왔다 */}
+              {missingCount > 0 && onIssueMore && (
+                <button
+                  onClick={onIssueMore}
+                  className="w-full px-4 py-2.5 rounded-xl bg-cyan-500/10 border border-cyan-500/25 text-cyan-400/90 hover:bg-cyan-500/20 text-xs flex items-center justify-center gap-2"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  코드 없는 {missingCount}병 마저 발급
+                </button>
+              )}
+
+              {/* NFC 코드 표시 */}
+              {active && (
+                <div className="text-center">
+                  <p className="text-xs text-white/40 mb-1">NFC 코드</p>
+                  <p className="text-2xl font-mono font-bold text-cyan-400 tracking-wider">{nfcCode}</p>
+                  <p className="text-xs text-white/30 mt-1 break-all">{bottleUrl}</p>
+                  <button
+                    onClick={copyCode}
+                    className="mt-2 px-3 py-1 rounded-lg bg-white/[0.04] border border-white/[0.1] text-white/50 hover:bg-white/[0.08] text-[11px]"
+                  >
+                    {copied ? '복사됨' : '코드 복사'}
+                  </button>
+                </div>
+              )}
+
+              {active && writeStatus === 'idle' && (
                 <>
                   {nfcSupported ? (
                     <button
@@ -787,6 +1050,42 @@ function NfcWriteModal({
                 >
                   닫기
                 </button>
+              )}
+
+              {/* 쓰기 취소 · 기록 초기화 — 잘못 발급한 병을 없던 일로 되돌린다 */}
+              {active && onReset && (writeStatus === 'idle' || writeStatus === 'error') && (
+                <div className="pt-3 border-t border-white/[0.06]">
+                  {confirmReset ? (
+                    <div className="space-y-2">
+                      <p className="text-[11px] text-red-400/80 leading-relaxed">
+                        이 병의 NFC 기록을 지웁니다. 코드 {nfcCode}는 무효가 되어 고객이 링크를 열면
+                        &ldquo;등록되지 않은 병&rdquo;으로 보입니다. 거래 내역과 재고 수량은 그대로 남습니다.
+                      </p>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => setConfirmReset(false)}
+                          className="flex-1 px-3 py-2 rounded-xl bg-white/[0.04] border border-white/[0.1] text-white/60 hover:bg-white/[0.08] text-xs"
+                        >
+                          취소
+                        </button>
+                        <button
+                          onClick={() => { onReset(nfcCode); }}
+                          className="flex-1 px-3 py-2 rounded-xl bg-red-500/20 border border-red-500/30 text-red-400 hover:bg-red-500/30 text-xs font-medium"
+                        >
+                          기록 삭제
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setConfirmReset(true)}
+                      className="w-full px-4 py-2 rounded-xl text-red-400/60 hover:text-red-400 hover:bg-red-500/[0.08] text-xs flex items-center justify-center gap-1.5 transition-colors"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      쓰기 취소 · 이 병 기록 초기화
+                    </button>
+                  )}
+                </div>
               )}
             </div>
           </div>
@@ -1103,28 +1402,40 @@ interface EditTransactionModalProps {
     productId: string;
     type: string;
     quantity: number;
+    bottleNumber?: number;
     customerName?: string;
     price?: number;
     notes?: string;
   } | null;
-  onSave: (transactionId: string, updates: { type?: string; quantity: number; customerName?: string; price?: number; notes?: string }) => void;
+  onSave: (transactionId: string, updates: { type?: string; quantity: number; bottleNumber?: number; customerName?: string; price?: number; notes?: string }) => void;
   onDelete: (transactionId: string) => void;
+  /** 이 거래에 묶인 병들 — 삭제하면 함께 사라진다 */
+  linkedBottles: BottleUnit[];
+  /** 이 제품의 병 기록 전부 — 한정번호 중복을 본다 */
+  productUnits: BottleUnit[];
+  /** 2025 넘버링 병이면 병 기록을 여기서 다루지 않는다 */
+  isNumberedProduct: boolean;
 }
 
-function EditTransactionModal({ isOpen, onClose, transaction, onSave, onDelete }: EditTransactionModalProps) {
+function EditTransactionModal({
+  isOpen, onClose, transaction, onSave, onDelete,
+  linkedBottles, productUnits, isNumberedProduct,
+}: EditTransactionModalProps) {
   const [type, setType] = useState('');
-  const [quantity, setQuantity] = useState('');
+  const [serialInput, setSerialInput] = useState<string | null>(null);
   const [customerName, setCustomerName] = useState('');
   const [price, setPrice] = useState('');
   const [notes, setNotes] = useState('');
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   useEffect(() => {
     if (isOpen && transaction) {
       setType(transaction.type);
-      setQuantity(String(transaction.quantity));
+      setSerialInput(null);
       setCustomerName(transaction.customerName || '');
       setPrice(transaction.price ? transaction.price.toLocaleString() : '');
       setNotes(transaction.notes || '');
+      setConfirmDelete(false);
     }
   }, [isOpen, transaction]);
 
@@ -1132,27 +1443,44 @@ function EditTransactionModal({ isOpen, onClose, transaction, onSave, onDelete }
     setPrice(formatNumberWithCommas(value));
   };
 
+  // 한정번호는 배치 제품만 여기서 고친다
+  const editsSerial = !isNumberedProduct;
+  const serial = serialInput ?? (transaction?.bottleNumber != null ? String(transaction.bottleNumber) : '');
+  const serialNumber = parseInt(serial, 10);
+  const serialValid = Number.isInteger(serialNumber) && serialNumber > 0;
+
+  // 다른 병이 이미 쓰고 있는 번호로는 옮길 수 없다
+  const linkedIds = new Set(linkedBottles.map((u) => u.id));
+  const takenByOther = serialValid && productUnits.some(
+    (u) => u.serialNumber === serialNumber && !linkedIds.has(u.id)
+  );
+  const serialError = !editsSerial
+    ? null
+    : !serialValid
+      ? '번호를 입력하세요'
+      : takenByOther
+        ? `#${serialNumber}는 다른 병이 쓰고 있습니다`
+        : null;
+
   const handleSave = () => {
-    if (!transaction || !quantity) return;
+    if (!transaction || serialError) return;
 
     onSave(transaction.id, {
       type: type !== transaction.type ? type : undefined,
-      quantity: parseInt(quantity),
+      quantity: transaction.quantity,
+      bottleNumber: editsSerial && serialValid ? serialNumber : undefined,
       customerName: customerName || undefined,
       price: price ? parseNumberFromCommas(price) : undefined,
       notes: notes || undefined,
     });
-    toast.success('거래 내역이 수정되었습니다');
+    toast.success('거래 내역을 수정했습니다');
     onClose();
   };
 
   const handleDelete = () => {
     if (!transaction) return;
-    if (window.confirm('이 거래 내역을 삭제하시겠습니까?')) {
-      onDelete(transaction.id);
-      toast.success('거래 내역이 삭제되었습니다');
-      onClose();
-    }
+    onDelete(transaction.id);
+    onClose();
   };
 
   if (!isOpen || !transaction) return null;
@@ -1218,16 +1546,37 @@ function EditTransactionModal({ isOpen, onClose, transaction, onSave, onDelete }
                 </select>
               </div>
 
-              <div>
-                <label className="block text-xs text-white/40 uppercase tracking-wider mb-2">수량</label>
-                <input
-                  type="number"
-                  value={quantity}
-                  onChange={(e) => setQuantity(e.target.value)}
-                  min="1"
-                  className="w-full px-4 py-3 rounded-xl bg-white/[0.04] border border-white/[0.1] text-white/90 focus:outline-none focus:border-[#b7916e]/50"
-                />
-              </div>
+              {/* 한정번호 — 병 하나짜리 거래라 수량 대신 이 번호를 고친다 */}
+              {editsSerial && (
+                <div>
+                  <label className="block text-xs text-white/40 uppercase tracking-wider mb-2">한정번호</label>
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg text-white/30 font-mono shrink-0">#</span>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      value={serial}
+                      onChange={(e) => setSerialInput(e.target.value.replace(/[^0-9]/g, ''))}
+                      placeholder="번호"
+                      className={`flex-1 px-4 py-3 rounded-xl bg-white/[0.04] border text-white/90 placeholder:text-white/30 focus:outline-none ${
+                        serialError ? 'border-red-500/40 focus:border-red-500/60' : 'border-white/[0.1] focus:border-[#b7916e]/50'
+                      }`}
+                    />
+                  </div>
+                  {serialError ? (
+                    <p className="text-[11px] text-red-400/80 mt-1.5">{serialError}</p>
+                  ) : (
+                    <p className="text-[11px] text-white/25 mt-1.5">번호를 바꾸면 병 기록의 번호도 함께 바뀝니다.</p>
+                  )}
+                </div>
+              )}
+
+              {/* 옛 거래는 아직 병이 여러 개일 수 있다 */}
+              {transaction.quantity > 1 && (
+                <div className="px-4 py-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-[11px] text-amber-400/80">
+                  이 거래는 {transaction.quantity}병짜리 옛 기록입니다. 번호는 대표 한 병에만 붙습니다.
+                </div>
+              )}
 
               <div>
                 <label className="block text-xs text-white/40 uppercase tracking-wider mb-2">고객명</label>
@@ -1265,28 +1614,61 @@ function EditTransactionModal({ isOpen, onClose, transaction, onSave, onDelete }
             </div>
 
             {/* Actions */}
-            <div className="flex gap-3 pt-5 shrink-0">
-              <button
-                onClick={handleDelete}
-                className="px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500/20"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
-              <button
-                onClick={onClose}
-                className="flex-1 px-4 py-3 rounded-xl bg-white/[0.04] border border-white/[0.1] text-white/60 hover:bg-white/[0.08]"
-              >
-                취소
-              </button>
-              <button
-                onClick={handleSave}
-                disabled={!quantity}
-                className="flex-1 px-4 py-3 rounded-xl bg-[#b7916e]/20 border border-[#b7916e]/30 text-[#d4c4a8] hover:bg-[#b7916e]/30 flex items-center justify-center gap-2 disabled:opacity-50"
-              >
-                <Check className="w-4 h-4" />
-                저장
-              </button>
-            </div>
+            {confirmDelete ? (
+              <div className="pt-5 shrink-0 space-y-2">
+                <div className="px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/20 text-[11px] text-red-400/85 leading-relaxed">
+                  이 거래를 지우고 재고를 되돌립니다.
+                  {linkedBottles.length > 0 && (
+                    <>
+                      {' '}이 거래로 나간 병{' '}
+                      <span className="font-mono">
+                        {linkedBottles.map((u) => `#${u.serialNumber ?? '?'}`).join(', ')}
+                      </span>
+                      의 기록과 NFC 코드도 함께 지워집니다. 한정번호는 다시 쓸 수 있게 됩니다.
+                    </>
+                  )}
+                  {linkedBottles.some((u) => u.nfcCode) && ' 이미 태그를 쓴 병이면 고객이 링크를 열 수 없게 됩니다.'}
+                </div>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setConfirmDelete(false)}
+                    className="flex-1 px-4 py-3 rounded-xl bg-white/[0.04] border border-white/[0.1] text-white/60 hover:bg-white/[0.08]"
+                  >
+                    취소
+                  </button>
+                  <button
+                    onClick={handleDelete}
+                    className="flex-1 px-4 py-3 rounded-xl bg-red-500/20 border border-red-500/30 text-red-400 hover:bg-red-500/30 font-medium"
+                  >
+                    지우기
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex gap-3 pt-5 shrink-0">
+                <button
+                  onClick={() => setConfirmDelete(true)}
+                  className="px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500/20"
+                  title="거래 삭제"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={onClose}
+                  className="flex-1 px-4 py-3 rounded-xl bg-white/[0.04] border border-white/[0.1] text-white/60 hover:bg-white/[0.08]"
+                >
+                  취소
+                </button>
+                <button
+                  onClick={handleSave}
+                  disabled={!!serialError}
+                  className="flex-1 px-4 py-3 rounded-xl bg-[#b7916e]/20 border border-[#b7916e]/30 text-[#d4c4a8] hover:bg-[#b7916e]/30 flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  <Check className="w-4 h-4" />
+                  저장
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </motion.div>
@@ -2413,11 +2795,14 @@ function FirstEditionGrid({
   onToggle: () => void;
   defaultPrice?: number;
 }) {
-  const { numberedBottles, updateBottleStatus, getProductSummary, generateNfcCode } = useInventoryStore();
+  const { numberedBottles, updateBottleStatus, getProductSummary, generateNfcCode, markNfcWritten, resetNfcRecord } = useInventoryStore();
   const [selectedBottle, setSelectedBottle] = useState<NumberedBottle | null>(null);
   const [nfcModalOpen, setNfcModalOpen] = useState(false);
   const [nfcCodeState, setNfcCodeState] = useState('');
   const summary = getProductSummary('first_edition');
+
+  // 모달에 띄운 코드의 병 — "몇 번 병"과 쓰기 완료 여부를 모달에서 그대로 보여준다
+  const nfcTargetBottle = numberedBottles.find((b) => b.nfcCode === nfcCodeState);
 
   const handleBottleClick = (bottleNumber: number) => {
     const bottle = numberedBottles.find((b) => b.bottleNumber === bottleNumber);
@@ -2516,14 +2901,18 @@ function FirstEditionGrid({
               className={`relative aspect-square rounded-lg border text-xs font-medium transition-all cursor-pointer ${getStatusColor(bottle.status)}`}
               title={
                 bottle.nfcCode
-                  ? `#${bottle.bottleNumber} · NFC ${bottle.nfcCode} — 눌러서 태그 쓰기/재시도`
+                  ? `#${bottle.bottleNumber} · NFC ${bottle.nfcCode} — ${bottle.nfcWrittenAt ? '태그 쓰기 완료' : '태그 미기록'}, 눌러서 열기`
                   : `#${bottle.bottleNumber} - ${INVENTORY_STATUS_LABELS[bottle.status]}${bottle.soldTo ? ` (${bottle.soldTo})` : ''}`
               }
             >
               {bottle.bottleNumber}
-              {/* 코드 발급된 병 표식 — 실물 태그 기록 여부는 알 수 없으므로 "코드 있음"만 뜻한다 */}
+              {/* 초록 = 실물 태그까지 기록 완료, 하늘 = 코드만 발급 */}
               {bottle.nfcCode && (
-                <span className="absolute top-0.5 right-0.5 w-1.5 h-1.5 rounded-full bg-cyan-400" />
+                <span
+                  className={`absolute top-0.5 right-0.5 w-1.5 h-1.5 rounded-full ${
+                    bottle.nfcWrittenAt ? 'bg-emerald-400' : 'bg-cyan-400'
+                  }`}
+                />
               )}
             </button>
           ))}
@@ -2543,11 +2932,31 @@ function FirstEditionGrid({
         />
       )}
 
-      {/* NFC Write Modal */}
+      {/* NFC Write Modal — 넘버링 병은 언제나 한 병짜리다 */}
       <NfcWriteModal
         isOpen={nfcModalOpen}
         onClose={() => setNfcModalOpen(false)}
-        nfcCode={nfcCodeState}
+        initialCode={nfcCodeState}
+        bottles={nfcTargetBottle ? [{
+          key: nfcTargetBottle.id,
+          nfcCode: nfcCodeState,
+          label: `2025 퍼스트 에디션 #${nfcTargetBottle.bottleNumber}`,
+          meta: [
+            INVENTORY_STATUS_LABELS[nfcTargetBottle.status],
+            nfcTargetBottle.soldTo || nfcTargetBottle.giftedTo,
+          ].filter(Boolean).join(' · '),
+          statusLabel: nfcTargetBottle.status === 'gifted' ? '증정' : '판매',
+          written: !!nfcTargetBottle.nfcWrittenAt,
+          serial: nfcTargetBottle.bottleNumber,
+          sortKey: nfcTargetBottle.nfcRegisteredAt || '',
+        }] : []}
+        onWritten={(code) => markNfcWritten(code)}
+        onReset={async (code) => {
+          const ok = await resetNfcRecord(code);
+          setNfcModalOpen(false);
+          if (ok) toast.success('NFC 기록을 초기화했습니다');
+          else toast.error('초기화에 실패했습니다. 다시 시도해 주세요');
+        }}
       />
     </div>
   );
@@ -2558,16 +2967,17 @@ function FirstEditionGrid({
 // ═══════════════════════════════════════════════════════════════════════════
 
 export default function InventoryPage() {
-  const { initializeInventory, refreshFromSupabase, getTotalInventoryValue, getRecentTransactions, getFilteredTransactions, isLoading, sellFromBatch, reserveFromBatch, confirmReservation, cancelReservation, reportDamage, giftFromBatch, addProduct, updateProduct, getAllProducts, updateTransaction, deleteTransaction, generateNfcCode, updateBatchAgingData, inventoryBatches, bottleUnits } = useInventoryStore();
+  const { initializeInventory, refreshFromSupabase, getTotalInventoryValue, getRecentTransactions, getFilteredTransactions, isLoading, sellFromBatch, reserveFromBatch, confirmReservation, cancelReservation, reportDamage, giftFromBatch, addProduct, updateProduct, getAllProducts, updateTransaction, deleteTransaction, issueMissingNfcCodes, markNfcWritten, resetNfcRecord, updateBatchAgingData, inventoryBatches, bottleUnits, numberedBottles, transactions } = useInventoryStore();
   const [isFirstEditionExpanded, setIsFirstEditionExpanded] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [mounted, setMounted] = useState(false);
   const [addProductYear, setAddProductYear] = useState<number | null>(null);
   const [weightModalYear, setWeightModalYear] = useState<number | null>(null);
 
-  // NFC 모달 상태
+  // NFC 모달 상태 — 거래에서 열면 그 거래의 병 전부를 넘겨가며 쓴다
   const [nfcModalOpen, setNfcModalOpen] = useState(false);
   const [nfcCode, setNfcCode] = useState('');
+  const [nfcModalTxId, setNfcModalTxId] = useState<string | null>(null);
 
   // 가격 설정 상태 (pricing 페이지의 판매가 자동 입력용)
   const [pricingSettings, setPricingSettings] = useState<PricingTierSetting[]>([]);
@@ -2581,6 +2991,7 @@ export default function InventoryPage() {
     productId: string;
     type: string;
     quantity: number;
+    bottleNumber?: number;
     customerName?: string;
     price?: number;
     notes?: string;
@@ -2613,7 +3024,10 @@ export default function InventoryPage() {
   const [txFilterYear, setTxFilterYear] = useState<number | undefined>(undefined);
   const [txFilterMonth, setTxFilterMonth] = useState<number | undefined>(undefined);
   const [txCurrentPage, setTxCurrentPage] = useState(1);
-  const TX_PER_PAGE = 10;
+  // 표가 하나로 합쳐졌으니 8줄. 행 자체도 줄여 카드 높이를 낮췄다
+  const TX_PER_PAGE = 8;
+  // 거래에 안 붙은 NFC 병 목록 펼침 상태
+  const [orphansOpen, setOrphansOpen] = useState(false);
 
   // Toggle year section expansion
   const toggleYearExpanded = (year: number) => {
@@ -2707,6 +3121,136 @@ export default function InventoryPage() {
     return map;
   }, [allProducts]);
 
+  /**
+   * NFC 발급 병을 거래 행에 붙이기 위한 색인.
+   *
+   * 거래 내역과 NFC 발급 병은 원래 별도 표였는데, 현장에서는 "이 거래로 나간 병에
+   * 태그를 썼나"를 한 줄에서 보는 편이 낫다. 그래서 한 표로 합치고 여기서 잇는다.
+   * - 배치 병: 발급 때 박아둔 transaction_id로 정확히 연결
+   * - 넘버링 병: 거래에 bottle_number가 남으므로 병 번호로 연결.
+   *   제품 id는 키에 넣지 않는다 — 넘버링 병 거래는 product_id를 'first_edition'으로
+   *   고정 기록하는데 병 행의 product_id는 편집으로 달라질 수 있어 서로 안 맞는다.
+   */
+  const nfcIndex = useMemo(() => {
+    const productName = (id: string) => productMap.get(id)?.nameKo || productMap.get(id)?.name || id;
+
+    // 한 거래가 여러 병을 내보낼 수 있다 — 판매 3병이면 병도 코드도 3개다
+    const byTransactionId = new Map<string, NfcBottleRow[]>();
+    const byNumberedKey = new Map<string, NfcBottleRow>();
+    const byCode = new Map<string, NfcBottleRow>();
+
+    bottleUnits.forEach((u) => {
+      // 코드가 없는 병(예약·손상, 또는 아직 발급 전)은 NFC 색인에 넣지 않는다.
+      // 거래 행에서는 "코드 발급" 버튼으로 나타난다.
+      if (!u.nfcCode) return;
+
+      const row: NfcBottleRow = {
+        key: u.id,
+        nfcCode: u.nfcCode,
+        // 한정번호가 없는 옛 기록은 번호 없이 제품명만 보여준다
+        label: u.serialNumber ? `${productName(u.productId)} #${u.serialNumber}` : productName(u.productId),
+        meta: [u.customerName, u.soldDate].filter(Boolean).join(' · '),
+        statusLabel: UNIT_STATUS_LABELS[u.status] ?? u.status,
+        written: !!u.nfcWrittenAt,
+        serial: u.serialNumber,
+        sortKey: u.createdAt || u.nfcRegisteredAt || '',
+      };
+      byCode.set(u.nfcCode, row);
+      if (u.transactionId) {
+        const list = byTransactionId.get(u.transactionId) ?? [];
+        list.push(row);
+        byTransactionId.set(u.transactionId, list);
+      }
+    });
+
+    // 같은 거래 안에서는 병 번호 순으로 — 태그를 순서대로 쓰게 된다
+    byTransactionId.forEach((list) =>
+      list.sort((a, b) => (a.serial ?? 0) - (b.serial ?? 0) || a.sortKey.localeCompare(b.sortKey))
+    );
+
+    numberedBottles.forEach((b) => {
+      if (!b.nfcCode) return;
+      const row: NfcBottleRow = {
+        key: b.id,
+        nfcCode: b.nfcCode,
+        label: `${productName(b.productId)} #${b.bottleNumber}`,
+        meta: [b.soldTo || b.giftedTo, b.soldDate?.slice(0, 10)].filter(Boolean).join(' · '),
+        statusLabel: UNIT_STATUS_LABELS[b.status] ?? b.status,
+        written: !!b.nfcWrittenAt,
+        serial: b.bottleNumber,
+        sortKey: b.nfcRegisteredAt || b.soldDate || '',
+      };
+      byNumberedKey.set(String(b.bottleNumber), row);
+      byCode.set(b.nfcCode, row);
+    });
+
+    return { byTransactionId, byNumberedKey, byCode };
+  }, [numberedBottles, bottleUnits, productMap]);
+
+  /** 병마다 번호를 들고 있는 제품 (2025 퍼스트 에디션) — 배치 제품과 연결 경로가 다르다 */
+  const numberedProductIds = useMemo(
+    () => new Set(allProducts.filter((p) => p.isNumbered).map((p) => p.id)),
+    [allProducts]
+  );
+
+  /** 이 거래로 나간 병들. 예약·손상 등 코드 없는 거래는 빈 배열. */
+  const nfcBottlesForTransaction = useCallback((tx: InventoryTransaction): NfcBottleRow[] => {
+    if (tx.type !== 'sale' && tx.type !== 'gift') return [];
+    // 넘버링 병은 병 행이 코드를 들고 있어 병 번호로 찾는다.
+    // 배치 병은 이제 거래에도 한정번호가 남으므로 번호가 아니라 거래 id로 이어야 한다.
+    if (numberedProductIds.has(tx.productId)) {
+      const row = tx.bottleNumber ? nfcIndex.byNumberedKey.get(String(tx.bottleNumber)) : undefined;
+      return row ? [row] : [];
+    }
+    return nfcIndex.byTransactionId.get(tx.id) ?? [];
+  }, [nfcIndex, numberedProductIds]);
+
+  /** 이 거래에서 아직 코드를 못 받은 병 수. 넘버링 병은 그리드에서 발급하므로 0. */
+  const nfcMissingForTransaction = useCallback((tx: InventoryTransaction): number => {
+    if (tx.type !== 'sale' && tx.type !== 'gift') return 0;
+    if (numberedProductIds.has(tx.productId)) return 0;
+    return Math.max(0, tx.quantity - (nfcIndex.byTransactionId.get(tx.id)?.length ?? 0));
+  }, [nfcIndex, numberedProductIds]);
+
+  /**
+   * 붙을 거래가 없는 NFC 병.
+   *
+   * transaction_id 컬럼이 생기기 전에 발급됐거나 거래 행이 지워진 병들이다.
+   * 표에서 빠지면 NFC 모달로 다시 들어갈 길이 사라지므로 표 아래에 따로 남긴다.
+   */
+  const nfcOrphans = useMemo(() => {
+    const txIds = new Set(transactions.map((t) => t.id));
+    const numberedKeys = new Set(
+      transactions
+        .filter((t) => t.bottleNumber && (t.type === 'sale' || t.type === 'gift') && numberedProductIds.has(t.productId))
+        .map((t) => String(t.bottleNumber))
+    );
+
+    const orphanUnits = bottleUnits
+      .filter((u) => u.nfcCode && (!u.transactionId || !txIds.has(u.transactionId)))
+      .map((u) => nfcIndex.byCode.get(u.nfcCode!))
+      .filter((r): r is NfcBottleRow => !!r);
+
+    const orphanNumbered = numberedBottles
+      .filter((b) => b.nfcCode && !numberedKeys.has(String(b.bottleNumber)))
+      .map((b) => nfcIndex.byCode.get(b.nfcCode!))
+      .filter((r): r is NfcBottleRow => !!r);
+
+    return [...orphanUnits, ...orphanNumbered].sort((a, b) => b.sortKey.localeCompare(a.sortKey));
+  }, [transactions, bottleUnits, numberedBottles, nfcIndex, numberedProductIds]);
+
+  const nfcPendingCount = [...nfcIndex.byCode.values()].filter((r) => !r.written).length;
+
+  /**
+   * 모달이 다루는 병들. 거래에서 열면 그 거래의 병 전부(3병이면 3개를 넘겨가며 쓴다),
+   * 고아 목록에서 열면 그 한 병만.
+   */
+  const nfcModalTx = nfcModalTxId ? transactions.find((t) => t.id === nfcModalTxId) : undefined;
+  const nfcModalBottles = nfcModalTx
+    ? nfcBottlesForTransaction(nfcModalTx)
+    : [nfcIndex.byCode.get(nfcCode)].filter((r): r is NfcBottleRow => !!r);
+  const nfcModalMissing = nfcModalTx ? nfcMissingForTransaction(nfcModalTx) : 0;
+
   const productsByYear = allProducts.reduce((acc, product) => {
     if (!product.isNumbered) {
       const year = product.year;
@@ -2725,58 +3269,126 @@ export default function InventoryPage() {
   // Add default years if they don't have products yet (2026 + customYears)
   const displayYears = [...new Set([...availableYears, 2026, ...customYears])].sort((a, b) => a - b);
 
+  /**
+   * 재고 조정 — 병 하나를 처리한다.
+   *
+   * 두 번째 인자는 수량이 아니라 그 병의 한정번호다. 모든 병에 NFC가 붙으므로
+   * 수량 단위로 묶어 처리할 수 없다.
+   */
   const handleBatchAction = async (
     action: 'sell' | 'reserve' | 'gift' | 'damage' | 'confirm' | 'cancel',
-    quantity: number,
+    serialNumber: number,
     details?: { customerName?: string; price?: number; notes?: string; soldDate?: string }
   ) => {
     if (!selectedProduct) return;
 
+    // 발급될 NFC 병을 방금 만든 거래에 묶기 위해 거래 id를 받아둔다
+    let transactionId: string | null = null;
+
     switch (action) {
       case 'sell':
-        await sellFromBatch(selectedProduct.id, quantity, details?.customerName, details?.price, details?.soldDate);
+        transactionId = await sellFromBatch(selectedProduct.id, serialNumber, details?.customerName, details?.price, details?.soldDate);
         break;
       case 'reserve':
-        reserveFromBatch(selectedProduct.id, quantity, details?.customerName || '');
-        return; // NFC 불필요
+        transactionId = await reserveFromBatch(selectedProduct.id, serialNumber, details?.customerName || '');
+        break;
       case 'gift':
-        await giftFromBatch(selectedProduct.id, quantity, details?.customerName || '', details?.notes, details?.soldDate);
+        transactionId = await giftFromBatch(selectedProduct.id, serialNumber, details?.customerName || '', details?.notes, details?.soldDate);
         break;
       case 'damage':
-        reportDamage(selectedProduct.id, quantity, details?.notes);
-        return; // NFC 불필요
+        transactionId = await reportDamage(selectedProduct.id, serialNumber, details?.notes);
+        break;
       case 'confirm':
-        await confirmReservation(selectedProduct.id, quantity, details?.customerName, details?.price);
+        transactionId = await confirmReservation(selectedProduct.id, serialNumber, details?.customerName, details?.price, details?.soldDate);
         break;
       case 'cancel':
-        cancelReservation(selectedProduct.id, quantity);
-        return; // NFC 불필요
+        transactionId = await cancelReservation(selectedProduct.id, serialNumber);
+        break;
     }
 
-    // sell, gift, confirm 완료 후 NFC 코드 생성 및 모달 오픈
-    if (action === 'sell' || action === 'gift' || action === 'confirm') {
-      try {
-        const code = await generateNfcCode('', false, {
-          productId: selectedProduct.id,
-          status: action === 'gift' ? 'gifted' : 'sold',
-          customerName: details?.customerName,
-          soldDate: details?.soldDate,
-          price: details?.price,
-          notes: details?.notes,
-        });
-        if (code) {
-          setNfcCode(code);
-          setNfcModalOpen(true);
-        } else {
-          // 거래는 이미 완료됐다. 조용히 넘기면 태그 없는 병이 그대로 나간다
-          alert('NFC 코드 발급에 실패했습니다. 거래는 처리됐으니 다시 시도해 주세요.');
-        }
-      } catch (e) {
-        console.error('[inventory] NFC 코드 생성 실패:', e);
-        alert('NFC 코드 발급 중 오류가 발생했습니다. 거래는 처리됐습니다.');
+    if (!transactionId) {
+      toast.error(`#${serialNumber} 처리에 실패했습니다. 번호와 재고를 확인해 주세요`);
+      return;
+    }
+
+    const actionLabels: Record<string, string> = {
+      sell: '판매 처리했습니다',
+      reserve: '예약 처리했습니다',
+      gift: '증정 처리했습니다',
+      damage: '손상 처리했습니다',
+      confirm: '예약을 확정했습니다',
+      cancel: '예약을 취소했습니다',
+    };
+    toast.success(`#${serialNumber} ${actionLabels[action]}`);
+
+    // 판매·증정·예약확정은 병이 나가므로 NFC 코드를 붙이고 모달을 연다.
+    // 예약·손상·예약취소는 아직 병이 고객에게 가지 않아 코드가 필요 없다.
+    if (action !== 'sell' && action !== 'gift' && action !== 'confirm') return;
+
+    try {
+      await issueMissingNfcCodes(transactionId, details?.soldDate);
+      const units = useInventoryStore.getState().bottleUnits
+        .filter((u) => u.transactionId === transactionId && u.nfcCode)
+        .sort((a, b) => (a.serialNumber ?? 0) - (b.serialNumber ?? 0));
+
+      if (units.length > 0) {
+        setNfcCode(units[0].nfcCode!);
+        setNfcModalTxId(transactionId);
+        setNfcModalOpen(true);
+      } else {
+        // 거래는 이미 완료됐다. 조용히 넘기면 태그 없는 병이 그대로 나간다
+        toast.error('NFC 코드 발급에 실패했습니다. 거래 내역에서 다시 시도해 주세요');
       }
+    } catch (e) {
+      logger.error('[inventory] NFC 코드 생성 실패:', e);
+      toast.error('NFC 코드 발급 중 오류가 발생했습니다. 거래는 처리됐습니다');
     }
   };
+
+  /** 거래 행에서 미발급분 코드를 채우고 모달을 연다 */
+  const handleIssueMissingNfc = async (transactionId: string) => {
+    const issued = await issueMissingNfcCodes(transactionId);
+    const units = useInventoryStore.getState().bottleUnits
+      .filter((u) => u.transactionId === transactionId && u.nfcCode)
+      .sort((a, b) => (a.serialNumber ?? 0) - (b.serialNumber ?? 0));
+
+    if (issued > 0) toast.success(`NFC 코드 ${issued}개를 발급했습니다`);
+    else if (units.length === 0) toast.error('코드 발급에 실패했습니다. 다시 시도해 주세요');
+
+    if (units.length > 0) {
+      setNfcCode(units[0].nfcCode!);
+      setNfcModalTxId(transactionId);
+      setNfcModalOpen(true);
+    }
+  };
+
+  /**
+   * 지금까지 입력한 고객명 — 재입력할 때 골라 쓴다.
+   * 별도 테이블을 두면 두 곳이 어긋나므로 거래·병 기록에서 그때그때 모은다.
+   */
+  const customerNames = useMemo(() => {
+    const seen = new Set<string>();
+    const ordered: string[] = [];
+    const push = (name?: string) => {
+      const trimmed = name?.trim();
+      if (!trimmed || seen.has(trimmed)) return;
+      seen.add(trimmed);
+      ordered.push(trimmed);
+    };
+    // 최근에 쓴 이름이 먼저 오게 한다
+    [...transactions]
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+      .forEach((t) => push(t.customerName));
+    bottleUnits.forEach((u) => push(u.customerName));
+    numberedBottles.forEach((b) => { push(b.soldTo); push(b.giftedTo); push(b.reservedFor); });
+    return ordered;
+  }, [transactions, bottleUnits, numberedBottles]);
+
+  /** 재고 조정 모달이 다루는 제품의 병 기록 — 한정번호 중복·예약 여부를 여기서 본다 */
+  const selectedProductUnits = useMemo(
+    () => (selectedProduct ? bottleUnits.filter((u) => u.productId === selectedProduct.id) : []),
+    [selectedProduct, bottleUnits]
+  );
 
   const handleAddProduct = (product: { name: string; nameKo: string; year: number; size: string; totalQuantity: number; description?: string }) => {
     addProduct(product);
@@ -2788,13 +3400,14 @@ export default function InventoryPage() {
   };
 
   // 트랜잭션 수정 핸들러
-  const handleUpdateTransaction = (transactionId: string, updates: { type?: string; quantity: number; customerName?: string; price?: number; notes?: string }) => {
+  const handleUpdateTransaction = (transactionId: string, updates: { type?: string; quantity: number; bottleNumber?: number; customerName?: string; price?: number; notes?: string }) => {
     updateTransaction(transactionId, updates as Parameters<typeof updateTransaction>[1]);
   };
 
-  // 트랜잭션 삭제 핸들러
-  const handleDeleteTransaction = (transactionId: string) => {
-    deleteTransaction(transactionId);
+  // 트랜잭션 삭제 핸들러 — 이 거래로 나간 병 기록도 함께 사라진다
+  const handleDeleteTransaction = async (transactionId: string) => {
+    await deleteTransaction(transactionId);
+    toast.success('거래와 병 기록을 지웠습니다');
   };
 
   return (
@@ -3197,13 +3810,19 @@ export default function InventoryPage() {
               <div className="absolute inset-0 border border-white/[0.06] rounded-2xl" />
 
               <div className="relative">
-                <div className="px-4 sm:px-6 py-4 border-b border-white/[0.04]">
+                <div className="px-4 sm:px-6 py-3 border-b border-white/[0.04]">
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                    <div className="flex items-center gap-3">
-                      <Clock className="w-5 h-5 text-white/40" />
-                      <h3 className="text-white/60 font-medium">거래 내역</h3>
+                    <div className="flex items-center gap-2.5">
+                      <Clock className="w-4 h-4 text-white/40" />
+                      <h3 className="text-white/60 font-medium text-sm">거래 내역</h3>
+                      <span className="text-[11px] text-white/25 font-mono">{allTransactions.length}</span>
+                      {nfcPendingCount > 0 && (
+                        <span className="text-[10px] px-2 py-0.5 rounded-lg bg-amber-500/10 border border-amber-500/25 text-amber-400/90">
+                          NFC 미기록 {nfcPendingCount}병
+                        </span>
+                      )}
                       {isLoading && (
-                        <RefreshCw className="w-4 h-4 text-white/30 animate-spin" />
+                        <RefreshCw className="w-3.5 h-3.5 text-white/30 animate-spin" />
                       )}
                     </div>
 
@@ -3255,22 +3874,26 @@ export default function InventoryPage() {
                         // Map 조회 최적화 - O(1) 조회
                         const productInfo = productMap.get(tx.productId);
                         const productName = productInfo?.name || tx.productId;
+                        const nfcBottles = nfcBottlesForTransaction(tx);
+                        const nfcMissing = nfcMissingForTransaction(tx);
+                        const nfcWrittenCount = nfcBottles.filter((b) => b.written).length;
+                        const nfcAllWritten = nfcBottles.length > 0 && nfcWrittenCount === nfcBottles.length && nfcMissing === 0;
 
                         return (
-                          <div key={tx.id} className="group px-4 sm:px-6 py-4 flex items-center justify-between hover:bg-white/[0.02] transition-colors">
-                            <div className="flex items-center gap-3 sm:gap-4">
-                              <div className="text-xs text-white/30 w-16 sm:w-20 shrink-0">
+                          <div key={tx.id} className="group px-4 sm:px-6 py-2.5 flex items-center justify-between hover:bg-white/[0.02] transition-colors">
+                            <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+                              <div className="text-[11px] text-white/30 w-14 sm:w-16 shrink-0">
                                 {new Date(tx.createdAt).toLocaleDateString('ko-KR', {
                                   month: 'short',
                                   day: 'numeric',
                                 })}
                               </div>
                               <div className="min-w-0">
-                                <p className="text-white/70 text-sm truncate">
+                                <p className="text-white/70 text-[13px] leading-tight truncate">
                                   {productName}
                                   {tx.bottleNumber && ` #${tx.bottleNumber}`}
                                 </p>
-                                <p className="text-xs text-white/30 truncate">
+                                <p className="text-[11px] leading-tight text-white/30 truncate">
                                   {tx.type === 'sale' && '판매'}
                                   {tx.type === 'reservation' && '예약'}
                                   {tx.type === 'gift' && '증정'}
@@ -3281,13 +3904,57 @@ export default function InventoryPage() {
                                 </p>
                               </div>
                             </div>
-                            <div className="flex items-center gap-3">
-                              <div className="text-right shrink-0">
-                                <p className="text-white/60 text-sm">
+                            <div className="flex items-center gap-2 sm:gap-3">
+                              {/* NFC 열 — 이 거래로 나간 병의 태그 상태. 눌러서 쓰기·재시도·초기화.
+                                  병 없는 거래(예약·손상 등)도 폭을 차지해 수량 열이 어긋나지 않는다 */}
+                              <div className="w-[62px] sm:w-[108px] shrink-0 flex justify-end">
+                                {nfcBottles.length > 0 ? (
+                                  <button
+                                    onClick={() => {
+                                      setNfcCode(nfcBottles[0].nfcCode);
+                                      setNfcModalTxId(tx.id);
+                                      setNfcModalOpen(true);
+                                    }}
+                                    title={
+                                      nfcBottles.length === 1
+                                        ? `${nfcBottles[0].label} · ${nfcBottles[0].written ? '태그 쓰기 완료' : '태그 미기록'} — 눌러서 열기`
+                                        : `${nfcBottles.length}병 · 태그 ${nfcWrittenCount}병 기록 완료${nfcMissing > 0 ? ` · 코드 미발급 ${nfcMissing}병` : ''} — 눌러서 열기`
+                                    }
+                                    className="flex items-center gap-1.5 sm:gap-2 px-2 py-1 rounded-lg border border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.06] hover:border-white/[0.12] transition-all"
+                                  >
+                                    <span
+                                      className={`w-1.5 h-1.5 rounded-full shrink-0 ${nfcAllWritten ? 'bg-emerald-400' : 'bg-amber-400'}`}
+                                    />
+                                    {/* 태그 쓰기는 휴대폰에서 한다 — 모바일에서도 반드시 눌리게 둔다 */}
+                                    <span className="text-right leading-tight">
+                                      <span className="hidden sm:block text-[11px] font-mono text-cyan-400/80">
+                                        {nfcBottles.length === 1 ? nfcBottles[0].nfcCode : `${nfcBottles.length + nfcMissing}병`}
+                                      </span>
+                                      <span className={`block text-[10px] ${nfcAllWritten ? 'text-emerald-400/70' : 'text-amber-400/70'}`}>
+                                        {nfcBottles.length === 1
+                                          ? (nfcBottles[0].written ? '쓰기 완료' : '미기록')
+                                          : `${nfcWrittenCount}/${nfcBottles.length + nfcMissing} 기록`}
+                                      </span>
+                                    </span>
+                                  </button>
+                                ) : nfcMissing > 0 ? (
+                                  /* 코드가 한 개도 안 나온 거래 — 예전 판매분이나 초기화한 병 */
+                                  <button
+                                    onClick={() => handleIssueMissingNfc(tx.id)}
+                                    title={`${nfcMissing}병의 NFC 코드를 발급합니다`}
+                                    className="flex items-center gap-1 px-2 py-1 rounded-lg border border-white/[0.06] bg-white/[0.02] text-white/35 hover:text-cyan-400/90 hover:bg-cyan-500/10 hover:border-cyan-500/25 transition-all"
+                                  >
+                                    <Plus className="w-3 h-3 shrink-0" />
+                                    <span className="text-[10px] leading-tight">코드 발급</span>
+                                  </button>
+                                ) : null}
+                              </div>
+                              <div className="text-right shrink-0 w-16">
+                                <p className="text-white/60 text-[13px] leading-tight">
                                   {tx.quantity > 1 ? `${tx.quantity}병` : '1병'}
                                 </p>
                                 {tx.price && (
-                                  <p className="text-xs text-white/30">
+                                  <p className="text-[11px] leading-tight text-white/30">
                                     {tx.price.toLocaleString()}원
                                   </p>
                                 )}
@@ -3298,6 +3965,7 @@ export default function InventoryPage() {
                                   productId: tx.productId,
                                   type: tx.type,
                                   quantity: tx.quantity,
+                                  bottleNumber: tx.bottleNumber,
                                   customerName: tx.customerName,
                                   price: tx.price,
                                   notes: tx.notes,
@@ -3315,12 +3983,12 @@ export default function InventoryPage() {
 
                     {/* Pagination Indicators */}
                     {totalPages > 1 && (
-                      <div className="px-4 sm:px-6 py-4 border-t border-white/[0.04] flex items-center justify-center gap-2">
+                      <div className="px-4 sm:px-6 py-2.5 border-t border-white/[0.04] flex items-center justify-center gap-1.5 flex-wrap">
                         {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
                           <button
                             key={page}
                             onClick={() => setTxCurrentPage(page)}
-                            className={`w-8 h-8 rounded-full text-xs font-medium transition-all ${
+                            className={`w-7 h-7 rounded-full text-[11px] font-medium transition-all ${
                               txCurrentPage === page
                                 ? 'bg-[#b7916e]/30 border border-[#b7916e]/50 text-[#d4c4a8]'
                                 : 'bg-white/[0.04] border border-white/[0.08] text-white/40 hover:bg-white/[0.08] hover:text-white/60'
@@ -3333,61 +4001,72 @@ export default function InventoryPage() {
                     )}
                   </>
                 ) : (
-                  <div className="px-6 py-8 text-center">
+                  <div className="px-6 py-6 text-center">
                     <p className="text-white/30 text-sm">
                       {(txFilterYear || txFilterMonth) ? '해당 기간의 거래 내역이 없습니다.' : '거래 내역이 없습니다.'}
                     </p>
+                  </div>
+                )}
+
+                {/* 거래에 안 붙은 NFC 병 — 여기 없으면 이 병들은 다시 열 방법이 없다 */}
+                {nfcOrphans.length > 0 && (
+                  <div className="border-t border-white/[0.04]">
+                    <button
+                      onClick={() => setOrphansOpen((v) => !v)}
+                      className="w-full px-4 sm:px-6 py-2.5 flex items-center gap-2 text-left hover:bg-white/[0.02] transition-colors"
+                    >
+                      <ChevronRight
+                        className={`w-3.5 h-3.5 text-white/30 transition-transform ${orphansOpen ? 'rotate-90' : ''}`}
+                      />
+                      <span className="text-[11px] text-white/35">
+                        거래에 안 붙은 NFC 병 {nfcOrphans.length}개
+                      </span>
+                    </button>
+
+                    {orphansOpen && (
+                      <div className="divide-y divide-white/[0.04] max-h-56 overflow-y-auto bg-white/[0.01]">
+                        {nfcOrphans.map((bottle) => (
+                          <button
+                            key={bottle.key}
+                            onClick={() => {
+                              setNfcCode(bottle.nfcCode);
+                              setNfcModalTxId(null);
+                              setNfcModalOpen(true);
+                            }}
+                            className="w-full pl-10 pr-4 sm:pr-6 py-2.5 flex items-center justify-between gap-3 hover:bg-white/[0.02] transition-colors text-left"
+                          >
+                            <span className="flex items-center gap-3 min-w-0">
+                              <span
+                                className={`w-1.5 h-1.5 rounded-full shrink-0 ${bottle.written ? 'bg-emerald-400' : 'bg-amber-400'}`}
+                              />
+                              <span className="min-w-0">
+                                <span className="block text-white/70 text-[13px] leading-tight truncate">{bottle.label}</span>
+                                <span className="block text-[11px] leading-tight text-white/30 truncate">
+                                  {bottle.statusLabel}
+                                  {bottle.meta ? ` · ${bottle.meta}` : ''}
+                                </span>
+                              </span>
+                            </span>
+                            <span className="text-right shrink-0 leading-tight">
+                              <span className="block text-[11px] font-mono text-cyan-400/80">{bottle.nfcCode}</span>
+                              <span className={`block text-[9px] ${bottle.written ? 'text-emerald-400/70' : 'text-amber-400/70'}`}>
+                                {bottle.written ? '쓰기 완료' : '미기록'}
+                              </span>
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
             </motion.div>
           </motion.div>
 
+          <div className="mb-10" />
+
         </div>
       </section>
-
-      {/* ── NFC 발급 병 ──
-          배치 재고에서 판매·증정된 병은 bottle_units에 쌓이는데 목록 화면이 없어,
-          NFC 모달을 닫으면 그 병에 다시 접근할 길이 없었다. 여기서 언제든 재진입한다. */}
-      {bottleUnits.length > 0 && (
-        <section className="px-4 sm:px-6 pb-10 max-w-5xl mx-auto">
-          <div className="rounded-2xl border border-white/[0.08] bg-[#0d1525] overflow-hidden">
-            <div className="px-5 py-4 border-b border-white/[0.06] flex items-center justify-between">
-              <div>
-                <h3 className="text-sm font-medium text-white/80">NFC 발급 병</h3>
-                <p className="text-[11px] text-white/35 mt-0.5">
-                  코드가 발급된 병입니다. 태그에 기록하지 못했으면 눌러서 다시 쓰세요.
-                </p>
-              </div>
-              <span className="text-xs text-white/40 font-mono">{bottleUnits.length}</span>
-            </div>
-            <div className="divide-y divide-white/[0.05] max-h-80 overflow-y-auto">
-              {bottleUnits.map((unit) => (
-                <button
-                  key={unit.id}
-                  onClick={() => {
-                    setNfcCode(unit.nfcCode);
-                    setNfcModalOpen(true);
-                  }}
-                  className="w-full px-5 py-3 flex items-center justify-between gap-3 hover:bg-white/[0.03] text-left"
-                >
-                  <span className="min-w-0">
-                    <span className="block text-sm font-mono text-cyan-400">{unit.nfcCode}</span>
-                    <span className="block text-[11px] text-white/35 truncate">
-                      {unit.productId}
-                      {unit.customerName ? ` · ${unit.customerName}` : ''}
-                      {unit.soldDate ? ` · ${unit.soldDate}` : ''}
-                    </span>
-                  </span>
-                  <span className="shrink-0 text-[10px] px-2 py-1 rounded-lg bg-white/[0.05] text-white/45">
-                    {unit.status === 'gifted' ? '증정' : '판매'}
-                  </span>
-                </button>
-              ))}
-            </div>
-          </div>
-        </section>
-      )}
 
       {/* Footer */}
       <Footer subtitle="Inventory Management" />
@@ -3399,6 +4078,8 @@ export default function InventoryPage() {
         product={selectedProduct}
         onAction={handleBatchAction}
         defaultPrice={selectedProduct ? getDefaultPriceForProduct(selectedProduct.id) : undefined}
+        units={selectedProductUnits}
+        customerNames={customerNames}
       />
 
       {/* Add Product Modal */}
@@ -3431,13 +4112,27 @@ export default function InventoryPage() {
         transaction={editingTransaction}
         onSave={handleUpdateTransaction}
         onDelete={handleDeleteTransaction}
+        linkedBottles={editingTransaction ? bottleUnits.filter((u) => u.transactionId === editingTransaction.id) : []}
+        productUnits={editingTransaction ? bottleUnits.filter((u) => u.productId === editingTransaction.productId) : []}
+        isNumberedProduct={!!editingTransaction && numberedProductIds.has(editingTransaction.productId)}
       />
 
       {/* NFC Write Modal */}
       <NfcWriteModal
         isOpen={nfcModalOpen}
-        onClose={() => setNfcModalOpen(false)}
-        nfcCode={nfcCode}
+        onClose={() => { setNfcModalOpen(false); setNfcModalTxId(null); }}
+        initialCode={nfcCode}
+        bottles={nfcModalBottles}
+        missingCount={nfcModalMissing}
+        onIssueMore={nfcModalTxId ? () => handleIssueMissingNfc(nfcModalTxId) : undefined}
+        onWritten={(code) => markNfcWritten(code)}
+        onReset={async (code) => {
+          const ok = await resetNfcRecord(code);
+          setNfcModalOpen(false);
+          setNfcModalTxId(null);
+          if (ok) toast.success('NFC 기록을 초기화했습니다');
+          else toast.error('초기화에 실패했습니다. 다시 시도해 주세요');
+        }}
       />
     </div>
   );

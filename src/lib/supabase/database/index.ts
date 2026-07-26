@@ -54,6 +54,13 @@ export {
   updateBatchAgingDates,
   updateNumberedBottleNfc,
   mapDbBottleUnitToBottleUnit,
+  getNextBottleUnitSerial,
+  updateBottleUnit,
+  clearBottleUnitNfc,
+  markBottleUnitNfcWritten,
+  markNumberedBottleNfcWritten,
+  deleteBottleUnit,
+  clearNumberedBottleNfc,
 } from './inventory';
 
 export type {
