@@ -136,7 +136,7 @@ export default function CXPPage() {
               <Sparkles className="w-5 h-5 text-[#C4A052]/60 mt-0.5 shrink-0" />
               <div className="space-y-3 text-sm text-white/60 leading-relaxed">
                 <p>
-                  <span className="text-[#C4A052]">"자기 문화를 영어로 번역하는 사람"</span>이라는
+                  <span className="text-[#C4A052]">&quot;자기 문화를 영어로 번역하는 사람&quot;</span>이라는
                   포지셔닝을 기반으로, 틱톡과 인스타그램 릴스를 중심으로 콘텐츠를 제작합니다.
                 </p>
                 <p>
@@ -183,7 +183,7 @@ export default function CXPPage() {
                       </span>
                     </div>
                     <p className="text-xs text-white/35 mt-2 hidden sm:block">
-                      "자기 문화를 영어로 번역하는 사람"의 포지셔닝 전략 — 성공 공식 분석, 대표 자산, 콘텐츠 3대 축, 네이밍, 성공 요건
+                      &quot;자기 문화를 영어로 번역하는 사람&quot;의 포지셔닝 전략 — 성공 공식 분석, 대표 자산, 콘텐츠 3대 축, 네이밍, 성공 요건
                     </p>
                   </div>
                 </div>

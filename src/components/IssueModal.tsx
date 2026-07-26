@@ -70,33 +70,11 @@ export default function IssueModal({
 }: IssueModalProps) {
   const isMobile = useIsMobile();
 
-  const [formData, setFormData] = useState({
-    year: defaultYear,
-    month: defaultMonth,
-    title: '',
-    type: 'issue' as IssueType,
-    priority: 'medium' as IssuePriority,
-    impact: 'medium' as IssueImpact,
-    status: 'open' as IssueStatus,
-    category: 'operation' as TaskCategory,
-    description: '',
-    owner: '',
-    dueDate: '',
-    resolution: '',
-    relatedTaskId: '',
-    relatedTaskTitle: '',
-    attachments: [] as Attachment[],
-  });
-
-  const [isEditing, setIsEditing] = useState(false);
-  const [showTaskSelector, setShowTaskSelector] = useState(false);
-  const [relatedItemTab, setRelatedItemTab] = useState<RelatedItemTab>('tasks');
-
-  useEffect(() => {
-    if (!isOpen) return;
-
-    if (issue) {
-      setFormData({
+  /* 초깃값은 렌더 시점에 props에서 만든다 — 이펙트 setFormData는 연쇄 렌더를 부른다.
+     대상이 바뀔 때는 호출부의 key가 새로 마운트시킨다. */
+  const [formData, setFormData] = useState(() =>
+    issue
+      ? {
         year: issue.year,
         month: issue.month,
         title: issue.title,
@@ -112,29 +90,33 @@ export default function IssueModal({
         relatedTaskId: issue.relatedTaskId || '',
         relatedTaskTitle: issue.relatedTaskTitle || '',
         attachments: issue.attachments || [],
-      });
-      setIsEditing(initialMode === 'edit' || (!isMobile && !issue));
-    } else {
-      setFormData({
+        }
+      : {
         year: defaultYear,
         month: defaultMonth,
         title: '',
-        type: 'issue',
-        priority: 'medium',
-        impact: 'medium',
-        status: 'open',
-        category: 'operation',
+        type: 'issue' as IssueType,
+        priority: 'medium' as IssuePriority,
+        impact: 'medium' as IssueImpact,
+        status: 'open' as IssueStatus,
+        category: 'operation' as TaskCategory,
         description: '',
         owner: '',
         dueDate: '',
         resolution: '',
         relatedTaskId: '',
         relatedTaskTitle: '',
-        attachments: [],
-      });
-      setIsEditing(true);
-    }
-  }, [issue, defaultYear, defaultMonth, isOpen, initialMode, isMobile]);
+        attachments: [] as Attachment[],
+        }
+  );
+
+  /* 기존 이슈는 initialMode가 정하고, 새 이슈는 항상 편집 모드.
+     사용자가 직접 전환하면 그 선택이 덮는다. */
+  const [editOverride, setEditOverride] = useState<boolean | null>(null);
+  const isEditing = editOverride ?? (initialMode === 'edit' || !issue);
+  const [showTaskSelector, setShowTaskSelector] = useState(false);
+  const [relatedItemTab, setRelatedItemTab] = useState<RelatedItemTab>('tasks');
+
 
   // 선택한 월에 해당하는 업무만 필터링
   const filteredTasks = tasks.filter((t) => t.month === formData.month);
@@ -209,7 +191,7 @@ export default function IssueModal({
   };
 
   const handleClose = () => {
-    setIsEditing(false);
+    setEditOverride(false);
     setShowTaskSelector(false);
     onClose();
   };
@@ -630,7 +612,7 @@ export default function IssueModal({
               type="button"
               onClick={() => {
                 if (isMobile && issue) {
-                  setIsEditing(false);
+                  setEditOverride(false);
                 } else {
                   handleClose();
                 }
@@ -817,7 +799,7 @@ export default function IssueModal({
             </button>
             <button
               type="button"
-              onClick={() => setIsEditing(true)}
+              onClick={() => setEditOverride(true)}
               className="flex-1 px-4 py-2.5 bg-accent text-white rounded-xl hover:bg-accent/90 active:bg-accent/80 transition-colors font-medium flex items-center justify-center gap-2"
             >
               <Pencil className="w-4 h-4" />

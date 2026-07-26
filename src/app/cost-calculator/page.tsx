@@ -86,19 +86,15 @@ function NumberInput({
   placeholder?: string;
   disabled?: boolean;
 }) {
-  const [displayValue, setDisplayValue] = useState(value ? formatNumber(value) : '');
-
-  // Sync display value when value changes externally (e.g., from DB load)
-  useEffect(() => {
-    setDisplayValue(value ? formatNumber(value) : '');
-  }, [value]);
+  /* 표시값은 value에서 그대로 나온다 — 입력할 때도 같은 숫자를 포맷할 뿐이라
+     따로 담아 둘 이유가 없었다. 상태를 두면 value와 어긋나지 않게 이펙트로
+     계속 되맞춰야 하고, 그게 연쇄 렌더를 부른다. */
+  const displayValue = value ? formatNumber(value) : '';
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (disabled) return;
     const raw = e.target.value.replace(/[^0-9]/g, '');
-    const num = parseInt(raw, 10) || 0;
-    setDisplayValue(raw ? formatNumber(num) : '');
-    onChange(num);
+    onChange(parseInt(raw, 10) || 0);
   };
 
   return (
@@ -142,22 +138,18 @@ function EuroInput({
   icon?: React.ComponentType<{ className?: string }>;
   placeholder?: string;
 }) {
-  const [displayValue, setDisplayValue] = useState(value ? formatEuro(value) : '');
-
-  // Update display when value changes externally
-  useEffect(() => {
-    if (value === 0) {
-      setDisplayValue('');
-    }
-  }, [value]);
+  /* 소수점을 찍는 도중("12,")에도 글자를 살려야 해서 입력 초안을 따로 둔다.
+     다만 초안이 지금 value와 같은 숫자일 때만 쓰고, 아니면 value를 포맷해 보여준다 —
+     바깥에서 값이 바뀌면 초안은 저절로 밀려난다. 이펙트로 되맞출 필요가 없다. */
+  const [draft, setDraft] = useState<string | null>(null);
+  const displayValue =
+    draft !== null && parseEuro(draft) === value ? draft : value ? formatEuro(value) : '';
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const raw = e.target.value;
     // Allow numbers, comma and dot for decimal input
-    const sanitized = raw.replace(/[^0-9.,]/g, '');
-    setDisplayValue(sanitized);
-    const num = parseEuro(sanitized);
-    onChange(num);
+    const sanitized = e.target.value.replace(/[^0-9.,]/g, '');
+    setDraft(sanitized);
+    onChange(parseEuro(sanitized));
   };
 
   const krwValue = value * exchangeRate;

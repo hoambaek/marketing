@@ -30,8 +30,16 @@ async function checkCost() {
   console.log('Exchange Rate:', data.exchange_rate);
   console.log('\nChampagne Types:');
 
-  const types = data.champagne_types as any[];
-  types.forEach((t: any) => {
+  /* champagne_types는 jsonb라 스키마 타입이 없다. 이 스크립트가 찍는 네 필드만 선언한다. */
+  type ChampagneType = {
+    name: string;
+    bottles: number;
+    costPerBottle: number;
+    packagingCost?: number;
+  };
+
+  const types = (data.champagne_types ?? []) as ChampagneType[];
+  types.forEach((t) => {
     console.log(`  ${t.name}:`);
     console.log(`    - bottles: ${t.bottles}`);
     console.log(`    - costPerBottle (EUR): ${t.costPerBottle}`);

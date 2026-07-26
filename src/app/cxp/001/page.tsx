@@ -98,7 +98,7 @@ export default function CXP001Page() {
             K-Drama Hanbok Fact-Check
           </h1>
           <p className="text-sm text-white/50">
-            K-드라마 속 한복 장면을 20년 전공자의 눈으로 감별 — "진짜는 이렇게 아름답다"를 보여주는 교정형 콘텐츠
+            K-드라마 속 한복 장면을 20년 전공자의 눈으로 감별 — &quot;진짜는 이렇게 아름답다&quot;를 보여주는 교정형 콘텐츠
           </p>
 
           {/* 메타 정보 카드 */}
@@ -135,7 +135,7 @@ export default function CXP001Page() {
             <div className="pt-4 space-y-4">
               <p className="text-[15px] text-white/60 leading-relaxed">
                 K-드라마 속 한복 장면을 20년 전공자의 눈으로 감별한다.
-                "틀렸다"고 비난하는 게 아니라, <span className="text-[#C4A052]">"진짜는 이렇게 아름답다"</span>를 보여주는 교정형 콘텐츠.
+                &quot;틀렸다&quot;고 비난하는 게 아니라, <span className="text-[#C4A052]">&quot;진짜는 이렇게 아름답다&quot;</span>를 보여주는 교정형 콘텐츠.
               </p>
               <div className="bg-white/[0.03] rounded-xl p-4 space-y-2">
                 <h4 className="text-sm font-medium text-white/50 uppercase tracking-wider mb-2">왜 이 소재인가</h4>
@@ -150,7 +150,7 @@ export default function CXP001Page() {
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="text-[#C4A052] mt-0.5">—</span>
-                    "This is NOT how you..." 포맷은 Pasta Queen 검증 공식
+                    &quot;This is NOT how you...&quot; 포맷은 Pasta Queen 검증 공식
                   </li>
                 </ul>
               </div>
@@ -403,7 +403,7 @@ export default function CXP001Page() {
                 <h4 className="text-xs font-semibold text-white/50 uppercase tracking-wider mb-3">틱톡 편집</h4>
                 <ul className="space-y-2 text-sm text-white/50">
                   <li>— 컷 전환: 빠르게 (1.5-2초 단위)</li>
-                  <li>— 드라마 캡처 → 대표님 전환 시 "스와이프" 또는 "줌인" 트랜지션</li>
+                  <li>— 드라마 캡처 → 대표님 전환 시 &quot;스와이프&quot; 또는 &quot;줌인&quot; 트랜지션</li>
                   <li>— 텍스트: 큰 폰트, 화면 중앙 상단, 흰색 + 그림자</li>
                   <li>— 키워드 강조 (Goreum, Joseon 등은 색상 변경)</li>
                 </ul>
@@ -416,7 +416,7 @@ export default function CXP001Page() {
                   <li>— 컷 전환: 틱톡보다 0.5초씩 여유</li>
                   <li>— 브랜드 컬러 틸(#3D5A56) 활용, 세리프 폰트</li>
                   <li>— 자체 오디오만 (트렌드 사운드 사용 안 함)</li>
-                  <li>— 마지막 프레임: 2초간 정지 — "This is the real Korea." + 계정명</li>
+                  <li>— 마지막 프레임: 2초간 정지 — &quot;This is the real Korea.&quot; + 계정명</li>
                 </ul>
               </div>
 
@@ -442,8 +442,8 @@ export default function CXP001Page() {
                   <div>
                     <span className="text-[10px] text-white/30 uppercase">캡션</span>
                     <p className="text-xs text-white/60 mt-1 italic">
-                      "This Korean drama has 600M views. But they got the hanbok wrong.
-                      I studied Korean traditional arts for 20 years — here's what it really looks like."
+                      &quot;This Korean drama has 600M views. But they got the hanbok wrong.
+                      I studied Korean traditional arts for 20 years — here&apos;s what it really looks like.&quot;
                     </p>
                   </div>
                   <div className="flex flex-wrap gap-1.5">
@@ -533,7 +533,7 @@ export default function CXP001Page() {
           <CollapsibleSection title="시리즈 확장 후보" icon={Layers}>
             <div className="pt-4">
               <p className="text-xs text-white/40 mb-3">
-                이 포맷이 반응을 얻으면 시리즈화 — <span className="text-white/60">"Real or Drama?"</span> 또는 <span className="text-white/60">"K-Drama vs Real Korea"</span>
+                이 포맷이 반응을 얻으면 시리즈화 — <span className="text-white/60">&quot;Real or Drama?&quot;</span> 또는 <span className="text-white/60">&quot;K-Drama vs Real Korea&quot;</span>
               </p>
               <div className="space-y-2">
                 {[

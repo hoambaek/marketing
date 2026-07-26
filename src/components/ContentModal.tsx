@@ -1,5 +1,6 @@
 'use client';
 
+import { useIsMobile } from '@/lib/hooks/use-client-env';
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Pencil, Instagram, Youtube, FileText, Mail, Megaphone, Calendar, AlignLeft } from 'lucide-react';
@@ -48,24 +49,34 @@ export default function ContentModal({
   defaultDate,
   defaultYear = 2026,
 }: ContentModalProps) {
-  const [formData, setFormData] = useState({
-    year: defaultYear,
-    type: 'instagram' as ContentType,
-    title: '',
-    description: '',
-    date: '',
-    status: 'draft' as ContentStatus,
-  });
+  /* 초깃값은 렌더 시점에 props에서 만든다 — 이펙트 setFormData는 연쇄 렌더를 부른다.
+     대상이 바뀔 때는 호출부의 key가 새로 마운트시킨다. */
+  const [formData, setFormData] = useState(() =>
+    content
+      ? {
+        year: content.year,
+        type: content.type,
+        title: content.title,
+        description: content.description || '',
+        date: content.date,
+        status: content.status,
+        }
+      : {
+        year: defaultYear,
+        type: 'instagram' as ContentType,
+        title: '',
+        description: '',
+        date: defaultDate || new Date().toISOString().split('T')[0],
+        status: 'draft' as ContentStatus,
+        }
+  );
 
-  // Mobile: view mode first, then edit mode
-  // Desktop: always edit mode
-  const [isEditing, setIsEditing] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
+  /* 모바일은 보기 모드 먼저, 데스크톱은 항상 편집 모드.
+     렌더 중에 정하고, 사용자가 직접 전환했을 때만 그 선택이 덮는다. */
+  const isMobile = useIsMobile();
+  const [editOverride, setEditOverride] = useState<boolean | null>(null);
+  const isEditing = editOverride ?? (!isMobile || !content);
 
-  useEffect(() => {
-    // Only check mobile on initial mount
-    setIsMobile(window.innerWidth < 640);
-  }, []);
 
   // Prevent body scroll when modal is open
   useEffect(() => {
@@ -79,37 +90,6 @@ export default function ContentModal({
     };
   }, [isOpen]);
 
-  useEffect(() => {
-    if (!isOpen) return;
-
-    const mobile = window.innerWidth < 640;
-    setIsMobile(mobile);
-
-    if (content) {
-      setFormData({
-        year: content.year,
-        type: content.type,
-        title: content.title,
-        description: content.description || '',
-        date: content.date,
-        status: content.status,
-      });
-      // On mobile with existing content: show view mode first
-      // On desktop or new content: show edit mode
-      setIsEditing(!mobile || !content);
-    } else {
-      setFormData({
-        year: defaultYear,
-        type: 'instagram',
-        title: '',
-        description: '',
-        date: defaultDate || new Date().toISOString().split('T')[0],
-        status: 'draft',
-      });
-      // New content: always edit mode
-      setIsEditing(true);
-    }
-  }, [content, defaultDate, defaultYear, isOpen]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -138,7 +118,7 @@ export default function ContentModal({
   };
 
   const handleClose = () => {
-    setIsEditing(false);
+    setEditOverride(false);
     onClose();
   };
 
@@ -314,7 +294,7 @@ export default function ContentModal({
                   type="button"
                   onClick={() => {
                     if (isMobile && content) {
-                      setIsEditing(false);
+                      setEditOverride(false);
                     } else {
                       handleClose();
                     }
@@ -411,7 +391,7 @@ export default function ContentModal({
                 </button>
                 <button
                   type="button"
-                  onClick={() => setIsEditing(true)}
+                  onClick={() => setEditOverride(true)}
                   className="flex-1 px-4 py-2.5 bg-accent text-white rounded-xl hover:bg-accent/90 active:bg-accent/80 transition-colors font-medium flex items-center justify-center gap-2"
                 >
                   <Pencil className="w-4 h-4" />

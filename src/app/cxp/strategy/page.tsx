@@ -126,7 +126,7 @@ export default function CXPStrategyPage() {
             The Pasta Queen 모델 분석 &<br className="sm:hidden" /> 한국 전통문화 크리에이터 전략
           </h1>
           <p className="text-sm text-white/50 italic">
-            "자기 문화를 영어로 번역하는 사람"의 포지셔닝 전략
+            &quot;자기 문화를 영어로 번역하는 사람&quot;의 포지셔닝 전략
           </p>
         </motion.div>
 
@@ -144,7 +144,7 @@ export default function CXPStrategyPage() {
                 <h4 className="text-xs font-medium text-white/50 uppercase tracking-wider mb-2">프로필 개요</h4>
                 <p className="text-sm text-white/60 leading-relaxed">
                   <span className="text-white/80">Nadia Caterina Munno</span> — 로마 귀족 가문 출신의 이탈리아 여성.
-                  미국 플로리다 거주. "이탈리아 파스타"라는 하나의 주제로 Instagram 593만, TikTok 800만+ 팔로워 달성.
+                  미국 플로리다 거주. &quot;이탈리아 파스타&quot;라는 하나의 주제로 Instagram 593만, TikTok 800만+ 팔로워 달성.
                 </p>
               </div>
 
@@ -183,7 +183,7 @@ export default function CXPStrategyPage() {
           <CollapsibleSection title="핵심 통찰: 왜 이 모델이 적합한가" icon={Target}>
             <div className="pt-4 space-y-4">
               <p className="text-sm text-white/60">
-                The Pasta Queen의 진짜 무기는 <span className="text-[#C4A052]">"자기 문화를 영어로 번역하는 사람"</span> 포지션.
+                The Pasta Queen의 진짜 무기는 <span className="text-[#C4A052]">&quot;자기 문화를 영어로 번역하는 사람&quot;</span> 포지션.
               </p>
               <ComparisonTable
                 headers={['The Pasta Queen', '대표님 가능성']}
@@ -195,16 +195,16 @@ export default function CXPStrategyPage() {
               />
               <div className="bg-[#3D5A56]/10 border border-[#3D5A56]/20 rounded-xl p-4">
                 <p className="text-sm text-white/70 italic leading-relaxed">
-                  "이탈리아에 파스타가 있다면, 한국에는 천 년의 아름다움이 있다. 그리고 그것을 영어로 전달하는 사람이 아직 없다."
+                  &quot;이탈리아에 파스타가 있다면, 한국에는 천 년의 아름다움이 있다. 그리고 그것을 영어로 전달하는 사람이 아직 없다.&quot;
                 </p>
               </div>
               <div>
                 <h4 className="text-xs font-medium text-white/50 uppercase tracking-wider mb-2">시장 타이밍: 왜 지금인가</h4>
                 <ul className="space-y-2 text-sm text-white/50">
-                  <li className="flex items-start gap-2"><span className="text-[#3D5A56]">—</span>K-pop, K-drama가 한국 '현대' 문화를 전 세계에 깔아놓음</li>
-                  <li className="flex items-start gap-2"><span className="text-[#3D5A56]">—</span>전 세계 사람들이 이제 "한국의 뿌리"에 궁금해하는 단계로 진입</li>
+                  <li className="flex items-start gap-2"><span className="text-[#3D5A56]">—</span>K-pop, K-drama가 한국 &apos;현대&apos; 문화를 전 세계에 깔아놓음</li>
+                  <li className="flex items-start gap-2"><span className="text-[#3D5A56]">—</span>전 세계 사람들이 이제 &quot;한국의 뿌리&quot;에 궁금해하는 단계로 진입</li>
                   <li className="flex items-start gap-2"><span className="text-[#3D5A56]">—</span>한복, 전통 공예, 국악 — 유튜브/인스타에서 조회수가 폭발하는 주제</li>
-                  <li className="flex items-start gap-2"><span className="text-[#3D5A56]">—</span>하지만 영어로 제대로 설명해주는 "사람"이 아직 없음</li>
+                  <li className="flex items-start gap-2"><span className="text-[#3D5A56]">—</span>하지만 영어로 제대로 설명해주는 &quot;사람&quot;이 아직 없음</li>
                   <li className="flex items-start gap-2"><span className="text-[#3D5A56]">—</span>K-culture의 다음 웨이브 = 전통문화. 이 포지션의 The Pasta Queen이 부재</li>
                 </ul>
               </div>
@@ -272,8 +272,8 @@ export default function CXPStrategyPage() {
             <div className="pt-4 space-y-5">
               <div className="bg-[#3D5A56]/10 border border-[#3D5A56]/20 rounded-xl p-4">
                 <p className="text-sm text-white/70 italic leading-relaxed">
-                  "전 세계 사람들이 K-pop, K-drama로 한국을 알았다면 —<br />
-                  이 사람을 통해 한국의 진짜 뿌리를 만난다."
+                  &quot;전 세계 사람들이 K-pop, K-drama로 한국을 알았다면 —<br />
+                  이 사람을 통해 한국의 진짜 뿌리를 만난다.&quot;
                 </p>
               </div>
 
@@ -291,7 +291,7 @@ export default function CXPStrategyPage() {
               <div className="bg-white/[0.03] rounded-xl p-4">
                 <h4 className="text-xs font-medium text-white/50 uppercase tracking-wider mb-2">Pasta Queen과의 결정적 차이 (강점)</h4>
                 <p className="text-sm text-white/50 leading-relaxed">
-                  Pasta Queen은 문화를 '잘 아는 사람'이지만, 대표님은 20년을 전공한 '전문가'.
+                  Pasta Queen은 문화를 &apos;잘 아는 사람&apos;이지만, 대표님은 20년을 전공한 &apos;전문가&apos;.
                   귀족 가문 출신이라 정통성이 있는 것과, 20년을 직접 몸으로 익히고 무대에 선 사람의 정통성은 다릅니다.
                   더 깊고, 더 진짜이며, 더 설명할 수 있는 것이 많습니다.
                 </p>
@@ -306,16 +306,16 @@ export default function CXPStrategyPage() {
               <div>
                 <div className="flex items-center gap-2 mb-2">
                   <span className="text-[10px] font-mono text-[#3D5A56] bg-[#3D5A56]/10 px-1.5 py-0.5 rounded">50%</span>
-                  <h4 className="text-sm font-medium text-white/70">축 1: "The Real Korea" — 진짜 한국 보여주기</h4>
+                  <h4 className="text-sm font-medium text-white/70">축 1: &quot;The Real Korea&quot; — 진짜 한국 보여주기</h4>
                 </div>
                 <p className="text-sm text-white/45 mb-2">
                   글로벌 오디언스가 가장 궁금해하는 것 = K-drama에서 본 한국의 실체. 관광객이 보는 한국이 아니라, 이 문화를 20년 전공한 사람이 보여주는 진짜 한국.
                 </p>
                 <ul className="space-y-1.5 text-sm text-white/40">
-                  <li>— "한복이 실제로 어떻게 만들어지는지 — 장인의 손끝에서"</li>
-                  <li>— "한국 전통 결혼식에서 실제로 일어나는 일"</li>
-                  <li>— "이 소리를 들어본 적 있나요?" (국악 악기 소개)</li>
-                  <li>— "한국에서 가장 오래된 기술을 가진 사람을 만나다" (인간문화재 방문)</li>
+                  <li>— &quot;한복이 실제로 어떻게 만들어지는지 — 장인의 손끝에서&quot;</li>
+                  <li>— &quot;한국 전통 결혼식에서 실제로 일어나는 일&quot;</li>
+                  <li>— &quot;이 소리를 들어본 적 있나요?&quot; (국악 악기 소개)</li>
+                  <li>— &quot;한국에서 가장 오래된 기술을 가진 사람을 만나다&quot; (인간문화재 방문)</li>
                 </ul>
               </div>
 
@@ -323,10 +323,10 @@ export default function CXPStrategyPage() {
               <div>
                 <div className="flex items-center gap-2 mb-2">
                   <span className="text-[10px] font-mono text-[#3D5A56] bg-[#3D5A56]/10 px-1.5 py-0.5 rounded">25%</span>
-                  <h4 className="text-sm font-medium text-white/70">축 2: "Lost in Translation" — 한국어에만 있는 것들</h4>
+                  <h4 className="text-sm font-medium text-white/70">축 2: &quot;Lost in Translation&quot; — 한국어에만 있는 것들</h4>
                 </div>
                 <p className="text-sm text-white/45 mb-2">
-                  영어로 번역할 수 없는 한국 개념 = 바이럴 콘텐츠의 보물. "영어에 이 단어가 없다"는 검증된 바이럴 포맷.
+                  영어로 번역할 수 없는 한국 개념 = 바이럴 콘텐츠의 보물. &quot;영어에 이 단어가 없다&quot;는 검증된 바이럴 포맷.
                 </p>
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
@@ -360,16 +360,16 @@ export default function CXPStrategyPage() {
               <div>
                 <div className="flex items-center gap-2 mb-2">
                   <span className="text-[10px] font-mono text-[#3D5A56] bg-[#3D5A56]/10 px-1.5 py-0.5 rounded">25%</span>
-                  <h4 className="text-sm font-medium text-white/70">축 3: "Korea meets the World" — 전통 x 현대</h4>
+                  <h4 className="text-sm font-medium text-white/70">축 3: &quot;Korea meets the World&quot; — 전통 x 현대</h4>
                 </div>
                 <p className="text-sm text-white/45 mb-2">
                   전통이 현재와 만나는 순간. K-pop, K-drama 팬이 가장 많이 반응하는 교차 콘텐츠.
                 </p>
                 <ul className="space-y-1.5 text-sm text-white/40">
-                  <li>— "K-pop 안무에 숨겨진 한국 전통 춤의 DNA"</li>
-                  <li>— "한국 드라마 속 진짜 한국 문화 찾기"</li>
-                  <li>— "한국 전통 색채가 현대 패션에 들어간 방식"</li>
-                  <li>— "왜 전 세계가 갑자기 한국에 열광하는가 — 한국인의 시선으로"</li>
+                  <li>— &quot;K-pop 안무에 숨겨진 한국 전통 춤의 DNA&quot;</li>
+                  <li>— &quot;한국 드라마 속 진짜 한국 문화 찾기&quot;</li>
+                  <li>— &quot;한국 전통 색채가 현대 패션에 들어간 방식&quot;</li>
+                  <li>— &quot;왜 전 세계가 갑자기 한국에 열광하는가 — 한국인의 시선으로&quot;</li>
                 </ul>
               </div>
             </div>
@@ -434,8 +434,8 @@ export default function CXPStrategyPage() {
               <div className="bg-[#3D5A56]/10 border border-[#3D5A56]/20 rounded-xl p-4">
                 <h4 className="text-xs font-medium text-white/50 uppercase tracking-wider mb-2">바이오 초안</h4>
                 <p className="text-sm text-white/70 italic">
-                  "Lover of Hanbok, Heritage and all things Korean.<br />
-                  20 years of Korean traditional arts. I show you the real Korea."
+                  &quot;Lover of Hanbok, Heritage and all things Korean.<br />
+                  20 years of Korean traditional arts. I show you the real Korea.&quot;
                 </p>
               </div>
             </div>
@@ -457,8 +457,8 @@ export default function CXPStrategyPage() {
               />
               <div className="bg-[#3D5A56]/10 border border-[#3D5A56]/20 rounded-xl p-4">
                 <p className="text-sm text-white/70 italic">
-                  "한국어 콘텐츠는 한국인에게 도달하지만,<br />
-                  영어로 한국을 말하면 세계에 도달한다."
+                  &quot;한국어 콘텐츠는 한국인에게 도달하지만,<br />
+                  영어로 한국을 말하면 세계에 도달한다.&quot;
                 </p>
               </div>
               <div>
@@ -469,15 +469,15 @@ export default function CXPStrategyPage() {
                 <div className="grid grid-cols-3 gap-2">
                   <div className="bg-white/[0.03] rounded-lg p-2.5 text-xs">
                     <span className="text-[10px] text-white/30 uppercase block mb-1">감탄사</span>
-                    <span className="text-white/50">"아이고~", "대박!", "어머~"</span>
+                    <span className="text-white/50">&quot;아이고~&quot;, &quot;대박!&quot;, &quot;어머~&quot;</span>
                   </div>
                   <div className="bg-white/[0.03] rounded-lg p-2.5 text-xs">
                     <span className="text-[10px] text-white/30 uppercase block mb-1">번역 불가</span>
-                    <span className="text-white/50">"멋", "정", "풍류", "흥", "한"</span>
+                    <span className="text-white/50">&quot;멋&quot;, &quot;정&quot;, &quot;풍류&quot;, &quot;흥&quot;, &quot;한&quot;</span>
                   </div>
                   <div className="bg-white/[0.03] rounded-lg p-2.5 text-xs">
                     <span className="text-[10px] text-white/30 uppercase block mb-1">문화 용어</span>
-                    <span className="text-white/50">"한복", "장인", "인간문화재"</span>
+                    <span className="text-white/50">&quot;한복&quot;, &quot;장인&quot;, &quot;인간문화재&quot;</span>
                   </div>
                 </div>
               </div>
@@ -590,14 +590,14 @@ export default function CXPStrategyPage() {
 
               <div className="bg-[#3D5A56]/10 border border-[#3D5A56]/20 rounded-xl p-5">
                 <p className="text-sm text-white/70 italic leading-relaxed">
-                  "Pasta Queen이 이탈리아 파스타로 했던 것을,<br />
+                  &quot;Pasta Queen이 이탈리아 파스타로 했던 것을,<br />
                   대표님은 한국 전통문화로 할 수 있습니다.<br /><br />
                   그리고 시장 타이밍은 지금이 더 좋습니다 —<br />
                   전 세계가 K-culture 다음 단계로 한국의 뿌리를 원하고 있고,<br />
                   영어로 그걸 진정성 있게 전달하는 크리에이터가 아직 없습니다.<br /><br />
                   20년 전공 + 10년 방송력.<br />
                   이것은 Pasta Queen의 귀족 가문 정통성 + 드라마틱 캐릭터와<br />
-                  정확히 대응됩니다. 아니, 더 강력합니다."
+                  정확히 대응됩니다. 아니, 더 강력합니다.&quot;
                 </p>
               </div>
             </div>

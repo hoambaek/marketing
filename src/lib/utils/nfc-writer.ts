@@ -1,4 +1,5 @@
-/// <reference path="../../types/web-nfc.d.ts" />
+// Web NFC 전역 타입은 src/types/web-nfc.d.ts에 있다.
+// tsconfig의 include가 모든 .ts를 이미 잡으므로 참조 지시자가 필요 없다.
 
 const BASE_URL = 'https://musedemaree.com/b';
 

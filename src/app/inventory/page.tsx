@@ -67,8 +67,12 @@ type NfcBottleRow = {
   label: string;
   meta: string;
   statusLabel: string;
-  /** 실물 태그에 기록까지 마쳤는지 */
+  /** 실물 태그에 기록까지 마쳤는지 — 우리가 태그를 구웠다는 기록 */
   written: boolean;
+  /** 고객이 그 태그로 들어와 이름을 남겼는지 — written과 다른 사실이다.
+      앱의 웹 NFC 쓰기는 안드로이드 크롬에서만 돌아서, 아이폰이나 외부 앱으로
+      구운 태그는 written이 영영 false다. 그때도 이 값은 참이 될 수 있다. */
+  ownerRegistered: boolean;
   /** 병 번호(넘버링) 또는 제품별 발급 순번(배치) */
   serial?: number;
   sortKey: string;
@@ -180,29 +184,18 @@ function BottleStatusModal({
   onSave: (status: InventoryStatus, details?: { reservedFor?: string; soldTo?: string; giftedTo?: string; price?: number; notes?: string; soldDate?: string }) => void;
   defaultPrice?: number;
 }) {
+  /* 초깃값은 props에서 바로 만든다. 이 모달은 selectedBottle이 있을 때만 마운트되므로
+     열릴 때마다 이 계산이 새로 돈다 — 이펙트로 되채울 필요가 없다. */
   const [status, setStatus] = useState<InventoryStatus>(currentStatus);
-  const [customerName, setCustomerName] = useState('');
-  const [price, setPrice] = useState('');
-  const [notes, setNotes] = useState('');
-  const [soldDate, setSoldDate] = useState(new Date().toISOString().split('T')[0]);
-
-  useEffect(() => {
-    setStatus(currentStatus);
-    // Populate with existing data
-    if (currentBottle) {
-      const existingName = currentBottle.reservedFor || currentBottle.soldTo || currentBottle.giftedTo || '';
-      setCustomerName(existingName);
-      // 기존 가격이 있으면 사용, 없으면 기본 판매가 사용
-      setPrice(currentBottle.price ? String(currentBottle.price) : (defaultPrice ? String(defaultPrice) : ''));
-      setNotes(currentBottle.notes || '');
-    } else {
-      setCustomerName('');
-      // 기본 판매가가 있으면 자동으로 입력
-      setPrice(defaultPrice ? String(defaultPrice) : '');
-      setNotes('');
-    }
-    setSoldDate(new Date().toISOString().split('T')[0]);
-  }, [currentStatus, currentBottle, isOpen, defaultPrice]);
+  const [customerName, setCustomerName] = useState(
+    () => currentBottle?.reservedFor || currentBottle?.soldTo || currentBottle?.giftedTo || ''
+  );
+  // 기존 가격이 있으면 사용, 없으면 기본 판매가 사용
+  const [price, setPrice] = useState(() =>
+    currentBottle?.price ? String(currentBottle.price) : defaultPrice ? String(defaultPrice) : ''
+  );
+  const [notes, setNotes] = useState(() => currentBottle?.notes || '');
+  const [soldDate, setSoldDate] = useState(() => new Date().toISOString().split('T')[0]);
 
   const handleSave = () => {
     onSave(status, {
@@ -407,9 +400,12 @@ function BatchAdjustModal({
   /** null이면 예약자 이름을 그대로 따라간다. 입력하면 그 값이 들어간다. */
   const [customerNameInput, setCustomerNameInput] = useState<string | null>(null);
   const [nameFocused, setNameFocused] = useState(false);
-  const [price, setPrice] = useState('');
+  /* 가격은 기본 판매가에서 파생하고, 사용자가 입력하면 그 값이 덮는다.
+     defaultPrice가 늦게 로드돼도 저절로 따라오므로 채워 넣는 이펙트가 필요 없다. */
+  const [priceEdit, setPrice] = useState<string | null>(null);
+  const price = priceEdit ?? (defaultPrice ? formatNumberWithCommas(String(defaultPrice)) : '');
   const [notes, setNotes] = useState('');
-  const [soldDate, setSoldDate] = useState(new Date().toISOString().split('T')[0]);
+  const [soldDate, setSoldDate] = useState(() => new Date().toISOString().split('T')[0]);
 
   /** 예약확정·예약취소는 이미 예약된 병에만 걸 수 있다 */
   const picksReserved = action === 'confirm' || action === 'cancel';
@@ -437,25 +433,7 @@ function BatchAdjustModal({
     return next;
   }, [picksReserved, reservedSerials, usedSerials]);
 
-  useEffect(() => {
-    if (isOpen) {
-      setAction('sell');
-      setSerialInput(null);
-      setCustomerNameInput(null);
-      setNameFocused(false);
-      // 기본 판매가가 있으면 자동으로 입력
-      setPrice(defaultPrice ? formatNumberWithCommas(String(defaultPrice)) : '');
-      setNotes('');
-      setSoldDate(new Date().toISOString().split('T')[0]);
-    }
-  }, [product, isOpen]); // defaultPrice는 의존성에서 제외 (isOpen 시점에만 초기화)
 
-  // defaultPrice가 나중에 로드되었을 때 가격이 비어있으면 채워주기
-  useEffect(() => {
-    if (isOpen && defaultPrice && !price) {
-      setPrice(formatNumberWithCommas(String(defaultPrice)));
-    }
-  }, [defaultPrice, isOpen, price]);
 
   const handlePriceChange = (value: string) => {
     setPrice(formatNumberWithCommas(value));
@@ -926,10 +904,21 @@ function NfcWriteModal({
                         className={`inline-block mt-2 text-[10px] px-2 py-0.5 rounded-full border ${
                           active.written
                             ? 'bg-emerald-500/10 border-emerald-500/25 text-emerald-400/90'
-                            : 'bg-amber-500/10 border-amber-500/25 text-amber-400/90'
+                            : 'bg-white/[0.04] border-white/[0.12] text-white/40'
                         }`}
                       >
-                        {active.written ? '태그 쓰기 완료' : '태그 미기록'}
+                        {active.written ? '태그 쓰기 완료' : '태그 쓰기 기록 없음'}
+                      </span>
+                      {/* 소유 등록은 별개의 사실이라 칩을 따로 세운다.
+                          쓰기 기록이 비어도 여기가 켜져 있으면 태그는 이미 동작한다. */}
+                      <span
+                        className={`inline-block mt-2 ml-1.5 text-[10px] px-2 py-0.5 rounded-full border ${
+                          active.ownerRegistered
+                            ? 'bg-cyan-500/10 border-cyan-500/25 text-cyan-300/90'
+                            : 'bg-white/[0.04] border-white/[0.12] text-white/40'
+                        }`}
+                      >
+                        {active.ownerRegistered ? '소유 등록됨' : '소유 등록 전'}
                       </span>
                     </div>
                     {bottles.length > 1 && (
@@ -950,9 +939,9 @@ function NfcWriteModal({
                         <button
                           key={b.key}
                           onClick={() => goTo(i)}
-                          title={`${b.label} · ${b.written ? '쓰기 완료' : '미기록'}`}
+                          title={`${b.label} · 태그 쓰기 ${b.written ? '완료' : '기록 없음'} · 소유 등록 ${b.ownerRegistered ? '됨' : '전'}`}
                           className={`w-2 h-2 rounded-full transition-all ${
-                            b.written ? 'bg-emerald-400' : 'bg-amber-400'
+                            b.ownerRegistered ? 'bg-cyan-300' : b.written ? 'bg-emerald-400' : 'bg-amber-400'
                           } ${i === index ? 'ring-2 ring-white/40 ring-offset-2 ring-offset-[#0d1525]' : 'opacity-50'}`}
                         />
                       ))}
@@ -1116,15 +1105,6 @@ function AddProductModal({
   const [quantity, setQuantity] = useState('');
   const [description, setDescription] = useState('');
 
-  useEffect(() => {
-    if (isOpen) {
-      setName('');
-      setNameKo('');
-      setSize('750ml');
-      setQuantity('');
-      setDescription('');
-    }
-  }, [isOpen]);
 
   const handleQuantityChange = (value: string) => {
     setQuantity(formatNumberWithCommas(value));
@@ -1294,13 +1274,8 @@ function EditProductModal({
   product: { id: string; name: string; nameKo: string; year: number; size: string; totalQuantity: number; description?: string } | null;
   onSave: (productId: string, updates: { totalQuantity: number }) => void;
 }) {
-  const [quantity, setQuantity] = useState('');
-
-  useEffect(() => {
-    if (isOpen && product) {
-      setQuantity(product.totalQuantity.toLocaleString());
-    }
-  }, [isOpen, product]);
+  /* 초깃값은 props에서 만든다 — 대상이 바뀌면 호출부의 key가 새로 마운트시킨다 */
+  const [quantity, setQuantity] = useState(() => product?.totalQuantity.toLocaleString() ?? '');
 
   const handleQuantityChange = (value: string) => {
     setQuantity(formatNumberWithCommas(value));
@@ -1421,23 +1396,15 @@ function EditTransactionModal({
   isOpen, onClose, transaction, onSave, onDelete,
   linkedBottles, productUnits, isNumberedProduct,
 }: EditTransactionModalProps) {
-  const [type, setType] = useState('');
+  /* 초깃값은 props에서 만든다 — 대상이 바뀌면 호출부의 key가 새로 마운트시킨다 */
+  const [type, setType] = useState(() => transaction?.type ?? '');
   const [serialInput, setSerialInput] = useState<string | null>(null);
-  const [customerName, setCustomerName] = useState('');
-  const [price, setPrice] = useState('');
-  const [notes, setNotes] = useState('');
+  const [customerName, setCustomerName] = useState(() => transaction?.customerName || '');
+  const [price, setPrice] = useState(() =>
+    transaction?.price ? transaction.price.toLocaleString() : ''
+  );
+  const [notes, setNotes] = useState(() => transaction?.notes || '');
   const [confirmDelete, setConfirmDelete] = useState(false);
-
-  useEffect(() => {
-    if (isOpen && transaction) {
-      setType(transaction.type);
-      setSerialInput(null);
-      setCustomerName(transaction.customerName || '');
-      setPrice(transaction.price ? transaction.price.toLocaleString() : '');
-      setNotes(transaction.notes || '');
-      setConfirmDelete(false);
-    }
-  }, [isOpen, transaction]);
 
   const handlePriceChange = (value: string) => {
     setPrice(formatNumberWithCommas(value));
@@ -2574,13 +2541,12 @@ function ProductCard({ product, onManage, onEditQuantity, mounted }: ProductCard
   const { getProductSummary, inventoryBatches, updateBatchAgingData } = useInventoryStore();
   const [editingAging, setEditingAging] = useState(false);
   const batch = inventoryBatches.find(b => b.productId === product.id);
-  const [immersionDate, setImmersionDate] = useState(batch?.immersionDate || '');
-  const [retrievalDate, setRetrievalDate] = useState(batch?.retrievalDate || '');
-
-  useEffect(() => {
-    setImmersionDate(batch?.immersionDate || '');
-    setRetrievalDate(batch?.retrievalDate || '');
-  }, [batch?.immersionDate, batch?.retrievalDate]);
+  /* 날짜는 배치에서 파생하고, 사용자가 고친 값만 덮는다.
+     이펙트로 배치→로컬을 되맞추면 저장 직후 서버 값이 돌아올 때마다 연쇄 렌더가 난다. */
+  const [immersionEdit, setImmersionDate] = useState<string | null>(null);
+  const [retrievalEdit, setRetrievalDate] = useState<string | null>(null);
+  const immersionDate = immersionEdit ?? (batch?.immersionDate || '');
+  const retrievalDate = retrievalEdit ?? (batch?.retrievalDate || '');
   const summary = mounted ? getProductSummary(product.id) : { available: 0, reserved: 0, sold: 0, gifted: 0, damaged: 0, soldPercent: 0 };
   const colors = getProductColors(product.id);
 
@@ -2795,7 +2761,7 @@ function FirstEditionGrid({
   onToggle: () => void;
   defaultPrice?: number;
 }) {
-  const { numberedBottles, updateBottleStatus, getProductSummary, generateNfcCode, markNfcWritten, resetNfcRecord } = useInventoryStore();
+  const { numberedBottles, updateBottleStatus, getProductSummary, generateNfcCode, markNfcWritten, resetNfcRecord, ownerRegisteredCodes } = useInventoryStore();
   const [selectedBottle, setSelectedBottle] = useState<NumberedBottle | null>(null);
   const [nfcModalOpen, setNfcModalOpen] = useState(false);
   const [nfcCodeState, setNfcCodeState] = useState('');
@@ -2901,7 +2867,7 @@ function FirstEditionGrid({
               className={`relative aspect-square rounded-lg border text-xs font-medium transition-all cursor-pointer ${getStatusColor(bottle.status)}`}
               title={
                 bottle.nfcCode
-                  ? `#${bottle.bottleNumber} · NFC ${bottle.nfcCode} — ${bottle.nfcWrittenAt ? '태그 쓰기 완료' : '태그 미기록'}, 눌러서 열기`
+                  ? `#${bottle.bottleNumber} · NFC ${bottle.nfcCode} — 태그 쓰기 ${bottle.nfcWrittenAt ? '완료' : '기록 없음'} · 소유 등록 ${ownerRegisteredCodes.includes(bottle.nfcCode) ? '됨' : '전'}, 눌러서 열기`
                   : `#${bottle.bottleNumber} - ${INVENTORY_STATUS_LABELS[bottle.status]}${bottle.soldTo ? ` (${bottle.soldTo})` : ''}`
               }
             >
@@ -2922,6 +2888,8 @@ function FirstEditionGrid({
       {/* Edit Modal */}
       {selectedBottle && (
         <BottleStatusModal
+          /* 병이 바뀌면 새로 마운트해 폼을 다시 만든다 */
+          key={selectedBottle.id}
           isOpen={!!selectedBottle}
           onClose={() => setSelectedBottle(null)}
           bottleNumber={selectedBottle.bottleNumber}
@@ -2947,6 +2915,7 @@ function FirstEditionGrid({
           ].filter(Boolean).join(' · '),
           statusLabel: nfcTargetBottle.status === 'gifted' ? '증정' : '판매',
           written: !!nfcTargetBottle.nfcWrittenAt,
+          ownerRegistered: ownerRegisteredCodes.includes(nfcCodeState),
           serial: nfcTargetBottle.bottleNumber,
           sortKey: nfcTargetBottle.nfcRegisteredAt || '',
         }] : []}
@@ -2967,7 +2936,7 @@ function FirstEditionGrid({
 // ═══════════════════════════════════════════════════════════════════════════
 
 export default function InventoryPage() {
-  const { initializeInventory, refreshFromSupabase, getTotalInventoryValue, getRecentTransactions, getFilteredTransactions, isLoading, sellFromBatch, reserveFromBatch, confirmReservation, cancelReservation, reportDamage, giftFromBatch, addProduct, updateProduct, getAllProducts, updateTransaction, deleteTransaction, issueMissingNfcCodes, markNfcWritten, resetNfcRecord, updateBatchAgingData, inventoryBatches, bottleUnits, numberedBottles, transactions } = useInventoryStore();
+  const { initializeInventory, refreshFromSupabase, getTotalInventoryValue, getRecentTransactions, getFilteredTransactions, isLoading, sellFromBatch, reserveFromBatch, confirmReservation, cancelReservation, reportDamage, giftFromBatch, addProduct, updateProduct, getAllProducts, updateTransaction, deleteTransaction, issueMissingNfcCodes, markNfcWritten, resetNfcRecord, updateBatchAgingData, inventoryBatches, bottleUnits, numberedBottles, transactions, ownerRegisteredCodes } = useInventoryStore();
   const [isFirstEditionExpanded, setIsFirstEditionExpanded] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [mounted, setMounted] = useState(false);
@@ -3133,6 +3102,7 @@ export default function InventoryPage() {
    */
   const nfcIndex = useMemo(() => {
     const productName = (id: string) => productMap.get(id)?.nameKo || productMap.get(id)?.name || id;
+    const ownerCodeSet = new Set(ownerRegisteredCodes);
 
     // 한 거래가 여러 병을 내보낼 수 있다 — 판매 3병이면 병도 코드도 3개다
     const byTransactionId = new Map<string, NfcBottleRow[]>();
@@ -3152,6 +3122,7 @@ export default function InventoryPage() {
         meta: [u.customerName, u.soldDate].filter(Boolean).join(' · '),
         statusLabel: UNIT_STATUS_LABELS[u.status] ?? u.status,
         written: !!u.nfcWrittenAt,
+        ownerRegistered: ownerCodeSet.has(u.nfcCode),
         serial: u.serialNumber,
         sortKey: u.createdAt || u.nfcRegisteredAt || '',
       };
@@ -3177,6 +3148,7 @@ export default function InventoryPage() {
         meta: [b.soldTo || b.giftedTo, b.soldDate?.slice(0, 10)].filter(Boolean).join(' · '),
         statusLabel: UNIT_STATUS_LABELS[b.status] ?? b.status,
         written: !!b.nfcWrittenAt,
+        ownerRegistered: ownerCodeSet.has(b.nfcCode),
         serial: b.bottleNumber,
         sortKey: b.nfcRegisteredAt || b.soldDate || '',
       };
@@ -3185,7 +3157,7 @@ export default function InventoryPage() {
     });
 
     return { byTransactionId, byNumberedKey, byCode };
-  }, [numberedBottles, bottleUnits, productMap]);
+  }, [numberedBottles, bottleUnits, productMap, ownerRegisteredCodes]);
 
   /** 병마다 번호를 들고 있는 제품 (2025 퍼스트 에디션) — 배치 제품과 연결 경로가 다르다 */
   const numberedProductIds = useMemo(
@@ -3239,7 +3211,13 @@ export default function InventoryPage() {
     return [...orphanUnits, ...orphanNumbered].sort((a, b) => b.sortKey.localeCompare(a.sortKey));
   }, [transactions, bottleUnits, numberedBottles, nfcIndex, numberedProductIds]);
 
-  const nfcPendingCount = [...nfcIndex.byCode.values()].filter((r) => !r.written).length;
+  /* 손이 필요한 병만 센다 — 태그 쓰기 기록도 없고 소유 등록도 없는 병.
+     소유 등록이 들어왔다면 태그는 이미 동작하는 것이므로(고객이 그걸로 들어왔다)
+     쓰기 기록이 비어 있어도 할 일이 아니다. 앱의 웹 NFC 쓰기가 안드로이드 크롬
+     전용이라 아이폰·외부 앱으로 구운 태그가 여기 잡히던 문제를 함께 없앤다. */
+  const nfcPendingCount = [...nfcIndex.byCode.values()].filter(
+    (r) => !r.written && !r.ownerRegistered,
+  ).length;
 
   /**
    * 모달이 다루는 병들. 거래에서 열면 그 거래의 병 전부(3병이면 3개를 넘겨가며 쓴다),
@@ -3818,7 +3796,7 @@ export default function InventoryPage() {
                       <span className="text-[11px] text-white/25 font-mono">{allTransactions.length}</span>
                       {nfcPendingCount > 0 && (
                         <span className="text-[10px] px-2 py-0.5 rounded-lg bg-amber-500/10 border border-amber-500/25 text-amber-400/90">
-                          NFC 미기록 {nfcPendingCount}병
+                          태그 쓰기 대기 {nfcPendingCount}병
                         </span>
                       )}
                       {isLoading && (
@@ -3878,6 +3856,9 @@ export default function InventoryPage() {
                         const nfcMissing = nfcMissingForTransaction(tx);
                         const nfcWrittenCount = nfcBottles.filter((b) => b.written).length;
                         const nfcAllWritten = nfcBottles.length > 0 && nfcWrittenCount === nfcBottles.length && nfcMissing === 0;
+                        /* 소유 등록은 쓰기와 별개의 사실 — 함께 센다 */
+                        const nfcOwnedCount = nfcBottles.filter((b) => b.ownerRegistered).length;
+                        const nfcAnyOwned = nfcOwnedCount > 0;
 
                         return (
                           <div key={tx.id} className="group px-4 sm:px-6 py-2.5 flex items-center justify-between hover:bg-white/[0.02] transition-colors">
@@ -3917,23 +3898,30 @@ export default function InventoryPage() {
                                     }}
                                     title={
                                       nfcBottles.length === 1
-                                        ? `${nfcBottles[0].label} · ${nfcBottles[0].written ? '태그 쓰기 완료' : '태그 미기록'} — 눌러서 열기`
-                                        : `${nfcBottles.length}병 · 태그 ${nfcWrittenCount}병 기록 완료${nfcMissing > 0 ? ` · 코드 미발급 ${nfcMissing}병` : ''} — 눌러서 열기`
+                                        ? `${nfcBottles[0].label} · 태그 쓰기 ${nfcBottles[0].written ? '완료' : '기록 없음'} · 소유 등록 ${nfcBottles[0].ownerRegistered ? '됨' : '전'} — 눌러서 열기`
+                                        : `${nfcBottles.length}병 · 태그 쓰기 ${nfcWrittenCount}병 · 소유 등록 ${nfcOwnedCount}병${nfcMissing > 0 ? ` · 코드 미발급 ${nfcMissing}병` : ''} — 눌러서 열기`
                                     }
                                     className="flex items-center gap-1.5 sm:gap-2 px-2 py-1 rounded-lg border border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.06] hover:border-white/[0.12] transition-all"
                                   >
                                     <span
-                                      className={`w-1.5 h-1.5 rounded-full shrink-0 ${nfcAllWritten ? 'bg-emerald-400' : 'bg-amber-400'}`}
+                                      /* 소유 등록(청록) > 태그 쓰기 완료(초록) > 대기(호박) */
+                                      className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                                        nfcAnyOwned ? 'bg-cyan-300' : nfcAllWritten ? 'bg-emerald-400' : 'bg-amber-400'
+                                      }`}
                                     />
                                     {/* 태그 쓰기는 휴대폰에서 한다 — 모바일에서도 반드시 눌리게 둔다 */}
                                     <span className="text-right leading-tight">
                                       <span className="hidden sm:block text-[11px] font-mono text-cyan-400/80">
                                         {nfcBottles.length === 1 ? nfcBottles[0].nfcCode : `${nfcBottles.length + nfcMissing}병`}
                                       </span>
-                                      <span className={`block text-[10px] ${nfcAllWritten ? 'text-emerald-400/70' : 'text-amber-400/70'}`}>
+                                      {/* 한 병이면 가장 진행된 사실 하나를, 여러 병이면 두 수치를 나란히.
+                                          자세한 내역은 title에 담긴다. */}
+                                      <span className={`block text-[10px] ${
+                                        nfcAnyOwned ? 'text-cyan-300/80' : nfcAllWritten ? 'text-emerald-400/70' : 'text-amber-400/70'
+                                      }`}>
                                         {nfcBottles.length === 1
-                                          ? (nfcBottles[0].written ? '쓰기 완료' : '미기록')
-                                          : `${nfcWrittenCount}/${nfcBottles.length + nfcMissing} 기록`}
+                                          ? (nfcBottles[0].ownerRegistered ? '소유 등록됨' : nfcBottles[0].written ? '쓰기 완료' : '쓰기 대기')
+                                          : `쓰기 ${nfcWrittenCount} · 등록 ${nfcOwnedCount} / ${nfcBottles.length + nfcMissing}`}
                                       </span>
                                     </span>
                                   </button>
@@ -4037,7 +4025,11 @@ export default function InventoryPage() {
                           >
                             <span className="flex items-center gap-3 min-w-0">
                               <span
-                                className={`w-1.5 h-1.5 rounded-full shrink-0 ${bottle.written ? 'bg-emerald-400' : 'bg-amber-400'}`}
+                                /* 점 하나로는 두 사실을 못 담는다 — 가장 진행된 단계를 보인다.
+                                   소유 등록(청록) > 태그 쓰기(초록) > 아직(회색) */
+                                className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                                  bottle.ownerRegistered ? 'bg-cyan-300' : bottle.written ? 'bg-emerald-400' : 'bg-white/25'
+                                }`}
                               />
                               <span className="min-w-0">
                                 <span className="block text-white/70 text-[13px] leading-tight truncate">{bottle.label}</span>
@@ -4049,8 +4041,19 @@ export default function InventoryPage() {
                             </span>
                             <span className="text-right shrink-0 leading-tight">
                               <span className="block text-[11px] font-mono text-cyan-400/80">{bottle.nfcCode}</span>
-                              <span className={`block text-[9px] ${bottle.written ? 'text-emerald-400/70' : 'text-amber-400/70'}`}>
-                                {bottle.written ? '쓰기 완료' : '미기록'}
+                              {/* 두 사실을 분리해 적는다 — 태그를 구웠는가(우리)와
+                                  주인이 생겼는가(고객)는 서로를 함의하지 않는다.
+                                  앱의 웹 NFC 쓰기가 안드로이드 크롬 전용이라, 아이폰·외부 앱으로
+                                  구운 태그는 "쓰기"가 비어도 실제로는 동작한다. */}
+                              <span className="block text-[9px] leading-tight">
+                                <span className={bottle.written ? 'text-emerald-400/70' : 'text-white/25'}>
+                                  {bottle.written ? '쓰기 완료' : '쓰기 기록 없음'}
+                                </span>
+                              </span>
+                              <span className="block text-[9px] leading-tight">
+                                <span className={bottle.ownerRegistered ? 'text-cyan-300/80' : 'text-white/25'}>
+                                  {bottle.ownerRegistered ? '소유 등록됨' : '소유 등록 전'}
+                                </span>
                               </span>
                             </span>
                           </button>
@@ -4073,6 +4076,9 @@ export default function InventoryPage() {
 
       {/* Batch Adjust Modal */}
       <BatchAdjustModal
+        /* 제품이 바뀌거나 다시 열리면 새로 마운트해 폼을 되돌린다.
+           접두어는 형제 모달과 key가 겹치지 않게 하려는 것 — 닫힌 상태의 폴백은 다 같은 값이 된다 */
+        key={`batch-${selectedProduct ?? 'closed'}`}
         isOpen={!!selectedProduct}
         onClose={() => setSelectedProduct(null)}
         product={selectedProduct}
@@ -4084,6 +4090,8 @@ export default function InventoryPage() {
 
       {/* Add Product Modal */}
       <AddProductModal
+        /* 대상이 바뀌면 새로 마운트해 폼을 다시 만든다 */
+        key={`add-product-${addProductYear ?? 'closed'}`}
         isOpen={addProductYear !== null}
         onClose={() => setAddProductYear(null)}
         year={addProductYear || 2026}
@@ -4099,6 +4107,8 @@ export default function InventoryPage() {
 
       {/* Edit Product Modal */}
       <EditProductModal
+        /* 대상이 바뀌면 새로 마운트해 폼을 다시 만든다 */
+        key={`edit-product-${editingProduct?.id ?? 'closed'}`}
         isOpen={editingProduct !== null}
         onClose={() => setEditingProduct(null)}
         product={editingProduct}
@@ -4107,6 +4117,8 @@ export default function InventoryPage() {
 
       {/* Edit Transaction Modal */}
       <EditTransactionModal
+        /* 대상이 바뀌면 새로 마운트해 폼을 다시 만든다 */
+        key={`edit-transaction-${editingTransaction?.id ?? 'closed'}`}
         isOpen={editingTransaction !== null}
         onClose={() => setEditingTransaction(null)}
         transaction={editingTransaction}

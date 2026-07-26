@@ -77,6 +77,18 @@ const VIEW_OPTIONS: {
 // Supabase 백필 데이터 시작일 — 이보다 과거로는 이동 불가
 const DATA_START_DATE = '2025-01-01';
 
+/**
+ * 입자 배치용 결정론적 난수 (0~1).
+ *
+ * 장식용이라 Math.random()을 쓰고 있었는데, 렌더 중 호출이라 두 가지가 깨진다.
+ * 서버와 클라이언트가 다른 값을 내 하이드레이션이 어긋나고, 리렌더마다 입자가 튄다.
+ * 인덱스로부터 값을 만들면 어디서 그리든 같은 배치가 나오고 흩어진 모양도 그대로다.
+ */
+function scatter(i: number, salt: number): number {
+  const x = Math.sin(i * 12.9898 + salt * 78.233) * 43758.5453;
+  return x - Math.floor(x);
+}
+
 // Floating particles component for oceanic atmosphere
 function OceanParticles() {
   return (
@@ -86,19 +98,19 @@ function OceanParticles() {
           key={i}
           className="absolute w-1 h-1 rounded-full bg-cyan-400/20"
           initial={{
-            x: Math.random() * 80 + 10 + '%',
+            x: scatter(i, 1) * 80 + 10 + '%',
             y: '100%',
-            scale: Math.random() * 0.5 + 0.5,
+            scale: scatter(i, 2) * 0.5 + 0.5,
           }}
           animate={{
             y: '10%',
-            x: `calc(${Math.random() * 80 + 10}% + ${Math.sin(i) * 30}px)`,
+            x: `calc(${scatter(i, 3) * 80 + 10}% + ${Math.sin(i) * 30}px)`,
           }}
           transition={{
-            duration: Math.random() * 20 + 15,
+            duration: scatter(i, 4) * 20 + 15,
             repeat: Infinity,
             ease: 'linear',
-            delay: Math.random() * 10,
+            delay: scatter(i, 5) * 10,
           }}
         />
       ))}

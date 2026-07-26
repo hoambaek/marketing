@@ -37,24 +37,12 @@ export default function ExpenseModal({
 }: ExpenseModalProps) {
   const isMobile = useIsMobile();
 
-  const [formData, setFormData] = useState({
-    year: defaultYear,
-    month: defaultMonth,
-    category: defaultCategory,
-    amount: 0,
-    description: '',
-    vendor: '',
-    date: new Date().toISOString().split('T')[0],
-    notes: '',
-  });
-
-  const [isEditing, setIsEditing] = useState(false);
-
-  useEffect(() => {
-    if (!isOpen) return;
-
-    if (expense) {
-      setFormData({
+  /* 초깃값은 렌더 시점에 props에서 만든다 — 이펙트로 setFormData를 부르면
+     같은 커밋 안에서 연쇄 렌더가 난다. 대상이 바뀔 때는 호출부의 key가
+     컴포넌트를 새로 마운트시켜 이 계산이 다시 돈다. */
+  const [formData, setFormData] = useState(() =>
+    expense
+      ? {
         year: expense.year,
         month: expense.month,
         category: expense.category,
@@ -63,10 +51,8 @@ export default function ExpenseModal({
         vendor: expense.vendor || '',
         date: expense.date,
         notes: expense.notes || '',
-      });
-      setIsEditing(!isMobile || !expense);
-    } else {
-      setFormData({
+        }
+      : {
         year: defaultYear,
         month: defaultMonth,
         category: defaultCategory,
@@ -75,10 +61,13 @@ export default function ExpenseModal({
         vendor: '',
         date: new Date().toISOString().split('T')[0],
         notes: '',
-      });
-      setIsEditing(true);
-    }
-  }, [expense, defaultYear, defaultMonth, defaultCategory, isOpen, isMobile]);
+        }
+  );
+
+  /* 편집 모드는 렌더 중에 정하고, 사용자가 직접 전환했을 때만 그 선택이 덮는다 */
+  const [editOverride, setEditOverride] = useState<boolean | null>(null);
+  const isEditing = editOverride ?? (!isMobile || !expense);
+
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -107,7 +96,7 @@ export default function ExpenseModal({
   };
 
   const handleClose = () => {
-    setIsEditing(false);
+    setEditOverride(false);
     onClose();
   };
 
@@ -263,7 +252,7 @@ export default function ExpenseModal({
               type="button"
               onClick={() => {
                 if (isMobile && expense) {
-                  setIsEditing(false);
+                  setEditOverride(false);
                 } else {
                   handleClose();
                 }
@@ -357,7 +346,7 @@ export default function ExpenseModal({
             </button>
             <button
               type="button"
-              onClick={() => setIsEditing(true)}
+              onClick={() => setEditOverride(true)}
               className="flex-1 px-4 py-2.5 bg-accent text-white rounded-xl hover:bg-accent/90 active:bg-accent/80 transition-colors font-medium flex items-center justify-center gap-2"
             >
               <Pencil className="w-4 h-4" />

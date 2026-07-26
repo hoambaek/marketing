@@ -1,5 +1,6 @@
 'use client';
 
+import { useIsMobile } from '@/lib/hooks/use-client-env';
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Pencil, CheckCircle2, Circle, Calendar, Tag } from 'lucide-react';
@@ -25,23 +26,32 @@ export default function MustDoModal({
   defaultMonth = 1,
   defaultYear = 2026,
 }: MustDoModalProps) {
-  const [formData, setFormData] = useState({
-    year: defaultYear,
-    title: '',
-    month: defaultMonth,
-    done: false,
-    category: 'operation' as TaskCategory,
-  });
+  /* 초깃값은 렌더 시점에 props에서 만든다 — 이펙트 setFormData는 연쇄 렌더를 부른다.
+     대상이 바뀔 때는 호출부의 key가 새로 마운트시킨다. */
+  const [formData, setFormData] = useState(() =>
+    item
+      ? {
+        year: item.year,
+        title: item.title,
+        month: item.month,
+        done: item.done,
+        category: item.category || 'operation',
+        }
+      : {
+        year: defaultYear,
+        title: '',
+        month: defaultMonth,
+        done: false,
+        category: 'operation' as TaskCategory,
+        }
+  );
 
-  // Mobile: view mode first, then edit mode
-  // Desktop: always edit mode
-  const [isEditing, setIsEditing] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
+  /* 모바일은 보기 모드 먼저, 데스크톱은 항상 편집 모드.
+     렌더 중에 정하고, 사용자가 직접 전환했을 때만 그 선택이 덮는다. */
+  const isMobile = useIsMobile();
+  const [editOverride, setEditOverride] = useState<boolean | null>(null);
+  const isEditing = editOverride ?? (!isMobile || !item);
 
-  useEffect(() => {
-    // Only check mobile on initial mount
-    setIsMobile(window.innerWidth < 640);
-  }, []);
 
   // Prevent body scroll when modal is open
   useEffect(() => {
@@ -55,35 +65,6 @@ export default function MustDoModal({
     };
   }, [isOpen]);
 
-  useEffect(() => {
-    if (!isOpen) return;
-
-    const mobile = window.innerWidth < 640;
-    setIsMobile(mobile);
-
-    if (item) {
-      setFormData({
-        year: item.year,
-        title: item.title,
-        month: item.month,
-        done: item.done,
-        category: item.category || 'operation',
-      });
-      // On mobile with existing item: show view mode first
-      // On desktop or new item: show edit mode
-      setIsEditing(!mobile || !item);
-    } else {
-      setFormData({
-        year: defaultYear,
-        title: '',
-        month: defaultMonth,
-        done: false,
-        category: 'operation',
-      });
-      // New item: always edit mode
-      setIsEditing(true);
-    }
-  }, [item, defaultMonth, defaultYear, isOpen]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -101,7 +82,7 @@ export default function MustDoModal({
   };
 
   const handleClose = () => {
-    setIsEditing(false);
+    setEditOverride(false);
     onClose();
   };
 
@@ -168,7 +149,7 @@ export default function MustDoModal({
         </button>
         <button
           type="button"
-          onClick={() => setIsEditing(true)}
+          onClick={() => setEditOverride(true)}
           className="flex-1 px-4 py-2.5 bg-accent text-white rounded-xl hover:bg-accent/90 active:bg-accent/80 transition-colors font-medium flex items-center justify-center gap-2"
         >
           <Pencil className="w-4 h-4" />
@@ -266,7 +247,7 @@ export default function MustDoModal({
           type="button"
           onClick={() => {
             if (isMobile && item) {
-              setIsEditing(false);
+              setEditOverride(false);
             } else {
               handleClose();
             }
@@ -321,7 +302,10 @@ export default function MustDoModal({
           </div>
 
           {/* Content */}
-          {isEditing ? <EditMode /> : <ViewMode />}
+          {/* 컴포넌트로 쓰지 않고 함수로 부른다 — <EditMode />로 쓰면 렌더마다 새 컴포넌트
+              타입이 만들어져 React가 매번 언마운트·리마운트하고 내부 상태가 초기화된다.
+              두 함수 모두 훅이 없고 바깥 state를 클로저로 읽을 뿐이라 호출로 충분하다. */}
+          {isEditing ? EditMode() : ViewMode()}
         </motion.div>
       </motion.div>
     </AnimatePresence>

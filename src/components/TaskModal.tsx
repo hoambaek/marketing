@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Pencil, CalendarDays, User, FileText, Paperclip, ExternalLink, Youtube } from 'lucide-react';
 import { Task, TaskCategory, TaskStatus, CATEGORY_LABELS, Attachment } from '@/lib/types';
 import { toast } from '@/lib/store/toast-store';
@@ -32,11 +32,33 @@ const STATUS_COLORS: Record<TaskStatus, string> = {
   done: 'bg-emerald-500/20 text-emerald-400',
 };
 
-export default function TaskModal({ isOpen, onClose, onSave, task, month, week }: TaskModalProps) {
-  const isMobile = useIsMobile();
-
-  // lazy state init - 불필요한 객체 재생성 방지
-  const [formData, setFormData] = useState(() => ({
+/**
+ * 폼 초깃값을 props에서 만든다.
+ *
+ * 전에는 useEffect가 열릴 때마다 setFormData로 채웠는데, 이펙트 본문의 동기 setState라
+ * 같은 커밋 안에서 연쇄 렌더가 났다(react-hooks/set-state-in-effect).
+ * 초깃값은 useState 이니셜라이저가 만들고, 대상이 바뀌어 다시 채워야 할 때는
+ * 호출부의 key가 컴포넌트를 새로 마운트시킨다 — React 문서가 권하는 방식이다.
+ */
+function deriveForm(task: Task | null | undefined, month: number, week: number) {
+  if (task) {
+    return {
+      title: task.title,
+      description: task.description || '',
+      category: task.category,
+      status: task.status,
+      assignee: task.assignee || '',
+      deliverables: task.deliverables?.join(', ') || '',
+      notes: task.notes || '',
+      month: task.month,
+      week: task.week,
+      dueDate: task.dueDate || '',
+      year: task.year || 2026,
+      attachments: task.attachments || [],
+    };
+  }
+  const { endDate } = getWeekDateRange(2026, month, week);
+  return {
     title: '',
     description: '',
     category: 'operation' as TaskCategory,
@@ -44,57 +66,25 @@ export default function TaskModal({ isOpen, onClose, onSave, task, month, week }
     assignee: '',
     deliverables: '',
     notes: '',
-    month: month,
-    week: week,
-    dueDate: '',
+    month,
+    week,
+    dueDate: endDate.toISOString().split('T')[0],
     year: 2026,
     attachments: [] as Attachment[],
-  }));
+  };
+}
 
-  // Mobile: view mode first, then edit mode
-  const [isEditing, setIsEditing] = useState(false);
+export default function TaskModal({ isOpen, onClose, onSave, task, month, week }: TaskModalProps) {
+  const isMobile = useIsMobile();
 
-  useEffect(() => {
-    if (!isOpen) return;
+  const [formData, setFormData] = useState(() => deriveForm(task, month, week));
 
-    if (task) {
-      setFormData({
-        title: task.title,
-        description: task.description || '',
-        category: task.category,
-        status: task.status,
-        assignee: task.assignee || '',
-        deliverables: task.deliverables?.join(', ') || '',
-        notes: task.notes || '',
-        month: task.month,
-        week: task.week,
-        dueDate: task.dueDate || '',
-        year: task.year || 2026,
-        attachments: task.attachments || [],
-      });
-      setIsEditing(!isMobile || !task);
-    } else {
-      // Calculate default due date based on week
-      const { endDate } = getWeekDateRange(2026, month, week);
-      const defaultDueDate = endDate.toISOString().split('T')[0];
+  /* 편집 모드는 저장하지 않고 렌더 중에 정한다 — 기본값은 props와 화면 폭에서 나오고,
+     사용자가 직접 전환했을 때만 그 선택(editOverride)이 기본값을 덮는다.
+     상태로 들고 있으면 isMobile이 확정되는 시점에 이펙트로 다시 맞춰야 한다. */
+  const [editOverride, setEditOverride] = useState<boolean | null>(null);
+  const isEditing = editOverride ?? (task ? !isMobile : true);
 
-      setFormData({
-        title: '',
-        description: '',
-        category: 'operation',
-        status: 'pending',
-        assignee: '',
-        deliverables: '',
-        notes: '',
-        month: month,
-        week: week,
-        dueDate: defaultDueDate,
-        year: 2026,
-        attachments: [],
-      });
-      setIsEditing(true);
-    }
-  }, [task, isOpen, month, week, isMobile]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -123,7 +113,7 @@ export default function TaskModal({ isOpen, onClose, onSave, task, month, week }
   };
 
   const handleClose = () => {
-    setIsEditing(false);
+    setEditOverride(false);
     onClose();
   };
 
@@ -370,7 +360,7 @@ export default function TaskModal({ isOpen, onClose, onSave, task, month, week }
               type="button"
               onClick={() => {
                 if (isMobile && task) {
-                  setIsEditing(false);
+                  setEditOverride(false);
                 } else {
                   handleClose();
                 }
@@ -532,7 +522,7 @@ export default function TaskModal({ isOpen, onClose, onSave, task, month, week }
             </button>
             <button
               type="button"
-              onClick={() => setIsEditing(true)}
+              onClick={() => setEditOverride(true)}
               className="flex-1 px-4 py-2.5 bg-accent text-white rounded-xl hover:bg-accent/90 active:bg-accent/80 transition-colors font-medium flex items-center justify-center gap-2"
             >
               <Pencil className="w-4 h-4" />

@@ -17,6 +17,59 @@ import { getTimelineAxisLabels } from '@/lib/utils/uaps-engine-yakju';
 // UAPS 숙성 타임라인 & 골든 윈도우 차트 (샴페인·전 카테고리 공유).
 // 고정 팔레트(금색 종합품질·시안 계획선·초록 효율점)라 카테고리 테마색은 쓰지 않는다.
 // plannedMonths를 넘기면 계획 기간 수직선 + 계획 내 피크 마커가 추가된다.
+type HarvestWindow = {
+  startMonths: number;
+  endMonths: number;
+  peakMonth: number;
+  peakScore: number;
+  recommendation: string;
+};
+
+/* 모듈 스코프에 둔다 — 컴포넌트 안에서 정의하면 렌더마다 새 타입이 생겨
+   React가 툴팁을 통째로 다시 만든다(react-hooks/static-components).
+   클로저로 읽던 harvestWindow·axisLabels는 props로 받는다. Recharts는 content에
+   넘긴 엘리먼트를 cloneElement로 복제하며 자기 props를 합치므로 둘 다 살아남는다. */
+function CustomTooltip({
+  active,
+  payload,
+  label,
+  harvestWindow,
+  axisLabels,
+}: {
+  active?: boolean;
+  payload?: { value: number; dataKey: string }[];
+  label?: number;
+  harvestWindow: HarvestWindow | null;
+  axisLabels: ReturnType<typeof getTimelineAxisLabels>;
+}) {
+  if (!active || !payload?.length) return null;
+  const get = (key: string) => payload.find((p) => p.dataKey === key)?.value;
+  const quality = get('compositeQuality');
+  const texture = get('textureMaturity');
+  const bubble = get('bubbleRefinement');
+  const aroma = get('aromaFreshness');
+  const offFlavor = get('offFlavorRisk');
+  const isPeak = harvestWindow && label === harvestWindow.peakMonth;
+  return (
+    <div className={`px-3 py-2.5 rounded-xl border backdrop-blur-md ${isPeak ? 'bg-[#C4A052]/10 border-[#C4A052]/30' : 'bg-[#0d1421]/90 border-white/[0.08]'}`}>
+      <div className="flex items-center justify-between gap-4 mb-1.5">
+        <span className={`text-[11px] font-medium ${isPeak ? 'text-[#C4A052]' : 'text-white/60'}`}>
+          {label}개월{isPeak ? ' — Peak' : ''}
+        </span>
+        {quality != null && (
+          <span className="text-sm font-mono font-medium text-[#C4A052]">{Math.round(quality)}</span>
+        )}
+      </div>
+      <div className="grid grid-cols-2 gap-x-3 gap-y-0.5">
+        {texture != null && <span className="text-[10px] text-emerald-400/60">{axisLabels.textureMaturity} {Math.round(texture)}</span>}
+        {aroma != null && <span className="text-[10px] text-red-400/50">{axisLabels.aromaFreshness} {Math.round(aroma)}</span>}
+        {bubble != null && <span className="text-[10px] text-emerald-400/60">{axisLabels.bubbleRefinement} {Math.round(bubble)}</span>}
+        {offFlavor != null && <span className="text-[10px] text-red-400/50">{axisLabels.offFlavorRisk} {Math.round(offFlavor)}</span>}
+      </div>
+    </div>
+  );
+}
+
 export function TimelineChart({
   data,
   harvestWindow,
@@ -24,7 +77,7 @@ export function TimelineChart({
   category,
 }: {
   data: { month: number; textureMaturity: number; aromaFreshness: number; offFlavorRisk: number; bubbleRefinement: number; compositeQuality?: number; gainScore?: number; lossScore?: number; netBenefit?: number }[];
-  harvestWindow: { startMonths: number; endMonths: number; peakMonth: number; peakScore: number; recommendation: string } | null;
+  harvestWindow: HarvestWindow | null;
   plannedMonths?: number | null;
   category?: string | null;
 }) {
@@ -52,36 +105,6 @@ export function TimelineChart({
         return data.find(d => (d.compositeQuality ?? 0) >= threshold) ?? null;
       })()
     : null;
-
-  // 커스텀 툴팁
-  const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?: { value: number; dataKey: string }[]; label?: number }) => {
-    if (!active || !payload?.length) return null;
-    const get = (key: string) => payload.find((p) => p.dataKey === key)?.value;
-    const quality = get('compositeQuality');
-    const texture = get('textureMaturity');
-    const bubble = get('bubbleRefinement');
-    const aroma = get('aromaFreshness');
-    const offFlavor = get('offFlavorRisk');
-    const isPeak = harvestWindow && label === harvestWindow.peakMonth;
-    return (
-      <div className={`px-3 py-2.5 rounded-xl border backdrop-blur-md ${isPeak ? 'bg-[#C4A052]/10 border-[#C4A052]/30' : 'bg-[#0d1421]/90 border-white/[0.08]'}`}>
-        <div className="flex items-center justify-between gap-4 mb-1.5">
-          <span className={`text-[11px] font-medium ${isPeak ? 'text-[#C4A052]' : 'text-white/60'}`}>
-            {label}개월{isPeak ? ' — Peak' : ''}
-          </span>
-          {quality != null && (
-            <span className="text-sm font-mono font-medium text-[#C4A052]">{Math.round(quality)}</span>
-          )}
-        </div>
-        <div className="grid grid-cols-2 gap-x-3 gap-y-0.5">
-          {texture != null && <span className="text-[10px] text-emerald-400/60">{axisLabels.textureMaturity} {Math.round(texture)}</span>}
-          {aroma != null && <span className="text-[10px] text-red-400/50">{axisLabels.aromaFreshness} {Math.round(aroma)}</span>}
-          {bubble != null && <span className="text-[10px] text-emerald-400/60">{axisLabels.bubbleRefinement} {Math.round(bubble)}</span>}
-          {offFlavor != null && <span className="text-[10px] text-red-400/50">{axisLabels.offFlavorRisk} {Math.round(offFlavor)}</span>}
-        </div>
-      </div>
-    );
-  };
 
   return (
     <ResponsiveContainer width="100%" height="100%">
@@ -131,7 +154,7 @@ export function TimelineChart({
           tickLine={false}
           tickCount={6}
         />
-        <Tooltip content={<CustomTooltip />} cursor={{ stroke: 'rgba(196,160,82,0.2)', strokeWidth: 1, strokeDasharray: '3 3' }} />
+        <Tooltip content={<CustomTooltip harvestWindow={harvestWindow} axisLabels={axisLabels} />} cursor={{ stroke: 'rgba(196,160,82,0.2)', strokeWidth: 1, strokeDasharray: '3 3' }} />
 
         {/* 이득/손실 영역 — 극히 미묘한 배경 */}
         <Area type="monotone" dataKey="gainScore" stroke="none" fill="url(#gainFill)" legendType="none" />

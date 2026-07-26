@@ -94,6 +94,13 @@ function useImageUpload() {
 }
 
 // ─── 이미지 업로드 UI 컴포넌트 ───
+/**
+ * ref는 나머지 상태와 분리해 받는다.
+ *
+ * useImageUpload가 inputRef를 state와 한 객체에 담아 돌려주는데, 그 객체를 통째로
+ * 넘기면 렌더 중 `upload.preview` 같은 읽기가 전부 "렌더 중 ref 접근"으로 잡힌다
+ * (react-hooks/refs). ref는 ref로, 값은 값으로 나눠 받으면 그 혼동이 사라진다.
+ */
 function ImageUploadBox({
   label,
   placeholder,
@@ -105,6 +112,7 @@ function ImageUploadBox({
   upload: ReturnType<typeof useImageUpload>;
   disabled: boolean;
 }) {
+  const { inputRef, preview, isDragging, setIsDragging, processFile, remove } = upload;
   return (
     <div>
       <label className="block text-sm text-white/60 mb-3">
@@ -112,36 +120,36 @@ function ImageUploadBox({
         {label}
       </label>
       <input
-        ref={upload.inputRef}
+        ref={inputRef}
         type="file"
         accept="image/*"
-        onChange={(e) => e.target.files?.[0] && upload.processFile(e.target.files[0])}
+        onChange={(e) => e.target.files?.[0] && processFile(e.target.files[0])}
         className="hidden"
         disabled={disabled}
       />
-      {upload.preview ? (
+      {preview ? (
         <div className="relative rounded-xl overflow-hidden border border-white/10 inline-block">
-          <Image src={upload.preview} alt={label} width={300} height={200} className="max-h-[200px] w-auto object-contain" />
-          <button onClick={upload.remove} disabled={disabled} className="absolute top-2 right-2 p-1.5 bg-black/60 rounded-full hover:bg-black/80 transition-colors disabled:opacity-50">
+          <Image src={preview} alt={label} width={300} height={200} className="max-h-[200px] w-auto object-contain" />
+          <button onClick={remove} disabled={disabled} className="absolute top-2 right-2 p-1.5 bg-black/60 rounded-full hover:bg-black/80 transition-colors disabled:opacity-50">
             <X className="w-4 h-4 text-white" />
           </button>
         </div>
       ) : (
         <div
-          onClick={() => !disabled && upload.inputRef.current?.click()}
-          onDragEnter={(e) => { e.preventDefault(); e.stopPropagation(); upload.setIsDragging(true); }}
+          onClick={() => !disabled && inputRef.current?.click()}
+          onDragEnter={(e) => { e.preventDefault(); e.stopPropagation(); setIsDragging(true); }}
           onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
-          onDragLeave={(e) => { e.preventDefault(); e.stopPropagation(); upload.setIsDragging(false); }}
-          onDrop={!disabled ? (e) => { e.preventDefault(); e.stopPropagation(); upload.setIsDragging(false); if (e.dataTransfer.files[0]) upload.processFile(e.dataTransfer.files[0]); } : undefined}
+          onDragLeave={(e) => { e.preventDefault(); e.stopPropagation(); setIsDragging(false); }}
+          onDrop={!disabled ? (e) => { e.preventDefault(); e.stopPropagation(); setIsDragging(false); if (e.dataTransfer.files[0]) processFile(e.dataTransfer.files[0]); } : undefined}
           className={`w-full py-10 border-2 border-dashed rounded-xl transition-all cursor-pointer text-center ${
             disabled ? 'opacity-50 cursor-not-allowed border-white/20'
-              : upload.isDragging ? 'border-[#ccb69a] bg-[#ccb69a]/10 scale-[1.02]'
+              : isDragging ? 'border-[#ccb69a] bg-[#ccb69a]/10 scale-[1.02]'
               : 'border-white/20 hover:border-[#ccb69a]/50 hover:bg-white/[0.02]'
           }`}
         >
-          <Upload className={`w-8 h-8 mx-auto mb-3 transition-colors ${upload.isDragging ? 'text-[#ccb69a]' : 'text-white/30'}`} />
-          <p className={`text-sm ${upload.isDragging ? 'text-[#ccb69a]' : 'text-white/40'}`}>
-            {upload.isDragging ? '여기에 놓으세요' : placeholder}
+          <Upload className={`w-8 h-8 mx-auto mb-3 transition-colors ${isDragging ? 'text-[#ccb69a]' : 'text-white/30'}`} />
+          <p className={`text-sm ${isDragging ? 'text-[#ccb69a]' : 'text-white/40'}`}>
+            {isDragging ? '여기에 놓으세요' : placeholder}
           </p>
           <p className="text-xs text-white/25 mt-1">클릭 또는 드래그 앤 드롭</p>
         </div>

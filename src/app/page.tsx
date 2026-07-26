@@ -1,5 +1,6 @@
 'use client';
 
+import { useIsMounted } from '@/lib/hooks/use-client-env';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
@@ -280,11 +281,8 @@ export default function DashboardPage() {
   );
 
   const selectedYear = 2026; // Fixed year for budget/task filtering
-  const [mounted, setMounted] = useState(false);
+  const mounted = useIsMounted();
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   // 병렬 초기화 - 모든 스토어를 동시에 초기화하여 워터폴 제거
   useEffect(() => {

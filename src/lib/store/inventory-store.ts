@@ -36,6 +36,11 @@ interface InventoryState {
   transactions: InventoryTransaction[];
   customProducts: CustomProduct[];
   bottleUnits: BottleUnit[];
+  /* 소유 등록이 들어온 NFC 코드 — "태그 쓰기"(nfcWrittenAt)와는 다른 사실이다.
+     태그 쓰기는 우리가 태그를 구웠다는 기록이고, 이건 고객이 그 태그로 들어와
+     이름을 남겼다는 기록이다. bottle_registrations는 RLS로 막혀 있어
+     서버 라우트를 거친다. */
+  ownerRegisteredCodes: string[];
 
   // 상태
   isInitialized: boolean;
@@ -135,6 +140,25 @@ interface InventoryState {
 // ═══════════════════════════════════════════════════════════════════════════
 
 const generateId = () => `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+/**
+ * 소유 등록이 들어온 NFC 코드를 가져온다.
+ *
+ * bottle_registrations는 RLS 활성 + 정책 0개라 anon 클라이언트로 못 읽는다.
+ * service_role 서버 라우트를 거치고, 응답에는 코드만 담긴다(이름·이메일 제외).
+ * 실패해도 재고 화면은 계속 돌아야 하므로 빈 배열로 떨어뜨린다 —
+ * 그러면 배지가 "확인 안 됨"으로 보이지, 틀린 사실을 말하지는 않는다.
+ */
+async function fetchOwnerRegisteredCodes(): Promise<string[]> {
+  try {
+    const res = await fetch('/api/inventory/nfc-registrations');
+    if (!res.ok) return [];
+    const json = (await res.json()) as { codes?: string[] };
+    return json.codes ?? [];
+  } catch {
+    return [];
+  }
+}
 
 /** 병마다 번호를 들고 있는 제품 (2025 퍼스트 에디션). 배치 제품과 처리 경로가 다르다. */
 const NUMBERED_PRODUCT_IDS = new Set<string>(PRODUCTS.filter((p) => p.isNumbered).map((p) => p.id));
@@ -397,6 +421,7 @@ export const useInventoryStore = create<InventoryState>()((set, get) => ({
       transactions: [],
       customProducts: [],
       bottleUnits: [],
+      ownerRegisteredCodes: [],
       isInitialized: false,
       isLoading: false,
       useSupabase: isSupabaseConfigured(),
@@ -422,12 +447,13 @@ export const useInventoryStore = create<InventoryState>()((set, get) => ({
 
         try {
           // Supabase에서 데이터 로드 (항상 최신 데이터)
-          const [bottles, batches, transactions, customProducts, units] = await Promise.all([
+          const [bottles, batches, transactions, customProducts, units, ownerCodes] = await Promise.all([
             db.fetchNumberedBottles(),
             db.fetchInventoryBatches(),
             db.fetchInventoryTransactions(500), // 더 많은 트랜잭션 로드
             db.fetchCustomProducts(),
             db.fetchBottleUnits(),
+            fetchOwnerRegisteredCodes(),
           ]);
 
           // DB에서 로드한 배치 매핑
@@ -474,6 +500,7 @@ export const useInventoryStore = create<InventoryState>()((set, get) => ({
             transactions: transactions?.map(db.mapDbTransactionToTransaction) || [],
             customProducts: customProducts?.map(db.mapDbCustomProductToProduct) || [],
             bottleUnits: units.map(db.mapDbBottleUnitToBottleUnit),
+            ownerRegisteredCodes: ownerCodes,
             isInitialized: true,
             isLoading: false,
             useSupabase: true,
@@ -502,12 +529,13 @@ export const useInventoryStore = create<InventoryState>()((set, get) => ({
         set({ isLoading: true });
 
         try {
-          const [bottles, batches, transactions, customProducts, units] = await Promise.all([
+          const [bottles, batches, transactions, customProducts, units, ownerCodes] = await Promise.all([
             db.fetchNumberedBottles(),
             db.fetchInventoryBatches(),
             db.fetchInventoryTransactions(500),
             db.fetchCustomProducts(),
             db.fetchBottleUnits(),
+            fetchOwnerRegisteredCodes(),
           ]);
 
           // DB에서 로드한 배치 매핑
@@ -554,6 +582,7 @@ export const useInventoryStore = create<InventoryState>()((set, get) => ({
             transactions: transactions?.map(db.mapDbTransactionToTransaction) || [],
             customProducts: customProducts?.map(db.mapDbCustomProductToProduct) || [],
             bottleUnits: units.map(db.mapDbBottleUnitToBottleUnit),
+            ownerRegisteredCodes: ownerCodes,
             isLoading: false,
           });
         } catch (error) {

@@ -116,7 +116,18 @@ export default function SettingsPage() {
   const { budgetItems, expenseItems } = useBudgetStore();
 
   // App Settings State
-  const [appSettings, setAppSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
+  /* 저장된 설정을 첫 렌더에서 바로 읽는다.
+     이펙트로 읽으면 기본값이 한 번 그려진 뒤 바뀌어 화면이 튀고,
+     이펙트 본문의 동기 setState라 연쇄 렌더도 난다. */
+  const [appSettings, setAppSettings] = useState<AppSettings>(() => {
+    if (typeof window === 'undefined') return DEFAULT_SETTINGS;
+    try {
+      const saved = localStorage.getItem('muse-app-settings');
+      return saved ? { ...DEFAULT_SETTINGS, ...JSON.parse(saved) } : DEFAULT_SETTINGS;
+    } catch {
+      return DEFAULT_SETTINGS;
+    }
+  });
 
   // UI State
   const [passwordModal, setPasswordModal] = useState<{
@@ -128,17 +139,6 @@ export default function SettingsPage() {
 
   const [activeSection, setActiveSection] = useState<string | null>(null);
 
-  // Load settings from localStorage
-  useEffect(() => {
-    const saved = localStorage.getItem('muse-app-settings');
-    if (saved) {
-      try {
-        setAppSettings({ ...DEFAULT_SETTINGS, ...JSON.parse(saved) });
-      } catch {
-        // Use defaults
-      }
-    }
-  }, []);
 
   // Save settings to localStorage
   const saveSettings = (newSettings: Partial<AppSettings>) => {

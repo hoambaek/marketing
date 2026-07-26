@@ -1,5 +1,6 @@
 'use client';
 
+import { useCurrentYearMonth, useIsMounted } from '@/lib/hooks/use-client-env';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import dynamic from 'next/dynamic';
@@ -63,10 +64,20 @@ export default function MonthlyPlanPage() {
     }))
   );
 
-  const [selectedYear, setSelectedYear] = useState<number>(2026);
-  const [selectedMonth, setSelectedMonth] = useState<number>(1);
+  /* 기본값은 "오늘"이고, 사용자가 고르면 그 선택이 덮는다.
+     렌더 중 new Date()는 서버·클라이언트 값이 달라 하이드레이션을 깨뜨리므로
+     스냅샷을 나눠 받는 훅으로 읽는다. */
+  const today = useCurrentYearMonth();
+  const autoYear = AVAILABLE_YEARS.includes(today.year) ? today.year : 2026;
+  const autoMonth = AVAILABLE_YEARS.includes(today.year) ? today.month : 1;
+  const [pickedYear, setPickedYear] = useState<number | null>(null);
+  const [pickedMonth, setPickedMonth] = useState<number | null>(null);
+  const selectedYear = pickedYear ?? autoYear;
+  const selectedMonth = pickedMonth ?? autoMonth;
+  const setSelectedYear = setPickedYear;
+  const setSelectedMonth = setPickedMonth;
   const [selectedCategory, setSelectedCategory] = useState<TaskCategory | 'all'>('all');
-  const [isMounted, setIsMounted] = useState(false);
+  const isMounted = useIsMounted();
 
   // Modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -75,16 +86,6 @@ export default function MonthlyPlanPage() {
   // Refs for swipe gestures
   const containerRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    setIsMounted(true);
-    const now = new Date();
-    const currentYear = now.getFullYear();
-    const currentMonth = now.getMonth() + 1;
-    if (AVAILABLE_YEARS.includes(currentYear)) {
-      setSelectedYear(currentYear);
-      setSelectedMonth(currentMonth);
-    }
-  }, []);
 
   const currentMonthInfo = MONTHS_INFO.find((m) => m.id === selectedMonth);
   const phase = PHASE_INFO.find((p) => p.months.includes(selectedMonth));
@@ -532,6 +533,8 @@ export default function MonthlyPlanPage() {
 
       {/* Task Modal */}
       <TaskModal
+        /* 대상이 바뀌면 새로 마운트해 폼을 다시 만든다 — 이펙트로 채우지 않는다 */
+        key={`${isModalOpen}-${editingTask?.id ?? 'new'}`}
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onSave={handleSaveTask}

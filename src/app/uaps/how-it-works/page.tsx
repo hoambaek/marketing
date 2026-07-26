@@ -486,7 +486,7 @@ export default function HowItWorksPage() {
         >
           <p>
             AI 언어 모델이 수집된 리뷰 텍스트를 읽고 6가지 풍미 축의 강도를 0–100 점수로 변환합니다.
-            예를 들어 "풍부한 효모 향과 크리미한 질감"이라는 리뷰는
+            예를 들어 &quot;풍부한 효모 향과 크리미한 질감&quot;이라는 리뷰는
             <span className="text-emerald-300 mx-1">Yeasty 높음 / Body 높음</span> 으로 수치화됩니다.
           </p>
           <p>
@@ -495,15 +495,15 @@ export default function HowItWorksPage() {
           <div className="mt-1 rounded-lg bg-white/[0.03] border border-white/[0.05] p-3 space-y-1.5 font-mono text-[10px]">
             <div className="flex items-center gap-2">
               <span className="text-emerald-400 w-24 shrink-0">가장 정확 (0.92)</span>
-              <span className="text-white/40">빈티지 연도 + 시음 날짜 계산 → "2015년 빈티지, 2023년 시음 = 8년"</span>
+              <span className="text-white/40">빈티지 연도 + 시음 날짜 계산 → &quot;2015년 빈티지, 2023년 시음 = 8년&quot;</span>
             </div>
             <div className="flex items-center gap-2">
               <span className="text-cyan-400 w-24 shrink-0">직접 언급 (0.85)</span>
-              <span className="text-white/40">리뷰 텍스트 추출 → "aged 5 years on the lees"</span>
+              <span className="text-white/40">리뷰 텍스트 추출 → &quot;aged 5 years on the lees&quot;</span>
             </div>
             <div className="flex items-center gap-2">
               <span className="text-violet-400 w-24 shrink-0">간접 추론 (0.60)</span>
-              <span className="text-white/40">성숙도 표현에서 추정 → "fully mature, peak drinking"</span>
+              <span className="text-white/40">성숙도 표현에서 추정 → &quot;fully mature, peak drinking&quot;</span>
             </div>
             <div className="flex items-center gap-2 pt-1 border-t border-white/[0.04]">
               <span className="text-red-400/70 w-24 shrink-0">신뢰도 미달</span>
@@ -534,12 +534,12 @@ export default function HowItWorksPage() {
           ]}
         >
           <p>
-            해저 예측의 핵심 전제는 <span className="text-violet-300">"지상에서 이 음료가 시간이 지나면 어떻게 변하는가"</span>를 먼저 아는 것입니다.
+            해저 예측의 핵심 전제는 <span className="text-violet-300">&quot;지상에서 이 음료가 시간이 지나면 어떻게 변하는가&quot;</span>를 먼저 아는 것입니다.
             이것을 알아야 해저 환경이 그 변화를 어떻게 다르게 만드는지 계산할 수 있습니다.
           </p>
           <p>
             같은 종류의 음료 수천 건을 숙성 연수별로 묶어 각 시점의 6축 평균을 계산합니다.
-            예를 들어 "블랑 드 블랑 3년 숙성의 평균 풍미"가 기준점이 됩니다.
+            예를 들어 &quot;블랑 드 블랑 3년 숙성의 평균 풍미&quot;가 기준점이 됩니다.
           </p>
 
           <TerrestrialFlowDiagram />

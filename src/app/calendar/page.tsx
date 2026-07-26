@@ -554,6 +554,8 @@ export default function CalendarPage() {
 
       {/* Content Modal */}
       <ContentModal
+        /* 대상이 바뀌면 새로 마운트해 폼을 다시 만든다 — 이펙트로 채우지 않는다 */
+        key={`${isModalOpen}-${editingContent?.id ?? 'new'}`}
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onSave={handleSaveContent}

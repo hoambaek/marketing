@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import {
@@ -47,41 +47,9 @@ export function OceanConditionsCard({
   tsiScore,
   accentColor = '#22d3ee',
 }: OceanConditionsCardProps) {
-  if (!currentConditions) {
-    return (
-      <div className="bg-white/[0.02] border border-white/[0.06] rounded-2xl p-5">
-        <div className="flex items-center gap-2 mb-3">
-          <Waves className="w-4 h-4" style={{ color: accentColor }} />
-          <h3 className="text-sm font-medium text-white/80">해양 환경 현황</h3>
-        </div>
-        <p className="text-xs text-white/30 mb-3">해양 데이터가 수집되지 않았습니다.</p>
-        <Link
-          href="/data-log"
-          className="text-xs hover:underline transition-colors"
-          style={{ color: accentColor }}
-        >
-          /data-log에서 데이터 수집 →
-        </Link>
-      </div>
-    );
-  }
-
-  const items = [
-    { label: '수온', value: currentConditions.seaTemperature, unit: '°C', icon: Thermometer, color: '#60a5fa' },
-    { label: '해류', value: currentConditions.currentVelocity, unit: 'm/s', icon: Wind, color: '#34d399' },
-    { label: '파고', value: currentConditions.waveHeight, unit: 'm', icon: Waves, color: '#a78bfa' },
-    { label: '파주기', value: currentConditions.wavePeriod, unit: 's', icon: Timer, color: '#fbbf24' },
-    { label: '수압', value: currentConditions.waterPressure, unit: 'atm', icon: ArrowDown, color: '#f472b6' },
-    { label: '염도', value: currentConditions.salinity, unit: '‰', icon: Anchor, color: '#fbbf24' },
-  ];
-
-  const lastUpdated = currentConditions.lastUpdated
-    ? new Date(currentConditions.lastUpdated)
-    : null;
-  const timeSince = lastUpdated
-    ? Math.round((Date.now() - lastUpdated.getTime()) / 3600000)
-    : null;
-
+  /* 훅은 조기 반환보다 위에 둔다 — 아래에 있으면 currentConditions가 없을 때만
+     훅 호출이 건너뛰어져 렌더마다 훅 개수가 달라진다(Rendered fewer hooks than expected).
+     두 useMemo 모두 내부에 null 가드가 있어 위로 올려도 계산 결과는 같다. */
   // 데이터 소스 뱃지 설정
   const sourceBadge = useMemo(() => {
     if (!dataSource) return null;
@@ -156,6 +124,59 @@ export function OceanConditionsCard({
     return { text: '주의', color: '#f87171' };
   }, [currentConditions, tsiScore]);
 
+  /* 경과 시간은 렌더 중에 Date.now()로 계산하면 안 된다 — 서버와 클라이언트가 다른 값을
+     내놓아 하이드레이션이 어긋나고, 리렌더마다 값이 흔들린다. 마운트 후 클라이언트에서
+     한 번 계산하고, 1분마다 갱신한다. */
+  const [timeSince, setTimeSince] = useState<number | null>(null);
+  const updatedAt = currentConditions?.lastUpdated ?? null;
+  useEffect(() => {
+    /* 갱신 시각이 없으면 아무것도 하지 않는다. 이전 값을 setState로 지우면
+       그것도 이펙트 본문의 동기 setState라 연쇄 렌더가 된다 — 표시 쪽에서 거른다. */
+    if (!updatedAt) return;
+    const at = new Date(updatedAt).getTime();
+    const tick = () => setTimeSince(Math.round((Date.now() - at) / 3600000));
+    /* 첫 계산도 이펙트 본문에서 동기로 부르지 않는다 — 같은 커밋 안에서
+       연쇄 렌더가 일어난다. 한 틱 미루면 표시 시점은 사실상 같다. */
+    const first = setTimeout(tick, 0);
+    const id = setInterval(tick, 60_000);
+    return () => {
+      clearTimeout(first);
+      clearInterval(id);
+    };
+  }, [updatedAt]);
+
+  if (!currentConditions) {
+    return (
+      <div className="bg-white/[0.02] border border-white/[0.06] rounded-2xl p-5">
+        <div className="flex items-center gap-2 mb-3">
+          <Waves className="w-4 h-4" style={{ color: accentColor }} />
+          <h3 className="text-sm font-medium text-white/80">해양 환경 현황</h3>
+        </div>
+        <p className="text-xs text-white/30 mb-3">해양 데이터가 수집되지 않았습니다.</p>
+        <Link
+          href="/data-log"
+          className="text-xs hover:underline transition-colors"
+          style={{ color: accentColor }}
+        >
+          /data-log에서 데이터 수집 →
+        </Link>
+      </div>
+    );
+  }
+
+  const items = [
+    { label: '수온', value: currentConditions.seaTemperature, unit: '°C', icon: Thermometer, color: '#60a5fa' },
+    { label: '해류', value: currentConditions.currentVelocity, unit: 'm/s', icon: Wind, color: '#34d399' },
+    { label: '파고', value: currentConditions.waveHeight, unit: 'm', icon: Waves, color: '#a78bfa' },
+    { label: '파주기', value: currentConditions.wavePeriod, unit: 's', icon: Timer, color: '#fbbf24' },
+    { label: '수압', value: currentConditions.waterPressure, unit: 'atm', icon: ArrowDown, color: '#f472b6' },
+    { label: '염도', value: currentConditions.salinity, unit: '‰', icon: Anchor, color: '#fbbf24' },
+  ];
+
+  const lastUpdated = currentConditions.lastUpdated
+    ? new Date(currentConditions.lastUpdated)
+    : null;
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
@@ -184,7 +205,7 @@ export function OceanConditionsCard({
               </span>
             </div>
           )}
-          {timeSince !== null && (
+          {updatedAt && timeSince !== null && (
             <span className="text-[10px] text-white/25">
               {timeSince < 1 ? '방금 전' : `${timeSince}시간 전`}
             </span>

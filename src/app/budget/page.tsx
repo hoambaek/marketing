@@ -820,6 +820,8 @@ export default function BudgetPage() {
 
       {/* Modals */}
       <IncomeModal
+        /* 대상이 바뀌면 새로 마운트해 폼을 다시 만든다 — 이펙트로 채우지 않는다 */
+        key={`income-${isIncomeModalOpen}-${editingIncome?.id ?? 'new'}`}
         isOpen={isIncomeModalOpen}
         onClose={() => setIsIncomeModalOpen(false)}
         onSave={handleSaveIncome}
@@ -831,6 +833,8 @@ export default function BudgetPage() {
       />
 
       <ExpenseModal
+        /* 대상이 바뀌면 새로 마운트해 폼을 다시 만든다 — 이펙트로 채우지 않는다 */
+        key={`expense-${isExpenseModalOpen}-${editingExpense?.id ?? 'new'}`}
         isOpen={isExpenseModalOpen}
         onClose={() => setIsExpenseModalOpen(false)}
         onSave={handleSaveExpense}

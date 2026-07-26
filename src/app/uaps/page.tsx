@@ -172,15 +172,16 @@ export default function UAPSPage() {
   const listCategory = 'champagne';
   // predictionMonths는 제품의 plannedDurationMonths 사용
 
-  const [localTci, setLocalTci] = useState(config.tci);
-  const [localFri, setLocalFri] = useState(config.fri);
-  const [localBri, setLocalBri] = useState(config.bri);
+  /* 슬라이더 값은 config에서 파생하고, 사용자가 움직인 축만 그 값이 덮는다.
+     이펙트로 config→local을 되맞추면 이펙트 본문의 동기 setState가 되어
+     연쇄 렌더가 난다(react-hooks/set-state-in-effect). */
+  const [tciEdit, setLocalTci] = useState<number | null>(null);
+  const [friEdit, setLocalFri] = useState<number | null>(null);
+  const [briEdit, setLocalBri] = useState<number | null>(null);
+  const localTci = tciEdit ?? config.tci;
+  const localFri = friEdit ?? config.fri;
+  const localBri = briEdit ?? config.bri;
 
-  useEffect(() => {
-    setLocalTci(config.tci);
-    setLocalFri(config.fri);
-    setLocalBri(config.bri);
-  }, [config.tci, config.fri, config.bri]);
 
   // 투입 월 추출 (immersionDate에서, 없으면 현재 월)
   const immersionMonth = useMemo(() => {
@@ -220,14 +221,21 @@ export default function UAPSPage() {
 
   // 인양 실측(retrieval) 로드 — 있으면 레이더 before/after를 실측 6축 평균으로 대체
   // (before=terrestrial 숙성 전, after=actual 숙성 후. 관측이 예측을 이긴다. 표시 전용)
-  const [retrievals, setRetrievals] = useState<RetrievalResult[]>([]);
+  /* 어느 제품의 결과인지 함께 담는다 — 제품이 바뀐 직후 이전 결과가 잠깐 보이는 것도,
+     이펙트 본문에서 동기로 비우는 것도 피한다. 응답이 와야 값이 바뀐다. */
+  const [retrievalState, setRetrievalState] = useState<{ productId: string | null; results: RetrievalResult[] }>({
+    productId: null,
+    results: [],
+  });
+  const retrievals = retrievalState.productId === selectedProductId ? retrievalState.results : [];
   useEffect(() => {
-    if (!selectedProductId) { setRetrievals([]); return; }
+    if (!selectedProductId) return;
+    const productId = selectedProductId;
     let cancelled = false;
-    fetch(`/api/uaps/retrieval-results?productId=${selectedProductId}`)
+    fetch(`/api/uaps/retrieval-results?productId=${productId}`)
       .then(r => (r.ok ? r.json() : { results: [] }))
-      .then(d => { if (!cancelled) setRetrievals(d.results ?? []); })
-      .catch(() => { if (!cancelled) setRetrievals([]); });
+      .then(d => { if (!cancelled) setRetrievalState({ productId, results: d.results ?? [] }); })
+      .catch(() => { if (!cancelled) setRetrievalState({ productId, results: [] }); });
     return () => { cancelled = true; };
   }, [selectedProductId]);
 

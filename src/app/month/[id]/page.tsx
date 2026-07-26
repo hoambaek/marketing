@@ -1,5 +1,6 @@
 'use client';
 
+import { useIsMounted } from '@/lib/hooks/use-client-env';
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
@@ -84,12 +85,8 @@ export default function MonthDetailPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [selectedWeek, setSelectedWeek] = useState(1);
-  const [isMounted, setIsMounted] = useState(false);
+  const isMounted = useIsMounted();
 
-  // Prevent hydration mismatch by only rendering DnD after mount
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
 
   // DnD Sensors
   const sensors = useSensors(
@@ -469,6 +466,8 @@ export default function MonthDetailPage() {
 
       {/* Task Modal */}
       <TaskModal
+        /* 대상이 바뀌면 새로 마운트해 폼을 다시 만든다 — 이펙트로 채우지 않는다 */
+        key={`${isModalOpen}-${editingTask?.id ?? 'new'}`}
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onSave={handleSaveTask}
