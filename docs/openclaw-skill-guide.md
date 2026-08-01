@@ -3,7 +3,7 @@
 ## 연결 정보
 
 - **Base URL**: `https://plan.musedemaree.com/api/external/db`
-- **인증**: `Authorization: Bearer fbad479dcacb65c2dabd2383567e33150aaf2da4c5bdddca440a2d4d2b84ddb6`
+- **인증**: `Authorization: Bearer <EXTERNAL_API_KEY>`
 
 ---
 
@@ -14,7 +14,7 @@
 사용 가능한 전체 함수 목록과 파라미터 스키마를 반환합니다.
 
 ```bash
-curl -H "Authorization: Bearer fbad479dcacb65c2dabd2383567e33150aaf2da4c5bdddca440a2d4d2b84ddb6" \
+curl -H "Authorization: Bearer <EXTERNAL_API_KEY>" \
   https://plan.musedemaree.com/api/external/db
 ```
 
@@ -24,7 +24,7 @@ DB 함수를 실행합니다.
 
 ```bash
 curl -X POST https://plan.musedemaree.com/api/external/db \
-  -H "Authorization: Bearer fbad479dcacb65c2dabd2383567e33150aaf2da4c5bdddca440a2d4d2b84ddb6" \
+  -H "Authorization: Bearer <EXTERNAL_API_KEY>" \
   -H "Content-Type: application/json" \
   -d '{"action": "getTasks", "params": {"year": 2026, "month": 2}}'
 ```
@@ -173,6 +173,6 @@ curl -X POST https://plan.musedemaree.com/api/external/db \
 정확한 파라미터 스키마는 GET 요청으로 실시간 확인 가능:
 
 ```bash
-curl -H "Authorization: Bearer fbad479dcacb65c2dabd2383567e33150aaf2da4c5bdddca440a2d4d2b84ddb6" \
+curl -H "Authorization: Bearer <EXTERNAL_API_KEY>" \
   https://plan.musedemaree.com/api/external/db | jq '.functions[] | select(.name == "createTask")'
 ```
