@@ -32,9 +32,14 @@ interface BrandBookRow {
   email: string;
   name: string | null;
   affiliation: string | null;
+  /** 승인 워크플로 축 — 우리가 어디까지 처리했는가 */
   status: 'pending' | 'approved' | 'sent' | 'rejected';
   created_at: string;
   sent_at: string | null;
+  /** 전달 축 — Resend 웹훅이 알려주는 실제 도착 여부. null이면 아직 이벤트 없음 */
+  delivery_status: string | null;
+  delivered_at: string | null;
+  delivery_error: string | null;
 }
 interface PartnerRow {
   id: string;
@@ -152,6 +157,42 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
+/**
+ * 전달 상태 배지 — 승인 상태와 다른 축이다.
+ * 승인 축의 'sent'는 "우리가 보냈다", 전달 축의 'sent'는 "Resend가 받아 보내는 중"이라
+ * 같은 단어가 다른 뜻이 된다. 그래서 라벨 사전을 따로 둔다.
+ */
+function DeliveryBadge({ status, error }: { status: string | null; error: string | null }) {
+  if (!status) return <span className="text-white/25">—</span>;
+  const map: Record<string, string> = {
+    sent: 'bg-sky-400/10 text-sky-300 border-sky-400/20',
+    delivered: 'bg-emerald-400/10 text-emerald-300 border-emerald-400/20',
+    delivery_delayed: 'bg-amber-400/10 text-amber-300 border-amber-400/20',
+    bounced: 'bg-rose-400/10 text-rose-300 border-rose-400/20',
+    complained: 'bg-rose-400/10 text-rose-300 border-rose-400/20',
+    failed: 'bg-rose-400/10 text-rose-300 border-rose-400/20',
+  };
+  const label: Record<string, string> = {
+    sent: '전송중',
+    delivered: '도착',
+    delivery_delayed: '지연',
+    bounced: '반송',
+    complained: '스팸신고',
+    failed: '실패',
+  };
+  return (
+    <span
+      title={error ?? undefined}
+      className={cn(
+        'inline-flex items-center rounded-md border px-2 py-0.5 text-[11px] font-medium',
+        map[status] ?? 'bg-white/[0.04] text-white/50 border-white/[0.08]'
+      )}
+    >
+      {label[status] ?? status}
+    </span>
+  );
+}
+
 // ── 메인 ────────────────────────────────────────────────
 export default function AdminDashboard({ brandbook, partner, invitations, subscribers, embedded = false }: Props) {
   const [tab, setTab] = useState<TabKey>('brandbook');
@@ -175,7 +216,7 @@ export default function AdminDashboard({ brandbook, partner, invitations, subscr
   // React Compiler가 자동 메모이즈 — 수동 useMemo 없이 직접 계산
   const filtered =
     tab === 'brandbook'
-      ? brandbook.filter((r) => match(r.name, r.affiliation, r.email, r.status))
+      ? brandbook.filter((r) => match(r.name, r.affiliation, r.email, r.status, r.delivery_status))
       : tab === 'partner'
         ? partner.filter((r) => match(r.category, r.venue, r.name, r.email, r.message, r.status))
         : tab === 'invitations'
@@ -204,6 +245,7 @@ export default function AdminDashboard({ brandbook, partner, invitations, subscr
         `brandbook_${stamp}.csv`,
         toCsv(filtered as unknown as Record<string, unknown>[], [
           'name', 'affiliation', 'email', 'status', 'created_at', 'sent_at',
+          'delivery_status', 'delivered_at', 'delivery_error',
         ])
       );
     } else if (tab === 'partner') {
@@ -320,7 +362,7 @@ export default function AdminDashboard({ brandbook, partner, invitations, subscr
                 {tab === 'brandbook' && (
                   <>
                     <th className={th}>이름</th><th className={th}>소속</th><th className={th}>이메일</th>
-                    <th className={th}>상태</th><th className={th}>신청일</th><th className={th}>작업</th>
+                    <th className={th}>상태</th><th className={th}>전달</th><th className={th}>신청일</th><th className={th}>작업</th>
                   </>
                 )}
                 {tab === 'partner' && (
@@ -356,6 +398,12 @@ export default function AdminDashboard({ brandbook, partner, invitations, subscr
                   <td className={td}>{r.affiliation ?? '—'}</td>
                   <td className={td}>{r.email}</td>
                   <td className={td}><StatusBadge status={r.status} /></td>
+                  <td className={cn(td, 'whitespace-nowrap')}>
+                    <DeliveryBadge status={r.delivery_status} error={r.delivery_error} />
+                    {r.delivered_at && (
+                      <div className="mt-1 text-[11px] text-white/35">{fmt(r.delivered_at)}</div>
+                    )}
+                  </td>
                   <td className={cn(td, 'whitespace-nowrap text-white/50')}>{fmt(r.created_at)}</td>
                   <td className={td}>
                     <div className="flex flex-wrap gap-1.5">
