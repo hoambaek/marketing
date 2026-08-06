@@ -32,18 +32,115 @@ export interface KhoaObservationItem {
   crsp: number | null;   // 유속 (m/s)
 }
 
-interface KhoaApiResponse {
-  response: {
-    header: {
-      resultCode: string;
-      resultMsg: string;
+// ─── 응답 파서 (JSON 기본 + XML 폴백) ───
+// data.go.kr KHOA OpenAPI는 현재 application/json을 기본 반환한다.
+// 예전 XML 파서만 있으면 resultCode 00이어도 item 0건으로 조용히 비어 버린다.
+
+interface KhoaParsedBody {
+  resultCode: string;
+  resultMsg: string;
+  items: Record<string, unknown>[];
+}
+
+function toKhoaNumber(value: unknown): number | null {
+  if (value === null || value === undefined) return null;
+  const text = String(value).trim();
+  if (text === '') return null;
+  const num = typeof value === 'number' ? value : parseFloat(text);
+  return Number.isFinite(num) ? num : null;
+}
+
+function toKhoaString(value: unknown): string {
+  if (value === null || value === undefined) return '';
+  return String(value).trim();
+}
+
+function normalizeKhoaItems(raw: unknown): Record<string, unknown>[] {
+  if (raw == null) return [];
+  if (Array.isArray(raw)) {
+    return raw.filter((v): v is Record<string, unknown> => !!v && typeof v === 'object');
+  }
+  if (typeof raw === 'object') return [raw as Record<string, unknown>];
+  return [];
+}
+
+function parseKhoaResponseBody(text: string): KhoaParsedBody {
+  const trimmed = text.trim();
+  if (!trimmed) {
+    return { resultCode: '', resultMsg: 'empty body', items: [] };
+  }
+
+  if (trimmed.startsWith('{')) {
+    const data = JSON.parse(trimmed) as {
+      header?: { resultCode?: string | number; resultMsg?: string };
+      body?: { items?: { item?: unknown } | unknown[] | null };
+      response?: {
+        header?: { resultCode?: string | number; resultMsg?: string };
+        body?: { items?: { item?: unknown } | unknown[] | null };
+      };
     };
-    body: {
-      items: { item: KhoaObservationItem[] };
-      pageNo: number;
-      numOfRows: number;
-      totalCount: number;
+    const header = data.header ?? data.response?.header;
+    const body = data.body ?? data.response?.body;
+    const itemsNode = body?.items;
+    const rawItems =
+      itemsNode && typeof itemsNode === 'object' && !Array.isArray(itemsNode) && 'item' in itemsNode
+        ? (itemsNode as { item?: unknown }).item
+        : itemsNode;
+
+    return {
+      resultCode: String(header?.resultCode ?? ''),
+      resultMsg: String(header?.resultMsg ?? ''),
+      items: normalizeKhoaItems(rawItems),
     };
+  }
+
+  const codeMatch = trimmed.match(/<resultCode>([^<]+)<\/resultCode>/);
+  const msgMatch = trimmed.match(/<resultMsg>([^<]+)<\/resultMsg>/);
+  const items: Record<string, unknown>[] = [];
+  const itemRegex = /<item>([\s\S]*?)<\/item>/g;
+  let match: RegExpExecArray | null;
+  while ((match = itemRegex.exec(trimmed)) !== null) {
+    const itemXml = match[1];
+    const obj: Record<string, unknown> = {};
+    const tagRegex = /<([A-Za-z0-9_]+)>([^<]*)<\/\1>/g;
+    let tagMatch: RegExpExecArray | null;
+    while ((tagMatch = tagRegex.exec(itemXml)) !== null) {
+      obj[tagMatch[1]] = tagMatch[2];
+    }
+    items.push(obj);
+  }
+
+  return {
+    resultCode: codeMatch?.[1]?.trim() ?? '',
+    resultMsg: msgMatch?.[1]?.trim() ?? '',
+    items,
+  };
+}
+
+function assertKhoaSuccess(parsed: KhoaParsedBody, label = 'KHOA API'): void {
+  if (parsed.resultCode && parsed.resultCode !== '00') {
+    throw new Error(
+      `${label} 에러 [${parsed.resultCode}]: ${parsed.resultMsg || '알 수 없는 오류'}`
+    );
+  }
+}
+
+function mapObservationItem(raw: Record<string, unknown>): KhoaObservationItem {
+  return {
+    obsvtrNm: toKhoaString(raw.obsvtrNm),
+    lot: toKhoaNumber(raw.lot) ?? 0,
+    lat: toKhoaNumber(raw.lat) ?? 0,
+    obsrvnDt: toKhoaString(raw.obsrvnDt),
+    wndrct: toKhoaNumber(raw.wndrct),
+    wspd: toKhoaNumber(raw.wspd),
+    maxMmntWspd: toKhoaNumber(raw.maxMmntWspd),
+    artmp: toKhoaNumber(raw.artmp),
+    atmpr: toKhoaNumber(raw.atmpr),
+    wtem: toKhoaNumber(raw.wtem),
+    bscTdlvHgt: toKhoaNumber(raw.bscTdlvHgt),
+    slntQty: toKhoaNumber(raw.slntQty),
+    crdir: toKhoaNumber(raw.crdir),
+    crsp: toKhoaNumber(raw.crsp),
   };
 }
 
@@ -85,63 +182,9 @@ export async function fetchKhoaRecentData(options?: {
     throw new Error(`KHOA API 오류 (${response.status}): ${response.statusText}`);
   }
 
-  const text = await response.text();
-
-  // XML 파싱 (KHOA API는 XML 기본)
-  const items = parseKhoaXml(text);
-  return items;
-}
-
-/**
- * KHOA XML 응답을 파싱
- */
-function parseKhoaXml(xml: string): KhoaObservationItem[] {
-  const items: KhoaObservationItem[] = [];
-
-  // resultCode 확인
-  const codeMatch = xml.match(/<resultCode>(\d+)<\/resultCode>/);
-  if (codeMatch && codeMatch[1] !== '00') {
-    const msgMatch = xml.match(/<resultMsg>([^<]+)<\/resultMsg>/);
-    throw new Error(`KHOA API 에러 [${codeMatch[1]}]: ${msgMatch?.[1] || '알 수 없는 오류'}`);
-  }
-
-  // <item> 태그 파싱
-  const itemRegex = /<item>([\s\S]*?)<\/item>/g;
-  let match;
-
-  while ((match = itemRegex.exec(xml)) !== null) {
-    const itemXml = match[1];
-    items.push({
-      obsvtrNm: extractXmlText(itemXml, 'obsvtrNm') || '',
-      lot: parseFloat(extractXmlText(itemXml, 'lot') || '0'),
-      lat: parseFloat(extractXmlText(itemXml, 'lat') || '0'),
-      obsrvnDt: extractXmlText(itemXml, 'obsrvnDt') || '',
-      wndrct: parseXmlNumber(itemXml, 'wndrct'),
-      wspd: parseXmlNumber(itemXml, 'wspd'),
-      maxMmntWspd: parseXmlNumber(itemXml, 'maxMmntWspd'),
-      artmp: parseXmlNumber(itemXml, 'artmp'),
-      atmpr: parseXmlNumber(itemXml, 'atmpr'),
-      wtem: parseXmlNumber(itemXml, 'wtem'),
-      bscTdlvHgt: parseXmlNumber(itemXml, 'bscTdlvHgt'),
-      slntQty: parseXmlNumber(itemXml, 'slntQty'),
-      crdir: parseXmlNumber(itemXml, 'crdir'),
-      crsp: parseXmlNumber(itemXml, 'crsp'),
-    });
-  }
-
-  return items;
-}
-
-function extractXmlText(xml: string, tag: string): string | null {
-  const match = xml.match(new RegExp(`<${tag}>([^<]*)</${tag}>`));
-  return match ? match[1] : null;
-}
-
-function parseXmlNumber(xml: string, tag: string): number | null {
-  const text = extractXmlText(xml, tag);
-  if (!text || text.trim() === '') return null;
-  const num = parseFloat(text);
-  return isNaN(num) ? null : num;
+  const parsed = parseKhoaResponseBody(await response.text());
+  assertKhoaSuccess(parsed, 'KHOA API');
+  return parsed.items.map(mapObservationItem);
 }
 
 /**
@@ -261,21 +304,15 @@ async function fetchKhoaSurveyData(
 export async function fetchKhoaWaterTemp(options?: {
   obsCode?: string; reqDate?: string; min?: number; numOfRows?: number;
 }): Promise<KhoaWaterTempItem[]> {
-  const xml = await fetchKhoaSurveyData(KHOA_WATER_TEMP_URL, options);
-  const items: KhoaWaterTempItem[] = [];
-  const itemRegex = /<item>([\s\S]*?)<\/item>/g;
-  let match;
-  while ((match = itemRegex.exec(xml)) !== null) {
-    const x = match[1];
-    items.push({
-      obsvtrNm: extractXmlText(x, 'obsvtrNm') || '',
-      lat: parseFloat(extractXmlText(x, 'lat') || '0'),
-      lot: parseFloat(extractXmlText(x, 'lot') || '0'),
-      obsrvnDt: extractXmlText(x, 'obsrvnDt') || '',
-      wtem: parseXmlNumber(x, 'wtem'),
-    });
-  }
-  return items;
+  const parsed = parseKhoaResponseBody(await fetchKhoaSurveyData(KHOA_WATER_TEMP_URL, options));
+  assertKhoaSuccess(parsed, 'KHOA 수온 API');
+  return parsed.items.map((raw) => ({
+    obsvtrNm: toKhoaString(raw.obsvtrNm),
+    lat: toKhoaNumber(raw.lat) ?? 0,
+    lot: toKhoaNumber(raw.lot) ?? 0,
+    obsrvnDt: toKhoaString(raw.obsrvnDt),
+    wtem: toKhoaNumber(raw.wtem),
+  }));
 }
 
 /**
@@ -284,22 +321,16 @@ export async function fetchKhoaWaterTemp(options?: {
 export async function fetchKhoaTideLevel(options?: {
   obsCode?: string; reqDate?: string; min?: number; numOfRows?: number;
 }): Promise<KhoaTideLevelItem[]> {
-  const xml = await fetchKhoaSurveyData(KHOA_TIDE_LEVEL_URL, options);
-  const items: KhoaTideLevelItem[] = [];
-  const itemRegex = /<item>([\s\S]*?)<\/item>/g;
-  let match;
-  while ((match = itemRegex.exec(xml)) !== null) {
-    const x = match[1];
-    items.push({
-      obsvtrNm: extractXmlText(x, 'obsvtrNm') || '',
-      lat: parseFloat(extractXmlText(x, 'lat') || '0'),
-      lot: parseFloat(extractXmlText(x, 'lot') || '0'),
-      obsrvnDt: extractXmlText(x, 'obsrvnDt') || '',
-      bscTdlvHgt: parseXmlNumber(x, 'bscTdlvHgt'),
-      tdlvHgt: parseXmlNumber(x, 'tdlvHgt'),
-    });
-  }
-  return items;
+  const parsed = parseKhoaResponseBody(await fetchKhoaSurveyData(KHOA_TIDE_LEVEL_URL, options));
+  assertKhoaSuccess(parsed, 'KHOA 조위 API');
+  return parsed.items.map((raw) => ({
+    obsvtrNm: toKhoaString(raw.obsvtrNm),
+    lat: toKhoaNumber(raw.lat) ?? 0,
+    lot: toKhoaNumber(raw.lot) ?? 0,
+    obsrvnDt: toKhoaString(raw.obsrvnDt),
+    bscTdlvHgt: toKhoaNumber(raw.bscTdlvHgt),
+    tdlvHgt: toKhoaNumber(raw.tdlvHgt),
+  }));
 }
 
 /**
@@ -308,21 +339,15 @@ export async function fetchKhoaTideLevel(options?: {
 export async function fetchKhoaAirPress(options?: {
   obsCode?: string; reqDate?: string; min?: number; numOfRows?: number;
 }): Promise<KhoaAirPressItem[]> {
-  const xml = await fetchKhoaSurveyData(KHOA_AIR_PRESS_URL, options);
-  const items: KhoaAirPressItem[] = [];
-  const itemRegex = /<item>([\s\S]*?)<\/item>/g;
-  let match;
-  while ((match = itemRegex.exec(xml)) !== null) {
-    const x = match[1];
-    items.push({
-      obsvtrNm: extractXmlText(x, 'obsvtrNm') || '',
-      lat: parseFloat(extractXmlText(x, 'lat') || '0'),
-      lot: parseFloat(extractXmlText(x, 'lot') || '0'),
-      obsrvnDt: extractXmlText(x, 'obsrvnDt') || '',
-      atmpr: parseXmlNumber(x, 'atmpr'),
-    });
-  }
-  return items;
+  const parsed = parseKhoaResponseBody(await fetchKhoaSurveyData(KHOA_AIR_PRESS_URL, options));
+  assertKhoaSuccess(parsed, 'KHOA 기압 API');
+  return parsed.items.map((raw) => ({
+    obsvtrNm: toKhoaString(raw.obsvtrNm),
+    lat: toKhoaNumber(raw.lat) ?? 0,
+    lot: toKhoaNumber(raw.lot) ?? 0,
+    obsrvnDt: toKhoaString(raw.obsrvnDt),
+    atmpr: toKhoaNumber(raw.atmpr),
+  }));
 }
 
 /**
@@ -388,21 +413,14 @@ export async function fetchKhoaBuoyData(options?: {
   const response = await fetch(`${KHOA_BUOY_RECENT_URL}?${params.toString()}`);
   if (!response.ok) throw new Error(`KHOA 부이 API 오류 (${response.status})`);
 
-  const xml = await response.text();
-  const codeMatch = xml.match(/<resultCode>(\d+)<\/resultCode>/);
-  if (codeMatch && codeMatch[1] !== '00') return [];
+  const parsed = parseKhoaResponseBody(await response.text());
+  if (parsed.resultCode && parsed.resultCode !== '00') return [];
 
-  const items: { obsrvnDt: string; crsp: number | null; crdir: number | null }[] = [];
-  const itemRegex = /<item>([\s\S]*?)<\/item>/g;
-  let match;
-  while ((match = itemRegex.exec(xml)) !== null) {
-    items.push({
-      obsrvnDt: match[1].match(/<obsrvnDt>([^<]*)<\/obsrvnDt>/)?.[1] ?? '',
-      crsp: parseXmlNumber(match[1], 'crsp'),
-      crdir: parseXmlNumber(match[1], 'crdir'),
-    });
-  }
-  return items;
+  return parsed.items.map((raw) => ({
+    obsrvnDt: toKhoaString(raw.obsrvnDt),
+    crsp: toKhoaNumber(raw.crsp),
+    crdir: toKhoaNumber(raw.crdir),
+  }));
 }
 
 // ─── 조류예보 (API 7: 최강창낙조) ───
@@ -444,31 +462,16 @@ export async function fetchKhoaTidalCurrentForecast(options?: {
     throw new Error(`KHOA 조류예보 API 오류 (${response.status}): ${response.statusText}`);
   }
 
-  const xml = await response.text();
+  const parsed = parseKhoaResponseBody(await response.text());
+  assertKhoaSuccess(parsed, 'KHOA 조류예보 API');
 
-  // resultCode 확인
-  const codeMatch = xml.match(/<resultCode>(\d+)<\/resultCode>/);
-  if (codeMatch && codeMatch[1] !== '00') {
-    const msgMatch = xml.match(/<resultMsg>([^<]+)<\/resultMsg>/);
-    throw new Error(`KHOA 조류예보 API 에러 [${codeMatch[1]}]: ${msgMatch?.[1] || '알 수 없는 오류'}`);
-  }
-
-  const items: KhoaTidalCurrentItem[] = [];
-  const itemRegex = /<item>([\s\S]*?)<\/item>/g;
-  let match;
-
-  while ((match = itemRegex.exec(xml)) !== null) {
-    const itemXml = match[1];
-    items.push({
-      obsvtrNm: extractXmlText(itemXml, 'obsvtrNm') || '',
-      obsrvnDt: extractXmlText(itemXml, 'obsrvnDt') || '',
-      crntFcstFldEbb: extractXmlText(itemXml, 'crntFcstFldEbb') || '',
-      crdir: parseXmlNumber(itemXml, 'crdir'),
-      crsp: parseXmlNumber(itemXml, 'crsp'),
-    });
-  }
-
-  return items;
+  return parsed.items.map((raw) => ({
+    obsvtrNm: toKhoaString(raw.obsvtrNm),
+    obsrvnDt: toKhoaString(raw.predcDt || raw.obsrvnDt),
+    crntFcstFldEbb: toKhoaString(raw.crntFcstFldEbb),
+    crdir: toKhoaNumber(raw.crdir),
+    crsp: toKhoaNumber(raw.crsp),
+  }));
 }
 
 /**
@@ -511,25 +514,20 @@ export async function getTodayTidalCurrentForecast(obsCode?: string): Promise<{
       const response = await fetch(`${KHOA_TIDAL_CURRENT_URL}?${params.toString()}`);
       if (!response.ok) continue;
 
-      const xml = await response.text();
-      const codeMatch = xml.match(/<resultCode>(\d+)<\/resultCode>/);
-      if (codeMatch && codeMatch[1] !== '00') continue;
+      const parsed = parseKhoaResponseBody(await response.text());
+      if (parsed.resultCode && parsed.resultCode !== '00') continue;
 
       const items: KhoaTidalCurrentItem[] = [];
-      const itemRegex = /<item>([\s\S]*?)<\/item>/g;
-      let match;
-      while ((match = itemRegex.exec(xml)) !== null) {
-        const x = match[1];
-        const dt = extractXmlText(x, 'predcDt') || extractXmlText(x, 'obsrvnDt') || '';
-        if (dt.startsWith(todayStr)) {
-          items.push({
-            obsvtrNm: extractXmlText(x, 'obsvtrNm') || '',
-            obsrvnDt: dt,
-            crntFcstFldEbb: extractXmlText(x, 'crntFcstFldEbb') || '',
-            crdir: parseXmlNumber(x, 'crdir'),
-            crsp: parseXmlNumber(x, 'crsp'),
-          });
-        }
+      for (const raw of parsed.items) {
+        const dt = toKhoaString(raw.predcDt || raw.obsrvnDt);
+        if (!dt.startsWith(todayStr)) continue;
+        items.push({
+          obsvtrNm: toKhoaString(raw.obsvtrNm),
+          obsrvnDt: dt,
+          crntFcstFldEbb: toKhoaString(raw.crntFcstFldEbb),
+          crdir: toKhoaNumber(raw.crdir),
+          crsp: toKhoaNumber(raw.crsp),
+        });
       }
 
       if (items.length === 0) continue;
