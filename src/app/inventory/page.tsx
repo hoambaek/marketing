@@ -764,6 +764,8 @@ function NfcWriteModal({
   const [confirmReset, setConfirmReset] = useState(false);
   const [index, setIndex] = useState(0);
   const abortRef = useRef<AbortController | null>(null);
+  // 'permission' 권한 확인 중 · 'waiting' 태그 대기 · 'tagged' 태그 인식 후 기록 중
+  const [writePhase, setWritePhase] = useState<'permission' | 'waiting' | 'tagged'>('permission');
   // 못 쓰는 이유를 문장으로 받는다. https 문제인지 브라우저 문제인지 현장에서 갈라 봐야 한다.
   const nfcBlocker = typeof window === 'undefined' ? null : getNfcBlocker();
 
@@ -846,7 +848,12 @@ function NfcWriteModal({
     setWriteStatus('writing');
     setErrorMessage('');
     try {
-      const result = await writeNfcTag(nfcCode, { signal: controller.signal });
+      setWritePhase('permission');
+      const result = await writeNfcTag(nfcCode, {
+        signal: controller.signal,
+        onReady: () => setWritePhase('waiting'),
+        onTagSeen: () => setWritePhase('tagged'),
+      });
       if (result.success) {
         setWriteStatus('success');
         onWritten?.(nfcCode);
@@ -855,7 +862,11 @@ function NfcWriteModal({
         setWriteStatus('idle');
       } else if (result.aborted) {
         setWriteStatus('error');
-        setErrorMessage('30초 동안 태그를 인식하지 못했습니다. 태그를 뒷면 카메라 바로 아래에 붙이고, 두꺼운 케이스는 벗긴 뒤 다시 시도하세요.');
+        setErrorMessage(
+          result.tagSeen
+            ? '태그는 인식했지만 30초 동안 기록되지 않았습니다. 잠긴(읽기 전용) 태그이거나 용량이 모자란 태그일 수 있습니다. 다른 태그로 시도해 보세요.'
+            : '30초 동안 태그를 인식하지 못했습니다. 태그를 뒷면 카메라 바로 아래에 붙이고 두꺼운 케이스는 벗겨 보세요. 그래도 안 되면 NTAG213/215/216이 아닌 태그(예: Mifare Classic)라 갤럭시에서 쓰지 못하는 것일 수 있습니다.'
+        );
       } else {
         setWriteStatus('error');
         setErrorMessage(result.error || 'NFC 쓰기 실패');
@@ -1038,8 +1049,24 @@ function NfcWriteModal({
                   >
                     <Loader2 className="w-8 h-8 text-cyan-400 animate-spin mx-auto" />
                   </motion.div>
-                  <p className="text-white/60 text-sm mt-3">NFC 태그를 기기 뒷면에 가까이 대주세요...</p>
-                  <p className="text-white/30 text-[11px] mt-1.5">갤럭시는 뒷면 카메라 바로 아래가 안테나입니다. 3초쯤 붙여 두세요.</p>
+                  {writePhase === 'permission' && (
+                    <>
+                      <p className="text-white/60 text-sm mt-3">NFC 권한을 확인하는 중입니다...</p>
+                      <p className="text-white/30 text-[11px] mt-1.5">권한 요청이 뜨면 &lsquo;허용&rsquo;을 눌러주세요. 아직 태그를 대지 마세요.</p>
+                    </>
+                  )}
+                  {writePhase === 'waiting' && (
+                    <>
+                      <p className="text-white/60 text-sm mt-3">이제 NFC 태그를 기기 뒷면에 대주세요</p>
+                      <p className="text-white/30 text-[11px] mt-1.5">갤럭시는 뒷면 카메라 바로 아래가 안테나입니다. 3초쯤 붙여 두세요.</p>
+                    </>
+                  )}
+                  {writePhase === 'tagged' && (
+                    <>
+                      <p className="text-cyan-400/90 text-sm mt-3">태그 인식됨 · 기록하는 중입니다</p>
+                      <p className="text-white/30 text-[11px] mt-1.5">떼지 말고 그대로 대고 계세요.</p>
+                    </>
+                  )}
                   <button
                     onClick={cancelWrite}
                     className="mt-4 px-4 py-2 rounded-xl bg-white/[0.04] border border-white/[0.1] text-white/60 hover:bg-white/[0.08] text-sm"

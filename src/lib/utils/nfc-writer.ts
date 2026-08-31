@@ -9,6 +9,8 @@ export type NfcWriteResult = {
   error?: string;
   /** 취소(닫기·타임아웃)로 끝난 경우. 에러 화면 대신 조용히 되돌린다 */
   aborted?: boolean;
+  /** 대기 중 Chrome이 태그를 NDEF로 인식했는지. 실패 원인을 가르는 근거다. */
+  tagSeen?: boolean;
 };
 
 export function isNfcSupported(): boolean {
@@ -48,9 +50,37 @@ async function isPermissionDenied(): Promise<boolean> {
 const PERMISSION_HELP =
   'NFC 권한이 거부돼 있습니다. 주소창 왼쪽 자물쇠 → 권한(사이트 설정) → NFC를 "허용"으로 바꾼 뒤 다시 시도하세요.';
 
+/** DOMException 이름을 사용자 문장으로 옮긴다 */
+function describe(error: unknown): string {
+  const name = error instanceof DOMException ? error.name : '';
+
+  if (name === 'NotAllowedError') return PERMISSION_HELP;
+  if (name === 'NotSupportedError') {
+    return '휴대폰의 NFC가 꺼져 있거나 이 태그에는 쓸 수 없습니다. 설정 → 연결 → NFC를 켜고 다시 시도하세요. (NotSupportedError)';
+  }
+  if (name === 'NotReadableError') {
+    return '태그를 읽지 못했습니다. 태그를 뒷면 카메라 바로 아래에 붙이고 3초쯤 대고 계세요. (NotReadableError)';
+  }
+  if (name === 'NetworkError') {
+    return '쓰는 도중 태그가 떨어졌거나 태그가 잠겨 있습니다. 움직이지 말고 다시 시도하세요. (NetworkError)';
+  }
+  if (name === 'InvalidStateError') {
+    return '이미 다른 NFC 작업이 진행 중입니다. 잠시 후 다시 시도하세요. (InvalidStateError)';
+  }
+
+  const detail = error instanceof Error ? error.message : String(error);
+  return `NFC 쓰기 실패: ${detail}${name ? ` (${name})` : ''}`;
+}
+
 export async function writeNfcTag(
   nfcCode: string,
-  options?: { signal?: AbortSignal }
+  options?: {
+    signal?: AbortSignal;
+    /** 권한이 확인되고 리더 모드가 켜진 시점. 이때부터 태그를 대라고 안내한다 */
+    onReady?: () => void;
+    /** Chrome이 태그를 NDEF로 인식한 시점 */
+    onTagSeen?: () => void;
+  }
 ): Promise<NfcWriteResult> {
   const blocker = getNfcBlocker();
   if (blocker) {
@@ -61,52 +91,48 @@ export async function writeNfcTag(
     return { success: false, error: PERMISSION_HELP };
   }
 
+  let tagSeen = false;
+
   try {
     const reader = new NDEFReader();
-    const url = getBottleUrl(nfcCode);
 
-    // signal이 없으면 write()는 태그가 닿을 때까지 무한정 기다린다. 호출자가 반드시 넘긴다.
+    // 태그를 실제로 인식했는지 남긴다. 인식조차 못 한 것과 인식하고 못 쓴 것은 처방이 다르다.
+    const markSeen = () => {
+      if (tagSeen) return;
+      tagSeen = true;
+      options?.onTagSeen?.();
+    };
+    reader.addEventListener('reading', markSeen);
+    reader.addEventListener('readingerror', markSeen);
+
+    // scan()을 먼저 걸어 권한 프롬프트를 띄우고 리더 모드를 켠다.
+    // write()만 부르면 프롬프트가 떠 있는 동안 안드로이드 기본 태그 처리가 태그를 가져가,
+    // "태그는 읽히는데 아무것도 안 써지는" 상태가 된다.
+    // scan이 실패해도 write는 시도한다 — 기기에 따라 write만 되는 경우가 있다.
+    try {
+      await reader.scan({ signal: options?.signal });
+    } catch (scanError) {
+      const name = scanError instanceof DOMException ? scanError.name : '';
+      if (name === 'AbortError') {
+        return { success: false, aborted: true, tagSeen, error: 'NFC 쓰기를 취소했습니다' };
+      }
+      if (name === 'NotAllowedError') {
+        return { success: false, tagSeen, error: PERMISSION_HELP };
+      }
+    }
+
+    options?.onReady?.();
+
     await reader.write(
-      { records: [{ recordType: 'url', data: url }] },
+      { records: [{ recordType: 'url', data: getBottleUrl(nfcCode) }] },
       { overwrite: true, signal: options?.signal }
     );
 
-    return { success: true };
+    return { success: true, tagSeen };
   } catch (error) {
-    const name = error instanceof DOMException ? error.name : '';
-
-    if (name === 'AbortError') {
-      return { success: false, aborted: true, error: 'NFC 쓰기를 취소했습니다' };
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      return { success: false, aborted: true, tagSeen, error: 'NFC 쓰기를 취소했습니다' };
     }
-    if (name === 'NotAllowedError') {
-      return { success: false, error: PERMISSION_HELP };
-    }
-    if (name === 'NotSupportedError') {
-      return {
-        success: false,
-        error: '휴대폰의 NFC가 꺼져 있거나 이 태그에는 쓸 수 없습니다. 설정 → 연결 → NFC를 켜고 다시 시도하세요. (NotSupportedError)',
-      };
-    }
-    if (name === 'NotReadableError') {
-      return {
-        success: false,
-        error: '태그를 읽지 못했습니다. 태그를 뒷면 카메라 바로 아래에 붙이고 3초쯤 대고 계세요. (NotReadableError)',
-      };
-    }
-    if (name === 'NetworkError') {
-      return {
-        success: false,
-        error: '쓰는 도중 태그가 떨어졌습니다. 움직이지 말고 다시 시도하세요. (NetworkError)',
-      };
-    }
-    if (name === 'InvalidStateError') {
-      return {
-        success: false,
-        error: '이미 다른 NFC 작업이 진행 중입니다. 잠시 후 다시 시도하세요. (InvalidStateError)',
-      };
-    }
-
-    const detail = error instanceof Error ? error.message : String(error);
-    return { success: false, error: `NFC 쓰기 실패: ${detail}${name ? ` (${name})` : ''}` };
+    return { success: false, tagSeen, error: describe(error) };
   }
 }
