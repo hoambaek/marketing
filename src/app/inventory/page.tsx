@@ -1,10 +1,11 @@
 'use client';
 
 import { motion, AnimatePresence } from 'framer-motion';
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useInventoryStore } from '@/lib/store/inventory-store';
 import { toast } from '@/lib/store/toast-store';
 import { logger } from '@/lib/logger';
+import { writeNfcTag, getNfcBlocker } from '@/lib/utils/nfc-writer';
 import { Footer } from '@/components/layout/Footer';
 import {
   PRODUCTS,
@@ -567,17 +568,20 @@ function BatchAdjustModal({
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-lg text-white/30 font-mono shrink-0">#</span>
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    value={serial}
-                    onChange={(e) => setSerialInput(e.target.value.replace(/[^0-9]/g, ''))}
-                    placeholder="번호"
-                    className={`flex-1 px-4 py-3 rounded-xl bg-white/[0.04] border text-white/90 placeholder:text-white/30 focus:outline-none ${
-                      serialError ? 'border-red-500/40 focus:border-red-500/60' : 'border-white/[0.1] focus:border-[#b7916e]/50'
-                    }`}
-                  />
+                  {/* #는 입력칸 안에 겹쳐 둔다. 밖에 두면 좁은 화면에서 줄이 넘쳐 가로 스크롤이 생긴다 */}
+                  <div className="relative flex-1 min-w-0">
+                    <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-lg text-white/30 font-mono">#</span>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      value={serial}
+                      onChange={(e) => setSerialInput(e.target.value.replace(/[^0-9]/g, ''))}
+                      placeholder="번호"
+                      className={`w-full pl-9 pr-4 py-3 rounded-xl bg-white/[0.04] border text-white/90 placeholder:text-white/30 focus:outline-none ${
+                        serialError ? 'border-red-500/40 focus:border-red-500/60' : 'border-white/[0.1] focus:border-[#b7916e]/50'
+                      }`}
+                    />
+                  </div>
                   {serialTouched && suggestedSerial != null && String(suggestedSerial) !== serial && (
                     <button
                       onClick={() => setSerialInput(null)}
@@ -759,18 +763,27 @@ function NfcWriteModal({
   const [copied, setCopied] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
   const [index, setIndex] = useState(0);
-  const nfcSupported = typeof window !== 'undefined' && 'NDEFReader' in window;
+  const abortRef = useRef<AbortController | null>(null);
+  // 못 쓰는 이유를 문장으로 받는다. https 문제인지 브라우저 문제인지 현장에서 갈라 봐야 한다.
+  const nfcBlocker = typeof window === 'undefined' ? null : getNfcBlocker();
 
   const active = bottles[index];
   const nfcCode = active?.nfcCode ?? '';
   const bottleUrl = `https://musedemaree.com/b/${nfcCode}`;
 
+  /** 진행 중인 NFC 쓰기를 멈춘다. write()는 태그가 닿을 때까지 스스로 끝나지 않는다. */
+  const cancelWrite = () => {
+    abortRef.current?.abort();
+    abortRef.current = null;
+  };
+
   /**
-   * 쓰는 도중에는 닫지 않는다. 그 외에는 자유롭게 닫아도 된다 —
-   * 넘버링 병은 그리드에서, 배치 병은 거래 내역의 NFC 열에서 언제든 다시 열 수 있다.
+   * 언제든 닫는다. 쓰는 중이면 그 쓰기를 취소하고 닫는다 —
+   * 예전엔 writing이면 막았는데, 태그를 못 읽으면 그 상태로 멈춰 모달이 영영 안 닫혔다.
    */
   const guardedClose = () => {
-    if (writeStatus === 'writing') return;
+    cancelWrite();
+    setWriteStatus('idle');
     onClose();
   };
 
@@ -785,7 +798,7 @@ function NfcWriteModal({
   };
 
   const goTo = (next: number) => {
-    if (writeStatus === 'writing') return;
+    cancelWrite();
     setIndex(next);
     setWriteStatus('idle');
     setErrorMessage('');
@@ -803,6 +816,9 @@ function NfcWriteModal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, initialCode]);
 
+  // 모달이 사라져도 NFC 대기가 남아 있으면 다음 쓰기가 InvalidStateError로 막힌다
+  useEffect(() => () => { abortRef.current?.abort(); }, []);
+
   useEffect(() => {
     if (writeStatus !== 'success') return;
     const timer = setTimeout(() => {
@@ -817,20 +833,39 @@ function NfcWriteModal({
 
   const handleWrite = async () => {
     if (!nfcCode) return;
+
+    // 앞선 대기가 살아 있으면 새 write가 InvalidStateError로 막힌다
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
+    // write()는 태그가 닿을 때까지 영원히 기다린다. 30초면 위치가 틀린 것으로 본다.
+    let timedOut = false;
+    const timer = setTimeout(() => { timedOut = true; controller.abort(); }, 30000);
+
     setWriteStatus('writing');
+    setErrorMessage('');
     try {
-      const { writeNfcTag } = await import('@/lib/utils/nfc-writer');
-      const result = await writeNfcTag(nfcCode);
+      const result = await writeNfcTag(nfcCode, { signal: controller.signal });
       if (result.success) {
         setWriteStatus('success');
         onWritten?.(nfcCode);
+      } else if (result.aborted && !timedOut) {
+        // 사용자가 취소한 것이므로 에러 화면 없이 되돌린다
+        setWriteStatus('idle');
+      } else if (result.aborted) {
+        setWriteStatus('error');
+        setErrorMessage('30초 동안 태그를 인식하지 못했습니다. 태그를 뒷면 카메라 바로 아래에 붙이고, 두꺼운 케이스는 벗긴 뒤 다시 시도하세요.');
       } else {
         setWriteStatus('error');
         setErrorMessage(result.error || 'NFC 쓰기 실패');
       }
-    } catch {
+    } catch (error) {
       setWriteStatus('error');
-      setErrorMessage('NFC 쓰기 중 오류가 발생했습니다');
+      setErrorMessage(error instanceof Error ? `NFC 쓰기 중 오류: ${error.message}` : 'NFC 쓰기 중 오류가 발생했습니다');
+    } finally {
+      clearTimeout(timer);
+      if (abortRef.current === controller) abortRef.current = null;
     }
   };
 
@@ -978,7 +1013,7 @@ function NfcWriteModal({
 
               {active && writeStatus === 'idle' && (
                 <>
-                  {nfcSupported ? (
+                  {nfcBlocker === null ? (
                     <button
                       onClick={handleWrite}
                       className="w-full px-4 py-3 rounded-xl bg-cyan-500/20 border border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/30 flex items-center justify-center gap-2 font-medium"
@@ -987,8 +1022,8 @@ function NfcWriteModal({
                       NFC 태그에 쓰기
                     </button>
                   ) : (
-                    <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400/80 text-xs">
-                      이 기기에서는 NFC 쓰기를 지원하지 않습니다. Android Chrome에서 사용하거나, 위 NFC 코드를 수동으로 프로그래밍하세요.
+                    <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400/80 text-xs leading-relaxed">
+                      {nfcBlocker} 위 NFC 코드를 다른 앱으로 직접 기록해도 됩니다.
                     </div>
                   )}
                 </>
@@ -1004,6 +1039,13 @@ function NfcWriteModal({
                     <Loader2 className="w-8 h-8 text-cyan-400 animate-spin mx-auto" />
                   </motion.div>
                   <p className="text-white/60 text-sm mt-3">NFC 태그를 기기 뒷면에 가까이 대주세요...</p>
+                  <p className="text-white/30 text-[11px] mt-1.5">갤럭시는 뒷면 카메라 바로 아래가 안테나입니다. 3초쯤 붙여 두세요.</p>
+                  <button
+                    onClick={cancelWrite}
+                    className="mt-4 px-4 py-2 rounded-xl bg-white/[0.04] border border-white/[0.1] text-white/60 hover:bg-white/[0.08] text-sm"
+                  >
+                    취소
+                  </button>
                 </div>
               )}
 
@@ -1517,15 +1559,15 @@ function EditTransactionModal({
               {editsSerial && (
                 <div>
                   <label className="block text-xs text-white/40 uppercase tracking-wider mb-2">한정번호</label>
-                  <div className="flex items-center gap-2">
-                    <span className="text-lg text-white/30 font-mono shrink-0">#</span>
+                  <div className="relative">
+                    <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-lg text-white/30 font-mono">#</span>
                     <input
                       type="text"
                       inputMode="numeric"
                       value={serial}
                       onChange={(e) => setSerialInput(e.target.value.replace(/[^0-9]/g, ''))}
                       placeholder="번호"
-                      className={`flex-1 px-4 py-3 rounded-xl bg-white/[0.04] border text-white/90 placeholder:text-white/30 focus:outline-none ${
+                      className={`w-full pl-9 pr-4 py-3 rounded-xl bg-white/[0.04] border text-white/90 placeholder:text-white/30 focus:outline-none ${
                         serialError ? 'border-red-500/40 focus:border-red-500/60' : 'border-white/[0.1] focus:border-[#b7916e]/50'
                       }`}
                     />
