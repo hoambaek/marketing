@@ -1502,3 +1502,46 @@ export function simulateOptimalImmersionMonth(
     recommendation,
   };
 }
+
+/**
+ * 저장된 AI 판정(optimal_harvest_start/end_months)에 곡선을 맞추는 시간축 보정.
+ *
+ * 같은 예측이 낸 agingFactors로 곡선을 그리면 피크가 저장된 인양 창 밖으로
+ * 벗어나는 경우가 있다 — 실측 사례: 저장 10~15개월인데 곡선 피크는 26개월로,
+ * 판정과 화면이 정반대를 가리켰다. AI 프롬프트가 "harvestWindow와 timeScale이
+ * 모순되지 않게" 지시하지만 응답을 검증하지 않아 그대로 통과한다.
+ *
+ * 저장된 판정을 정본으로 두고 timeScale만 창 중앙에 맞춰 되돌린다.
+ * 저장된 예측 레코드는 건드리지 않는다(표시 계수만 보정) — 예측을 다시 실행하기
+ * 전까지 화면 값이 고정된다.
+ *
+ * 발효 카테고리(약주)는 dose 엔진이 인양 시점의 단일 소스이므로 호출부에서 제외한다.
+ */
+export function calibrateFactorsToSavedHarvestWindow(params: {
+  product: AgingProduct;
+  config: ParsedUAPSConfig;
+  factors?: AgingFactors;
+  weights?: QualityWeights;
+  monthlyOceanProfiles?: MonthlyOceanProfile[];
+  immersionMonth?: number;
+  savedStartMonths?: number | null;
+  savedEndMonths?: number | null;
+}): AgingFactors | undefined {
+  const { product, config, factors, weights, monthlyOceanProfiles, immersionMonth,
+          savedStartMonths, savedEndMonths } = params;
+
+  if (!factors) return factors;
+  if (savedStartMonths == null || savedEndMonths == null) return factors;
+  if (savedEndMonths <= savedStartMonths) return factors;
+
+  const targetPeak = (savedStartMonths + savedEndMonths) / 2;
+  const uncalibrated = calculateOptimalHarvestWindow(
+    product, config, factors, weights, monthlyOceanProfiles, immersionMonth
+  );
+  const rawPeak = uncalibrated?.peakMonth;
+
+  // 1개월 이내면 이미 정합 — 건드리지 않는다
+  if (!rawPeak || Math.abs(rawPeak - targetPeak) < 1) return factors;
+
+  return { ...factors, timeScale: (factors.timeScale ?? 1) * (rawPeak / targetPeak) };
+}

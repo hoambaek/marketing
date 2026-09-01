@@ -77,6 +77,7 @@ import {
   predictFlavorProfileStatistical,
   simulateDepthQualities,
   deriveKineticFactorFromOcean,
+  calibrateFactorsToSavedHarvestWindow,
 } from '@/lib/utils/uaps-engine';
 import {
   generateTimelineDataRouted,
@@ -193,8 +194,22 @@ export default function UAPSPage() {
   }, [selectedProduct]);
 
   // AI 예측의 agingFactors/qualityWeights가 있으면 타임라인에 주입
-  const aiAgingFactors = latestPrediction?.agingFactorsJson ?? undefined;
+  const rawAgingFactors = latestPrediction?.agingFactorsJson ?? undefined;
   const aiQualityWeights = latestPrediction?.qualityWeightsJson ?? undefined;
+
+  /* 저장된 AI 판정이 정본 — 곡선 피크가 그 창을 벗어나면 시간축을 되맞춘다.
+     약주는 dose 엔진이 인양 시점의 단일 소스라 보정 대상이 아니다. */
+  const aiAgingFactors = useMemo(() => {
+    if (!selectedProduct || isFermentedCategory(selectedProduct.productCategory)) return rawAgingFactors;
+    return calibrateFactorsToSavedHarvestWindow({
+      product: selectedProduct, config,
+      factors: rawAgingFactors, weights: aiQualityWeights,
+      monthlyOceanProfiles: monthlyOceanProfiles ?? undefined,
+      immersionMonth,
+      savedStartMonths: latestPrediction?.optimalHarvestStartMonths,
+      savedEndMonths: latestPrediction?.optimalHarvestEndMonths,
+    });
+  }, [rawAgingFactors, aiQualityWeights, selectedProduct, latestPrediction, config, monthlyOceanProfiles, immersionMonth]);
 
   // 약주(dose 엔진)는 샴페인 계수(TCI/FRI/BRI)를 쓰지 않으므로 보정 계수 UI를 숨긴다
   const isFermented = isFermentedCategory(selectedProduct?.productCategory);
