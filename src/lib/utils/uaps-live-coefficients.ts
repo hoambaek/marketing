@@ -57,21 +57,88 @@ const KTCI_MAX_SPEED = 80;
 // FRI 정규화 기준값 (아레니우스 계산 결과)
 // ═══════════════════════════════════════════════════════════════════════════
 
-/** FRI 원시값 하한 (4°C 기준, 산화 최소) */
-const FRI_RAW_MIN = 0.56;
+/**
+ * 정규화 앵커 (2026-09-01 재보정, 대표 지시).
+ *
+ * 입력은 표층이 아니라 **30m 보정 수온**이다
+ * (estimateBottomTemperature, `ocean-data-store`에서 1회 적용).
+ * ocean_data_daily 실적재 562일(2025-01-01~2026-09-01) 기준 연간 범위 5.12~21.66°C.
+ *
+ * 두 앵커의 근거가 다르다:
+ * - 하한(최적): 연간 최저 5.12°C에 1.5°C 여유 → 3.5°C
+ * - 상한(최악): **20°C에서 FRI가 정확히 0.5가 되도록** 역산 (대표 지시 2026-09-01).
+ *   해저 30m의 20°C는 지상 셀러 기준으로는 여전히 양호한 조건이라 게이지가
+ *   바닥을 치면 안 된다는 판단. 결과적으로 FRI 0에 해당하는 온도는 25.6°C.
+ *
+ * 종전 상수(0.56 / 2.12)는 각각 9.12°C / 20.59°C여서 실측 범위 안쪽에서 잘렸다.
+ * 그 결과 겨울 154일이 1.0에, 여름 58일이 0.0에 포화돼 지표가 아니라 직선이 됐다.
+ *
+ * ⚠️ 위 범위는 DB 백필(Open-Meteo 격자) 기준이다. KHOA 완도항 실측이 우선
+ * 적용되는 최근 구간은 여름 수온이 더 낮게 들어올 수 있는데(격자 모델의 연안
+ * 과열, 세션 메모리 project_mdm_ocean_data_conventions 참조), 그 경우 FRI는
+ * 더 높게 나올 뿐 클램프되지 않으므로 앵커를 다시 잡을 필요는 없다.
+ */
+const FRI_T_BEST_C = 3.5;
+const FRI_T_MID_C = 20;
 
-/** FRI 원시값 상한 (25°C 기준, 산화 최대) */
-const FRI_RAW_MAX = 2.12;
+/** 앵커 온도의 아레니우스 원시값 (상수 정의 시점에 1회 계산) */
+function friRawAt(celsius: number): number {
+  return Math.exp(
+    (-EA_OXIDATION / R) * (1 / (celsius + KELVIN_OFFSET) - 1 / (T_REF_C + KELVIN_OFFSET))
+  );
+}
+
+/** FRI 원시값 하한 (3.5°C 기준 = 산화 최소, ≈0.280) */
+const FRI_RAW_MIN = friRawAt(FRI_T_BEST_C);
+
+/**
+ * FRI 원시값 상한 (≈3.691, 온도로는 25.6°C).
+ * FRI_T_MID_C가 정확히 0.5가 되도록 유도: (MIN + MAX) / 2 = raw(20°C)
+ */
+const FRI_RAW_MAX = 2 * friRawAt(FRI_T_MID_C) - FRI_RAW_MIN;
 
 // ═══════════════════════════════════════════════════════════════════════════
 // BRI 정규화 기준값
 // ═══════════════════════════════════════════════════════════════════════════
 
-/** BRI 원시값 하한 */
-const BRI_RAW_MIN = 0.5;
+/**
+ * 정규화 앵커 (2026-09-01 재보정). FRI와 같은 규칙을 적용한다.
+ *
+ * 종전 상수(0.5 / 5.0)는 30m 운용 수압(≈3.98atm)에서 실제로 나오는 raw 범위
+ * 3.20~5.21과 어긋나 눈금의 41%만 쓰였고, 겨울 29일이 1.0에 포화했다.
+ *
+ * - 상한(최적): 3.5°C @ 운용 수압 → ≈5.461
+ * - 하한(최악): **20°C에서 BRI가 정확히 0.5가 되도록** 역산 → ≈1.250
+ *
+ * BRI는 수압이 지배적이라(30m에서 4atm 고정) 온도 기여가 ±20%뿐이다. 그래서
+ * 하한 1.250은 실제 도달하는 값이 아니라 "0으로 읽어야 할 조건"의 정의다
+ * (같은 raw를 얕고 따뜻한 조건에서 만나면 그때가 0). 실측 562일은 0.46~0.94에
+ * 들어오며 클램프되지 않는다.
+ */
+const BRI_T_BEST_C = 3.5;
+const BRI_T_MID_C = 20;
 
-/** BRI 원시값 상한 */
-const BRI_RAW_MAX = 5.0;
+/** BRI 정규화 기준 수압 (atm) — 운용 수심 30m: 1 + 30 × 0.0993 */
+const BRI_P_OPERATING = 3.98;
+
+/** 앵커 온도의 헨리·반트호프 원시값 (상수 정의 시점에 1회 계산) */
+function briRawAt(celsius: number, pressureAtm: number): number {
+  return (
+    Math.exp(
+      (-DELTA_SOL_H_CO2 / R) * (1 / (celsius + KELVIN_OFFSET) - 1 / (T_REF_C + KELVIN_OFFSET))
+    ) *
+    (pressureAtm / P_REF_ATM)
+  );
+}
+
+/** BRI 원시값 상한 (3.5°C @ 3.98atm, ≈5.461) */
+const BRI_RAW_MAX = briRawAt(BRI_T_BEST_C, BRI_P_OPERATING);
+
+/**
+ * BRI 원시값 하한 (≈1.250).
+ * BRI_T_MID_C가 정확히 0.5가 되도록 유도: (MIN + MAX) / 2 = raw(20°C)
+ */
+const BRI_RAW_MIN = 2 * briRawAt(BRI_T_MID_C, BRI_P_OPERATING) - BRI_RAW_MAX;
 
 // ═══════════════════════════════════════════════════════════════════════════
 // 종합 점수 가중치
